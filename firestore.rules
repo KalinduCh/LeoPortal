@@ -4,38 +4,41 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Users Collection
     match /users/{userId} {
-      // A user can read and write (create, update, delete) their own document
+      // Authenticated users can read and write (create, update, delete) their own document
       allow read, write: if request.auth != null && request.auth.uid == userId;
       
-      // An admin can list, get (read), AND DELETE any user document.
-      allow list, get, delete: if request.auth != null && 
-                                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Admins can perform all CRUD operations on any user document
+      allow list, get, create, update, delete: if request.auth != null && 
+                                              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Events Collection
     match /events/{eventId} {
       // Any authenticated user can read events
       allow read: if request.auth != null;
+      
       // Only admins can create, update, or delete events
       allow create, update, delete: if request.auth != null && 
                                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Attendance Collection
     match /attendance/{attendanceId} {
-      // User can create their own attendance record (ensuring userId in record matches auth uid)
+      // Users can create their own attendance record
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
-      // User can read their own attendance records
+      // Users can read their own attendance records
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       
-      // Admins can read all attendance records (optional - uncomment if needed for reporting)
-      // allow read: if request.auth != null && 
-      //                 (resource.data.userId == request.auth.uid || 
-      //                  get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-
-      // Disallow updates or deletes by users for now
-      allow update, delete: if false;
+      // Admins can perform all CRUD operations on any attendance record.
+      // This allows admins to view all attendance, and manually add/edit/delete records if necessary.
+      allow list, get, create, update, delete: if request.auth != null && 
+                                 get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Regular users cannot update or delete attendance records directly after creation (admins can)
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-
   }
 }
