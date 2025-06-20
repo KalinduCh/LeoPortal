@@ -2,7 +2,7 @@
 // src/components/events/event-card.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Event, UserRole, AttendanceRecord, User } from '@/types';
@@ -10,47 +10,50 @@ import { CalendarDays, MapPin, Info, CheckCircle, XCircle, Clock, Navigation, Al
 import { format, parseISO, isFuture, isPast } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentPosition, calculateDistanceInMeters, MAX_ATTENDANCE_DISTANCE_METERS } from '@/lib/geolocation';
-import { markUserAttendance } from '@/services/attendanceService';
+import { markUserAttendance, type MarkAttendanceResult } from '@/services/attendanceService';
 
 interface EventCardProps {
   event: Event;
-  user: User | null; // Pass the current user
+  user: User | null; 
   userRole: UserRole;
-  attendanceRecord?: AttendanceRecord | null; // Pre-fetched attendance for this user and event
-  onAttendanceMarked: () => void; // Callback to refresh attendance data in parent
+  attendanceRecord?: AttendanceRecord | null; 
+  onAttendanceMarked: () => void; 
 }
 
 export function EventCard({ event, user, userRole, attendanceRecord: initialAttendanceRecord, onAttendanceMarked }: EventCardProps) {
   const { toast } = useToast();
   const [isSubmittingAttendance, setIsSubmittingAttendance] = useState(false);
+  // Use useEffect to update currentAttendanceRecord if initialAttendanceRecord prop changes
   const [currentAttendanceRecord, setCurrentAttendanceRecord] = useState(initialAttendanceRecord);
+
+  useEffect(() => {
+    setCurrentAttendanceRecord(initialAttendanceRecord);
+  }, [initialAttendanceRecord]);
 
   const eventDate = parseISO(event.date);
   const formattedDate = format(eventDate, "MMMM d, yyyy 'at' h:mm a");
   const isEventUpcoming = isFuture(eventDate);
   const isEventPast = isPast(eventDate);
 
-  // Can mark if member, event is upcoming, and not already attended
   const canAttemptToMarkAttendance = userRole === 'member' && isEventUpcoming && !currentAttendanceRecord;
 
   const handleMarkAttendance = async () => {
     if (!user) {
-      toast({ title: "Error", description: "You must be logged in to mark attendance.", variant: "destructive" });
+      toast({ title: "Authentication Error", description: "You must be logged in to mark attendance.", variant: "destructive" });
       return;
     }
     if (!event.id) {
-        toast({ title: "Error", description: "Event ID is missing.", variant: "destructive" });
+        toast({ title: "Event Error", description: "Event ID is missing. Cannot mark attendance.", variant: "destructive" });
         return;
     }
 
     setIsSubmittingAttendance(true);
-    try {
-      let userLatitude: number | undefined = undefined;
-      let userLongitude: number | undefined = undefined;
+    let userLatitude: number | undefined = undefined;
+    let userLongitude: number | undefined = undefined;
 
+    try {
       if (event.latitude !== undefined && event.longitude !== undefined) {
-        // Event has coordinates, so location check is required
-        const position = await getCurrentPosition();
+        const position = await getCurrentPosition(); // This can throw geolocation specific errors
         userLatitude = position.latitude;
         userLongitude = position.longitude;
         
@@ -64,35 +67,39 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
         if (distance > MAX_ATTENDANCE_DISTANCE_METERS) {
           toast({
             title: "Too Far",
-            description: `You must be within ${MAX_ATTENDANCE_DISTANCE_METERS} meters of the event location to mark attendance. You are approximately ${Math.round(distance)}m away.`,
+            description: `You must be within ${MAX_ATTENDANCE_DISTANCE_METERS} meters of the event location. You are approximately ${Math.round(distance)}m away.`,
             variant: "destructive",
             duration: 7000,
           });
           setIsSubmittingAttendance(false);
           return;
         }
-         toast({ title: "Location Verified", description: `You are within the allowed radius (${Math.round(distance)}m). Marking attendance...`, duration: 3000 });
+        toast({ title: "Location Verified", description: `You are within the allowed radius (${Math.round(distance)}m). Marking attendance...`, duration: 3000 });
       } else {
         toast({ title: "Marking Attendance", description: "Event location not specified by admin, proceeding without geo-check.", duration: 3000 });
       }
 
-      await markUserAttendance(event.id, user.id, userLatitude, userLongitude);
-      toast({ title: "Attendance Marked!", description: "Your attendance has been recorded.", variant: "default" });
-      onAttendanceMarked(); // Trigger refresh in parent
-      // Simulate fetching the new record, or rely on parent to re-fetch and pass down
-      setCurrentAttendanceRecord({ 
-        id: 'temp-' + Date.now(), // Temporary ID, parent should provide actual
-        eventId: event.id, 
-        userId: user.id, 
-        status: 'present', 
-        timestamp: new Date().toISOString(),
-        markedLatitude: userLatitude,
-        markedLongitude: userLongitude
-      });
+      // Call the updated service method
+      const result: MarkAttendanceResult = await markUserAttendance(event.id, user.id, userLatitude, userLongitude);
+
+      if (result.status === 'success') {
+        toast({ title: "Attendance Marked!", description: result.message, variant: "default" });
+        if (result.record) setCurrentAttendanceRecord(result.record);
+        onAttendanceMarked();
+      } else if (result.status === 'already_marked') {
+        toast({ title: "Attendance Information", description: result.message, variant: "default" }); // Informational, not destructive
+        if (result.record) setCurrentAttendanceRecord(result.record);
+        onAttendanceMarked(); // Ensure UI is synced
+      } else {
+        // This 'else' case here might be redundant if service throws for true errors
+        // but good as a fallback for unhandled 'error' status from service
+        toast({ title: "Attendance Error", description: result.message || "An unknown issue occurred.", variant: "destructive" });
+      }
 
     } catch (error: any) {
-      console.error("Error marking attendance:", error); // Full error object for console
-      let description = "Could not mark attendance."; // Default message
+      // This catch block now handles errors from getCurrentPosition or unexpected errors thrown by markUserAttendance
+      console.error("Error during attendance marking process:", error);
+      let description = "Could not mark attendance.";
       const errorMessage = error.message || "An unknown error occurred.";
 
       if (errorMessage.includes("Geolocation is not supported")) {
@@ -101,12 +108,8 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
         description = "Location permission denied. Please enable location services to mark attendance.";
       } else if (errorMessage.includes("Location information is unavailable") || errorMessage.includes("timed out")) {
         description = "Could not determine your location. Please try again.";
-      } else if (errorMessage.includes("Attendance already marked")) {
-        description = "You have already marked attendance for this event.";
-        // If it was already marked, call onAttendanceMarked to ensure UI is synced with DB
-        onAttendanceMarked();
       } else {
-        // For other errors, include the actual error message from the exception in the toast.
+        // For other errors (e.g., unexpected Firestore errors from the service)
         description = `Could not mark attendance: ${errorMessage.substring(0, 150)}${errorMessage.length > 150 ? '...' : ''}`;
       }
       toast({ title: "Attendance Error", description, variant: "destructive", duration: 10000 });
@@ -183,3 +186,4 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
     </Card>
   );
 }
+
