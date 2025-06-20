@@ -28,7 +28,7 @@ export default function MemberManagementPage() {
 
   const [members, setMembers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false); // General submission state
+  const [isSubmitting, setIsSubmitting] = useState(false); 
   const [isImporting, setIsImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -48,11 +48,10 @@ export default function MemberManagementPage() {
     setIsLoading(true);
     try {
       const usersRef = collection(db, "users");
-      // Fetch all users if admin, or perhaps only 'member' role users
       const q = user?.role === 'admin' ? query(usersRef) : query(usersRef, where("role", "==", "member"));
       const querySnapshot = await getDocs(q);
       const fetchedMembers: User[] = [];
-      querySnapshot.forEach((docSnap) => { // Renamed doc to docSnap to avoid conflict
+      querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
         fetchedMembers.push({
             id: docSnap.id, 
@@ -75,7 +74,7 @@ export default function MemberManagementPage() {
   }, [toast, user?.role]);
 
   useEffect(() => {
-    if (user) { // Fetch members if user is loaded, role check is inside fetchMembers
+    if (user) { 
       fetchMembers();
     }
   }, [user, fetchMembers]);
@@ -95,7 +94,7 @@ export default function MemberManagementPage() {
     if (!selectedMemberForEdit) return;
     setIsSubmitting(true);
     try {
-      await updateUserProfile(selectedMemberForEdit.id, data); // `updateUserProfile` needs to handle these fields
+      await updateUserProfile(selectedMemberForEdit.id, data); 
       toast({title: "Member Updated", description: "Member details have been successfully updated."});
       fetchMembers();
       setIsEditFormOpen(false);
@@ -181,12 +180,13 @@ export default function MemberManagementPage() {
       }
 
       let successCount = 0;
-      let failureCount = 0;
-      const errors: string[] = [];
+      let skippedCount = 0;
+      let errorCount = 0;
+      const importMessages: string[] = []; // Stores messages for console/toast summary
 
       for (const row of data) {
         const email = row["Email"];
-        const password = row["NIC"]; // NIC is used as password
+        const password = row["NIC"]; 
         const name = row["Name"];
         const type = row["Type"]?.toLowerCase();
         const role = type === 'admin' ? 'admin' : 'member';
@@ -196,13 +196,13 @@ export default function MemberManagementPage() {
         const mobileNumber = row["MobileNumber"];
 
         if (!email || !password || !name || !type || !nic) {
-          errors.push(`Skipping row due to missing essential data (Email, NIC, Name, Type): ${JSON.stringify(row)}`);
-          failureCount++;
+          skippedCount++;
+          importMessages.push(`Skipped (Missing Data): Row for ${email || 'Unknown Email'} had missing essential data (Email, NIC, Name, Type).`);
           continue;
         }
         if (password.length < 6) {
-          errors.push(`Password (NIC) for ${email} must be at least 6 characters long. Value: '${password}'`);
-          failureCount++;
+          skippedCount++;
+          importMessages.push(`Skipped (Weak Password for ${email}): NIC (password) must be at least 6 characters. Value: '${password}'`);
           continue;
         }
         
@@ -215,7 +215,7 @@ export default function MemberManagementPage() {
             email, 
             name, 
             role, 
-            undefined, // photoUrl - can be default in createUserProfile
+            undefined, 
             nic,
             dateOfBirth,
             gender,
@@ -223,61 +223,71 @@ export default function MemberManagementPage() {
           );
           
           if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
-            await signOut(firebaseAuth); // Sign out the newly created user to keep admin session
+            await signOut(firebaseAuth); 
           }
           successCount++;
         } catch (error: any) {
-          failureCount++;
           if (error.code === 'auth/email-already-in-use') {
-            errors.push(`Skipped: Email ${email} already exists in Firebase Authentication.`);
+            skippedCount++;
+            importMessages.push(`Skipped (Email Exists): ${email}`);
+          } else if (error.code === 'auth/weak-password') {
+            skippedCount++;
+            importMessages.push(`Skipped (Weak Password for ${email}): NIC (password) must be at least 6 characters.`);
           } else {
-            const firebaseError = error.code ? `${error.code}: ${error.message}` : String(error);
-            errors.push(`Failed to import ${email}: ${firebaseError}`);
-          }
-          console.error(`Failed to import ${email}:`, error);
-          // If the error was creating the auth user, and somehow that user (who failed to create)
-          // became the current user (very unlikely), sign them out.
-          if (firebaseAuth.currentUser && firebaseAuth.currentUser.email === email) {
-            await signOut(firebaseAuth);
+            errorCount++;
+            const firebaseErrorMsg = error.message || String(error);
+            importMessages.push(`Error importing ${email}: ${firebaseErrorMsg.substring(0,150)}...`);
+            console.error(`Full error for ${email}:`, error);
+
+            if (firebaseAuth.currentUser && firebaseAuth.currentUser.email === email) {
+              try {
+                await signOut(firebaseAuth);
+                importMessages.push(`Defensive sign-out attempted for ${email}.`);
+              } catch (signOutError) {
+                console.error(`Error during defensive sign-out for ${email}:`, signOutError);
+                importMessages.push(`Error during defensive sign-out for ${email}.`);
+              }
+            }
           }
         }
       }
       
-      // Attempt to re-establish admin session if it was lost, though signOut should prevent this.
-      // This part is a bit tricky without forcing admin to re-login.
-      // Best effort: The signOut above should keep the original admin logged in.
-      // We'll rely on the onAuthStateChanged listener in useAuth to reflect the correct admin user.
-      // A small delay might allow Firebase auth state to propagate.
-      await new Promise(resolve => setTimeout(resolve, 1000)); 
+      await new Promise(resolve => setTimeout(resolve, 500)); 
 
+      let toastTitle = "Import Process Complete";
+      let toastDescription = `${successCount} users imported.`;
+      let toastVariant: "default" | "destructive" = "default";
 
-      if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
-        // This state implies the admin's session was lost or changed.
-        // The toast below is important. Admin might need to log in again.
-        toast({
-          title: "Session Notice",
-          description: "Import process complete. Your session may have been affected by the import process. If you experience issues, please log out and log back in.",
-          variant: "default", // Or destructive if considered a major issue
-          duration: 10000, // Longer duration
-        });
-      } else {
-         // Admin session appears intact.
-         toast({
-            title: "Import Complete",
-            description: `${successCount} users imported. ${failureCount} failed. ${errors.length > 0 ? 'Check console/details for errors.' : ''}`,
-            variant: successCount > 0 && failureCount === 0 ? "default" : (failureCount > 0 ? "destructive" : "default"),
-            duration: 10000, // Longer duration for errors
-        });
+      if (skippedCount > 0) {
+        toastDescription += ` ${skippedCount} skipped (e.g., email exists, weak password, missing data).`;
+      }
+      if (errorCount > 0) {
+        toastDescription += ` ${errorCount} failed with errors.`;
+        toastVariant = "destructive";
       }
       
-      if (errors.length > 0) {
-        console.warn("Import errors/skipped users:", errors);
-        // Optionally, display these errors in a more user-friendly way (e.g., a dialog)
+      if (skippedCount > 0 || errorCount > 0) {
+          toastDescription += " Check browser console for details.";
+          console.warn("Import Summary & Details:", importMessages);
+      }
+      
+      if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
+        toast({
+          title: "Session Notice (Import Related)",
+          description: "Your admin session may have been affected by the import. If issues persist, please log out and log back in.",
+          variant: "destructive", 
+          duration: 15000, 
+        });
+        setTimeout(() => {
+            toast({ title: toastTitle, description: toastDescription, variant: toastVariant, duration: 10000 });
+        }, 500); 
+      } else {
+        toast({ title: toastTitle, description: toastDescription, variant: toastVariant, duration: 10000 });
       }
 
       setCsvFile(null);
-      if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
-      fetchMembers(); // Refresh the member list
+      if(fileInputRef.current) fileInputRef.current.value = ""; 
+      fetchMembers(); 
       setIsImporting(false);
     };
     reader.onerror = () => {
@@ -294,7 +304,7 @@ export default function MemberManagementPage() {
     return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   }
 
-  if (authLoading || (isLoading && !isImporting && !members.length)) { // Show loader if auth or initial member load is happening
+  if (authLoading || (isLoading && !isImporting && !members.length)) { 
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -302,7 +312,7 @@ export default function MemberManagementPage() {
     );
   }
 
-  if (!user || user.role !== 'admin') { // Should be handled by layout, but good failsafe
+  if (!user || user.role !== 'admin') { 
     return null; 
   }
   
@@ -348,7 +358,7 @@ export default function MemberManagementPage() {
                         <li>- <strong>Gender</strong>: e.g., "Male", "Female".</li>
                         <li>- <strong>MobileNumber</strong>: User's phone number.</li>
                     </ul>
-                    Users with emails already in Firebase Authentication will be skipped.
+                    Users with emails already in Firebase Authentication will be skipped. Passwords (NIC) must be at least 6 characters.
                 </AlertDescription>
             </Alert>
         </CardContent>
