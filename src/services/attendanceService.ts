@@ -10,8 +10,8 @@ import {
   serverTimestamp,
   limit,
   orderBy,
-  doc, // Added for fetching the new doc
-  getDoc   // Added for fetching the new doc
+  doc, 
+  getDoc  
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import type { AttendanceRecord } from '@/types';
@@ -19,9 +19,9 @@ import type { AttendanceRecord } from '@/types';
 const attendanceCollectionRef = collection(db, 'attendance');
 
 export interface MarkAttendanceResult {
-  status: 'success' | 'already_marked' | 'error'; // 'error' might not be used if we throw for unexpected errors
+  status: 'success' | 'already_marked' | 'error';
   message: string;
-  record?: AttendanceRecord; // The newly created OR existing record
+  record?: AttendanceRecord;
 }
 
 export async function markUserAttendance(
@@ -54,7 +54,6 @@ export async function markUserAttendance(
 
   try {
     const docRef = await addDoc(attendanceCollectionRef, attendanceData);
-    // Fetch the newly created document to get server-generated timestamps correctly
     const newDocSnap = await getDoc(doc(db, 'attendance', docRef.id));
     if (newDocSnap.exists()) {
         const newData = newDocSnap.data();
@@ -73,11 +72,9 @@ export async function markUserAttendance(
           record: newRecord
         };
     } else {
-        // Should not happen if addDoc succeeded
         throw new Error("Failed to retrieve newly created attendance record.");
     }
   } catch (error) {
-    // Re-throw unexpected database errors to be caught by EventCard
     console.error("Error adding attendance document to Firestore:", error);
     throw error; 
   }
@@ -112,6 +109,23 @@ export async function getUserAttendanceForEvent(
 
 export async function getAttendanceRecordsForUser(userId: string): Promise<AttendanceRecord[]> {
   const q = query(attendanceCollectionRef, where('userId', '==', userId), orderBy('timestamp', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(docSnap => {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      eventId: data.eventId,
+      userId: data.userId,
+      timestamp: (data.timestamp as Timestamp).toDate().toISOString(),
+      status: data.status,
+      markedLatitude: data.markedLatitude,
+      markedLongitude: data.markedLongitude,
+    } as AttendanceRecord;
+  });
+}
+
+export async function getAllAttendanceRecords(): Promise<AttendanceRecord[]> {
+  const q = query(attendanceCollectionRef, orderBy('timestamp', 'desc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(docSnap => {
     const data = docSnap.data();
