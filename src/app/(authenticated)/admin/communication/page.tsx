@@ -19,10 +19,10 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
-import { Mail, Users, Send, Loader2, AlertTriangle } from "lucide-react";
+import { Mail, Users, Send, Loader2, AlertTriangle, Info } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { sendBulkEmailAction, type SendBulkEmailState } from '@/app/actions/communicationActions';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import emailjs from 'emailjs-com';
 
 const emailFormSchema = z.object({
   subject: z.string().min(3, { message: "Subject must be at least 3 characters." }),
@@ -32,7 +32,9 @@ const emailFormSchema = z.object({
 
 type EmailFormValues = z.infer<typeof emailFormSchema>;
 
-const initialState: SendBulkEmailState = { success: false, message: "" };
+const SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+const TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+const USER_ID = process.env.NEXT_PUBLIC_EMAILJS_USER_ID;
 
 export default function CommunicationPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -42,7 +44,6 @@ export default function CommunicationPage() {
   const [members, setMembers] = useState<User[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
-  const [actionState, setActionState] = useState<SendBulkEmailState>(initialState);
 
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailFormSchema),
@@ -84,33 +85,58 @@ export default function CommunicationPage() {
   }, [user, fetchMembers]);
 
   const onSubmit = async (data: EmailFormValues) => {
+    if (!SERVICE_ID || !TEMPLATE_ID || !USER_ID) {
+      toast({
+        title: "EmailJS Configuration Missing",
+        description: "EmailJS credentials are not set up in environment variables. Emails cannot be sent.",
+        variant: "destructive",
+        duration: 10000,
+      });
+      return;
+    }
+
     setFormSubmitting(true);
-    setActionState(initialState);
+    let emailsSent = 0;
+    let emailsFailed = 0;
 
-    const recipientEmails = data.recipientUserIds.map(userId => {
+    const recipientDetails = data.recipientUserIds.map(userId => {
       const member = members.find(m => m.id === userId);
-      return member?.email;
-    }).filter(email => !!email) as string[];
+      return { email: member?.email, name: member?.name };
+    }).filter(detail => detail.email);
 
-    if (recipientEmails.length === 0) {
+    if (recipientDetails.length === 0) {
       toast({ title: "Error", description: "No valid recipient emails found for selected users.", variant: "destructive" });
       setFormSubmitting(false);
       return;
     }
-    
-    const formData = new FormData();
-    formData.append('subject', data.subject);
-    formData.append('body', data.body);
-    recipientEmails.forEach(email => formData.append('recipientEmails', email));
 
-    const result = await sendBulkEmailAction(actionState, formData);
-    setActionState(result);
+    for (const recipient of recipientDetails) {
+      if (!recipient.email) continue;
 
-    if (result.success) {
-      toast({ title: "Email Processed (Simulation)", description: result.message });
+      const templateParams = {
+        to_email: recipient.email, // Ensure your EmailJS template uses this variable
+        to_name: recipient.name || 'Member', // Optional: use in template
+        subject: data.subject,
+        body_content: data.body, // Ensure your EmailJS template uses this for the main body
+        // Add any other parameters your EmailJS template expects
+      };
+
+      try {
+        await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, USER_ID);
+        emailsSent++;
+      } catch (error) {
+        console.error(`Failed to send email to ${recipient.email}:`, error);
+        emailsFailed++;
+      }
+    }
+
+    if (emailsSent > 0) {
+      toast({ title: "Emails Processed", description: `${emailsSent} email(s) sent successfully. ${emailsFailed > 0 ? `${emailsFailed} failed.` : ''}` });
       form.reset();
+    } else if (emailsFailed > 0) {
+      toast({ title: "Email Sending Failed", description: `All ${emailsFailed} email(s) failed to send. Check console for details.`, variant: "destructive" });
     } else {
-      toast({ title: "Processing Failed", description: result.message || "Could not process the email request.", variant: "destructive" });
+       toast({ title: "No Emails Sent", description: "No emails were processed. This might be due to no valid recipients.", variant: "destructive" });
     }
     setFormSubmitting(false);
   };
@@ -125,7 +151,7 @@ export default function CommunicationPage() {
   
   const watchedRecipients = form.watch("recipientUserIds");
 
-  if (authLoading || (isLoadingMembers && members.length === 0)) {
+  if (authLoading || (isLoadingMembers && members.length === 0 && !user)) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -136,6 +162,9 @@ export default function CommunicationPage() {
   if (!user || user.role !== 'admin') {
     return null;
   }
+  
+  const isEmailJsConfigured = SERVICE_ID && TEMPLATE_ID && USER_ID;
+
 
   return (
     <div className="container mx-auto py-8 space-y-8">
@@ -143,12 +172,23 @@ export default function CommunicationPage() {
         <h1 className="text-3xl font-bold font-headline">Send Communication</h1>
       </div>
 
-      <Alert variant="default">
+      <Alert variant={isEmailJsConfigured ? "default" : "destructive"}>
         <Mail className="h-4 w-4" />
-        <AlertTitle>Developer Note: Email Sending Simulation</AlertTitle>
+        <AlertTitle>Email Sending via EmailJS</AlertTitle>
         <AlertDescription>
-          This form currently <strong className="text-primary">simulates</strong> sending emails. The details (recipients, subject, body) will be logged to the server console.
-          Actual email delivery requires upgrading your Firebase project to a paid plan (e.g., Blaze) to use Firebase Functions with an external email service (like SendGrid, Mailgun, etc.).
+          {isEmailJsConfigured ? (
+            <>
+              This form uses <strong className="text-primary">EmailJS</strong> to send emails directly from your browser.
+              Please be aware of EmailJS's free tier limits (e.g., 200 emails/month). Your EmailJS Service ID, Template ID, and User ID are used here.
+              Ensure your EmailJS template is correctly set up with variables like `to_email`, `subject`, `body_content`.
+            </>
+          ) : (
+            <>
+              <strong className="text-destructive-foreground">EmailJS is not configured.</strong> Emails cannot be sent.
+              Please set `NEXT_PUBLIC_EMAILJS_SERVICE_ID`, `NEXT_PUBLIC_EMAILJS_TEMPLATE_ID`, and `NEXT_PUBLIC_EMAILJS_USER_ID` in your `.env.local` file.
+              You also need to set up a service and an email template in your EmailJS account.
+            </>
+          )}
         </AlertDescription>
       </Alert>
 
@@ -229,7 +269,7 @@ export default function CommunicationPage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle>
-              <CardDescription>Write the subject and body of your email.</CardDescription>
+              <CardDescription>Write the subject and body of your email. Ensure your EmailJS template uses variables like `subject` and `body_content`.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -266,9 +306,9 @@ export default function CommunicationPage() {
           </Card>
           
           <div className="flex justify-end">
-            <Button type="submit" disabled={formSubmitting || isLoadingMembers} size="lg">
+            <Button type="submit" disabled={formSubmitting || isLoadingMembers || !isEmailJsConfigured} size="lg">
               {formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              {formSubmitting ? "Processing..." : "Process Email (Simulated)"}
+              {formSubmitting ? "Sending..." : "Send Emails via EmailJS"}
             </Button>
           </div>
         </form>
