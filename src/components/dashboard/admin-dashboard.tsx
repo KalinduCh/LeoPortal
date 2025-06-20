@@ -15,9 +15,9 @@ import { Users, CalendarDays, Activity, PlusCircle, Eye, History, Award, Filter,
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog"; // Removed DialogHeader, DialogTitle, they are in EventSummaryModal
 import { format, parseISO, getYear, getMonth, isPast } from 'date-fns';
-import { EventSummaryModal } from '@/components/events/event-summary-modal'; // Import the new modal
+import { EventSummaryModal, type EventParticipantSummary } from '@/components/events/event-summary-modal';
 
 interface AdminDashboardProps {
   user: User;
@@ -41,7 +41,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>('all'); 
 
   const [selectedEventForSummary, setSelectedEventForSummary] = useState<Event | null>(null);
-  const [participantsForSummary, setParticipantsForSummary] = useState<User[]>([]);
+  const [participantsForSummary, setParticipantsForSummary] = useState<EventParticipantSummary[]>([]);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
 
@@ -152,10 +152,17 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
 
   const handleOpenEventSummary = (event: Event) => {
     setSelectedEventForSummary(event);
-    const eventAttendance = allAttendance.filter(att => att.eventId === event.id);
-    const participantUserIds = new Set(eventAttendance.map(att => att.userId));
-    const eventParticipants = allUsers.filter(usr => participantUserIds.has(usr.id));
-    setParticipantsForSummary(eventParticipants);
+    const eventAttendanceRecords = allAttendance.filter(att => att.eventId === event.id);
+    
+    const summaryParticipants: EventParticipantSummary[] = eventAttendanceRecords.map(attRecord => {
+        const participantUser = allUsers.find(usr => usr.id === attRecord.userId);
+        return {
+            user: participantUser || { id: attRecord.userId, name: 'Unknown User', email: 'N/A', role: 'member' }, // Fallback user
+            attendanceTimestamp: attRecord.timestamp,
+        };
+    }).filter(summary => summary.user.name !== 'Unknown User'); // Filter out cases where user wasn't found
+
+    setParticipantsForSummary(summaryParticipants);
     setIsSummaryModalOpen(true);
   };
 
@@ -360,7 +367,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           <DialogContent className="sm:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col print-content">
             <EventSummaryModal
               event={selectedEventForSummary}
-              participants={participantsForSummary}
+              participantsSummary={participantsForSummary}
               onClose={() => {
                 setIsSummaryModalOpen(false);
                 setSelectedEventForSummary(null);

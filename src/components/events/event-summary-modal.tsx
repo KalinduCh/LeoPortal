@@ -4,28 +4,31 @@
 import React, { useRef } from 'react';
 import type { Event, User } from '@/types';
 import { Button } from '@/components/ui/button';
-import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'; // DialogContent is handled by parent
+import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CalendarDays, MapPin, Info, Users, Printer, X } from 'lucide-react';
+import { CalendarDays, MapPin, Info, Users, Printer, X, Briefcase, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 
+export interface EventParticipantSummary {
+  user: User;
+  attendanceTimestamp: string; // ISO string
+}
+
 interface EventSummaryModalProps {
   event: Event;
-  participants: User[];
+  participantsSummary: EventParticipantSummary[];
   onClose: () => void;
 }
 
-export function EventSummaryModal({ event, participants, onClose }: EventSummaryModalProps) {
+export function EventSummaryModal({ event, participantsSummary, onClose }: EventSummaryModalProps) {
   const componentRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
     documentTitle: `Event Summary - ${event.name}`,
-    // onBeforeGetContent: () => { /* Potentially show loading state */ },
-    // onAfterPrint: () => { /* Potentially hide loading state */ },
   });
 
   const getInitials = (name?: string) => {
@@ -68,29 +71,35 @@ export function EventSummaryModal({ event, participants, onClose }: EventSummary
           <div className="space-y-3 print-section">
             <h3 className="text-lg font-semibold text-muted-foreground print-subtitle flex items-center">
               <Users className="mr-2 h-5 w-5 text-primary" />
-              Participants ({participants.length})
+              Participants ({participantsSummary.length})
             </h3>
-            {participants.length > 0 ? (
+            {participantsSummary.length > 0 ? (
               <ScrollArea className="h-[200px] md:h-[250px] border rounded-md print-scroll">
                 <Table className="print-table">
                   <TableHeader className="print-table-header">
                     <TableRow>
-                      <TableHead>Avatar</TableHead>
+                      <TableHead className="print-hide">Avatar</TableHead>
                       <TableHead>Name</TableHead>
+                      <TableHead><Briefcase className="inline-block mr-1 h-3 w-3 print-hide" />Designation</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead><Clock className="inline-block mr-1 h-3 w-3 print-hide" />Timestamp</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody className="print-table-body">
-                    {participants.map((participant) => (
-                      <TableRow key={participant.id}>
-                        <TableCell>
+                    {participantsSummary.map((summary) => (
+                      <TableRow key={summary.user.id}>
+                        <TableCell className="print-hide">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={participant.photoUrl} alt={participant.name} data-ai-hint="profile avatar" />
-                            <AvatarFallback>{getInitials(participant.name)}</AvatarFallback>
+                            <AvatarImage src={summary.user.photoUrl} alt={summary.user.name} data-ai-hint="profile avatar" />
+                            <AvatarFallback>{getInitials(summary.user.name)}</AvatarFallback>
                           </Avatar>
                         </TableCell>
-                        <TableCell className="font-medium">{participant.name}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{participant.email}</TableCell>
+                        <TableCell className="font-medium">{summary.user.name}</TableCell>
+                        <TableCell className="capitalize text-xs">{summary.user.role}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{summary.user.email}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {format(parseISO(summary.attendanceTimestamp), "MMM d, h:mm a")}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

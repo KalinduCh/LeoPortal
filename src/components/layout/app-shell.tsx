@@ -3,7 +3,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Fingerprint } from "lucide-react";
+import Image from "next/image";
 import {
   SidebarProvider,
   Sidebar,
@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/use-auth"; // To get user info for sidebar foot
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const logoUrl = "https://i.imgur.com/aRktweQ.png";
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -29,7 +30,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarRail />
         <SidebarHeader className="p-4">
           <Link href="/dashboard" className="flex items-center gap-2 text-primary hover:text-accent transition-colors">
-            <Fingerprint className="h-8 w-8" />
+            <Image 
+              src={logoUrl} 
+              alt="LeoPortal Logo" 
+              width={32} 
+              height={32} 
+              className="h-8 w-8 rounded-sm"
+              data-ai-hint="club logo"
+            />
             <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">LeoPortal</span>
           </Link>
         </SidebarHeader>
