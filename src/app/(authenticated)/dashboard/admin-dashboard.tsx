@@ -81,12 +81,24 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   }, [fetchData]);
 
   const upcomingEvents = useMemo(() => {
-    return allEvents.filter(event => event.startDate && isValid(parseISO(event.startDate)) && !isPast(parseISO(event.startDate)));
+    return allEvents.filter(event => {
+        if (!event.startDate || !isValid(parseISO(event.startDate))) {
+            console.warn(`[AdminDashboard/UpcomingEventsFilter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`, event.startDate);
+            return false;
+        }
+        return !isPast(parseISO(event.startDate));
+    });
   }, [allEvents]);
 
   const pastEvents = useMemo(() => {
     return allEvents
-      .filter(event => event.startDate && isValid(parseISO(event.startDate)) && isPast(parseISO(event.startDate)))
+      .filter(event => {
+          if (!event.startDate || !isValid(parseISO(event.startDate))) {
+            console.warn(`[AdminDashboard/PastEventsFilter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`, event.startDate);
+            return false;
+          }
+          return isPast(parseISO(event.startDate));
+      })
       .sort((a,b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime());
   }, [allEvents]);
 
@@ -102,7 +114,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       const yearMatch = selectedYear === 'all' || recordYear === parseInt(selectedYear);
       const monthMatch = selectedMonth === 'all' || recordMonth === parseInt(selectedMonth);
 
-      if (yearMatch && monthMatch && record.userId) { // ensure userId exists for member stats
+      if (yearMatch && monthMatch && record.userId) { 
         if (!stats[record.userId]) {
           stats[record.userId] = { count: 0, user: allUsers.find(u => u.id === record.userId) };
         }

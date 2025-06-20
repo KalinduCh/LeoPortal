@@ -69,7 +69,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
   const upcomingAndOngoingEvents = allEvents.filter(event => {
     if (!event.startDate || !isValid(parseISO(event.startDate))) {
-        // console.warn(`[Upcoming/Ongoing Filter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`, event.startDate);
+        console.warn(`[MemberDashboard/UpcomingFilter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`, event.startDate);
         return false;
     }
     const startDate = parseISO(event.startDate);
@@ -79,23 +79,21 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         return true; 
     }
     
-    // If it has an endDate, check if it's within the interval
     if (event.endDate && isValid(parseISO(event.endDate))) {
         const endDate = parseISO(event.endDate);
         return isWithinInterval(now, { start: startDate, end: endDate });
     }
     
-    // If no endDate and startDate is not in the future, it's considered ongoing.
     return !isFuture(startDate);
   }).sort((a,b) => {
-      const dateA = parseISO(a.startDate);
-      const dateB = parseISO(b.startDate);
-      if (!isValid(dateA) || !isValid(dateB)) return 0;
+      const dateA = parseISO(a.startDate); // Safe because of filter above
+      const dateB = parseISO(b.startDate); // Safe because of filter above
       return dateA.getTime() - dateB.getTime(); 
   });
 
   const attendedPastEvents = allEvents.filter(event => {
     if (!event.startDate || !isValid(parseISO(event.startDate))) {
+        console.warn(`[MemberDashboard/PastAttendedFilter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`, event.startDate);
         return false;
     }
     const parsedEventStartDate = parseISO(event.startDate);
@@ -108,9 +106,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     const attendanceRecord = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user?.id && ar.status === 'present');
     return !!attendanceRecord;
   }).sort((a, b) => {
-    const dateA = parseISO(a.startDate);
-    const dateB = parseISO(b.startDate);
-    if (!isValid(dateA) || !isValid(dateB)) return 0;
+    const dateA = parseISO(a.startDate); // Safe because of filter above
+    const dateB = parseISO(b.startDate); // Safe because of filter above
     return dateB.getTime() - dateA.getTime(); 
   });
 
@@ -155,7 +152,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 userRole="member"
                 userAttendanceRecords={userAttendanceRecords}
                 onAttendanceMarked={handleAttendanceMarked}
-                isLoading={isLoading}
+                isLoading={isLoading} // Pass combined loading state
                 listTitle="" 
                 emptyStateTitle="No Upcoming or Ongoing Events"
                 emptyStateMessage="There are currently no upcoming or ongoing events scheduled. Please check back later!"
@@ -184,16 +181,15 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   const attendance = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user.id);
                   
                   let formattedEventDate = "Date unavailable";
-                  if (event.startDate && isValid(parseISO(event.startDate))) {
-                    const eventStartDateObj = parseISO(event.startDate);
-                    formattedEventDate = format(eventStartDateObj, "MMM d, yyyy, h:mm a");
-                    if (event.endDate && isValid(parseISO(event.endDate))) {
-                        const eventEndDateObj = parseISO(event.endDate);
-                        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
-                            (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
-                             formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
-                        }
-                    }
+                  // event.startDate is guaranteed to be valid and parseable here due to prior filtering
+                  const eventStartDateObj = parseISO(event.startDate);
+                  formattedEventDate = format(eventStartDateObj, "MMM d, yyyy, h:mm a");
+                  if (event.endDate && isValid(parseISO(event.endDate))) {
+                      const eventEndDateObj = parseISO(event.endDate);
+                      if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
+                          (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
+                           formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
+                      }
                   }
                   
                   let formattedAttendanceTime = "Not available";
