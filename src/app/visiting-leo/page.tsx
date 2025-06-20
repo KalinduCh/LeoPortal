@@ -28,20 +28,42 @@ export default function VisitingLeoPage() {
 
   const fetchUpcomingEvents = useCallback(async () => {
     setIsLoading(true);
+    console.log("VisitingLeoPage: Fetching events...");
     try {
       const allEvents = await getEvents();
+      console.log(`VisitingLeoPage: Fetched ${allEvents.length} total events.`);
       const upcomingAndOngoing = allEvents.filter(event => {
-        if (!event.startDate || !isValid(parseISO(event.startDate))) return false;
-        const startDate = parseISO(event.startDate);
-        const now = new Date();
-        if (isFuture(startDate)) return true;
-        if (event.endDate) {
-          if (!isValid(parseISO(event.endDate))) return !isFuture(startDate);
-          const endDate = parseISO(event.endDate);
-          return isWithinInterval(now, { start: startDate, end: endDate });
+        if (!event.startDate || !isValid(parseISO(event.startDate))) {
+            console.warn(`VisitingLeoPage: Event ${event.id} skipped due to invalid startDate: ${event.startDate}`);
+            return false;
         }
-        return !isFuture(startDate);
+        const startDateObj = parseISO(event.startDate);
+        const now = new Date();
+
+        // Check if the event is in the future
+        if (isFuture(startDateObj)) {
+            // console.log(`VisitingLeoPage: Event ${event.id} is upcoming.`);
+            return true;
+        }
+        
+        // If it has an endDate, check if it's currently within the interval
+        if (event.endDate && isValid(parseISO(event.endDate))) {
+            const endDateObj = parseISO(event.endDate);
+            const isOngoing = isWithinInterval(now, { start: startDateObj, end: endDateObj });
+            // if(isOngoing) console.log(`VisitingLeoPage: Event ${event.id} is ongoing (with endDate).`);
+            return isOngoing;
+        }
+        
+        // If no endDate, and startDate is not in the future (i.e., it has started),
+        // consider it ongoing. This might need refinement if "ongoing" means only for a certain duration post-startDate.
+        // For now, if it started and hasn't explicitly ended, it's "ongoing".
+        const isEffectivelyOngoing = !isFuture(startDateObj);
+        // if(isEffectivelyOngoing && !event.endDate) console.log(`VisitingLeoPage: Event ${event.id} is ongoing (no endDate).`);
+        return isEffectivelyOngoing;
+
       }).sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
+      
+      console.log(`VisitingLeoPage: Filtered to ${upcomingAndOngoing.length} upcoming/ongoing events.`);
       setEvents(upcomingAndOngoing);
     } catch (error) {
       console.error("Failed to fetch events for visiting Leos:", error);
@@ -107,14 +129,26 @@ export default function VisitingLeoPage() {
         ) : events.length > 0 ? (
           <ScrollArea className="h-[calc(100vh-220px)]">
             <div className="space-y-4">
-              {events.map(event => (
+              {events.map(event => {
+                let formattedEventDate = "Date unavailable";
+                if (event.startDate && isValid(parseISO(event.startDate))) {
+                    const eventStartDateObj = parseISO(event.startDate);
+                    formattedEventDate = format(eventStartDateObj, "MMMM d, yyyy 'at' h:mm a");
+                    if (event.endDate && isValid(parseISO(event.endDate))) {
+                        const eventEndDateObj = parseISO(event.endDate);
+                        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
+                            (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
+                             formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
+                        }
+                    }
+                }
+                return (
                 <Card key={event.id} className="shadow-lg hover:shadow-xl transition-shadow">
                   <CardHeader>
                     <CardTitle className="font-headline text-xl text-primary">{event.name}</CardTitle>
                     <CardDescription className="flex items-center text-sm">
                       <CalendarDays className="mr-2 h-4 w-4" />
-                      {format(parseISO(event.startDate), "MMMM d, yyyy 'at' h:mm a")}
-                      {event.endDate && isValid(parseISO(event.endDate)) && ` - ${format(parseISO(event.endDate), "h:mm a")}`}
+                      {formattedEventDate}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -130,7 +164,8 @@ export default function VisitingLeoPage() {
                     </Button>
                   </CardFooter>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </ScrollArea>
         ) : (
@@ -168,7 +203,7 @@ export default function VisitingLeoPage() {
                   setSelectedEvent(null);
                 }}
                 isLoading={isSubmitting}
-                eventDate={selectedEvent.startDate ? format(parseISO(selectedEvent.startDate), "MMMM d, yyyy 'at' h:mm a") : "Date not available"}
+                eventDate={selectedEvent.startDate && isValid(parseISO(selectedEvent.startDate)) ? format(parseISO(selectedEvent.startDate), "MMMM d, yyyy 'at' h:mm a") : "Date not available"}
               />
             </DialogContent>
           </Dialog>

@@ -17,7 +17,6 @@ export interface User {
 export interface Event {
   id: string; // Firestore document ID
   name: string;
-  date: string; // Legacy: ISO string for general use, might be deprecated if startDate is robust
   startDate: string; // Primary date field: ISO string (converted from Firestore Timestamp)
   endDate?: string; // Optional: ISO string for multi-day or timed events
   description: string;

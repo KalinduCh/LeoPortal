@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PlusCircle, Edit, Trash2, CalendarDays, Loader2, Eye, MapPin } from "lucide-react";
-import { format, parseISO, isPast } from 'date-fns';
+import { format, parseISO, isPast, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { EventForm, type EventFormValues } from "@/components/events/event-form";
 import { getEvents, createEvent, updateEvent, deleteEvent as deleteEventService } from '@/services/eventService';
@@ -38,7 +38,12 @@ export default function EventManagementPage() {
     setIsLoading(true);
     try {
       const fetchedEvents = await getEvents();
-      setEvents(fetchedEvents.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); 
+      // Sort by startDate (descending - most recent first)
+      setEvents(fetchedEvents.sort((a,b) => {
+          const dateA = a.startDate ? parseISO(a.startDate).getTime() : 0;
+          const dateB = b.startDate ? parseISO(b.startDate).getTime() : 0;
+          return dateB - dateA;
+      })); 
     } catch (error: any) {
       console.error("Failed to fetch events:", error);
       toast({ title: "Error", description: `Could not load events: ${error.message}`, variant: "destructive" });
@@ -111,7 +116,7 @@ export default function EventManagementPage() {
     router.push(`/admin/event-summary/${eventId}`);
   };
 
-  if (authLoading || (isLoading && events.length === 0)) { // Show loader if loading and no events yet
+  if (authLoading || (isLoading && events.length === 0)) { 
     return (
       <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -141,7 +146,7 @@ export default function EventManagementPage() {
               <DialogTitle>{selectedEvent ? "Edit Event" : "Create New Event"}</DialogTitle>
             </DialogHeader>
             <EventForm
-                event={selectedEvent}
+                event={selectedEvent} // EventForm expects `event.date` for the form, maps to `startDate` internally for service
                 onSubmit={handleFormSubmit}
                 onCancel={() => {
                     setIsFormOpen(false);
@@ -158,7 +163,7 @@ export default function EventManagementPage() {
           <CardTitle className="flex items-center text-lg sm:text-xl">
             <CalendarDays className="mr-2 h-5 w-5 text-primary" /> All Events
           </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">View, edit, or delete club events. Events are sorted by most recent first.</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">View, edit, or delete club events. Events are sorted by most recent start date first.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading && events.length === 0 ? (
@@ -173,7 +178,7 @@ export default function EventManagementPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
-                      <TableHead>Date</TableHead>
+                      <TableHead>Start Date</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -181,16 +186,16 @@ export default function EventManagementPage() {
                   </TableHeader>
                   <TableBody>
                     {events.map((event) => {
-                      const eventDate = parseISO(event.date);
-                      const isEventPast = isPast(eventDate);
+                      const eventStartDateObj = event.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : null;
+                      const isEventPast = eventStartDateObj ? isPast(eventStartDateObj) : false;
                       return (
                         <TableRow key={event.id}>
                           <TableCell className="font-medium">{event.name}</TableCell>
-                          <TableCell>{format(eventDate, "MMM d, yyyy 'at' h:mm a")}</TableCell>
+                          <TableCell>{eventStartDateObj ? format(eventStartDateObj, "MMM d, yyyy 'at' h:mm a") : "Invalid Date"}</TableCell>
                           <TableCell>{event.location}</TableCell>
                           <TableCell>
                             <Badge variant={isEventPast ? "secondary" : "default"} className={!isEventPast ? "bg-green-600 hover:bg-green-700 text-white" : ""}>
-                              {isEventPast ? "Past" : "Upcoming"}
+                              {isEventPast ? "Past" : "Upcoming/Ongoing"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right space-x-1 sm:space-x-2">
@@ -200,7 +205,7 @@ export default function EventManagementPage() {
                             <Button variant="destructive" size="icon" onClick={() => handleDeleteEvent(event.id)} aria-label="Delete Event" disabled={isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9">
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                            {isEventPast && (
+                            {(isEventPast || !isEventPast) && ( // Show summary for all events for now
                               <Button variant="ghost" size="icon" onClick={() => handleViewSummary(event.id)} aria-label="View Event Summary" disabled={isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9">
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -215,22 +220,22 @@ export default function EventManagementPage() {
               {/* Mobile Card View (visible on < md) */}
               <div className="block md:hidden space-y-4">
                 {events.map((event) => {
-                  const eventDate = parseISO(event.date);
-                  const isEventPast = isPast(eventDate);
+                  const eventStartDateObj = event.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : null;
+                  const isEventPast = eventStartDateObj ? isPast(eventStartDateObj) : false;
                   return (
                     <Card key={event.id} className="shadow-md">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-md font-semibold">{event.name}</CardTitle>
                         <CardDescription className="text-xs">
                             <Badge variant={isEventPast ? "secondary" : "default"} className={`text-xs ${!isEventPast ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}>
-                              {isEventPast ? "Past" : "Upcoming"}
+                              {isEventPast ? "Past" : "Upcoming/Ongoing"}
                             </Badge>
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-1 text-sm pb-3">
                         <div className="flex items-center">
                             <CalendarDays className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                            <span>{format(eventDate, "MMM d, yyyy 'at' h:mm a")}</span>
+                            <span>{eventStartDateObj ? format(eventStartDateObj, "MMM d, yyyy 'at' h:mm a") : "Invalid Date"}</span>
                         </div>
                         <div className="flex items-center">
                             <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -244,7 +249,7 @@ export default function EventManagementPage() {
                         <Button variant="destructive" size="sm" onClick={() => handleDeleteEvent(event.id)} disabled={isSubmitting}>
                           <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
                         </Button>
-                        {isEventPast && (
+                        {(isEventPast || !isEventPast) && (
                           <Button variant="ghost" size="sm" onClick={() => handleViewSummary(event.id)} disabled={isSubmitting}>
                             <Eye className="mr-1.5 h-3.5 w-3.5" /> Summary
                           </Button>
@@ -263,5 +268,3 @@ export default function EventManagementPage() {
     </div>
   );
 }
-
-    

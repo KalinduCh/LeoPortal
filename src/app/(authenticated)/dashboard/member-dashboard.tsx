@@ -80,12 +80,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     }
     
     // If it has an endDate, check if it's within the interval
-    if (event.endDate) {
-        if (!isValid(parseISO(event.endDate))) {
-            // console.warn(`[Upcoming/Ongoing Filter] Event ${event.name} has invalid endDate. Treating as ongoing from startDate if startDate is current/past.`);
-            // If endDate is invalid but startDate has passed or is current, consider it ongoing.
-            return !isFuture(startDate);
-        }
+    if (event.endDate && isValid(parseISO(event.endDate))) {
         const endDate = parseISO(event.endDate);
         return isWithinInterval(now, { start: startDate, end: endDate });
     }
@@ -100,40 +95,24 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   });
 
   const attendedPastEvents = allEvents.filter(event => {
-    // console.log(`[AttendedPastEvents Filter] Checking event: ${event.name} (ID: ${event.id})`);
-    if (!event.startDate) {
-        // console.warn(`[AttendedPastEvents Filter] Event ${event.name} skipped: Missing startDate.`);
+    if (!event.startDate || !isValid(parseISO(event.startDate))) {
         return false;
     }
     const parsedEventStartDate = parseISO(event.startDate);
-    if (!isValid(parsedEventStartDate)) {
-        // console.warn(`[AttendedPastEvents Filter] Event ${event.name} skipped: Invalid startDate string '${event.startDate}'.`);
-        return false;
-    }
-
     const isEventInPastOrCurrent = !isFuture(parsedEventStartDate);
-    // console.log(`[AttendedPastEvents Filter] Event ${event.name}: startDate=${event.startDate}, isPastOrCurrent=${isEventInPastOrCurrent}`);
 
     if (!isEventInPastOrCurrent) {
-        // console.log(`[AttendedPastEvents Filter] Event ${event.name} skipped: Not in past or current.`);
         return false;
     }
 
     const attendanceRecord = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user?.id && ar.status === 'present');
-    const hasAttended = !!attendanceRecord;
-    // console.log(`[AttendedPastEvents Filter] Event ${event.name}: hasAttended=${hasAttended}. Record found:`, attendanceRecord);
-    
-    if (!hasAttended) {
-        // console.log(`[AttendedPastEvents Filter] Event ${event.name} skipped: No 'present' attendance record found for user.`);
-    }
-    return hasAttended;
+    return !!attendanceRecord;
   }).sort((a, b) => {
     const dateA = parseISO(a.startDate);
     const dateB = parseISO(b.startDate);
     if (!isValid(dateA) || !isValid(dateB)) return 0;
     return dateB.getTime() - dateA.getTime(); 
   });
-  // console.log("[AttendedPastEvents Filter] Final attendedPastEvents list:", attendedPastEvents);
 
 
   const isLoading = isLoadingEvents || isLoadingAttendance;
@@ -210,7 +189,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                     formattedEventDate = format(eventStartDateObj, "MMM d, yyyy, h:mm a");
                     if (event.endDate && isValid(parseISO(event.endDate))) {
                         const eventEndDateObj = parseISO(event.endDate);
-                        // Only append end time if it's different from start time or on a different day
                         if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
                             (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
                              formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
@@ -247,7 +225,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 })}
               </ul>
             </ScrollArea>
-          ) : ( // This is the empty state: !isLoading && attendedPastEvents.length === 0
+          ) : ( 
             <p className="text-muted-foreground text-center py-6">You have no past attended events recorded.</p>
           )}
         </CardContent>

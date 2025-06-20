@@ -1,11 +1,12 @@
+
 // src/app/actions/ai.ts
 "use server";
 
 import { z } from "zod";
 import { answerScheduleQuestions, type AnswerScheduleQuestionsInput } from "@/ai/flows/answer-schedule-questions";
 import { answerProfileUpdateQuestions, type AnswerProfileUpdateQuestionsInput } from "@/ai/flows/answer-profile-update-questions";
-// import { mockEvents } from "@/lib/data"; // Replaced by Firestore, AI may need live event data access
-import { getEvents } from "@/services/eventService"; // Import service to fetch live events
+import { getEvents } from "@/services/eventService"; 
+import { isValid, parseISO } from 'date-fns';
 
 const aiQuerySchema = z.object({
   question: z.string().min(1, "Question cannot be empty."),
@@ -38,10 +39,12 @@ export async function handleAiQuery(
 
   try {
     if (context === "schedule") {
-      // Fetch live event data for the AI flow.
       const liveEvents = await getEvents();
       const eventsString = liveEvents
-        .map(e => `${e.name} on ${new Date(e.date).toLocaleDateString()} at ${e.location}. Description: ${e.description}`)
+        .map(e => {
+          if (!e.startDate || !isValid(parseISO(e.startDate))) return "Unnamed event at an unspecified date/location.";
+          return `${e.name} on ${new Date(e.startDate).toLocaleDateString()} at ${e.location}. Description: ${e.description}`;
+        })
         .join("\n");
       
       const input: AnswerScheduleQuestionsInput = { question, events: eventsString };

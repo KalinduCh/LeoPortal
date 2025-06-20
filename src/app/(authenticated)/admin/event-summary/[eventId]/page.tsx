@@ -83,7 +83,7 @@ export default function EventSummaryPage() {
           }
         } else if (record.attendanceType === 'visitor') {
           summaries.push({
-            id: record.id, // Use attendance record ID for visitors
+            id: record.id, 
             attendanceTimestamp: record.timestamp,
             type: 'visitor',
             visitorName: record.visitorName,
@@ -248,7 +248,7 @@ export default function EventSummaryPage() {
                                   </AvatarFallback>
                                 </Avatar>
                                ) : (
-                                <Star className="h-7 w-7 text-yellow-500" /> // Visitor Icon
+                                <Star className="h-7 w-7 text-yellow-500" /> 
                                )}
                             </TableCell>
                             <TableCell className="font-medium">{summary.userName || summary.visitorName}</TableCell>
@@ -264,7 +264,7 @@ export default function EventSummaryPage() {
                                 {summary.type === 'visitor' ? (summary.visitorComment || 'N/A') : 'N/A'}
                              </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              {format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a")}
+                              {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a") : "Invalid Date"}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -318,7 +318,7 @@ export default function EventSummaryPage() {
                             </p>
                         )}
                         <p className="text-xs text-muted-foreground mt-2 text-right">
-                          Attended: {format(parseISO(summary.attendanceTimestamp), "MMM d, h:mm a")}
+                          Attended: {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? format(parseISO(summary.attendanceTimestamp), "MMM d, h:mm a") : "Invalid Date"}
                         </p>
                       </CardContent>
                     </Card>

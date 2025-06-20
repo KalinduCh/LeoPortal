@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import type { Event, UserRole, AttendanceRecord, User } from '@/types';
 import { CalendarDays, MapPin, Info, CheckCircle, XCircle, Clock, Navigation, AlertTriangle } from 'lucide-react';
-import { format, parseISO, isFuture, isPast } from 'date-fns';
+import { format, parseISO, isFuture, isPast, isValid } from 'date-fns'; // Added isValid
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentPosition, calculateDistanceInMeters, MAX_ATTENDANCE_DISTANCE_METERS } from '@/lib/geolocation';
 import { markUserAttendance, type MarkAttendanceResult } from '@/services/attendanceService';
@@ -29,15 +29,34 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
     setCurrentAttendanceRecord(initialAttendanceRecord);
   }, [initialAttendanceRecord]);
 
-  const eventDate = parseISO(event.date);
-  const formattedDate = format(eventDate, "MMMM d, yyyy 'at' h:mm a");
-  const isEventUpcoming = isFuture(eventDate);
-  const isEventPast = isPast(eventDate);
+  if (!event.startDate || !isValid(parseISO(event.startDate))) {
+    // console.error("EventCard: Invalid or missing startDate for event", event);
+    // Optionally render an error state or skip rendering this card
+    return (
+        <Card className="w-full shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col">
+            <CardHeader><CardTitle className="font-headline text-xl text-destructive">Invalid Event Data</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-destructive-foreground">This event has an invalid date and cannot be displayed.</p></CardContent>
+        </Card>
+    );
+  }
 
-  // Corrected: Check if latitude and longitude are valid numbers for geo-restriction
+  const eventStartDate = parseISO(event.startDate);
+  let formattedDate = format(eventStartDate, "MMMM d, yyyy 'at' h:mm a");
+  if (event.endDate && isValid(parseISO(event.endDate))) {
+    const eventEndDate = parseISO(event.endDate);
+    // Only append end time if it's different from start time or on a different day
+    if (eventEndDate.toDateString() !== eventStartDate.toDateString() || 
+        (eventEndDate.getHours() !== eventStartDate.getHours() || eventEndDate.getMinutes() !== eventStartDate.getMinutes())) {
+         formattedDate += ` - ${format(eventEndDate, "h:mm a")}`;
+    }
+  }
+
+
+  const isEventUpcoming = isFuture(eventStartDate);
+  const isEventPast = isPast(eventStartDate);
+
   const isGeoRestrictionActive = typeof event.latitude === 'number' && typeof event.longitude === 'number';
-
-  const canAttemptToMarkAttendance = userRole === 'member' && isEventUpcoming && !currentAttendanceRecord;
+  const canAttemptToMarkAttendance = userRole === 'member' && !isEventPast && !currentAttendanceRecord; // Simplified: can mark if not past and not already marked
 
   const handleMarkAttendance = async () => {
     if (!user) {
@@ -54,8 +73,7 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
     let userLongitude: number | undefined = undefined;
 
     try {
-      // Use the isGeoRestrictionActive flag
-      if (isGeoRestrictionActive && event.latitude && event.longitude) { // Also ensure event.latitude/longitude are truthy for the check
+      if (isGeoRestrictionActive && event.latitude && event.longitude) { 
         const position = await getCurrentPosition(); 
         userLatitude = position.latitude;
         userLongitude = position.longitude;
@@ -79,7 +97,7 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
         }
         toast({ title: "Location Verified", description: `You are within the allowed radius (${Math.round(distance)}m). Marking attendance...`, duration: 3000 });
       } else {
-        toast({ title: "Marking Attendance", description: "Event location not specified or geo-restriction not active, proceeding without geo-check.", duration: 3000 });
+        // toast({ title: "Marking Attendance", description: "Event location not specified or geo-restriction not active, proceeding without geo-check.", duration: 3000 });
       }
 
       const result: MarkAttendanceResult = await markUserAttendance(event.id, user.id, userLatitude, userLongitude);
@@ -131,7 +149,6 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
             <MapPin className="mr-2 h-4 w-4 mt-0.5 shrink-0 text-primary" />
             <span className="text-muted-foreground">{event.location}</span>
           </div>
-          {/* Use the isGeoRestrictionActive flag for display */}
           {isGeoRestrictionActive && (
              <div className="flex items-start text-xs text-muted-foreground">
                 <Navigation className="mr-2 h-3 w-3 mt-0.5 shrink-0 text-green-600" />
@@ -163,8 +180,8 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
                 {isSubmittingAttendance ? "Processing..." : "Mark My Attendance"}
               </Button>
             )}
-            {!canAttemptToMarkAttendance && !currentAttendanceRecord && isEventUpcoming && (
-               <p className="text-sm text-center text-muted-foreground">Attendance marking will be available if conditions are met.</p>
+            {!canAttemptToMarkAttendance && !currentAttendanceRecord && !isEventPast && ( // Changed from isEventUpcoming
+               <p className="text-sm text-center text-muted-foreground">Attendance marking is available for current or upcoming events if not already marked.</p>
             )}
             {isEventPast && !currentAttendanceRecord && (
                <p className="text-sm text-center text-muted-foreground">Attendance for this past event was not recorded.</p>
