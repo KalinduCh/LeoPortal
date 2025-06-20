@@ -7,18 +7,18 @@ import { useParams, useRouter } from 'next/navigation';
 import type { Event, User, AttendanceRecord, EventParticipantSummary } from '@/types';
 import { getEvent } from '@/services/eventService';
 import { getAttendanceRecordsForEvent } from '@/services/attendanceService';
-import { getUserProfile } from '@/services/userService'; // Assuming you have a way to get multiple users or one by one
+import { getUserProfile } from '@/services/userService'; 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+// Removed Avatar imports
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Briefcase, Clock } from 'lucide-react';
+import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from "@/components/ui/badge"; // Added import for Badge
+import { Badge } from "@/components/ui/badge";
 
 export default function EventSummaryPage() {
   const params = useParams();
@@ -38,12 +38,8 @@ export default function EventSummaryPage() {
     documentTitle: event ? `Event Summary - ${event.name}` : 'Event Summary',
   });
 
-  const getInitials = (name?: string) => {
-    if (!name) return "??";
-    const names = name.split(' ');
-    if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
-    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
-  };
+  // getInitials is no longer needed here as Avatar is removed from this page
+  // const getInitials = (name?: string) => { ... };
 
   const fetchEventData = useCallback(async () => {
     if (!eventId) {
@@ -189,7 +185,7 @@ export default function EventSummaryPage() {
                 <Table className="print-table">
                   <TableHeader className="print-table-header bg-muted/50">
                     <TableRow>
-                      <TableHead className="print-hide w-12">Avatar</TableHead>
+                      {/* Removed Avatar TableHead */}
                       <TableHead>Name</TableHead>
                       <TableHead>Designation</TableHead>
                       <TableHead>Email</TableHead>
@@ -199,12 +195,7 @@ export default function EventSummaryPage() {
                   <TableBody className="print-table-body">
                     {participantsSummary.map((summary) => (
                       <TableRow key={summary.user.id}>
-                        <TableCell className="print-hide">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={summary.user.photoUrl} alt={summary.user.name} data-ai-hint="profile avatar" />
-                            <AvatarFallback className="bg-primary/20 text-primary font-semibold">{getInitials(summary.user.name)}</AvatarFallback>
-                          </Avatar>
-                        </TableCell>
+                        {/* Removed Avatar TableCell */}
                         <TableCell className="font-medium">{summary.user.name}</TableCell>
                         <TableCell className="capitalize text-xs">
                             <Badge variant={summary.user.role === 'admin' ? "default" : "secondary"} className={summary.user.role === 'admin' ? "bg-primary/80" : ""}>
@@ -229,4 +220,3 @@ export default function EventSummaryPage() {
     </div>
   );
 }
-

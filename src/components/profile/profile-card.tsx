@@ -19,10 +19,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format, parseISO, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { storage } from '@/lib/firebase/clientApp'; // Import storage
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+// Removed Firebase Storage imports
 import { useToast } from '@/hooks/use-toast';
 
+const MAX_FILE_SIZE_KB = 200; // Max file size in KB for Base64 storage
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -30,6 +30,7 @@ const profileFormSchema = z.object({
   dateOfBirth: z.string().optional(), 
   gender: z.string().optional(),
   mobileNumber: z.string().optional(),
+  photoUrl: z.string().optional(), // Will store Base64 data URI or placeholder
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -37,14 +38,13 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 interface ProfileCardProps {
   user: User;
   onUpdateProfile: (updatedData: Partial<User>) => Promise<void>;
-  isUpdatingProfile: boolean; // This prop indicates if the parent page is handling the overall update
+  isUpdatingProfile: boolean; 
 }
 
 export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParentUpdating }: ProfileCardProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedBase64Image, setSelectedBase64Image] = useState<string | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(user.photoUrl || null);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
@@ -56,6 +56,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
       dateOfBirth: user.dateOfBirth || "",
       gender: user.gender || "",
       mobileNumber: user.mobileNumber || "",
+      photoUrl: user.photoUrl || "",
     },
   });
 
@@ -66,53 +67,53 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
       dateOfBirth: user.dateOfBirth || "",
       gender: user.gender || "",
       mobileNumber: user.mobileNumber || "",
+      photoUrl: user.photoUrl || "",
     });
-    if (!isEditing) { // Reset preview if not editing or if user data changes
+    if (!isEditing) {
         setImagePreviewUrl(user.photoUrl || null);
-        setSelectedFile(null);
+        setSelectedBase64Image(null); 
     }
   }, [user, form, isEditing]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast({ title: "File Too Large", description: "Profile image must be less than 5MB.", variant: "destructive" });
+      if (file.size > MAX_FILE_SIZE_KB * 1024) { 
+        toast({ title: "File Too Large", description: `Profile image must be less than ${MAX_FILE_SIZE_KB}KB.`, variant: "destructive" });
         return;
       }
       if (!file.type.startsWith('image/')) {
         toast({ title: "Invalid File Type", description: "Please select an image file.", variant: "destructive" });
         return;
       }
-      setSelectedFile(file);
-      setImagePreviewUrl(URL.createObjectURL(file));
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setSelectedBase64Image(base64String);
+        setImagePreviewUrl(base64String);
+      };
+      reader.onerror = () => {
+        toast({ title: "File Read Error", description: "Could not read the image file.", variant: "destructive" });
+        setSelectedBase64Image(null);
+        setImagePreviewUrl(user.photoUrl || null); // Revert to original if read fails
+      }
+      reader.readAsDataURL(file);
     }
   };
 
   const handleFormSubmit = async (values: ProfileFormValues) => {
-    let finalPhotoUrl = user.photoUrl;
+    let finalPhotoUrl = user.photoUrl; // Keep existing photo by default
 
-    if (selectedFile) {
-      setIsUploadingImage(true);
-      try {
-        const imageRef = storageRef(storage, `profile_images/${user.id}/${selectedFile.name}`);
-        const snapshot = await uploadBytes(imageRef, selectedFile);
-        finalPhotoUrl = await getDownloadURL(snapshot.ref);
-        toast({ title: "Image Uploaded", description: "Profile picture updated successfully." });
-      } catch (error) {
-        console.error("Error uploading image:", error);
-        toast({ title: "Image Upload Failed", description: "Could not upload new profile picture. Please try again.", variant: "destructive" });
-        setIsUploadingImage(false);
-        return; // Don't proceed with profile update if image upload fails
-      }
-      setIsUploadingImage(false);
+    if (selectedBase64Image) {
+      finalPhotoUrl = selectedBase64Image; // Use new Base64 image if selected
     }
     
     let dobToSave: string | undefined = undefined;
     if (values.dateOfBirth) {
-        if (values.dateOfBirth instanceof Date) {
+        if (values.dateOfBirth instanceof Date) { // Should not happen with string from form
             dobToSave = format(values.dateOfBirth, "yyyy-MM-dd");
-        } else {
+        } else { // It's already a string or undefined
             const parsedFromString = parseISO(values.dateOfBirth);
             if (isValid(parsedFromString)) {
                 dobToSave = format(parsedFromString, "yyyy-MM-dd");
@@ -124,12 +125,15 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
     
     await onUpdateProfile({
       id: user.id, 
-      ...values,
-      photoUrl: finalPhotoUrl,
+      name: values.name,
+      nic: values.nic,
+      gender: values.gender,
+      mobileNumber: values.mobileNumber,
+      photoUrl: finalPhotoUrl, // This will be the Base64 string or existing URL
       dateOfBirth: dobToSave,
     });
     setIsEditing(false); 
-    setSelectedFile(null); // Clear selected file after successful update
+    setSelectedBase64Image(null); // Clear selected Base64 image after successful update
   };
 
   const getInitials = (name?: string) => {
@@ -160,7 +164,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
     }
   }
 
-  const currentLoadingState = isParentUpdating || isUploadingImage;
+  const currentLoadingState = isParentUpdating; // Removed isUploadingImage
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
@@ -297,10 +301,10 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
                 )}
               />
               <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => {setIsEditing(false); setSelectedFile(null); setImagePreviewUrl(user.photoUrl || null);}} disabled={currentLoadingState}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={() => {setIsEditing(false); setSelectedBase64Image(null); setImagePreviewUrl(user.photoUrl || null);}} disabled={currentLoadingState}>Cancel</Button>
                 <Button type="submit" disabled={currentLoadingState}>
                   {currentLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isUploadingImage ? "Uploading..." : (isParentUpdating ? "Saving..." : "Save Changes")}
+                  {currentLoadingState ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </form>
@@ -344,4 +348,3 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon: Icon, label, va
     </div>
   </div>
 );
-

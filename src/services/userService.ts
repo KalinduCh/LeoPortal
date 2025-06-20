@@ -9,7 +9,7 @@ export async function createUserProfile(
   email: string, 
   name: string, 
   role: UserRole = 'member',
-  photoUrl?: string,
+  photoUrl?: string, // photoUrl is now expected to be a Base64 string or placeholder
   nic?: string,
   dateOfBirth?: string,
   gender?: string,
@@ -18,17 +18,18 @@ export async function createUserProfile(
   const userRef = doc(db, 'users', uid);
   const placeholderChar = name && name.trim().length > 0 ? name.trim().charAt(0).toUpperCase() : 'U';
   
-  const profileData: Partial<User> & { createdAt: any } = { // Ensure all fields are optional for partial updates
+  const profileData: Partial<User> & { createdAt: any } = { 
     uid,
     email,
     name: name || "Unnamed User",
     role,
     createdAt: serverTimestamp(),
+    // If photoUrl is provided (Base64 or existing placeholder), use it. Otherwise, generate new placeholder.
     photoUrl: photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
   };
 
   if (nic) profileData.nic = nic;
-  if (dateOfBirth) profileData.dateOfBirth = dateOfBirth;
+  if (dateOfBirth) profileData.dateOfBirth = dateOfBirth; // Expects "YYYY-MM-DD" string
   if (gender) profileData.gender = gender;
   if (mobileNumber) profileData.mobileNumber = mobileNumber;
 
@@ -48,10 +49,11 @@ export async function getUserProfile(uid: string): Promise<User | null> {
         id: userSnap.id,
         name: data.name || "Unnamed User",
         email: data.email,
+        // If photoUrl exists (could be Base64 or placeholder), use it. Else, generate placeholder.
         photoUrl: data.photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
         role: data.role,
         nic: data.nic,
-        dateOfBirth: data.dateOfBirth,
+        dateOfBirth: data.dateOfBirth, // Expects "YYYY-MM-DD" string
         gender: data.gender,
         mobileNumber: data.mobileNumber,
      } as User;
@@ -59,18 +61,19 @@ export async function getUserProfile(uid: string): Promise<User | null> {
   return null;
 }
 
-// Ensure this function can handle all new User fields for updates
 export async function updateUserProfile(uid: string, data: Partial<User>): Promise<void> {
   const userRef = doc(db, 'users', uid);
-  // Create a mutable copy to avoid modifying the input `data` object if it's read-only
   const updateData: Partial<User> = { ...data }; 
   
-  // Firestore does not allow 'id' or 'uid' to be part of the update payload if they are the document ID
-  // However, our User type includes 'id'. We should remove it before updating.
-  // Also, 'uid' if it's the same as the doc id and already stored, might not need explicit update.
-  // For simplicity, we assume 'id' might be passed from forms and should be stripped.
   delete updateData.id; 
-  // delete updateData.uid; // uid is usually not changed.
+
+  // If photoUrl is an empty string, explicitly set it to null or use a server-side delete if needed.
+  // For now, if it's empty, it will save an empty string. If it's undefined, the field won't be updated.
+  // If it's null, it might remove the field or set it to null based on Firestore behavior.
+  // For Base64, an empty string means no image, null means remove previous.
+  // Let's ensure if an empty string is passed for photoUrl, it signifies "no custom image".
+  // The consumer (ProfileCard) should send a placeholder URL or an empty string/null if they want to clear it.
+  // For now, we assume ProfileCard sends a valid Base64 data URI, a placeholder, or existing value.
 
   if (Object.keys(updateData).length > 0) {
     await updateDoc(userRef, updateData);
