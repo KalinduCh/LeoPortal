@@ -11,15 +11,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Removed DialogTrigger as it's not directly used here for edit.
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { createUserProfile, updateUserProfile } from '@/services/userService';
-import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText } from "lucide-react";
+import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { MemberEditForm, type MemberEditFormValues } from '@/components/members/member-edit-form';
+import { MemberAddForm, type MemberAddFormValues } from '@/components/members/member-add-form';
 
 export default function MemberManagementPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -36,6 +37,7 @@ export default function MemberManagementPage() {
 
   const [selectedMemberForEdit, setSelectedMemberForEdit] = useState<User | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
 
 
   useEffect(() => {
@@ -106,8 +108,70 @@ export default function MemberManagementPage() {
     setIsSubmitting(false);
   };
 
+  const handleOpenAddForm = () => {
+    setIsAddFormOpen(true);
+  };
+
+  const handleAddFormSubmit = async (data: MemberAddFormValues) => {
+    setIsSubmitting(true);
+    const originalAuthUserUID = firebaseAuth.currentUser?.uid;
+    try {
+      const userCredential = await createUserWithEmailAndPassword(firebaseAuth, data.email, data.password);
+      const newAuthUser = userCredential.user;
+
+      await createUserProfile(
+        newAuthUser.uid,
+        data.email,
+        data.name,
+        data.role
+        // Other profile fields like NIC, DOB can be added here if included in MemberAddFormValues and form
+      );
+      
+      // Sign out the newly created user to keep admin session active
+      if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
+        await signOut(firebaseAuth);
+      }
+
+      toast({ title: "Member Created", description: `${data.name} has been successfully added.` });
+      fetchMembers();
+      setIsAddFormOpen(false);
+
+    } catch (error: any) {
+      console.error("Failed to add member:", error);
+      let errorMessage = "Could not create member account.";
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = "This email address is already in use.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "The password is too weak. It must be at least 6 characters.";
+      }
+      toast({ title: "Error Adding Member", description: errorMessage, variant: "destructive" });
+      // Defensive sign-out if error occurred and current user is the one being created
+      if (firebaseAuth.currentUser && firebaseAuth.currentUser.email === data.email) {
+          try {
+            await signOut(firebaseAuth);
+          } catch (signOutError) {
+            console.error("Error during defensive sign-out after add member error:", signOutError);
+          }
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+    
+    // Brief delay to ensure all async operations (like signOut) have a chance to settle
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
+        toast({
+          title: "Session Notice",
+          description: "Your admin session may have been affected. If issues persist, please log out and log back in.",
+          variant: "destructive", 
+          duration: 10000, 
+        });
+      }
+  };
+
+
   const handleDeleteMember = async (memberId: string) => {
-    console.log(`Attempting to delete member with ID: ${memberId}`);
     if (!memberId) {
         toast({ title: "Error", description: "Cannot delete member: Member ID is missing.", variant: "destructive"});
         console.error("handleDeleteMember: memberId is undefined or empty.");
@@ -118,7 +182,6 @@ export default function MemberManagementPage() {
         setIsSubmitting(true); 
         try {
             const memberDocRef = doc(db, "users", memberId);
-            console.log("Firestore document reference for deletion:", memberDocRef.path);
             await deleteDoc(memberDocRef);
             toast({title: "Member Profile Removed", description: "The member's profile has been removed from Firestore."});
             fetchMembers(); 
@@ -131,8 +194,6 @@ export default function MemberManagementPage() {
             toast({title: "Error Deleting Profile", description, variant: "destructive"});
         }
         setIsSubmitting(false);
-    } else {
-        console.log(`Deletion cancelled for member ID: ${memberId}`);
     }
   };
 
@@ -232,7 +293,7 @@ export default function MemberManagementPage() {
             email, 
             name, 
             role, 
-            undefined, // photoUrl - will use default
+            undefined, 
             nic,
             dateOfBirth,
             gender,
@@ -240,7 +301,6 @@ export default function MemberManagementPage() {
           );
           
           if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
-            // Important: Sign out the newly created user to keep admin session
             await signOut(firebaseAuth); 
             importMessages.push(`Successfully imported and signed out ${email}.`);
           } else {
@@ -262,7 +322,6 @@ export default function MemberManagementPage() {
             importMessages.push(`Error importing ${email}: ${firebaseErrorMsg.substring(0,150)}...`);
             console.error(`Full error for ${email}:`, error);
 
-            // If an error occurs during user creation, and somehow the current auth state IS the user being created, sign them out.
             if (firebaseAuth.currentUser && firebaseAuth.currentUser.email === email) {
               try {
                 await signOut(firebaseAuth);
@@ -276,7 +335,6 @@ export default function MemberManagementPage() {
         }
       }
       
-      // Brief delay to ensure all async operations (like signOut) have a chance to settle
       await new Promise(resolve => setTimeout(resolve, 500)); 
 
       let toastTitle = "Import Process Complete";
@@ -284,10 +342,10 @@ export default function MemberManagementPage() {
       let toastVariant: "default" | "destructive" = "default";
 
       if (skippedCount > 0) {
-        toastDescription += ` ${skippedCount} skipped (e.g., email exists, weak password, missing data).`;
+        toastDescription += ` ${skippedCount} skipped.`;
       }
       if (errorCount > 0) {
-        toastDescription += ` ${errorCount} failed with errors.`;
+        toastDescription += ` ${errorCount} failed.`;
         toastVariant = "destructive";
       }
       
@@ -298,15 +356,13 @@ export default function MemberManagementPage() {
           console.warn("--- End of Import Summary ---");
       }
       
-      // Check if admin's session was inadvertently changed
       if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
         toast({
           title: "Session Notice (Import Related)",
-          description: "Your admin session may have been affected by the import. If issues persist, please log out and log back in to restore your session.",
+          description: "Your admin session may have been affected. Please log out and log back in to restore your session.",
           variant: "destructive", 
           duration: 15000, 
         });
-        // Delay the main summary toast if the session notice is shown
         setTimeout(() => {
             toast({ title: toastTitle, description: toastDescription, variant: toastVariant, duration: 10000 });
         }, 500); 
@@ -395,10 +451,31 @@ export default function MemberManagementPage() {
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <UsersIcon className="mr-2 h-5 w-5 text-primary" /> User Accounts
-          </CardTitle>
-          <CardDescription>View and manage user details. Deletion here removes app profile data but not login credentials.</CardDescription>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                    <CardTitle className="flex items-center">
+                        <UsersIcon className="mr-2 h-5 w-5 text-primary" /> User Accounts
+                    </CardTitle>
+                    <CardDescription>View, edit, or add user details. Deletion removes app profile data, not login credentials.</CardDescription>
+                </div>
+                <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
+                    <DialogTrigger asChild>
+                        <Button onClick={handleOpenAddForm} className="w-full sm:w-auto">
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add New Member
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Add New Member</DialogTitle>
+                        </DialogHeader>
+                        <MemberAddForm
+                            onSubmit={handleAddFormSubmit}
+                            onCancel={() => setIsAddFormOpen(false)}
+                            isLoading={isSubmitting}
+                        />
+                    </DialogContent>
+                </Dialog>
+            </div>
           <div className="mt-4 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
