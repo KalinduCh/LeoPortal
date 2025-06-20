@@ -3,6 +3,8 @@
 "use server";
 
 import { z } from "zod";
+import { getFunctions, httpsCallable, type HttpsCallableResult } from 'firebase/functions';
+import { app } from '@/lib/firebase/clientApp'; // Ensure your clientApp initializes Firebase
 
 const sendBulkEmailSchema = z.object({
   recipientEmails: z.array(z.string().email()),
@@ -20,6 +22,14 @@ export interface SendBulkEmailState {
     general?: string;
   };
 }
+
+// Initialize Firebase Functions
+// It's important that 'app' is the initialized Firebase app instance
+const functions = getFunctions(app); 
+// Create a reference to the Firebase Function
+// The name 'sendBulkEmail' must match the exported name in your functions/src/index.ts
+const sendBulkEmailCallable = httpsCallable(functions, 'sendBulkEmail');
+
 
 export async function sendBulkEmailAction(
   prevState: SendBulkEmailState,
@@ -55,34 +65,40 @@ export async function sendBulkEmailAction(
     body: validBody 
   } = validatedFields.data;
 
-  // --- !!! IMPORTANT DEVELOPMENT NOTE !!! ---
-  // This section SIMULATES sending emails.
-  // In a real application, you would replace this with a call to a Firebase Function
-  // which then uses an email service (e.g., SendGrid, Mailgun, Resend) to send emails.
-  // Directly sending emails from a Next.js Server Action is not recommended for production
-  // due to potential security risks (exposing API keys) and limitations.
-  
-  console.log("--- SIMULATING EMAIL SEND ---");
-  console.log("Recipients:", validEmails.join(", "));
-  console.log("Subject:", validSubject);
-  console.log("Body:\n", validBody);
-  console.log("--- END OF SIMULATION ---");
+  try {
+    // Call the Firebase Function
+    const result: HttpsCallableResult<any> = await sendBulkEmailCallable({ 
+        recipientEmails: validEmails, 
+        subject: validSubject, 
+        body: validBody 
+    });
 
-  // Simulate a delay as if an API call was made
-  await new Promise(resolve => setTimeout(resolve, 1000));
+    // The 'result.data' will contain whatever your Firebase Function returns on success.
+    // Based on the example function, it returns { success: true, message: '...' }
+    const functionResponse = result.data as { success: boolean, message: string };
 
-  // For now, assume success
-  return {
-    success: true,
-    message: `Email successfully processed for ${validEmails.length} recipient(s). (Simulation Complete - Check server console for details)`,
-  };
+    if (functionResponse.success) {
+      return {
+        success: true,
+        message: functionResponse.message || `Email request processed for ${validEmails.length} recipient(s).`,
+      };
+    } else {
+      return {
+        success: false,
+        message: functionResponse.message || "The email function reported an issue.",
+        errors: { general: functionResponse.message || "Failed to send emails via cloud function." }
+      };
+    }
 
-  // Example of how error handling might look if the (simulated) call failed:
-  // return {
-  //   success: false,
-  //   message: "The email service provider returned an error.",
-  //   errors: { general: "Failed to send emails via provider." }
-  // };
+  } catch (error: any) {
+    console.error("Error calling sendBulkEmail Firebase Function:", error);
+    // Firebase HttpsError has a 'code' and 'message' property
+    // Default to a generic error message if details aren't available
+    const errorMessage = error.message || "An unexpected error occurred while trying to send emails.";
+    return {
+      success: false,
+      message: `Failed to process email request: ${errorMessage}`,
+      errors: { general: `Function call failed: ${errorMessage.substring(0,100)}...` }
+    };
+  }
 }
-
-    
