@@ -54,8 +54,10 @@ export async function markUserAttendance(
   markedLatitude?: number,
   markedLongitude?: number
 ): Promise<MarkAttendanceResult> {
+  console.log(`Attempting to mark user attendance for eventId: ${eventId}, userId: ${userId}`);
   const existingAttendance = await getUserAttendanceForEvent(eventId, userId);
   if (existingAttendance) {
+    console.log(`User ${userId} already marked attendance for event ${eventId}.`);
     return {
       status: 'already_marked',
       message: 'Attendance already marked for this event.',
@@ -78,17 +80,20 @@ export async function markUserAttendance(
   }
 
   try {
+    console.log(`Adding new user attendance record for event ${eventId}, user ${userId}. Data:`, attendanceData);
     const docRef = await addDoc(attendanceCollectionRef, attendanceData);
     const newDocSnap = await getDoc(doc(db, 'attendance', docRef.id));
     if (newDocSnap.exists()) {
         const newRecord = dataToAttendanceRecord(newDocSnap.id, newDocSnap.data());
         if (newRecord) {
+            console.log(`Successfully recorded and retrieved user attendance for event ${eventId}, user ${userId}.`);
             return { status: 'success', message: 'Your attendance has been recorded.', record: newRecord };
         }
     }
+    console.error(`User attendance recorded for event ${eventId}, user ${userId}, but failed to retrieve confirmation.`);
     return { status: 'error', message: 'Attendance recorded but failed to retrieve confirmation details.' };
   } catch (error: any) {
-    console.error("Error adding user attendance document to Firestore:", error);
+    console.error("Error adding user attendance document to Firestore for event " + eventId + ":", error);
     return { status: 'error', message: `Failed to record user attendance: ${error.message || 'Unknown error'}` };
   }
 }
@@ -97,7 +102,7 @@ export async function markVisitorAttendance(
   eventId: string,
   visitorData: VisitorAttendanceFormValues
 ): Promise<MarkAttendanceResult> {
-  // For visitors, we don't check for existing attendance as they are anonymous per submission
+  console.log(`Attempting to mark visitor attendance for eventId: ${eventId}. Visitor: ${visitorData.name}`);
   const attendanceData: Omit<AttendanceRecord, 'id' | 'timestamp' | 'userId'> & { timestamp: any; createdAt: any } = {
     eventId,
     status: 'present',
@@ -111,17 +116,20 @@ export async function markVisitorAttendance(
   };
 
   try {
+    console.log(`Adding new visitor attendance record for event ${eventId}. Data:`, attendanceData);
     const docRef = await addDoc(attendanceCollectionRef, attendanceData);
     const newDocSnap = await getDoc(doc(db, 'attendance', docRef.id));
      if (newDocSnap.exists()) {
         const newRecord = dataToAttendanceRecord(newDocSnap.id, newDocSnap.data());
         if (newRecord) {
+            console.log(`Successfully recorded and retrieved visitor attendance for event ${eventId}, visitor ${visitorData.name}.`);
             return { status: 'success', message: 'Visitor attendance has been recorded.', record: newRecord };
         }
     }
+    console.error(`Visitor attendance recorded for event ${eventId}, visitor ${visitorData.name}, but failed to retrieve confirmation.`);
     return { status: 'error', message: 'Visitor attendance recorded but failed to retrieve confirmation details.' };
   } catch (error: any) {
-    console.error("Error adding visitor attendance document to Firestore:", error);
+    console.error("Error adding visitor attendance document to Firestore for event " + eventId + ":", error);
     return { status: 'error', message: `Failed to record visitor attendance: ${error.message || 'Unknown error'}` };
   }
 }
@@ -131,6 +139,7 @@ export async function getUserAttendanceForEvent(
   eventId: string,
   userId: string
 ): Promise<AttendanceRecord | null> {
+  console.log(`Fetching user attendance for eventId: ${eventId}, userId: ${userId}`);
   const q = query(
     attendanceCollectionRef,
     where('eventId', '==', eventId),
@@ -140,13 +149,17 @@ export async function getUserAttendanceForEvent(
   );
   const snapshot = await getDocs(q);
   if (snapshot.empty) {
+    console.log(`No user attendance found for event ${eventId}, user ${userId}.`);
     return null;
   }
   const docSnap = snapshot.docs[0];
-  return dataToAttendanceRecord(docSnap.id, docSnap.data());
+  const record = dataToAttendanceRecord(docSnap.id, docSnap.data());
+  if(record) console.log(`User attendance found for event ${eventId}, user ${userId}.`);
+  return record;
 }
 
 export async function getAttendanceRecordsForUser(userId: string): Promise<AttendanceRecord[]> {
+  console.log(`Fetching all attendance records for userId: ${userId}`);
   const q = query(
     attendanceCollectionRef, 
     where('userId', '==', userId), 
@@ -154,10 +167,13 @@ export async function getAttendanceRecordsForUser(userId: string): Promise<Atten
     orderBy('timestamp', 'desc')
   );
   const snapshot = await getDocs(q);
+  console.log(`Found ${snapshot.docs.length} raw attendance docs for user ${userId}.`);
   const records: (AttendanceRecord | null)[] = snapshot.docs.map(docSnap => 
     dataToAttendanceRecord(docSnap.id, docSnap.data())
   );
-  return records.filter(record => record !== null) as AttendanceRecord[];
+  const validRecords = records.filter(record => record !== null) as AttendanceRecord[];
+  console.log(`Returning ${validRecords.length} valid attendance records for user ${userId}.`);
+  return validRecords;
 }
 
 // This function now fetches ALL attendance records for an event, members and visitors
@@ -168,7 +184,6 @@ export async function getAttendanceRecordsForEvent(eventId: string): Promise<Att
   console.log(`Found ${snapshot.docs.length} raw attendance docs for event ${eventId}`);
   const records: (AttendanceRecord | null)[] = snapshot.docs.map(docSnap => {
     const record = dataToAttendanceRecord(docSnap.id, docSnap.data());
-    // if (record) console.log(`Processed record for event ${eventId}:`, record);
     return record;
   });
   const validRecords = records.filter(record => record !== null) as AttendanceRecord[];

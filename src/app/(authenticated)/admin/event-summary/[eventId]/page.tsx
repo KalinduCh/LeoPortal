@@ -12,13 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Mail, UserCircle } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Mail, UserCircle, Briefcase, Star, MessageSquare } from 'lucide-react';
+import { format, parseISO, isValid } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Added Avatar imports
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function EventSummaryPage() {
   const params = useParams();
@@ -64,19 +64,43 @@ export default function EventSummaryPage() {
       }
       setEvent(fetchedEvent);
 
-      const attendanceRecords = await getAttendanceRecordsForEvent(eventId);
+      const attendanceRecords: AttendanceRecord[] = await getAttendanceRecordsForEvent(eventId);
       const summaries: EventParticipantSummary[] = [];
 
       for (const record of attendanceRecords) {
-        const userProfile = await getUserProfile(record.userId);
-        if (userProfile) {
+        if (record.attendanceType === 'member' && record.userId) {
+          const userProfile = await getUserProfile(record.userId);
+          if (userProfile) {
+            summaries.push({
+              id: userProfile.id,
+              attendanceTimestamp: record.timestamp,
+              type: 'member',
+              userName: userProfile.name,
+              userEmail: userProfile.email,
+              userRole: userProfile.role,
+              userPhotoUrl: userProfile.photoUrl,
+            });
+          }
+        } else if (record.attendanceType === 'visitor') {
           summaries.push({
-            user: userProfile,
+            id: record.id, // Use attendance record ID for visitors
             attendanceTimestamp: record.timestamp,
+            type: 'visitor',
+            visitorName: record.visitorName,
+            visitorDesignation: record.visitorDesignation,
+            visitorClub: record.visitorClub,
+            visitorComment: record.visitorComment,
           });
         }
       }
-      setParticipantsSummary(summaries.sort((a,b) => (a.user.name || "").localeCompare(b.user.name || ""))); // Sort by name
+      // Sort by type (members first), then by name/visitorName
+      setParticipantsSummary(summaries.sort((a, b) => {
+        if (a.type === 'member' && b.type === 'visitor') return -1;
+        if (a.type === 'visitor' && b.type === 'member') return 1;
+        const nameA = a.userName || a.visitorName || "";
+        const nameB = b.userName || b.visitorName || "";
+        return nameA.localeCompare(nameB);
+      }));
     } catch (err: any) {
       console.error("Error fetching event summary data:", err);
       setError(`Failed to load event data: ${err.message}`);
@@ -88,6 +112,20 @@ export default function EventSummaryPage() {
   useEffect(() => {
     fetchEventData();
   }, [fetchEventData]);
+  
+  let formattedEventDate = "Date unavailable";
+  if (event?.startDate && isValid(parseISO(event.startDate))) {
+    const eventStartDateObj = parseISO(event.startDate);
+    formattedEventDate = format(eventStartDateObj, "MMMM d, yyyy 'at' h:mm a");
+    if (event.endDate && isValid(parseISO(event.endDate))) {
+        const eventEndDateObj = parseISO(event.endDate);
+        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
+            (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
+             formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
+        }
+    }
+  }
+
 
   if (isLoading) {
     return (
@@ -151,7 +189,7 @@ export default function EventSummaryPage() {
             <div className="flex items-center text-sm">
               <CalendarDays className="mr-2 h-4 w-4 text-muted-foreground" />
               <span className="font-medium">Date & Time:</span>
-              <span className="ml-2">{format(parseISO(event.date), "MMMM d, yyyy 'at' h:mm a")}</span>
+              <span className="ml-2">{formattedEventDate}</span>
             </div>
             <div className="flex items-start text-sm">
               <MapPin className="mr-2 h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
@@ -190,31 +228,41 @@ export default function EventSummaryPage() {
                     <Table className="print-table">
                       <TableHeader className="print-table-header bg-muted/50">
                         <TableRow>
-                          <TableHead className="w-12 print-hide">Avatar</TableHead>
+                          <TableHead className="w-12 print-hide">Avatar/Icon</TableHead>
                           <TableHead>Name</TableHead>
-                          <TableHead>Designation</TableHead>
-                          <TableHead>Email</TableHead>
+                          <TableHead>Role/Designation</TableHead>
+                          <TableHead>Email/Club</TableHead>
+                          <TableHead>Comment</TableHead>
                           <TableHead>Timestamp</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody className="print-table-body">
                         {participantsSummary.map((summary) => (
-                          <TableRow key={summary.user.id}>
+                          <TableRow key={summary.id}>
                             <TableCell className="print-hide">
-                               <Avatar className="h-9 w-9">
-                                <AvatarImage src={summary.user.photoUrl} alt={summary.user.name} data-ai-hint="profile avatar" />
-                                <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                                    {getInitials(summary.user.name)}
-                                </AvatarFallback>
-                              </Avatar>
+                               {summary.type === 'member' ? (
+                                 <Avatar className="h-9 w-9">
+                                  <AvatarImage src={summary.userPhotoUrl} alt={summary.userName} data-ai-hint="profile avatar" />
+                                  <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                      {getInitials(summary.userName)}
+                                  </AvatarFallback>
+                                </Avatar>
+                               ) : (
+                                <Star className="h-7 w-7 text-yellow-500" /> // Visitor Icon
+                               )}
                             </TableCell>
-                            <TableCell className="font-medium">{summary.user.name}</TableCell>
+                            <TableCell className="font-medium">{summary.userName || summary.visitorName}</TableCell>
                             <TableCell className="capitalize text-xs">
-                                <Badge variant={summary.user.role === 'admin' ? "default" : "secondary"} className={summary.user.role === 'admin' ? "bg-primary/80" : ""}>
-                                    {summary.user.role}
+                                <Badge variant={summary.type === 'member' ? (summary.userRole === 'admin' ? "default" : "secondary") : "outline"} className={summary.type === 'member' && summary.userRole === 'admin' ? "bg-primary/80" : (summary.type === 'visitor' ? "border-yellow-500 text-yellow-600" : "") }>
+                                    {summary.userRole || summary.visitorDesignation || 'Visitor'}
                                 </Badge>
                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{summary.user.email}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                                {summary.userEmail || summary.visitorClub}
+                            </TableCell>
+                             <TableCell className="text-xs text-muted-foreground italic">
+                                {summary.type === 'visitor' ? (summary.visitorComment || 'N/A') : 'N/A'}
+                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               {format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a")}
                             </TableCell>
@@ -227,27 +275,48 @@ export default function EventSummaryPage() {
                 {/* Mobile Card View */}
                 <div className="block md:hidden space-y-3">
                   {participantsSummary.map((summary) => (
-                    <Card key={summary.user.id} className="shadow-sm">
+                    <Card key={summary.id} className="shadow-sm">
                       <CardContent className="p-3">
                         <div className="flex items-start space-x-3">
-                            <Avatar className="h-10 w-10">
-                                <AvatarImage src={summary.user.photoUrl} alt={summary.user.name} data-ai-hint="profile avatar" />
-                                <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                                    {getInitials(summary.user.name)}
-                                </AvatarFallback>
-                            </Avatar>
+                            {summary.type === 'member' ? (
+                                <Avatar className="h-10 w-10">
+                                    <AvatarImage src={summary.userPhotoUrl} alt={summary.userName} data-ai-hint="profile avatar" />
+                                    <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                        {getInitials(summary.userName)}
+                                    </AvatarFallback>
+                                </Avatar>
+                            ) : (
+                                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-yellow-100">
+                                 <Star className="h-6 w-6 text-yellow-500" />
+                                </div>
+                            )}
                             <div className="flex-grow min-w-0">
-                                <p className="font-semibold text-primary truncate">{summary.user.name}</p>
-                                <p className="text-xs text-muted-foreground truncate flex items-center">
-                                    <Mail className="h-3 w-3 mr-1"/> {summary.user.email}
-                                </p>
+                                <p className="font-semibold text-primary truncate">{summary.userName || summary.visitorName}</p>
+                                {summary.type === 'member' && summary.userEmail && (
+                                     <p className="text-xs text-muted-foreground truncate flex items-center">
+                                        <Mail className="h-3 w-3 mr-1"/> {summary.userEmail}
+                                    </p>
+                                )}
+                                {summary.type === 'visitor' && summary.visitorClub && (
+                                     <p className="text-xs text-muted-foreground truncate flex items-center">
+                                        <Users className="h-3 w-3 mr-1"/> {summary.visitorClub}
+                                    </p>
+                                )}
                                 <div className="mt-1">
-                                    <Badge variant={summary.user.role === 'admin' ? 'default' : 'secondary'} className={`text-xs ${summary.user.role === 'admin' ? 'bg-primary/80' : ''}`}>
-                                        {summary.user.role}
+                                    <Badge 
+                                      variant={summary.type === 'member' ? (summary.userRole === 'admin' ? 'default' : 'secondary') : 'outline'} 
+                                      className={`text-xs ${summary.type === 'member' && summary.userRole === 'admin' ? 'bg-primary/80' : (summary.type === 'visitor' ? 'border-yellow-500 text-yellow-600' : '')}`}
+                                    >
+                                        {summary.userRole || summary.visitorDesignation || 'Visitor'}
                                     </Badge>
                                 </div>
                             </div>
                         </div>
+                        {summary.type === 'visitor' && summary.visitorComment && (
+                            <p className="text-xs text-muted-foreground mt-2 italic flex items-start">
+                               <MessageSquare className="h-3 w-3 mr-1.5 mt-0.5 shrink-0" /> {summary.visitorComment}
+                            </p>
+                        )}
                         <p className="text-xs text-muted-foreground mt-2 text-right">
                           Attended: {format(parseISO(summary.attendanceTimestamp), "MMM d, h:mm a")}
                         </p>
@@ -265,5 +334,3 @@ export default function EventSummaryPage() {
     </div>
   );
 }
-
-    

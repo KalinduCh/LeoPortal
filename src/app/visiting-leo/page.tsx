@@ -60,16 +60,20 @@ export default function VisitingLeoPage() {
   };
 
   const handleFormSubmit = async (data: VisitorAttendanceFormValues) => {
-    if (!selectedEvent) {
-      toast({ title: "Error", description: "No event selected.", variant: "destructive" });
+    if (!selectedEvent || !selectedEvent.id) {
+      toast({ title: "Error", description: "No event selected or event ID is missing.", variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
     try {
-      await markVisitorAttendance(selectedEvent.id, data);
-      toast({ title: "Attendance Marked!", description: `Thank you, ${data.name}, for marking your attendance for ${selectedEvent.name}.` });
-      setIsFormOpen(false);
-      setSelectedEvent(null);
+      const result = await markVisitorAttendance(selectedEvent.id, data);
+      if (result.status === 'success') {
+        toast({ title: "Attendance Marked!", description: `Thank you, ${data.name}, for marking your attendance for ${selectedEvent.name}.` });
+        setIsFormOpen(false);
+        setSelectedEvent(null);
+      } else {
+        toast({ title: "Submission Error", description: result.message || "Could not mark attendance.", variant: "destructive" });
+      }
     } catch (error: any) {
       console.error("Failed to mark visitor attendance:", error);
       toast({ title: "Submission Error", description: `Could not mark attendance: ${error.message}`, variant: "destructive" });
@@ -164,7 +168,7 @@ export default function VisitingLeoPage() {
                   setSelectedEvent(null);
                 }}
                 isLoading={isSubmitting}
-                eventDate={format(parseISO(selectedEvent.startDate), "MMMM d, yyyy 'at' h:mm a")}
+                eventDate={selectedEvent.startDate ? format(parseISO(selectedEvent.startDate), "MMMM d, yyyy 'at' h:mm a") : "Date not available"}
               />
             </DialogContent>
           </Dialog>

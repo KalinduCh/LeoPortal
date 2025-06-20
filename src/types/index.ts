@@ -17,9 +17,9 @@ export interface User {
 export interface Event {
   id: string; // Firestore document ID
   name: string;
-  date: string; // ISO string for general use, might be deprecated if startDate is robust
-  startDate: string; // ISO string (converted from Firestore Timestamp), primary date field
-  endDate?: string; // Optional ISO string for multi-day or timed events
+  date: string; // Legacy: ISO string for general use, might be deprecated if startDate is robust
+  startDate: string; // Primary date field: ISO string (converted from Firestore Timestamp)
+  endDate?: string; // Optional: ISO string for multi-day or timed events
   description: string;
   location: string; // Textual location
   latitude?: number;  // For geolocation
@@ -48,7 +48,7 @@ export interface AttendanceRecord {
   markedLongitude?: number;
 }
 
-// This summary type is used primarily for displaying participants on the admin event summary page.
+// This summary type is used for displaying participants on the admin event summary page.
 export interface EventParticipantSummary {
   id: string; // For members: userId. For visitors: attendanceRecordId.
   attendanceTimestamp: string; // ISO string
@@ -59,11 +59,11 @@ export interface EventParticipantSummary {
   userEmail?: string;
   userRole?: UserRole;
   userPhotoUrl?: string;
-  userNic?: string;
+  userNic?: string; // Example: If NIC needs to be displayed for members
 
   // Visitor specific details (taken directly from AttendanceRecord if type is 'visitor')
   visitorName?: string;
   visitorDesignation?: string;
   visitorClub?: string;
-  visitorComment?: string;
+  visitorComment?: string; // Displaying comments could be useful
 }
