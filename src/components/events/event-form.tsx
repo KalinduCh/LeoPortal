@@ -20,14 +20,14 @@ import {
 } from '@/components/ui/form';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { CalendarIcon, Loader2, MapPin } from 'lucide-react';
 import type { Event } from '@/types';
 import { cn } from '@/lib/utils';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: "Event name must be at least 3 characters." }),
-  date: z.date({ required_error: "Event date is required." }),
+  date: z.date({ required_error: "Event date is required." }), // This 'date' field in form schema maps to event's conceptual start date
   location: z.string().min(3, { message: "Location must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   enableGeoRestriction: z.boolean().optional(),
@@ -40,7 +40,7 @@ const eventFormSchema = z.object({
   return true;
 }, {
   message: "Latitude and Longitude are required if geo-restriction is enabled.",
-  path: ["latitude"], // Show error near latitude, or use a more general path
+  path: ["latitude"], 
 });
 
 
@@ -58,7 +58,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: event?.name || "",
-      date: event?.date ? parseISO(event.date) : new Date(),
+      date: event?.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : new Date(),
       location: event?.location || "",
       description: event?.description || "",
       enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
@@ -71,7 +71,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
     if (event) {
       form.reset({
         name: event.name,
-        date: parseISO(event.date),
+        date: event.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : new Date(),
         location: event.location,
         description: event.description,
         enableGeoRestriction: !!(event.latitude !== undefined && event.longitude !== undefined),
@@ -84,7 +84,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
         date: new Date(),
         location: "",
         description: "",
-        enableGeoRestriction: false, // Default for new event
+        enableGeoRestriction: false, 
         latitude: undefined,
         longitude: undefined,
       });
@@ -121,10 +121,10 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
 
         <FormField
           control={form.control}
-          name="date"
+          name="date" // This form field is named 'date' but corresponds to the event's start date conceptually
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Event Date & Time</FormLabel>
+              <FormLabel>Event Start Date & Time</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -286,3 +286,4 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
     </Form>
   );
 }
+
