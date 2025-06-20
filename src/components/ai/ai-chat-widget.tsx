@@ -1,8 +1,8 @@
 // src/components/ai/ai-chat-widget.tsx
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import React, { useState, useRef, useEffect, useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,7 +36,7 @@ export function AiChatWidget() {
   const formRef = useRef<HTMLFormElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const [state, formAction] = useFormState(handleAiQuery, initialState);
+  const [state, formAction] = useActionState(handleAiQuery, initialState);
 
   useEffect(() => {
     if (state?.answer) {
