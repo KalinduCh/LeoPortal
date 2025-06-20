@@ -23,7 +23,6 @@ interface EventCardProps {
 export function EventCard({ event, user, userRole, attendanceRecord: initialAttendanceRecord, onAttendanceMarked }: EventCardProps) {
   const { toast } = useToast();
   const [isSubmittingAttendance, setIsSubmittingAttendance] = useState(false);
-  // Use useEffect to update currentAttendanceRecord if initialAttendanceRecord prop changes
   const [currentAttendanceRecord, setCurrentAttendanceRecord] = useState(initialAttendanceRecord);
 
   useEffect(() => {
@@ -34,6 +33,9 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
   const formattedDate = format(eventDate, "MMMM d, yyyy 'at' h:mm a");
   const isEventUpcoming = isFuture(eventDate);
   const isEventPast = isPast(eventDate);
+
+  // Corrected: Check if latitude and longitude are valid numbers for geo-restriction
+  const isGeoRestrictionActive = typeof event.latitude === 'number' && typeof event.longitude === 'number';
 
   const canAttemptToMarkAttendance = userRole === 'member' && isEventUpcoming && !currentAttendanceRecord;
 
@@ -52,15 +54,16 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
     let userLongitude: number | undefined = undefined;
 
     try {
-      if (event.latitude !== undefined && event.longitude !== undefined) {
-        const position = await getCurrentPosition(); // This can throw geolocation specific errors
+      // Use the isGeoRestrictionActive flag
+      if (isGeoRestrictionActive && event.latitude && event.longitude) { // Also ensure event.latitude/longitude are truthy for the check
+        const position = await getCurrentPosition(); 
         userLatitude = position.latitude;
         userLongitude = position.longitude;
         
         const distance = calculateDistanceInMeters(
           position.latitude,
           position.longitude,
-          event.latitude,
+          event.latitude, 
           event.longitude
         );
 
@@ -76,10 +79,9 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
         }
         toast({ title: "Location Verified", description: `You are within the allowed radius (${Math.round(distance)}m). Marking attendance...`, duration: 3000 });
       } else {
-        toast({ title: "Marking Attendance", description: "Event location not specified by admin, proceeding without geo-check.", duration: 3000 });
+        toast({ title: "Marking Attendance", description: "Event location not specified or geo-restriction not active, proceeding without geo-check.", duration: 3000 });
       }
 
-      // Call the updated service method
       const result: MarkAttendanceResult = await markUserAttendance(event.id, user.id, userLatitude, userLongitude);
 
       if (result.status === 'success') {
@@ -87,17 +89,14 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
         if (result.record) setCurrentAttendanceRecord(result.record);
         onAttendanceMarked();
       } else if (result.status === 'already_marked') {
-        toast({ title: "Attendance Information", description: result.message, variant: "default" }); // Informational, not destructive
+        toast({ title: "Attendance Information", description: result.message, variant: "default" });
         if (result.record) setCurrentAttendanceRecord(result.record);
-        onAttendanceMarked(); // Ensure UI is synced
+        onAttendanceMarked(); 
       } else {
-        // This 'else' case here might be redundant if service throws for true errors
-        // but good as a fallback for unhandled 'error' status from service
         toast({ title: "Attendance Error", description: result.message || "An unknown issue occurred.", variant: "destructive" });
       }
 
     } catch (error: any) {
-      // This catch block now handles errors from getCurrentPosition or unexpected errors thrown by markUserAttendance
       console.error("Error during attendance marking process:", error);
       let description = "Could not mark attendance.";
       const errorMessage = error.message || "An unknown error occurred.";
@@ -109,7 +108,6 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
       } else if (errorMessage.includes("Location information is unavailable") || errorMessage.includes("timed out")) {
         description = "Could not determine your location. Please try again.";
       } else {
-        // For other errors (e.g., unexpected Firestore errors from the service)
         description = `Could not mark attendance: ${errorMessage.substring(0, 150)}${errorMessage.length > 150 ? '...' : ''}`;
       }
       toast({ title: "Attendance Error", description, variant: "destructive", duration: 10000 });
@@ -133,7 +131,8 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
             <MapPin className="mr-2 h-4 w-4 mt-0.5 shrink-0 text-primary" />
             <span className="text-muted-foreground">{event.location}</span>
           </div>
-          {event.latitude !== undefined && event.longitude !== undefined && (
+          {/* Use the isGeoRestrictionActive flag for display */}
+          {isGeoRestrictionActive && (
              <div className="flex items-start text-xs text-muted-foreground">
                 <Navigation className="mr-2 h-3 w-3 mt-0.5 shrink-0 text-green-600" />
                 <span>Geo-restricted attendance enabled.</span>
@@ -177,7 +176,7 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
         )}
          {userRole === 'admin' && (
           <div className="text-xs text-muted-foreground">
-            {event.latitude !== undefined && event.longitude !== undefined 
+            {isGeoRestrictionActive 
               ? "Geo-restricted attendance is enabled for this event."
               : "Standard attendance marking (no geo-restriction)."}
           </div>
@@ -186,4 +185,3 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
     </Card>
   );
 }
-

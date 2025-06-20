@@ -70,7 +70,10 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   
   const attendedPastEvents = allEvents.filter(event => {
     const eventIsPast = !isFuture(parseISO(event.date));
-    const hasAttended = userAttendanceRecords.some(ar => ar.eventId === event.id && ar.status === 'present');
+    // Corrected: Ensure user.id exists and attendance record matches current user and is 'present'
+    const hasAttended = user?.id 
+      ? userAttendanceRecords.some(ar => ar.eventId === event.id && ar.userId === user.id && ar.status === 'present') 
+      : false;
     return eventIsPast && hasAttended;
   }).sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()); // Show most recent attended first
 
@@ -104,7 +107,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="upcoming">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 mb-4">
               <TabsTrigger value="upcoming">
                 <CalendarDays className="mr-2 h-4 w-4" /> Upcoming Events
               </TabsTrigger>
@@ -144,7 +147,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                     user={user}
                     userRole="member"
                     userAttendanceRecords={userAttendanceRecords}
-                    onAttendanceMarked={handleAttendanceMarked} // Not strictly needed for past events but consistent
+                    onAttendanceMarked={handleAttendanceMarked} 
                     isLoading={isLoading}
                     listTitle="Your Attended Events"
                     emptyStateTitle="No Attended Events Yet"
