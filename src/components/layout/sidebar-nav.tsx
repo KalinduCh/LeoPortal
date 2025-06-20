@@ -17,7 +17,7 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, UserCircle, CalendarDays, Users, Settings, ChevronDown, ChevronUp, Bot } from "lucide-react";
+import { LayoutDashboard, UserCircle, CalendarDays, Users, Settings, ChevronDown, ChevronUp, Bot, Mail } from "lucide-react"; // Added Mail
 
 interface NavItem {
   href: string;
@@ -32,6 +32,7 @@ const navItems: NavItem[] = [
   { href: "/profile", label: "Profile", icon: UserCircle, role: "all" },
   { href: "/events", label: "Event Management", icon: CalendarDays, role: "admin" },
   { href: "/members", label: "Member Management", icon: Users, role: "admin" },
+  { href: "/admin/communication", label: "Communication", icon: Mail, role: "admin" }, // New communication link
   // Example with sub-menu
   // {
   //   href: "#", label: "Reports", icon: BarChart3, role: "admin", children: [
@@ -76,7 +77,7 @@ export function SidebarNav() {
                 <SidebarMenuSub>
                   {item.children.map(child => (
                     <SidebarMenuSubItem key={child.href}>
-                       <Link href={child.href} asChild>
+                       <Link href={child.href} passHref legacyBehavior>
                         <SidebarMenuSubButton
                           isActive={pathname === child.href || pathname.startsWith(child.href + "/")}
                         >
@@ -90,7 +91,7 @@ export function SidebarNav() {
               )}
             </>
           ) : (
-            <Link href={item.href}>
+            <Link href={item.href} passHref legacyBehavior>
               <SidebarMenuButton
                 isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
                 tooltip={{ children: item.label, className: "font-sans" }}
@@ -105,3 +106,5 @@ export function SidebarNav() {
     </SidebarMenu>
   );
 }
+
+    
