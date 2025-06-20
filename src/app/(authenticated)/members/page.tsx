@@ -114,27 +114,33 @@ export default function MemberManagementPage() {
 
   const handleAddFormSubmit = async (data: MemberAddFormValues) => {
     setIsSubmitting(true);
-    const originalAuthUserUID = firebaseAuth.currentUser?.uid;
+    const originalAuthUserUID = firebaseAuth.currentUser?.uid; // Capture admin's UID
+
     try {
+      // Create the new user in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(firebaseAuth, data.email, data.password);
       const newAuthUser = userCredential.user;
 
+      // Create the user profile in Firestore
       await createUserProfile(
         newAuthUser.uid,
         data.email,
         data.name,
-        data.role
-        // Other profile fields like NIC, DOB can be added here if included in MemberAddFormValues and form
+        data.role,
+        undefined, // photoUrl (will use placeholder)
+        // Add other fields like NIC, DOB if they are part of MemberAddFormValues and form
+        // For now, keeping it simple as per the form
       );
       
-      // Sign out the newly created user to keep admin session active
+      toast({ title: "Member Created", description: `${data.name} has been successfully added.` });
+      fetchMembers(); // Refresh member list
+      setIsAddFormOpen(false); // Close dialog
+
+      // If Firebase auth state changed to the new user, sign them out
+      // to attempt to restore the admin's session via onAuthStateChanged.
       if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
         await signOut(firebaseAuth);
       }
-
-      toast({ title: "Member Created", description: `${data.name} has been successfully added.` });
-      fetchMembers();
-      setIsAddFormOpen(false);
 
     } catch (error: any) {
       console.error("Failed to add member:", error);
@@ -145,7 +151,8 @@ export default function MemberManagementPage() {
         errorMessage = "The password is too weak. It must be at least 6 characters.";
       }
       toast({ title: "Error Adding Member", description: errorMessage, variant: "destructive" });
-      // Defensive sign-out if error occurred and current user is the one being created
+
+      // Defensive sign-out if error occurred and current user IS the one being created
       if (firebaseAuth.currentUser && firebaseAuth.currentUser.email === data.email) {
           try {
             await signOut(firebaseAuth);
@@ -155,19 +162,20 @@ export default function MemberManagementPage() {
       }
     } finally {
       setIsSubmitting(false);
-    }
-    
-    // Brief delay to ensure all async operations (like signOut) have a chance to settle
-    await new Promise(resolve => setTimeout(resolve, 500));
+      // Allow a moment for auth state changes to propagate
+      await new Promise(resolve => setTimeout(resolve, 500)); 
 
-    if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
+      // Check if the current user is still the original admin. If not, inform the admin.
+      // This means onAuthStateChanged might not have restored the admin session yet, or it was lost.
+      if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
         toast({
           title: "Session Notice",
-          description: "Your admin session may have been affected. If issues persist, please log out and log back in.",
+          description: "Your admin session may have been affected by creating a new user. If you experience issues, please log out and log back in to ensure your session is correctly restored.",
           variant: "destructive", 
-          duration: 10000, 
+          duration: 15000, 
         });
       }
+    }
   };
 
 
@@ -335,6 +343,8 @@ export default function MemberManagementPage() {
         }
       }
       
+      fetchMembers(); // Refresh member list *after* loop, *before* final toasts
+
       await new Promise(resolve => setTimeout(resolve, 500)); 
 
       let toastTitle = "Import Process Complete";
@@ -356,13 +366,17 @@ export default function MemberManagementPage() {
           console.warn("--- End of Import Summary ---");
       }
       
-      if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
+      // This toast for the overall import result should come AFTER the session notice if applicable.
+      const showSessionNotice = originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID);
+
+      if (showSessionNotice) {
         toast({
           title: "Session Notice (Import Related)",
-          description: "Your admin session may have been affected. Please log out and log back in to restore your session.",
+          description: "Your admin session may have been affected by importing users. If you experience issues, please log out and log back in to ensure your session is correctly restored.",
           variant: "destructive", 
           duration: 15000, 
         });
+        // Delay the main import result toast slightly if session notice is shown
         setTimeout(() => {
             toast({ title: toastTitle, description: toastDescription, variant: toastVariant, duration: 10000 });
         }, 500); 
@@ -372,7 +386,6 @@ export default function MemberManagementPage() {
 
       setCsvFile(null);
       if(fileInputRef.current) fileInputRef.current.value = ""; 
-      fetchMembers(); 
       setIsImporting(false);
     };
     reader.onerror = () => {
@@ -563,3 +576,5 @@ export default function MemberManagementPage() {
   );
 }
 
+
+    
