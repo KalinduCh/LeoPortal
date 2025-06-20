@@ -211,10 +211,10 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
               </CardTitle>
               <CardDescription>View member attendance records, filtered by period.</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-muted-foreground" />
+            <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:items-center sm:gap-2">
+              <Filter className="h-5 w-5 text-muted-foreground hidden sm:inline-block" />
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[180px] bg-background">
+                <SelectTrigger className="w-full sm:w-[180px] bg-background">
                   <SelectValue placeholder="Select Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -222,7 +222,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                 </SelectContent>
               </Select>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[120px] bg-background">
+                <SelectTrigger className="w-full sm:w-[120px] bg-background">
                   <SelectValue placeholder="Select Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -352,3 +352,4 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     </div>
   );
 }
+
