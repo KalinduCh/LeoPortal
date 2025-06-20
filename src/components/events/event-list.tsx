@@ -6,10 +6,10 @@ import React from 'react';
 import type { Event, UserRole, AttendanceRecord, User } from '@/types';
 import { EventCard } from './event-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CalendarOff } from 'lucide-react';
+import { CalendarOff, Info } from 'lucide-react'; // Added Info
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator'; // Import Separator
+import { Separator } from '@/components/ui/separator';
 
 interface EventListProps {
   events: Event[];
@@ -18,49 +18,71 @@ interface EventListProps {
   userAttendanceRecords: AttendanceRecord[]; 
   onAttendanceMarked: () => void; 
   isLoading?: boolean;
+  listTitle?: string; // Optional title for the list
+  emptyStateTitle?: string; // Optional title for empty state
+  emptyStateMessage?: string; // Optional message for empty state
 }
 
-export function EventList({ events, user, userRole, userAttendanceRecords, onAttendanceMarked, isLoading }: EventListProps) {
+export function EventList({ 
+  events, 
+  user, 
+  userRole, 
+  userAttendanceRecords, 
+  onAttendanceMarked, 
+  isLoading,
+  listTitle,
+  emptyStateTitle = "No Events",
+  emptyStateMessage = "There are no events to display at this time." 
+}: EventListProps) {
+  
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[1, 2, 3].map(i => <EventCardSkeleton key={i} />)}
+      <div className="space-y-4">
+        {listTitle && <h3 className="text-lg font-medium text-muted-foreground mb-2">{listTitle}</h3>}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map(i => <EventCardSkeleton key={i} />)}
+        </div>
       </div>
     );
   }
   
   if (!events || events.length === 0) {
     return (
-      <Alert className="mt-4">
-        <CalendarOff className="h-4 w-4" />
-        <AlertTitle>No Upcoming Events</AlertTitle>
-        <AlertDescription>
-          There are currently no upcoming events scheduled. Please check back later!
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-4">
+        {listTitle && <h3 className="text-lg font-medium text-muted-foreground mb-2">{listTitle}</h3>}
+        <Alert className="mt-4">
+          <CalendarOff className="h-4 w-4" />
+          <AlertTitle>{emptyStateTitle}</AlertTitle>
+          <AlertDescription>
+            {emptyStateMessage}
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {events.map((event, index) => {
-        const relevantAttendanceRecord = userAttendanceRecords?.find(ar => ar.eventId === event.id && ar.userId === user?.id);
-        return (
-          <React.Fragment key={event.id}>
-            <EventCard 
-              event={event} 
-              user={user}
-              userRole={userRole}
-              attendanceRecord={relevantAttendanceRecord}
-              onAttendanceMarked={onAttendanceMarked}
-            />
-            {/* Add Separator between cards, visible only on mobile (screens smaller than md) */}
-            {index < events.length - 1 && (
-              <Separator className="my-4 md:hidden" />
-            )}
-          </React.Fragment>
-        );
-      })}
+    <div className="space-y-4">
+      {listTitle && <h3 className="text-lg font-medium text-muted-foreground mb-2">{listTitle}</h3>}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {events.map((event, index) => {
+          const relevantAttendanceRecord = userAttendanceRecords?.find(ar => ar.eventId === event.id && ar.userId === user?.id);
+          return (
+            <React.Fragment key={event.id}>
+              <EventCard 
+                event={event} 
+                user={user}
+                userRole={userRole}
+                attendanceRecord={relevantAttendanceRecord}
+                onAttendanceMarked={onAttendanceMarked}
+              />
+              {index < events.length - 1 && (
+                <Separator className="my-4 md:hidden" />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
     </div>
   );
 }
