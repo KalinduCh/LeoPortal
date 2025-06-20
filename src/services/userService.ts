@@ -1,3 +1,4 @@
+
 // src/services/userService.ts
 import { doc, setDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
@@ -11,13 +12,15 @@ export async function createUserProfile(
   photoUrl?: string
 ): Promise<void> {
   const userRef = doc(db, 'users', uid);
+  // Ensure name is not empty for placeholder generation
+  const placeholderChar = name && name.length > 0 ? name.charAt(0).toUpperCase() : 'U';
   await setDoc(userRef, {
     uid,
     email,
     name,
     role,
     createdAt: serverTimestamp(), // Use serverTimestamp for consistency
-    photoUrl: photoUrl || `https://placehold.co/100x100.png?text=${name.charAt(0)}`, 
+    photoUrl: photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`, 
   });
 }
 
@@ -28,6 +31,7 @@ export async function getUserProfile(uid: string): Promise<User | null> {
   if (userSnap.exists()) {
     const data = userSnap.data();
     // Ensure createdAt is handled correctly if it's a Firestore Timestamp
+    // This field is not currently part of the User type, but kept for potential future use
     let createdAtString;
     if (data.createdAt instanceof Timestamp) {
       createdAtString = data.createdAt.toDate().toISOString();
@@ -35,14 +39,17 @@ export async function getUserProfile(uid: string): Promise<User | null> {
       createdAtString = data.createdAt;
     }
     
+    const placeholderChar = data.name && data.name.length > 0 ? data.name.charAt(0).toUpperCase() : 'U';
+
     return {
         id: data.uid, // Ensure 'id' field from User type is mapped from 'uid'
         name: data.name,
         email: data.email,
-        photoUrl: data.photoUrl || `https://placehold.co/100x100.png?text=${data.name.charAt(0)}`,
+        photoUrl: data.photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
         role: data.role,
         // createdAt: createdAtString, // Optional: include if needed by User type
      } as User; // Cast to User, assuming all required fields are present
   }
   return null;
 }
+
