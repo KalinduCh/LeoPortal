@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
 import {
   Form,
   FormControl,
@@ -29,9 +30,19 @@ const eventFormSchema = z.object({
   date: z.date({ required_error: "Event date is required." }),
   location: z.string().min(3, { message: "Location must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
-  latitude: z.coerce.number().optional(), // Use coerce for string input from <Input type="number">
+  enableGeoRestriction: z.boolean().optional(),
+  latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
+}).refine(data => {
+  if (data.enableGeoRestriction) {
+    return data.latitude !== undefined && data.longitude !== undefined && !isNaN(data.latitude) && !isNaN(data.longitude);
+  }
+  return true;
+}, {
+  message: "Latitude and Longitude are required if geo-restriction is enabled.",
+  path: ["latitude"], // Show error near latitude, or use a more general path
 });
+
 
 export type EventFormValues = z.infer<typeof eventFormSchema>;
 
@@ -50,6 +61,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
       date: event?.date ? parseISO(event.date) : new Date(),
       location: event?.location || "",
       description: event?.description || "",
+      enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
       latitude: event?.latitude,
       longitude: event?.longitude,
     },
@@ -62,6 +74,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
         date: parseISO(event.date),
         location: event.location,
         description: event.description,
+        enableGeoRestriction: !!(event.latitude !== undefined && event.longitude !== undefined),
         latitude: event.latitude,
         longitude: event.longitude,
       });
@@ -71,6 +84,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
         date: new Date(),
         location: "",
         description: "",
+        enableGeoRestriction: false, // Default for new event
         latitude: undefined,
         longitude: undefined,
       });
@@ -78,8 +92,15 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
   }, [event, form]);
 
   const handleFormSubmit = async (values: EventFormValues) => {
-    await onSubmit(values);
+    const submissionValues = { ...values };
+    if (!values.enableGeoRestriction) {
+      submissionValues.latitude = undefined;
+      submissionValues.longitude = undefined;
+    }
+    await onSubmit(submissionValues);
   };
+
+  const geoRestrictionEnabled = form.watch("enableGeoRestriction");
 
   return (
     <Form {...form}>
@@ -115,7 +136,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                       )}
                     >
                       {field.value ? (
-                        format(field.value, "PPP HH:mm") // Include time
+                        format(field.value, "PPP HH:mm")
                       ) : (
                         <span>Pick a date and time</span>
                       )}
@@ -173,36 +194,65 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
           )}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="latitude"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Latitude (Optional)</FormLabel>
-                <FormControl>
-                  <Input type="number" step="any" placeholder="e.g., 34.0522" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
-                </FormControl>
-                 <p className="text-xs text-muted-foreground">For geo-restricted attendance.</p>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="longitude"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Longitude (Optional)</FormLabel>
-                <FormControl>
-                  <Input type="number" step="any" placeholder="e.g., -118.2437" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
-                </FormControl>
-                <p className="text-xs text-muted-foreground">For geo-restricted attendance.</p>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="enableGeoRestriction"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked);
+                    if (!checked) {
+                      form.setValue("latitude", undefined, { shouldValidate: true });
+                      form.setValue("longitude", undefined, { shouldValidate: true });
+                    }
+                  }}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>
+                  Enable Geo-restriction for Attendance
+                </FormLabel>
+                <p className="text-xs text-muted-foreground">
+                  If checked, members must be within a certain radius of the specified coordinates to mark attendance.
+                </p>
+              </div>
+            </FormItem>
+          )}
+        />
+        
+        {geoRestrictionEnabled && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-md shadow-sm bg-muted/30">
+            <FormField
+              control={form.control}
+              name="latitude"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Latitude</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="any" placeholder="e.g., 34.0522" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="longitude"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Longitude</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="any" placeholder="e.g., -118.2437" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
 
 
         <FormField
