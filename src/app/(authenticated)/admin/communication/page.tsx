@@ -32,6 +32,7 @@ const emailFormSchema = z.object({
 
 type EmailFormValues = z.infer<typeof emailFormSchema>;
 
+// These will be loaded from .env.local
 const SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
 const TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
 const USER_ID = process.env.NEXT_PUBLIC_EMAILJS_USER_ID;
@@ -88,7 +89,7 @@ export default function CommunicationPage() {
     if (!SERVICE_ID || !TEMPLATE_ID || !USER_ID) {
       toast({
         title: "EmailJS Configuration Missing",
-        description: "EmailJS credentials are not set up in environment variables. Emails cannot be sent.",
+        description: "EmailJS credentials are not set up in environment variables. Emails cannot be sent. Please check your .env.local file and ensure it's loaded correctly by restarting your dev server.",
         variant: "destructive",
         duration: 10000,
       });
@@ -122,21 +123,28 @@ export default function CommunicationPage() {
       };
 
       try {
+        // console.log("Attempting to send email with params:", templateParams, "using IDs:", SERVICE_ID, TEMPLATE_ID, USER_ID);
         await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, USER_ID);
         emailsSent++;
-      } catch (error) {
-        console.error(`Failed to send email to ${recipient.email}:`, error);
+      } catch (error: any) {
+        console.error(\`Failed to send email to \${recipient.email}:\`, error);
+        // EmailJS errors often have a 'text' property with the message, or status code
+        const errorText = error?.text || error?.message || (typeof error === 'object' ? JSON.stringify(error) : 'Unknown error');
+        toast({ title: "EmailJS Send Error", description: \`Failed for \${recipient.email}: \${errorText}\`, variant: "destructive", duration: 10000});
         emailsFailed++;
       }
     }
 
-    if (emailsSent > 0) {
-      toast({ title: "Emails Processed", description: `${emailsSent} email(s) sent successfully. ${emailsFailed > 0 ? `${emailsFailed} failed.` : ''}` });
+    if (emailsSent > 0 && emailsFailed === 0) {
+      toast({ title: "Emails Sent", description: \`\${emailsSent} email(s) sent successfully.\` });
       form.reset();
-    } else if (emailsFailed > 0) {
-      toast({ title: "Email Sending Failed", description: `All ${emailsFailed} email(s) failed to send. Check console for details.`, variant: "destructive" });
-    } else {
-       toast({ title: "No Emails Sent", description: "No emails were processed. This might be due to no valid recipients.", variant: "destructive" });
+    } else if (emailsSent > 0 && emailsFailed > 0) {
+      toast({ title: "Emails Partially Sent", description: \`\${emailsSent} email(s) sent, \${emailsFailed} failed. Check console for details.\`, variant: "destructive" });
+       form.reset(); // Reset even if some failed
+    } else if (emailsFailed > 0 && emailsSent === 0) {
+      toast({ title: "Email Sending Failed", description: \`All \${emailsFailed} email(s) failed to send. Check console, EmailJS setup, and .env.local.\`, variant: "destructive" });
+    } else { // No emails processed at all
+       toast({ title: "No Emails Processed", description: "No emails were attempted. This might be due to no valid recipients selected.", variant: "destructive" });
     }
     setFormSubmitting(false);
   };
@@ -165,7 +173,6 @@ export default function CommunicationPage() {
   
   const isEmailJsConfigured = SERVICE_ID && TEMPLATE_ID && USER_ID;
 
-
   return (
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex items-center justify-between">
@@ -179,13 +186,21 @@ export default function CommunicationPage() {
           {isEmailJsConfigured ? (
             <>
               This form uses <strong className="text-primary">EmailJS</strong> to send emails directly from your browser.
-              Please be aware of EmailJS's free tier limits (e.g., 200 emails/month). Your EmailJS Service ID, Template ID, and User ID are used here.
-              Ensure your EmailJS template is correctly set up with variables like `to_email`, `subject`, `body_content`.
+              <br/>Service ID: <span className="font-mono text-xs bg-muted p-1 rounded">{SERVICE_ID}</span>
+              <br/>Template ID: <span className="font-mono text-xs bg-muted p-1 rounded">{TEMPLATE_ID}</span>
+              <br/>User ID (Public Key): <span className="font-mono text-xs bg-muted p-1 rounded">{USER_ID}</span>
+              <br/>
+              Please be aware of EmailJS's free tier limits (e.g., 200 emails/month). 
+              Ensure your EmailJS template is correctly set up with variables like <code>to_email</code>, <code>subject</code>, <code>body_content</code>.
             </>
           ) : (
             <>
-              <strong className="text-destructive-foreground">EmailJS is not configured.</strong> Emails cannot be sent.
-              Please set `NEXT_PUBLIC_EMAILJS_SERVICE_ID`, `NEXT_PUBLIC_EMAILJS_TEMPLATE_ID`, and `NEXT_PUBLIC_EMAILJS_USER_ID` in your `.env.local` file.
+              <strong className="text-destructive-foreground">EmailJS is not configured correctly.</strong> Emails cannot be sent.
+              <br/>Detected Service ID: <span className="font-mono text-xs bg-muted p-1 rounded">{SERVICE_ID || 'NOT SET'}</span>
+              <br/>Detected Template ID: <span className="font-mono text-xs bg-muted p-1 rounded">{TEMPLATE_ID || 'NOT SET'}</span>
+              <br/>Detected User ID: <span className="font-mono text-xs bg-muted p-1 rounded">{USER_ID || 'NOT SET'}</span>
+              <br/>
+              Please set <code>NEXT_PUBLIC_EMAILJS_SERVICE_ID</code>, <code>NEXT_PUBLIC_EMAILJS_TEMPLATE_ID</code>, and <code>NEXT_PUBLIC_EMAILJS_USER_ID</code> in your <code>.env.local</code> file and restart your development server.
               You also need to set up a service and an email template in your EmailJS account.
             </>
           )}
@@ -269,7 +284,7 @@ export default function CommunicationPage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle>
-              <CardDescription>Write the subject and body of your email. Ensure your EmailJS template uses variables like `subject` and `body_content`.</CardDescription>
+              <CardDescription>Write the subject and body of your email. Ensure your EmailJS template uses variables like <code>subject</code> and <code>body_content</code>.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
