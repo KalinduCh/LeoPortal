@@ -115,35 +115,32 @@ export default function CommunicationPage() {
       if (!recipient.email) continue;
 
       const templateParams = {
-        to_email: recipient.email, // Ensure your EmailJS template uses this variable
-        to_name: recipient.name || 'Member', // Optional: use in template
+        to_email: recipient.email,
+        to_name: recipient.name || 'Member',
         subject: data.subject,
-        body_content: data.body, // Ensure your EmailJS template uses this for the main body
-        // Add any other parameters your EmailJS template expects
+        body_content: data.body,
       };
 
       try {
-        // console.log("Attempting to send email with params:", templateParams, "using IDs:", SERVICE_ID, TEMPLATE_ID, USER_ID);
         await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, USER_ID);
         emailsSent++;
       } catch (error: any) {
-        console.error(\`Failed to send email to \${recipient.email}:\`, error);
-        // EmailJS errors often have a 'text' property with the message, or status code
+        console.error("Failed to send email to " + recipient.email + ":", error);
         const errorText = error?.text || error?.message || (typeof error === 'object' ? JSON.stringify(error) : 'Unknown error');
-        toast({ title: "EmailJS Send Error", description: \`Failed for \${recipient.email}: \${errorText}\`, variant: "destructive", duration: 10000});
+        toast({ title: "EmailJS Send Error", description: "Failed for " + recipient.email + ": " + errorText, variant: "destructive", duration: 10000});
         emailsFailed++;
       }
     }
 
     if (emailsSent > 0 && emailsFailed === 0) {
-      toast({ title: "Emails Sent", description: \`\${emailsSent} email(s) sent successfully.\` });
+      toast({ title: "Emails Sent", description: emailsSent + " email(s) sent successfully." });
       form.reset();
     } else if (emailsSent > 0 && emailsFailed > 0) {
-      toast({ title: "Emails Partially Sent", description: \`\${emailsSent} email(s) sent, \${emailsFailed} failed. Check console for details.\`, variant: "destructive" });
-       form.reset(); // Reset even if some failed
+      toast({ title: "Emails Partially Sent", description: emailsSent + " email(s) sent, " + emailsFailed + " failed. Check console for details.", variant: "destructive" });
+       form.reset(); 
     } else if (emailsFailed > 0 && emailsSent === 0) {
-      toast({ title: "Email Sending Failed", description: \`All \${emailsFailed} email(s) failed to send. Check console, EmailJS setup, and .env.local.\`, variant: "destructive" });
-    } else { // No emails processed at all
+      toast({ title: "Email Sending Failed", description: "All " + emailsFailed + " email(s) failed to send. Check console, EmailJS setup, and .env.local.", variant: "destructive" });
+    } else { 
        toast({ title: "No Emails Processed", description: "No emails were attempted. This might be due to no valid recipients selected.", variant: "destructive" });
     }
     setFormSubmitting(false);
@@ -190,7 +187,7 @@ export default function CommunicationPage() {
               <br/>Template ID: <span className="font-mono text-xs bg-muted p-1 rounded">{TEMPLATE_ID}</span>
               <br/>User ID (Public Key): <span className="font-mono text-xs bg-muted p-1 rounded">{USER_ID}</span>
               <br/>
-              Please be aware of EmailJS's free tier limits (e.g., 200 emails/month). 
+              Please be aware of EmailJS&apos;s free tier limits (e.g., 200 emails/month). 
               Ensure your EmailJS template is correctly set up with variables like <code>to_email</code>, <code>subject</code>, <code>body_content</code>.
             </>
           ) : (
