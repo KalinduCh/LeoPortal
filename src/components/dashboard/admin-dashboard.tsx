@@ -7,15 +7,17 @@ import Link from 'next/link';
 import type { User, Event, AttendanceRecord } from '@/types';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, CalendarDays, BarChart3, PlusCircle, Settings, Eye, Activity, History, Award, Filter, Loader2 } from 'lucide-react';
+import { Users, CalendarDays, Activity, PlusCircle, Eye, History, Award, Filter, Loader2, Printer } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format, parseISO, getYear, getMonth, isPast } from 'date-fns';
+import { EventSummaryModal } from '@/components/events/event-summary-modal'; // Import the new modal
 
 interface AdminDashboardProps {
   user: User;
@@ -36,12 +38,16 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   
   const [isLoading, setIsLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString());
-  const [selectedMonth, setSelectedMonth] = useState<string>('all'); // 'all' or 0-11 for months
+  const [selectedMonth, setSelectedMonth] = useState<string>('all'); 
+
+  const [selectedEventForSummary, setSelectedEventForSummary] = useState<Event | null>(null);
+  const [participantsForSummary, setParticipantsForSummary] = useState<User[]>([]);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetch users
       const usersRef = collection(db, "users");
       const usersSnapshot = await getDocs(usersRef);
       const fetchedUsers: User[] = [];
@@ -52,17 +58,19 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           name: data.name,
           email: data.email,
           role: data.role,
-          photoUrl: data.photoUrl
+          photoUrl: data.photoUrl,
+          nic: data.nic,
+          dateOfBirth: data.dateOfBirth,
+          gender: data.gender,
+          mobileNumber: data.mobileNumber
         } as User);
       });
       setAllUsers(fetchedUsers);
       setTotalMembers(fetchedUsers.filter(u => u.role === 'member').length);
 
-      // Fetch events
       const fetchedEvents = await getEvents();
       setAllEvents(fetchedEvents);
       
-      // Fetch all attendance records
       const fetchedAttendance = await getAllAttendanceRecords();
       setAllAttendance(fetchedAttendance);
 
@@ -92,7 +100,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     allAttendance.forEach(record => {
       const recordDate = parseISO(record.timestamp);
       const recordYear = getYear(recordDate);
-      const recordMonth = getMonth(recordDate); // 0-11
+      const recordMonth = getMonth(recordDate); 
 
       const yearMatch = selectedYear === 'all' || recordYear === parseInt(selectedYear);
       const monthMatch = selectedMonth === 'all' || recordMonth === parseInt(selectedMonth);
@@ -101,7 +109,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         if (!stats[record.userId]) {
           stats[record.userId] = { count: 0, user: allUsers.find(u => u.id === record.userId) };
         }
-        if (stats[record.userId].user) { // Only count if user profile found
+        if (stats[record.userId].user) { 
             stats[record.userId].count += 1;
         }
       }
@@ -114,7 +122,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         email: data.user?.email || 'N/A',
         attendanceCount: data.count,
       }))
-      .filter(stat => stat.name !== 'Unknown User') // Filter out those whose profiles weren't found
+      .filter(stat => stat.name !== 'Unknown User') 
       .sort((a, b) => b.attendanceCount - a.attendanceCount);
   }, [allAttendance, allUsers, selectedYear, selectedMonth]);
 
@@ -123,7 +131,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     allAttendance.forEach(record => {
       years.add(getYear(parseISO(record.timestamp)).toString());
     });
-    allEvents.forEach(event => { // Also consider event years for filtering
+    allEvents.forEach(event => { 
         years.add(getYear(parseISO(event.date)).toString());
     });
     if (!years.has(new Date().getFullYear().toString())) {
@@ -142,7 +150,16 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     { value: '10', label: 'November' }, { value: '11', label: 'December' },
   ];
 
-  if (isLoading && !allUsers.length) { // Show loader if initial data isn't there
+  const handleOpenEventSummary = (event: Event) => {
+    setSelectedEventForSummary(event);
+    const eventAttendance = allAttendance.filter(att => att.eventId === event.id);
+    const participantUserIds = new Set(eventAttendance.map(att => att.userId));
+    const eventParticipants = allUsers.filter(usr => participantUserIds.has(usr.id));
+    setParticipantsForSummary(eventParticipants);
+    setIsSummaryModalOpen(true);
+  };
+
+  if (isLoading && !allUsers.length) { 
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -240,7 +257,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {memberStats.slice(0, 10).map((stat, index) => ( // Display top 10
+                {memberStats.slice(0, 10).map((stat, index) => (
                   <TableRow key={stat.userId}>
                     <TableCell className="font-medium">
                         <Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80 hover:bg-primary/90" : ""}>
@@ -277,14 +294,19 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                 </Button>
               </Link>
             </div>
-            <CardDescription>A look at recently concluded club activities.</CardDescription>
+            <CardDescription>A look at recently concluded club activities. Click event name for summary.</CardDescription>
           </CardHeader>
           <CardContent>
             {pastEvents.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {pastEvents.slice(0, 5).map(event => ( // Show recent 5 past events
+                {pastEvents.slice(0, 10).map(event => ( // Show recent 10 past events
                   <div key={event.id} className="p-3 border rounded-md hover:bg-muted/50 transition-colors">
-                    <p className="font-semibold text-primary">{event.name}</p>
+                    <p 
+                        className="font-semibold text-primary hover:underline cursor-pointer"
+                        onClick={() => handleOpenEventSummary(event)}
+                    >
+                        {event.name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {format(parseISO(event.date), "MMMM d, yyyy 'at' h:mm a")} - {event.location}
                     </p>
@@ -313,7 +335,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
              <CardDescription>View and manage member profiles.</CardDescription>
           </CardHeader>
           <CardContent>
-             {allUsers.filter(u => u.role === 'member').slice(0,5).length > 0 ? ( // Show first 5 members
+             {allUsers.filter(u => u.role === 'member').slice(0,5).length > 0 ? ( 
                 allUsers.filter(u => u.role === 'member').slice(0,5).map(member => (
                     <div key={member.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
                         <p className="font-medium">{member.name}</p>
@@ -326,6 +348,28 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           </CardContent>
         </Card>
       </div>
+
+      {selectedEventForSummary && (
+        <Dialog open={isSummaryModalOpen} onOpenChange={(open) => {
+            if (!open) {
+                setSelectedEventForSummary(null);
+                setParticipantsForSummary([]);
+            }
+            setIsSummaryModalOpen(open);
+        }}>
+          <DialogContent className="sm:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col print-content">
+            <EventSummaryModal
+              event={selectedEventForSummary}
+              participants={participantsForSummary}
+              onClose={() => {
+                setIsSummaryModalOpen(false);
+                setSelectedEventForSummary(null);
+                setParticipantsForSummary([]);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
