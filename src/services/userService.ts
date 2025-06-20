@@ -12,8 +12,8 @@ export async function createUserProfile(
   photoUrl?: string
 ): Promise<void> {
   const userRef = doc(db, 'users', uid);
-  // Ensure name is not empty for placeholder generation
-  const placeholderChar = name && name.length > 0 ? name.charAt(0).toUpperCase() : 'U';
+  // Ensure name is not empty for placeholder generation, default to 'U' if it is.
+  const placeholderChar = name && name.trim().length > 0 ? name.trim().charAt(0).toUpperCase() : 'U';
   await setDoc(userRef, {
     uid,
     email,
@@ -39,7 +39,8 @@ export async function getUserProfile(uid: string): Promise<User | null> {
       createdAtString = data.createdAt;
     }
     
-    const placeholderChar = data.name && data.name.length > 0 ? data.name.charAt(0).toUpperCase() : 'U';
+    const userName = data.name || ""; // Ensure name is at least an empty string
+    const placeholderChar = userName && userName.trim().length > 0 ? userName.trim().charAt(0).toUpperCase() : 'U';
 
     return {
         id: data.uid, // Ensure 'id' field from User type is mapped from 'uid'
