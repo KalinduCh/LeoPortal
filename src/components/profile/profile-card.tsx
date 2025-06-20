@@ -19,10 +19,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format, parseISO, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
-// Removed Firebase Storage imports
 import { useToast } from '@/hooks/use-toast';
 
-const MAX_FILE_SIZE_KB = 200; // Max file size in KB for Base64 storage
+const MAX_FILE_SIZE_KB = 200;
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -30,7 +29,7 @@ const profileFormSchema = z.object({
   dateOfBirth: z.string().optional(), 
   gender: z.string().optional(),
   mobileNumber: z.string().optional(),
-  photoUrl: z.string().optional(), // Will store Base64 data URI or placeholder
+  photoUrl: z.string().optional(), 
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -96,30 +95,28 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
       reader.onerror = () => {
         toast({ title: "File Read Error", description: "Could not read the image file.", variant: "destructive" });
         setSelectedBase64Image(null);
-        setImagePreviewUrl(user.photoUrl || null); // Revert to original if read fails
+        setImagePreviewUrl(user.photoUrl || null);
       }
       reader.readAsDataURL(file);
     }
   };
 
   const handleFormSubmit = async (values: ProfileFormValues) => {
-    let finalPhotoUrl = user.photoUrl; // Keep existing photo by default
+    let finalPhotoUrl = user.photoUrl; 
 
     if (selectedBase64Image) {
-      finalPhotoUrl = selectedBase64Image; // Use new Base64 image if selected
+      finalPhotoUrl = selectedBase64Image; 
     }
     
     let dobToSave: string | undefined = undefined;
     if (values.dateOfBirth) {
-        if (values.dateOfBirth instanceof Date) { // Should not happen with string from form
-            dobToSave = format(values.dateOfBirth, "yyyy-MM-dd");
-        } else { // It's already a string or undefined
-            const parsedFromString = parseISO(values.dateOfBirth);
-            if (isValid(parsedFromString)) {
-                dobToSave = format(parsedFromString, "yyyy-MM-dd");
-            } else {
-                dobToSave = values.dateOfBirth; 
-            }
+        const parsedFromString = parseISO(values.dateOfBirth);
+        if (isValid(parsedFromString)) {
+            dobToSave = format(parsedFromString, "yyyy-MM-dd");
+        } else {
+            // Attempt to parse if it's in another common format or keep as is if not recognized
+            // This part might need adjustment based on expected input formats if not strictly ISO
+            dobToSave = values.dateOfBirth; 
         }
     }
     
@@ -129,11 +126,11 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
       nic: values.nic,
       gender: values.gender,
       mobileNumber: values.mobileNumber,
-      photoUrl: finalPhotoUrl, // This will be the Base64 string or existing URL
+      photoUrl: finalPhotoUrl,
       dateOfBirth: dobToSave,
     });
     setIsEditing(false); 
-    setSelectedBase64Image(null); // Clear selected Base64 image after successful update
+    setSelectedBase64Image(null);
   };
 
   const getInitials = (name?: string) => {
@@ -154,7 +151,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
   const selectedDateForPicker = form.watch("dateOfBirth");
   let dateForPicker: Date | undefined = undefined;
   if (selectedDateForPicker) {
-    if (selectedDateForPicker instanceof Date) {
+    if (selectedDateForPicker instanceof Date) { // Should not happen given schema type is string
       dateForPicker = selectedDateForPicker;
     } else if (typeof selectedDateForPicker === 'string') {
       const parsed = parseISO(selectedDateForPicker);
@@ -164,15 +161,15 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
     }
   }
 
-  const currentLoadingState = isParentUpdating; // Removed isUploadingImage
+  const currentLoadingState = isParentUpdating;
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
-      <CardHeader className="text-center">
-        <div className="relative mx-auto w-32 h-32 mb-4">
-          <Avatar className="w-32 h-32 border-4 border-primary shadow-md">
+      <CardHeader className="text-center p-4 sm:p-6">
+        <div className="relative mx-auto w-24 h-24 sm:w-32 sm:h-32 mb-4">
+          <Avatar className="w-full h-full border-4 border-primary shadow-md">
             <AvatarImage src={imagePreviewUrl || user.photoUrl} alt={user.name} data-ai-hint="profile large_avatar" />
-            <AvatarFallback className="text-4xl bg-primary/20 text-primary font-bold">
+            <AvatarFallback className="text-3xl sm:text-4xl bg-primary/20 text-primary font-bold">
               {getInitials(user.name)}
             </AvatarFallback>
           </Avatar>
@@ -188,21 +185,21 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
               <Button 
                 variant="outline" 
                 size="icon" 
-                className="absolute bottom-0 right-0 rounded-full bg-background hover:bg-accent" 
+                className="absolute bottom-0 right-0 rounded-full bg-background hover:bg-accent w-8 h-8 sm:w-10 sm:h-10" 
                 onClick={() => fileInputRef.current?.click()}
                 disabled={currentLoadingState}
               >
-                <UploadCloud className="h-5 w-5" />
+                <UploadCloud className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span className="sr-only">Upload new photo</span>
               </Button>
             </>
           )}
         </div>
-        <CardTitle className="text-3xl font-headline">{user.name}</CardTitle>
-        <CardDescription className="text-lg text-primary capitalize">{user.role}</CardDescription>
+        <CardTitle className="text-2xl sm:text-3xl font-headline">{user.name}</CardTitle>
+        <CardDescription className="text-base sm:text-lg text-primary capitalize">{user.role}</CardDescription>
       </CardHeader>
       <Separator />
-      <CardContent className="pt-6 space-y-6">
+      <CardContent className="p-4 sm:p-6 pt-6 space-y-4 sm:space-y-6">
         {isEditing ? (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
@@ -212,14 +209,14 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Full Name</FormLabel>
-                    <FormControl><Input {...field} disabled={currentLoadingState} /></FormControl>
+                    <FormControl><Input {...field} disabled={currentLoadingState} className="w-full" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormItem>
                 <FormLabel>Email Address</FormLabel>
-                <Input type="email" value={user.email} disabled />
+                <Input type="email" value={user.email} disabled className="w-full" />
                 <p className="text-xs text-muted-foreground pt-1">Email cannot be changed.</p>
               </FormItem>
                <FormField
@@ -228,7 +225,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>NIC</FormLabel>
-                    <FormControl><Input {...field} disabled={currentLoadingState} /></FormControl>
+                    <FormControl><Input {...field} disabled={currentLoadingState} className="w-full" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -246,7 +243,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
                             variant={"outline"}
                             disabled={currentLoadingState}
                             className={cn(
-                              "w-full pl-3 text-left font-normal",
+                              "w-full pl-3 text-left font-normal", // Ensure full width
                               !field.value && "text-muted-foreground"
                             )}
                           >
@@ -284,7 +281,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gender</FormLabel>
-                    <FormControl><Input placeholder="e.g., Male, Female, Other" {...field} disabled={currentLoadingState} /></FormControl>
+                    <FormControl><Input placeholder="e.g., Male, Female, Other" {...field} disabled={currentLoadingState} className="w-full" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -295,14 +292,14 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Mobile Number</FormLabel>
-                    <FormControl><Input type="tel" {...field} disabled={currentLoadingState} /></FormControl>
+                    <FormControl><Input type="tel" {...field} disabled={currentLoadingState} className="w-full" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => {setIsEditing(false); setSelectedBase64Image(null); setImagePreviewUrl(user.photoUrl || null);}} disabled={currentLoadingState}>Cancel</Button>
-                <Button type="submit" disabled={currentLoadingState}>
+              <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
+                <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => {setIsEditing(false); setSelectedBase64Image(null); setImagePreviewUrl(user.photoUrl || null);}} disabled={currentLoadingState}>Cancel</Button>
+                <Button type="submit" className="w-full sm:w-auto" disabled={currentLoadingState}>
                   {currentLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {currentLoadingState ? "Saving..." : "Save Changes"}
                 </Button>
@@ -320,7 +317,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
             <ProfileInfoItem icon={Phone} label="Mobile Number" value={user.mobileNumber} />
             
             <div className="pt-4 text-right">
-              <Button variant="outline" onClick={() => setIsEditing(true)}>
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsEditing(true)}>
                 <Edit3 className="mr-2 h-4 w-4" />
                 Edit Profile
               </Button>
@@ -341,10 +338,10 @@ interface ProfileInfoItemProps {
 
 const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon: Icon, label, value, className }) => (
   <div className="flex items-start space-x-3">
-    <Icon className="h-5 w-5 text-muted-foreground mt-1" />
-    <div>
+    <Icon className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
+    <div className="min-w-0"> {/* Added for text wrapping */}
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className={cn("font-medium", className)}>{value || <span className="italic text-muted-foreground/70">Not set</span>}</p>
+      <p className={cn("font-medium break-words", className)}>{value || <span className="italic text-muted-foreground/70">Not set</span>}</p>
     </div>
   </div>
 );

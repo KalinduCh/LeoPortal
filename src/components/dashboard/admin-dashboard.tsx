@@ -5,17 +5,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { User, Event, AttendanceRecord, EventParticipantSummary } from '@/types';
+import type { User, Event, AttendanceRecord } from '@/types';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, CalendarDays, Activity, PlusCircle, Eye, History, Award, Filter, Loader2, Printer, ExternalLink } from 'lucide-react';
+import { Users, CalendarDays, Activity, PlusCircle, Eye, History, Award, Filter, Loader2, ExternalLink } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from '@/components/ui/label'; // Import Label
 import { format, parseISO, getYear, getMonth, isPast } from 'date-fns';
 
 interface AdminDashboardProps {
@@ -211,25 +212,35 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
               </CardTitle>
               <CardDescription>View member attendance records, filtered by period.</CardDescription>
             </div>
-            <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:items-center sm:gap-2">
-              <Filter className="h-5 w-5 text-muted-foreground hidden sm:inline-block" />
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-background">
-                  <SelectValue placeholder="Select Month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-full sm:w-[120px] bg-background">
-                  <SelectValue placeholder="Select Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Years</SelectItem>
-                  {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            {/* Filters Section - Updated for Mobile */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2 sm:hidden">
+                 <Filter className="h-5 w-5 text-primary" />
+                 <span className="font-medium text-sm">Filter by:</span>
+              </div>
+              <div className="flex-1 sm:flex-none sm:min-w-[180px]">
+                <Label htmlFor="filter-month" className="text-xs font-medium text-muted-foreground">Month</Label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger id="filter-month" className="w-full bg-background mt-1">
+                    <SelectValue placeholder="Select Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1 sm:flex-none sm:min-w-[120px]">
+                <Label htmlFor="filter-year" className="text-xs font-medium text-muted-foreground">Year</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger id="filter-year" className="w-full bg-background mt-1">
+                    <SelectValue placeholder="Select Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -237,34 +248,36 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           {isLoading ? (
             <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : memberStats.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">Rank</TableHead>
-                  <TableHead>Member Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="text-right">Attendance Count</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {memberStats.slice(0, 10).map((stat, index) => (
-                  <TableRow key={stat.userId}>
-                    <TableCell className="font-medium">
-                        <Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80 hover:bg-primary/90" : ""}>
-                            {index + 1}
-                        </Badge>
-                    </TableCell>
-                    <TableCell className="font-semibold">{stat.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{stat.email}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="outline" className="text-lg px-3 py-1 border-accent text-accent">
-                        {stat.attendanceCount}
-                      </Badge>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">Rank</TableHead>
+                    <TableHead>Member Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead className="text-right">Attendance Count</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {memberStats.slice(0, 10).map((stat, index) => (
+                    <TableRow key={stat.userId}>
+                      <TableCell className="font-medium">
+                          <Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80 hover:bg-primary/90" : ""}>
+                              {index + 1}
+                          </Badge>
+                      </TableCell>
+                      <TableCell className="font-semibold">{stat.name}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs sm:text-sm">{stat.email}</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="outline" className="text-lg px-3 py-1 border-accent text-accent">
+                          {stat.attendanceCount}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <p className="text-center text-muted-foreground py-8">No attendance data for the selected period, or no members found.</p>
           )}
@@ -274,26 +287,26 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="shadow-md">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="font-headline flex items-center">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <CardTitle className="font-headline flex items-center text-lg">
                 <History className="mr-2 h-5 w-5 text-accent" /> Event History
               </CardTitle>
-              <Link href="/events">
-                <Button variant="outline" size="sm">
+              <Link href="/events" className="w-full sm:w-auto">
+                <Button variant="outline" size="sm" className="w-full sm:w-auto">
                   <PlusCircle className="mr-2 h-4 w-4" /> Manage Events
                 </Button>
               </Link>
             </div>
-            <CardDescription>A look at recently concluded club activities. Click event name for summary.</CardDescription>
+            <CardDescription>A look at recently concluded club activities.</CardDescription>
           </CardHeader>
           <CardContent>
             {pastEvents.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {pastEvents.slice(0, 10).map(event => ( // Show recent 10 past events
+                {pastEvents.slice(0, 10).map(event => ( 
                   <div key={event.id} className="p-3 border rounded-md hover:bg-muted/50 transition-colors">
                     <div className="flex justify-between items-start">
                         <p 
-                            className="font-semibold text-primary hover:underline cursor-pointer flex-grow"
+                            className="font-semibold text-primary hover:underline cursor-pointer flex-grow pr-2"
                             onClick={() => handleOpenEventSummaryPage(event.id)}
                         >
                             {event.name}
@@ -301,17 +314,17 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                         <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-7 w-7 -mr-2 -mt-1"
+                            className="h-7 w-7 shrink-0"
                             onClick={() => handleOpenEventSummaryPage(event.id)}
                             aria-label="View event summary"
                         >
                             <ExternalLink className="h-4 w-4 text-muted-foreground" />
                         </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {format(parseISO(event.date), "MMMM d, yyyy 'at' h:mm a")} - {event.location}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {format(parseISO(event.date), "MMM d, yyyy 'at' h:mm a")} - {event.location}
                     </p>
-                    <p className="text-sm mt-1">{event.description.substring(0,100)}{event.description.length > 100 ? "..." : ""}</p>
+                    <p className="text-sm mt-1 text-muted-foreground">{event.description.substring(0,100)}{event.description.length > 100 ? "..." : ""}</p>
                   </div>
                 ))}
               </div>
@@ -323,22 +336,22 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
 
         <Card className="shadow-md">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="font-headline flex items-center">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <CardTitle className="font-headline flex items-center text-lg">
                 <Users className="mr-2 h-5 w-5 text-accent" /> Quick Member Access
               </CardTitle>
-               <Link href="/members">
-                <Button variant="outline" size="sm">
+               <Link href="/members" className="w-full sm:w-auto">
+                <Button variant="outline" size="sm" className="w-full sm:w-auto">
                   <Eye className="mr-2 h-4 w-4" /> View All Members
                 </Button>
               </Link>
             </div>
-             <CardDescription>View and manage member profiles.</CardDescription>
+             <CardDescription>Recently added or active members.</CardDescription>
           </CardHeader>
           <CardContent>
              {allUsers.filter(u => u.role === 'member').slice(0,5).length > 0 ? ( 
                 allUsers.filter(u => u.role === 'member').slice(0,5).map(member => (
-                    <div key={member.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                    <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b last:border-b-0">
                         <p className="font-medium">{member.name}</p>
                         <p className="text-sm text-muted-foreground">{member.email}</p>
                     </div>
@@ -352,4 +365,3 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     </div>
   );
 }
-

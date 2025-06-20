@@ -32,7 +32,6 @@ const emailFormSchema = z.object({
 
 type EmailFormValues = z.infer<typeof emailFormSchema>;
 
-// These will be loaded from .env.local
 const SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
 const TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
 const USER_ID = process.env.NEXT_PUBLIC_EMAILJS_USER_ID;
@@ -111,6 +110,8 @@ export default function CommunicationPage() {
       return;
     }
 
+    const currentYear = new Date().getFullYear().toString();
+
     for (const recipient of recipientDetails) {
       if (!recipient.email) continue;
 
@@ -119,6 +120,7 @@ export default function CommunicationPage() {
         to_name: recipient.name || 'Member',
         subject: data.subject,
         body_content: data.body,
+        current_year: currentYear, // Pass current year to template
       };
 
       try {
@@ -171,34 +173,24 @@ export default function CommunicationPage() {
   const isEmailJsConfigured = SERVICE_ID && TEMPLATE_ID && USER_ID;
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <div className="container mx-auto py-4 sm:py-8 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold font-headline">Send Communication</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Send Communication</h1>
       </div>
 
       <Alert variant={isEmailJsConfigured ? "default" : "destructive"}>
         <Mail className="h-4 w-4" />
-        <AlertTitle>Email Sending via EmailJS</AlertTitle>
+        <AlertTitle>{isEmailJsConfigured ? "Email Sending via EmailJS" : "EmailJS Not Configured"}</AlertTitle>
         <AlertDescription>
           {isEmailJsConfigured ? (
             <>
-              This form uses <strong className="text-primary">EmailJS</strong> to send emails directly from your browser.
-              <br/>Service ID: <span className="font-mono text-xs bg-muted p-1 rounded">{SERVICE_ID}</span>
-              <br/>Template ID: <span className="font-mono text-xs bg-muted p-1 rounded">{TEMPLATE_ID}</span>
-              <br/>User ID (Public Key): <span className="font-mono text-xs bg-muted p-1 rounded">{USER_ID}</span>
-              <br/>
-              Please be aware of EmailJS&apos;s free tier limits (e.g., 200 emails/month). 
-              Ensure your EmailJS template is correctly set up with variables like <code>to_email</code>, <code>subject</code>, <code>body_content</code>.
+              This form uses <strong className="text-primary">EmailJS</strong> to send emails.
+              Your EmailJS template should use variables like <code>to_email</code>, <code>to_name</code>, <code>subject</code>, <code>body_content</code>, and <code>current_year</code>.
             </>
           ) : (
             <>
               <strong className="text-destructive-foreground">EmailJS is not configured correctly.</strong> Emails cannot be sent.
-              <br/>Detected Service ID: <span className="font-mono text-xs bg-muted p-1 rounded">{SERVICE_ID || 'NOT SET'}</span>
-              <br/>Detected Template ID: <span className="font-mono text-xs bg-muted p-1 rounded">{TEMPLATE_ID || 'NOT SET'}</span>
-              <br/>Detected User ID: <span className="font-mono text-xs bg-muted p-1 rounded">{USER_ID || 'NOT SET'}</span>
-              <br/>
               Please set <code>NEXT_PUBLIC_EMAILJS_SERVICE_ID</code>, <code>NEXT_PUBLIC_EMAILJS_TEMPLATE_ID</code>, and <code>NEXT_PUBLIC_EMAILJS_USER_ID</code> in your <code>.env.local</code> file and restart your development server.
-              You also need to set up a service and an email template in your EmailJS account.
             </>
           )}
         </AlertDescription>
@@ -208,26 +200,31 @@ export default function CommunicationPage() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary" /> Select Recipients</CardTitle>
-              <CardDescription>Choose which members will receive this email.</CardDescription>
+              <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary" /> Select Recipients</CardTitle>
+              <CardDescription className="text-sm">Choose which members will receive this email.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingMembers ? (
                 <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
               ) : members.length > 0 ? (
                 <>
-                  <div className="flex items-center space-x-2 mb-4 p-2 border rounded-md bg-muted/50">
-                    <Checkbox
-                      id="select-all-members"
-                      onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                      checked={watchedRecipients.length === members.length && members.length > 0}
-                      disabled={members.length === 0}
-                    />
-                    <Label htmlFor="select-all-members" className="font-medium text-sm">
-                      Select All Members ({watchedRecipients.length} / {members.length} selected)
-                    </Label>
+                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-2 sm:space-y-0 mb-4 p-3 border rounded-md bg-muted/50">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="select-all-members"
+                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                        checked={watchedRecipients.length === members.length && members.length > 0}
+                        disabled={members.length === 0}
+                      />
+                      <Label htmlFor="select-all-members" className="font-medium text-sm cursor-pointer">
+                        Select All Members
+                      </Label>
+                    </div>
+                    <span className="text-xs text-muted-foreground sm:ml-auto">
+                      ({watchedRecipients.length} / {members.length} selected)
+                    </span>
                   </div>
-                  <ScrollArea className="h-60 border rounded-md p-4">
+                  <ScrollArea className="h-60 border rounded-md p-2 sm:p-4">
                     <FormField
                       control={form.control}
                       name="recipientUserIds"
@@ -242,7 +239,7 @@ export default function CommunicationPage() {
                                 return (
                                   <FormItem
                                     key={member.id}
-                                    className="flex flex-row items-center space-x-3 space-y-0"
+                                    className="flex flex-row items-center space-x-3 space-y-0 p-2 rounded hover:bg-muted/30"
                                   >
                                     <FormControl>
                                       <Checkbox
@@ -258,8 +255,8 @@ export default function CommunicationPage() {
                                         }}
                                       />
                                     </FormControl>
-                                    <FormLabel className="font-normal text-sm">
-                                      {member.name} ({member.email})
+                                    <FormLabel className="font-normal text-sm cursor-pointer flex-1">
+                                      {member.name} <span className="text-xs text-muted-foreground">({member.email})</span>
                                     </FormLabel>
                                   </FormItem>
                                 )
@@ -270,7 +267,7 @@ export default function CommunicationPage() {
                       )}
                     />
                   </ScrollArea>
-                  <FormMessage>{form.formState.errors.recipientUserIds?.message}</FormMessage>
+                  <FormMessage className="mt-2">{form.formState.errors.recipientUserIds?.message}</FormMessage>
                 </>
               ) : (
                 <p className="text-center text-muted-foreground py-4">No members found.</p>
@@ -280,8 +277,8 @@ export default function CommunicationPage() {
 
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle>
-              <CardDescription>Write the subject and body of your email. Ensure your EmailJS template uses variables like <code>subject</code> and <code>body_content</code>.</CardDescription>
+              <CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle>
+              <CardDescription className="text-sm">Write the subject and body of your email.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -306,7 +303,7 @@ export default function CommunicationPage() {
                     <FormControl>
                       <Textarea
                         placeholder="Dear members, ..."
-                        className="resize-y min-h-[200px]"
+                        className="resize-y min-h-[150px] sm:min-h-[200px]"
                         {...field}
                       />
                     </FormControl>
@@ -318,9 +315,9 @@ export default function CommunicationPage() {
           </Card>
           
           <div className="flex justify-end">
-            <Button type="submit" disabled={formSubmitting || isLoadingMembers || !isEmailJsConfigured} size="lg">
+            <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers || !isEmailJsConfigured} size="lg">
               {formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              {formSubmitting ? "Sending..." : "Send Emails via EmailJS"}
+              {formSubmitting ? "Sending..." : "Send Emails"}
             </Button>
           </div>
         </form>

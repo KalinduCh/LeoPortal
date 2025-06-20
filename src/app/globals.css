@@ -8,17 +8,19 @@ body {
 
 @layer base {
   :root {
-    --background: 207 27% 95%; /* #F0F4F7 (Original - Kept) */
+    /* Updated as per PRD */
+    --background: 207 27% 95%; /* #F0F4F7 Light Gray */
     --foreground: 210 10% 23%; /* Darker for readability on light gray */
 
-    --card: 207 27% 100%; /* Slightly lighter than background */
+    --card: 0 0% 100%; /* White */
     --card-foreground: 210 10% 23%;
 
-    --popover: 207 27% 100%;
+    --popover: 0 0% 100%;
     --popover-foreground: 210 10% 23%;
 
-    --primary: 217 91% 60%; /* Vibrant Blue */
-    --primary-foreground: 210 40% 98%; /* Almost White */
+    /* Updated as per PRD */
+    --primary: 204 70% 53%; /* #64B5F6 Soft Blue */
+    --primary-foreground: 0 0% 100%; /* White for contrast on soft blue */
 
     --secondary: 220 14% 90%; /* Cool Light Gray */
     --secondary-foreground: 220 10% 25%; /* Dark Gray */
@@ -26,15 +28,16 @@ body {
     --muted: 220 14% 94%; /* Very Light Cool Gray */
     --muted-foreground: 220 10% 45%; /* Medium Gray */
 
-    --accent: 217 80% 70%; /* Lighter/Softer Blue */
-    --accent-foreground: 210 40% 98%; /* Almost White */
+    /* Updated as per PRD */
+    --accent: 203 89% 61%; /* #42A5F5 More Saturated Blue */
+    --accent-foreground: 0 0% 100%; /* White for contrast on accent blue */
 
-    --destructive: 0 84% 60%; /* Original Destructive Red */
-    --destructive-foreground: 0 0% 98%; /* Original Destructive Foreground */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
     --border: 220 13% 88%; /* Cool Gray Border */
     --input: 220 13% 92%; /* Cool Light Gray Input Background */
-    --ring: 217 91% 60%; /* Match New Primary Blue */
+    --ring: 204 70% 53%; /* Match New Primary Blue for focus rings */
 
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
@@ -44,54 +47,55 @@ body {
     --radius: 0.5rem;
 
     /* Sidebar Light Theme Colors */
-    --sidebar-background: 220 16% 97%; /* Slightly Cooler Light Gray */
-    --sidebar-foreground: 220 10% 25%; /* Dark Gray Text */
-    --sidebar-primary: 217 91% 60%;    /* New Primary Blue */
-    --sidebar-primary-foreground: 210 40% 98%; /* White */
-    --sidebar-accent: 217 80% 70%;     /* New Accent Blue */
-    --sidebar-accent-foreground: 210 40% 98%; /* White */
-    --sidebar-border: 220 13% 85%;     /* Cooler Border */
-    --sidebar-ring: 217 91% 60%;       /* New Ring Color (Match Primary) */
+    --sidebar-background: 220 16% 97%;
+    --sidebar-foreground: 220 10% 25%;
+    --sidebar-primary: 204 70% 53%;    /* Match New Primary Blue */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 203 89% 61%;     /* Match New Accent Blue */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 13% 85%;
+    --sidebar-ring: 204 70% 53%;
   }
 
   .dark {
-    --background: 220 15% 10%; /* Dark Cool Gray */
-    --foreground: 220 10% 85%; /* Light Gray Text */
+    /* Dark theme adjustments should also align with the new primary/accent if needed */
+    --background: 220 15% 10%;
+    --foreground: 220 10% 85%;
 
-    --card: 220 15% 15%; /* Slightly Lighter Dark Cool Gray */
+    --card: 220 15% 15%;
     --card-foreground: 220 10% 85%;
 
     --popover: 220 15% 15%;
     --popover-foreground: 220 10% 85%;
 
-    --primary: 217 91% 65%; /* Brighter Blue for Dark Mode */
-    --primary-foreground: 220 10% 10%; /* Very Dark Text */
+    --primary: 204 70% 58%; /* Slightly brighter soft blue for dark mode */
+    --primary-foreground: 220 10% 10%;
 
-    --secondary: 220 10% 25%; /* Dark Cool Gray */
-    --secondary-foreground: 220 15% 85%; /* Light Gray Text */
+    --secondary: 220 10% 25%;
+    --secondary-foreground: 220 15% 85%;
 
-    --muted: 220 10% 22%; /* Darker Cool Gray */
-    --muted-foreground: 220 10% 55%; /* Medium-Light Gray Text */
+    --muted: 220 10% 22%;
+    --muted-foreground: 220 10% 55%;
 
-    --accent: 217 80% 75%; /* Brighter Accent Blue for Dark Mode */
-    --accent-foreground: 220 10% 10%; /* Very Dark Text */
+    --accent: 203 89% 65%; /* Slightly brighter accent blue for dark mode */
+    --accent-foreground: 220 10% 10%;
 
-    --destructive: 0 70% 55%; /* Slightly Brighter Destructive Red */
+    --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 10% 30%; /* Dark Cool Gray Border */
-    --input: 220 10% 28%; /* Dark Cool Gray Input Background */
-    --ring: 217 91% 65%; /* Match Dark Primary Blue */
+    --border: 220 10% 30%;
+    --input: 220 10% 28%;
+    --ring: 204 70% 58%; /* Match Dark Primary Blue */
 
     /* Sidebar Dark Theme Colors */
-    --sidebar-background: 220 8% 12%; /* Dark Cool Gray for Sidebar */
-    --sidebar-foreground: 220 15% 85%; /* Light Gray Text */
-    --sidebar-primary: 217 91% 65%;    /* Dark Primary Blue */
-    --sidebar-primary-foreground: 220 10% 10%; /* Dark Text */
-    --sidebar-accent: 217 80% 75%;     /* Dark Accent Blue */
-    --sidebar-accent-foreground: 220 10% 10%; /* Dark Text */
-    --sidebar-border: 220 10% 20%;     /* Darker Cool Border */
-    --sidebar-ring: 217 91% 65%;       /* Dark Ring (Match Dark Primary) */
+    --sidebar-background: 220 8% 12%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 204 70% 58%;
+    --sidebar-primary-foreground: 220 10% 10%;
+    --sidebar-accent: 203 89% 65%;
+    --sidebar-accent-foreground: 220 10% 10%;
+    --sidebar-border: 220 10% 20%;
+    --sidebar-ring: 204 70% 58%;
   }
 }
 
