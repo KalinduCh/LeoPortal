@@ -1,25 +1,23 @@
-
 // src/services/userService.ts
-import { doc, setDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
-import type { User } from '@/types';
+import type { User, UserRole } from '@/types';
 
 export async function createUserProfile(
   uid: string, 
   email: string, 
   name: string, 
-  role: User['role'] = 'member',
+  role: UserRole = 'member',
   photoUrl?: string
 ): Promise<void> {
   const userRef = doc(db, 'users', uid);
-  // Ensure name is not empty for placeholder generation, default to 'U' if it is.
   const placeholderChar = name && name.trim().length > 0 ? name.trim().charAt(0).toUpperCase() : 'U';
   await setDoc(userRef, {
-    uid,
+    uid, // Storing uid explicitly for easier querying if needed, though doc.id is the uid
     email,
-    name,
+    name: name || "Unnamed User", // Ensure name is not empty
     role,
-    createdAt: serverTimestamp(), // Use serverTimestamp for consistency
+    createdAt: serverTimestamp(),
     photoUrl: photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`, 
   });
 }
@@ -30,27 +28,31 @@ export async function getUserProfile(uid: string): Promise<User | null> {
 
   if (userSnap.exists()) {
     const data = userSnap.data();
-    // Ensure createdAt is handled correctly if it's a Firestore Timestamp
-    // This field is not currently part of the User type, but kept for potential future use
-    let createdAtString;
-    if (data.createdAt instanceof Timestamp) {
-      createdAtString = data.createdAt.toDate().toISOString();
-    } else if (typeof data.createdAt === 'string') {
-      createdAtString = data.createdAt;
-    }
-    
-    const userName = data.name || ""; // Ensure name is at least an empty string
+    const userName = data.name || ""; 
     const placeholderChar = userName && userName.trim().length > 0 ? userName.trim().charAt(0).toUpperCase() : 'U';
 
     return {
-        id: data.uid, // Ensure 'id' field from User type is mapped from 'uid'
-        name: data.name,
+        id: userSnap.id, // Use document ID as the user ID
+        name: data.name || "Unnamed User",
         email: data.email,
         photoUrl: data.photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
         role: data.role,
-        // createdAt: createdAtString, // Optional: include if needed by User type
-     } as User; // Cast to User, assuming all required fields are present
+     } as User;
   }
   return null;
 }
 
+export async function updateUserProfile(uid: string, data: { name?: string; role?: UserRole }): Promise<void> {
+  const userRef = doc(db, 'users', uid);
+  const updateData: Record<string, any> = {};
+  if (data.name !== undefined) {
+    updateData.name = data.name;
+  }
+  if (data.role !== undefined) {
+    updateData.role = data.role;
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    await updateDoc(userRef, updateData);
+  }
+}

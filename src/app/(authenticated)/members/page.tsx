@@ -10,13 +10,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
-import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; // Import auth for direct use
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { createUserProfile } from '@/services/userService'; // Import service
+import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createUserProfile, updateUserProfile } from '@/services/userService';
 import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { MemberEditForm, type MemberEditFormValues } from '@/components/members/member-edit-form';
 
 export default function MemberManagementPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -25,10 +27,15 @@ export default function MemberManagementPage() {
 
   const [members, setMembers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false); // General submission state
   const [isImporting, setIsImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [selectedMemberForEdit, setSelectedMemberForEdit] = useState<User | null>(null);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== 'admin')) {
@@ -40,19 +47,21 @@ export default function MemberManagementPage() {
     setIsLoading(true);
     try {
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("role", "==", "member")); // Initially fetch only members
+      const q = query(usersRef); // Fetch all users, admin will filter if needed or just display all roles
       const querySnapshot = await getDocs(q);
       const fetchedMembers: User[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         fetchedMembers.push({
-            id: doc.id,
+            id: doc.id, // Firestore document ID is the UID
             name: data.name,
             email: data.email,
             photoUrl: data.photoUrl,
             role: data.role,
         } as User);
       });
+      // Filter out the currently logged-in admin from the list if desired, or show all
+      // setMembers(fetchedMembers.filter(m => m.id !== user?.id)); 
       setMembers(fetchedMembers);
     } catch (error) {
         console.error("Error fetching members: ", error);
@@ -67,18 +76,35 @@ export default function MemberManagementPage() {
     }
   }, [user, fetchMembers]);
 
-  const filteredMembers = members.filter(member =>
-    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredMembers = members.filter(memberItem => // Renamed to avoid conflict with user
+    memberItem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    memberItem.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  const handleEditMember = (memberId: string) => {
-    toast({title: "Feature Placeholder", description: `Edit action for member ${memberId} is not yet implemented.`});
+  const handleOpenEditForm = (memberToEdit: User) => {
+    setSelectedMemberForEdit(memberToEdit);
+    setIsEditFormOpen(true);
   };
   
+  const handleEditFormSubmit = async (data: MemberEditFormValues) => {
+    if (!selectedMemberForEdit) return;
+    setIsSubmitting(true);
+    try {
+      await updateUserProfile(selectedMemberForEdit.id, data);
+      toast({title: "Member Updated", description: "Member details have been successfully updated."});
+      fetchMembers();
+      setIsEditFormOpen(false);
+      setSelectedMemberForEdit(null);
+    } catch (error) {
+      console.error("Failed to update member:", error);
+      toast({ title: "Error", description: "Could not update member details.", variant: "destructive" });
+    }
+    setIsSubmitting(false);
+  };
+
   const handleDeleteMember = async (memberId: string) => {
-    if(confirm("Are you sure you want to remove this member's profile from the database? This does not delete their login credentials but removes their app profile.")) {
-        setIsLoading(true); 
+    if(confirm("Are you sure you want to remove this member's profile from the database? This does NOT delete their login credentials but removes their app profile data.")) {
+        setIsSubmitting(true); 
         try {
             const memberDocRef = doc(db, "users", memberId);
             await deleteDoc(memberDocRef);
@@ -88,7 +114,7 @@ export default function MemberManagementPage() {
             console.error("Error deleting member profile:", error);
             toast({title: "Error", description: "Could not remove member profile.", variant: "destructive"});
         }
-        setIsLoading(false);
+        setIsSubmitting(false);
     }
   };
 
@@ -126,6 +152,8 @@ export default function MemberManagementPage() {
       return;
     }
     setIsImporting(true);
+    const originalAuthUserUID = firebaseAuth.currentUser?.uid; // Store admin's UID
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       const csvText = e.target?.result as string;
@@ -153,7 +181,7 @@ export default function MemberManagementPage() {
 
       for (const row of data) {
         const email = row["Email"];
-        const password = row["NIC"]; // Using NIC as password
+        const password = row["NIC"]; 
         const name = row["Name"];
         const type = row["Type"]?.toLowerCase();
         const role = type === 'admin' ? 'admin' : 'member';
@@ -163,7 +191,6 @@ export default function MemberManagementPage() {
           failureCount++;
           continue;
         }
-
         if (password.length < 6) {
           errors.push(`Password (NIC) for ${email} must be at least 6 characters long.`);
           failureCount++;
@@ -171,33 +198,59 @@ export default function MemberManagementPage() {
         }
         
         try {
+          // Create user in Firebase Auth
           const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-          const uid = userCredential.user.uid;
-          await createUserProfile(uid, email, name, role);
+          const newAuthUser = userCredential.user;
+          
+          // Create profile in Firestore
+          await createUserProfile(newAuthUser.uid, email, name, role);
+          
+          // Sign out the newly created user to prevent session hijacking for the admin
+          // This ensures the admin's session remains primary
+          if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
+            await signOut(firebaseAuth);
+          }
           successCount++;
         } catch (error: any) {
           failureCount++;
           const firebaseError = error.code ? `${error.code}: ${error.message}` : error.message;
           errors.push(`Failed to import ${email}: ${firebaseError}`);
           console.error(`Failed to import ${email}:`, error);
+           // If a user creation failed, sign out any potentially lingering new user session
+          if (firebaseAuth.currentUser && firebaseAuth.currentUser.email === email) {
+            await signOut(firebaseAuth);
+          }
         }
       }
+      
+      // After the loop, onAuthStateChanged should eventually restore the admin's session
+      // if Firebase persistence is working as expected.
+      // Add a small delay to allow onAuthStateChanged to potentially run.
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
 
-      toast({
-        title: "Import Complete",
-        description: `${successCount} users imported successfully. ${failureCount} users failed. Check console for details on failures.`,
-        variant: successCount > 0 && failureCount === 0 ? "default" : "destructive",
-        duration: 10000, 
-      });
+      if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
+        toast({
+          title: "Session Notice",
+          description: "Import process complete. Your session may have been affected. If you experience issues, please log out and log back in.",
+          variant: "default",
+          duration: 10000,
+        });
+      } else {
+         toast({
+            title: "Import Complete",
+            description: `${successCount} users imported. ${failureCount} failed. Check console for details.`,
+            variant: successCount > 0 && failureCount === 0 ? "default" : "destructive",
+            duration: 10000, 
+        });
+      }
       
       if (errors.length > 0) {
         console.warn("Import errors:", errors);
-         // For critical errors, you might want a more prominent display
       }
 
       setCsvFile(null);
-      if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
-      fetchMembers(); // Refresh member list
+      if(fileInputRef.current) fileInputRef.current.value = "";
+      fetchMembers(); 
       setIsImporting(false);
     };
     reader.onerror = () => {
@@ -235,7 +288,7 @@ export default function MemberManagementPage() {
       <Card className="shadow-lg">
         <CardHeader>
             <CardTitle className="flex items-center">
-                <UploadCloud className="mr-2 h-5 w-5 text-primary" /> Import Members from CSV
+                <UploadCloud className="mr-2 h-5 w-5 text-primary" /> Import Users from CSV
             </CardTitle>
             <CardDescription>Upload a CSV file to batch import member and admin accounts.</CardDescription>
         </CardHeader>
@@ -251,7 +304,7 @@ export default function MemberManagementPage() {
                 />
                 <Button onClick={handleImportMembers} disabled={!csvFile || isImporting} className="w-full sm:w-auto">
                     {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-                    {isImporting ? "Importing..." : "Import Members"}
+                    {isImporting ? "Importing..." : "Import Users"}
                 </Button>
             </div>
             <Alert>
@@ -274,13 +327,13 @@ export default function MemberManagementPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center">
-            <UsersIcon className="mr-2 h-5 w-5 text-primary" /> Club Members
+            <UsersIcon className="mr-2 h-5 w-5 text-primary" /> User Accounts
           </CardTitle>
-          <CardDescription>View and manage club member details. Member deletion here removes their profile data but not their login.</CardDescription>
+          <CardDescription>View and manage user details. Deletion here removes app profile data but not login credentials.</CardDescription>
           <div className="mt-4 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
-              placeholder="Search members by name or email..." 
+              placeholder="Search users by name or email..." 
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -299,27 +352,29 @@ export default function MemberManagementPage() {
                   <TableHead>Avatar</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredMembers.map((member) => (
-                  <TableRow key={member.id}>
+                {filteredMembers.map((memberItem) => (
+                  <TableRow key={memberItem.id}>
                     <TableCell>
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="profile avatar" />
+                        <AvatarImage src={memberItem.photoUrl} alt={memberItem.name} data-ai-hint="profile avatar" />
                         <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                            {getInitials(member.name)}
+                            {getInitials(memberItem.name)}
                         </AvatarFallback>
                       </Avatar>
                     </TableCell>
-                    <TableCell className="font-medium">{member.name}</TableCell>
-                    <TableCell>{member.email}</TableCell>
+                    <TableCell className="font-medium">{memberItem.name}</TableCell>
+                    <TableCell>{memberItem.email}</TableCell>
+                    <TableCell className="capitalize">{memberItem.role}</TableCell>
                     <TableCell className="text-right space-x-2">
-                      <Button variant="outline" size="icon" onClick={() => handleEditMember(member.id)} aria-label="Edit Member" disabled={isImporting}>
+                      <Button variant="outline" size="icon" onClick={() => handleOpenEditForm(memberItem)} aria-label="Edit Member" disabled={isImporting || isSubmitting}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="destructive" size="icon" onClick={() => handleDeleteMember(member.id)} aria-label="Delete Member" disabled={isImporting || isLoading}>
+                      <Button variant="destructive" size="icon" onClick={() => handleDeleteMember(memberItem.id)} aria-label="Delete Member" disabled={isImporting || isSubmitting || memberItem.id === user?.id}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -329,12 +384,33 @@ export default function MemberManagementPage() {
             </Table>
           ) : (
             <p className="text-center text-muted-foreground py-8">
-              {searchTerm ? "No members match your search." : "No members found."}
+              {searchTerm ? "No users match your search." : "No users found."}
             </p>
           )}
         </CardContent>
       </Card>
+
+      {selectedMemberForEdit && (
+        <Dialog open={isEditFormOpen} onOpenChange={(open) => {
+            if (!open) setSelectedMemberForEdit(null);
+            setIsEditFormOpen(open);
+        }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit User: {selectedMemberForEdit.name}</DialogTitle>
+            </DialogHeader>
+            <MemberEditForm
+                member={selectedMemberForEdit}
+                onSubmit={handleEditFormSubmit}
+                onCancel={() => {
+                    setIsEditFormOpen(false);
+                    setSelectedMemberForEdit(null);
+                }}
+                isLoading={isSubmitting}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
-
