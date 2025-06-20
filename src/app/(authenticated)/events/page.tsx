@@ -11,10 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PlusCircle, Edit, Trash2, CalendarDays, Loader2 } from "lucide-react";
-import { mockEvents as initialMockEvents } from '@/lib/data'; 
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { EventForm, type EventFormValues } from "@/components/events/event-form"; 
+import { getEvents, createEvent, updateEvent, deleteEvent as deleteEventService } from '@/services/eventService';
 
 export default function EventManagementPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -35,11 +35,15 @@ export default function EventManagementPage() {
 
   const fetchEvents = useCallback(async () => {
     setIsLoading(true);
-    // Simulate API call by using a copy of initial mock data
-    await new Promise(resolve => setTimeout(resolve, 300));
-    setEvents([...initialMockEvents].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    try {
+      const fetchedEvents = await getEvents();
+      setEvents(fetchedEvents);
+    } catch (error) {
+      console.error("Failed to fetch events:", error);
+      toast({ title: "Error", description: "Could not load events.", variant: "destructive" });
+    }
     setIsLoading(false);
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (user && user.role === 'admin') {
@@ -60,44 +64,37 @@ export default function EventManagementPage() {
   const handleDeleteEvent = async (eventId: string) => {
     if(confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
         setIsSubmitting(true);
-        // Simulate API call for deletion
-        await new Promise(resolve => setTimeout(resolve, 700));
-        setEvents(prev => {
-          const updatedEvents = prev.filter(e => e.id !== eventId);
-          // In a real app, you'd also update lib/data.ts or backend
-          // For mock, we are only updating the state here
-          return updatedEvents.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        });
-        toast({title: "Event Deleted", description: "The event has been successfully deleted."});
+        try {
+            await deleteEventService(eventId);
+            toast({title: "Event Deleted", description: "The event has been successfully deleted."});
+            fetchEvents(); // Refresh the list
+        } catch (error) {
+            console.error("Failed to delete event:", error);
+            toast({ title: "Error", description: "Could not delete the event.", variant: "destructive" });
+        }
         setIsSubmitting(false);
     }
   };
   
   const handleFormSubmit = async (data: EventFormValues) => {
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    if (selectedEvent) { // Editing existing event
-      setEvents(prev => 
-        prev.map(e => 
-          e.id === selectedEvent.id ? { ...selectedEvent, ...data, date: data.date.toISOString() } : e
-        ).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      );
-      toast({title: "Event Updated", description: "The event details have been successfully updated."});
-    } else { // Creating new event
-      const newEvent: Event = {
-        id: `event-${Date.now()}-${Math.random().toString(36).substring(2,7)}`, // More unique ID
-        ...data,
-        date: data.date.toISOString(),
-      };
-      setEvents(prev => [...prev, newEvent].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-      toast({title: "Event Created", description: "The new event has been successfully created."});
+    try {
+      if (selectedEvent) { // Editing existing event
+        await updateEvent(selectedEvent.id, data);
+        toast({title: "Event Updated", description: "The event details have been successfully updated."});
+      } else { // Creating new event
+        await createEvent(data);
+        toast({title: "Event Created", description: "The new event has been successfully created."});
+      }
+      fetchEvents(); // Refresh the list
+      setIsFormOpen(false);
+      setSelectedEvent(null);
+    } catch (error) {
+      console.error("Failed to save event:", error);
+      const action = selectedEvent ? "update" : "create";
+      toast({ title: "Error", description: `Could not ${action} the event.`, variant: "destructive" });
     }
-    
     setIsSubmitting(false);
-    setIsFormOpen(false);
-    setSelectedEvent(null);
   };
 
 
@@ -118,7 +115,7 @@ export default function EventManagementPage() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold font-headline">Event Management</h1>
         <Dialog open={isFormOpen} onOpenChange={(open) => {
-            if (!open) setSelectedEvent(null); // Reset selected event when dialog closes
+            if (!open) setSelectedEvent(null); 
             setIsFormOpen(open);
         }}>
           <DialogTrigger asChild>

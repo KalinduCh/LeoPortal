@@ -4,7 +4,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { User, Event, AttendanceRecord } from '@/types';
 import { EventList } from '@/components/events/event-list';
-import { mockEvents, mockAttendanceRecords as initialMockAttendance } from '@/lib/data'; // Fetch real data in a real app
+// import { mockEvents, mockAttendanceRecords as initialMockAttendance } from '@/lib/data'; // Using Firestore now
+import { getEvents } from '@/services/eventService'; // Import service to fetch live events
+import { mockAttendanceRecords as initialMockAttendance } from '@/lib/data'; // Keep mock attendance for now
 import { AiChatWidget } from '@/components/ai/ai-chat-widget';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,30 +19,35 @@ interface MemberDashboardProps {
 
 export function MemberDashboard({ user }: MemberDashboardProps) {
   const [events, setEvents] = useState<Event[]>([]);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(initialMockAttendance);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(initialMockAttendance); // Keep mock for now
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [isAttendanceActionLoading, setIsAttendanceActionLoading] = useState(false);
   const { toast } = useToast();
 
-  const fetchEvents = useCallback(async () => {
+  const fetchLiveEvents = useCallback(async () => {
     setIsLoadingEvents(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const upcomingEvents = mockEvents.filter(event => new Date(event.date) >= new Date());
-    setEvents(upcomingEvents.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    try {
+      const allEvents = await getEvents();
+      const upcomingEvents = allEvents.filter(event => new Date(event.date) >= new Date());
+      setEvents(upcomingEvents); // Already sorted by service if needed, or sort here
+    } catch (error) {
+        console.error("Failed to fetch events for member dashboard:", error);
+        toast({ title: "Error", description: "Could not load upcoming events.", variant: "destructive"});
+    }
     setIsLoadingEvents(false);
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+    fetchLiveEvents();
+  }, [fetchLiveEvents]);
 
   // Filter attendance records for the current user
   const userAttendanceRecords = attendanceRecords.filter(ar => ar.userId === user.id);
 
   const handleMarkAttendance = async (eventId: string, status: 'present') => {
     setIsAttendanceActionLoading(true);
-    // Simulate API call to mark attendance
+    // TODO: Implement storing attendance in Firestore
+    // For now, this remains a mock local update.
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     const newRecord: AttendanceRecord = {
@@ -51,7 +58,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       status,
     };
     setAttendanceRecords(prev => [...prev, newRecord]);
-    toast({ title: "Attendance Marked", description: `Your attendance for the event has been recorded as ${status}.`});
+    toast({ title: "Attendance Marked (Mock)", description: `Your attendance for the event has been recorded as ${status}. This is a mock action.`});
     setIsAttendanceActionLoading(false);
   };
 
@@ -94,12 +101,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           <AiChatWidget />
         </CardContent>
       </Card>
-
-      {/* Placeholder for more sections */}
-      {/* <Card>
-        <CardHeader><CardTitle>My Activity</CardTitle></CardHeader>
-        <CardContent><p>Recent activity logs or achievements...</p></CardContent>
-      </Card> */}
     </div>
   );
 }

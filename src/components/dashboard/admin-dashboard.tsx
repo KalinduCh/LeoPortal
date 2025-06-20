@@ -3,8 +3,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import type { User, Event, AttendanceRecord } from '@/types';
-import { mockUsers, mockEvents, mockAttendanceRecords } from '@/lib/data';
+import type { User, Event } from '@/types';
+// import { mockUsers, mockEvents } from '@/lib/data'; // Replaced by Firestore
+import { getEvents } from '@/services/eventService';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase/clientApp';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, CalendarDays, BarChart3, PlusCircle, Settings, Eye } from 'lucide-react';
@@ -20,14 +23,51 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   const [totalMembers, setTotalMembers] = useState(0);
   const [upcomingEventsCount, setUpcomingEventsCount] = useState(0);
   const [recentEvents, setRecentEvents] = useState<Event[]>([]);
+  const [recentMembers, setRecentMembers] = useState<User[]>([]);
+
+  const fetchData = useCallback(async () => {
+    try {
+      // Fetch total members
+      const usersRef = collection(db, "users");
+      const membersQuery = query(usersRef, where("role", "==", "member"));
+      const membersSnapshot = await getDocs(membersQuery);
+      setTotalMembers(membersSnapshot.size);
+
+      // Fetch recent members (e.g., last 3, sorted by a hypothetical joinDate or just grab any 3 for now)
+      // For a real "recent" sort, you'd need a 'createdAt' field in your user documents.
+      // Here, we'll just take the first 3 members found.
+      const fetchedMembers: User[] = [];
+       membersSnapshot.docs.slice(0, 3).forEach(doc => {
+        const data = doc.data();
+        fetchedMembers.push({
+          id: doc.id,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          photoUrl: data.photoUrl
+        } as User);
+      });
+      setRecentMembers(fetchedMembers);
+
+
+      // Fetch events
+      const allEvents = await getEvents();
+      const upcoming = allEvents.filter(event => new Date(event.date) >= new Date());
+      setUpcomingEventsCount(upcoming.length);
+      
+      // Sort all events by date descending to get the most recent (past or upcoming)
+      const sortedEvents = [...allEvents].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setRecentEvents(sortedEvents.slice(0,3));
+
+    } catch (error) {
+      console.error("Error fetching admin dashboard data:", error);
+      // Optionally show a toast message
+    }
+  }, []);
 
   useEffect(() => {
-    // Simulate fetching data
-    setTotalMembers(mockUsers.filter(u => u.role === 'member').length);
-    const upcoming = mockEvents.filter(event => new Date(event.date) >= new Date());
-    setUpcomingEventsCount(upcoming.length);
-    setRecentEvents(mockEvents.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0,3)); // Show 3 most recent/upcoming
-  }, []);
+    fetchData();
+  }, [fetchData]);
 
   return (
     <div className="space-y-8">
@@ -65,9 +105,9 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
             <BarChart3 className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            {/* Placeholder for attendance stats */}
-            <div className="text-2xl font-bold">75% Avg.</div>
-            <p className="text-xs text-muted-foreground">Average attendance rate</p>
+            {/* Placeholder for attendance stats - will require attendance data in Firestore */}
+            <div className="text-2xl font-bold">N/A</div>
+            <p className="text-xs text-muted-foreground">Average attendance rate (pending data)</p>
           </CardContent>
         </Card>
       </div>
@@ -128,14 +168,14 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
              <CardDescription>Recently joined or active members.</CardDescription>
           </CardHeader>
           <CardContent>
-             {/* Placeholder for member list */}
-             {mockUsers.filter(u => u.role === 'member').slice(0,3).map(member => (
-                <div key={member.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                    <p className="font-medium">{member.name}</p>
-                    <p className="text-sm text-muted-foreground">{member.email}</p>
-                </div>
-             ))}
-             {mockUsers.filter(u => u.role === 'member').length === 0 && (
+             {recentMembers.length > 0 ? (
+                recentMembers.map(member => (
+                    <div key={member.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                        <p className="font-medium">{member.name}</p>
+                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                    </div>
+                ))
+             ) : (
                 <p className="text-sm text-muted-foreground">No members to display.</p>
              )}
           </CardContent>

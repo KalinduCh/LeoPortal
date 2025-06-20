@@ -1,5 +1,8 @@
 import type { User, Event, AttendanceRecord } from '@/types';
 
+// mockUsers is no longer the primary source of truth for users if Firebase is integrated.
+// It can be kept for reference or removed. For now, I'll comment it out to avoid confusion.
+/*
 export const mockUsers: User[] = [
   {
     id: 'user1',
@@ -22,7 +25,7 @@ export const mockUsers: User[] = [
     photoUrl: 'https://placehold.co/100x100.png',
     role: 'member',
   },
-  {
+   {
     id: 'user4',
     name: 'Admin Two',
     email: 'check2@gmail.com',
@@ -30,7 +33,11 @@ export const mockUsers: User[] = [
     role: 'admin',
   },
 ];
+*/
 
+// mockEvents is no longer the primary source of truth for events if Firebase is integrated.
+// It can be kept for reference or removed. For now, I'll comment it out.
+/*
 export const mockEvents: Event[] = [
   {
     id: 'event1',
@@ -54,7 +61,9 @@ export const mockEvents: Event[] = [
     location: 'Sunset Beach, West End',
   },
 ];
+*/
 
+// Attendance records might still be useful as mock for now, or can be moved to Firebase later.
 export const mockAttendanceRecords: AttendanceRecord[] = [
   // Example record, can be populated dynamically
   // {
@@ -65,4 +74,3 @@ export const mockAttendanceRecords: AttendanceRecord[] = [
   //   status: 'present',
   // },
 ];
-

@@ -4,7 +4,8 @@
 import { z } from "zod";
 import { answerScheduleQuestions, type AnswerScheduleQuestionsInput } from "@/ai/flows/answer-schedule-questions";
 import { answerProfileUpdateQuestions, type AnswerProfileUpdateQuestionsInput } from "@/ai/flows/answer-profile-update-questions";
-import { mockEvents } from "@/lib/data"; // Using mock data for events context
+// import { mockEvents } from "@/lib/data"; // Replaced by Firestore, AI may need live event data access
+import { getEvents } from "@/services/eventService"; // Import service to fetch live events
 
 const aiQuerySchema = z.object({
   question: z.string().min(1, "Question cannot be empty."),
@@ -37,9 +38,9 @@ export async function handleAiQuery(
 
   try {
     if (context === "schedule") {
-      // Prepare event data for the AI flow.
-      // This should be a simplified string representation of events.
-      const eventsString = mockEvents
+      // Fetch live event data for the AI flow.
+      const liveEvents = await getEvents();
+      const eventsString = liveEvents
         .map(e => `${e.name} on ${new Date(e.date).toLocaleDateString()} at ${e.location}. Description: ${e.description}`)
         .join("\n");
       
@@ -56,7 +57,6 @@ export async function handleAiQuery(
     }
   } catch (err) {
     console.error("AI Query Error:", err);
-    // Check if err is an Error instance and has a message property
     const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred with the AI assistant.";
     return { error: `Failed to get answer from AI: ${errorMessage}` };
   }
