@@ -12,11 +12,11 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, CalendarDays, Activity, PlusCircle, Eye, History, Award, Filter, Loader2, ExternalLink } from 'lucide-react';
+import { Users, CalendarDays, Activity, PlusCircle, Eye, History, Award, Filter, Loader2, ExternalLink, BarChart3 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from '@/components/ui/label'; // Import Label
+import { Label } from '@/components/ui/label';
 import { format, parseISO, getYear, getMonth, isPast } from 'date-fns';
 
 interface AdminDashboardProps {
@@ -105,20 +105,20 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         if (!stats[record.userId]) {
           stats[record.userId] = { count: 0, user: allUsers.find(u => u.id === record.userId) };
         }
-        if (stats[record.userId].user) { 
+        if (stats[record.userId].user && stats[record.userId].user?.role === 'member') { // Only count for members
             stats[record.userId].count += 1;
         }
       }
     });
     
     return Object.entries(stats)
+      .filter(([userId, data]) => data.user?.role === 'member' && data.count > 0) // Ensure user is member and has attendance
       .map(([userId, data]) => ({
         userId,
-        name: data.user?.name || 'Unknown User',
-        email: data.user?.email || 'N/A',
+        name: data.user!.name || 'Unknown User', // user is guaranteed by filter
+        email: data.user!.email || 'N/A',      // user is guaranteed by filter
         attendanceCount: data.count,
       }))
-      .filter(stat => stat.name !== 'Unknown User') 
       .sort((a, b) => b.attendanceCount - a.attendanceCount);
   }, [allAttendance, allUsers, selectedYear, selectedMonth]);
 
@@ -166,7 +166,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         <p className="text-muted-foreground">Manage events, members, and view club statistics.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-3">
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium font-headline">Total Members</CardTitle>
@@ -208,11 +208,10 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1">
               <CardTitle className="font-headline text-xl flex items-center">
-                <Award className="mr-2 h-6 w-6 text-accent" /> Member Participation Statistics
+                <Award className="mr-2 h-6 w-6 text-accent" /> Member Participation
               </CardTitle>
               <CardDescription>View member attendance records, filtered by period.</CardDescription>
             </div>
-            {/* Filters Section - Updated for Mobile */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-2 w-full sm:w-auto">
               <div className="flex items-center gap-2 sm:hidden">
                  <Filter className="h-5 w-5 text-primary" />
@@ -248,36 +247,57 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           {isLoading ? (
             <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : memberStats.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[50px]">Rank</TableHead>
-                    <TableHead>Member Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead className="text-right">Attendance Count</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {memberStats.slice(0, 10).map((stat, index) => (
-                    <TableRow key={stat.userId}>
-                      <TableCell className="font-medium">
-                          <Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80 hover:bg-primary/90" : ""}>
-                              {index + 1}
-                          </Badge>
-                      </TableCell>
-                      <TableCell className="font-semibold">{stat.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs sm:text-sm">{stat.email}</TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline" className="text-lg px-3 py-1 border-accent text-accent">
-                          {stat.attendanceCount}
-                        </Badge>
-                      </TableCell>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]">Rank</TableHead>
+                      <TableHead>Member Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead className="text-right">Attendance Count</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {memberStats.slice(0, 10).map((stat, index) => (
+                      <TableRow key={stat.userId}>
+                        <TableCell className="font-medium">
+                            <Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80 hover:bg-primary/90" : ""}>
+                                {index + 1}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold">{stat.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs sm:text-sm">{stat.email}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="outline" className="text-lg px-3 py-1 border-accent text-accent">
+                            {stat.attendanceCount}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Mobile Card View */}
+              <div className="block md:hidden space-y-3">
+                {memberStats.slice(0, 10).map((stat, index) => (
+                  <Card key={stat.userId} className="shadow-sm">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-primary">{index + 1}. {stat.name}</p>
+                          <p className="text-xs text-muted-foreground">{stat.email}</p>
+                        </div>
+                        <Badge variant="outline" className="text-md px-2.5 py-1 border-accent text-accent">
+                          {stat.attendanceCount} <span className="ml-1 text-xs">attended</span>
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           ) : (
             <p className="text-center text-muted-foreground py-8">No attendance data for the selected period, or no members found.</p>
           )}
@@ -300,7 +320,9 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
             <CardDescription>A look at recently concluded club activities.</CardDescription>
           </CardHeader>
           <CardContent>
-            {pastEvents.length > 0 ? (
+            {isLoading && pastEvents.length === 0 ? (
+                 <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : pastEvents.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {pastEvents.slice(0, 10).map(event => ( 
                   <div key={event.id} className="p-3 border rounded-md hover:bg-muted/50 transition-colors">
@@ -349,7 +371,9 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
              <CardDescription>Recently added or active members.</CardDescription>
           </CardHeader>
           <CardContent>
-             {allUsers.filter(u => u.role === 'member').slice(0,5).length > 0 ? ( 
+            {isLoading && allUsers.filter(u => u.role === 'member').length === 0 ? (
+                <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : allUsers.filter(u => u.role === 'member').slice(0,5).length > 0 ? ( 
                 allUsers.filter(u => u.role === 'member').slice(0,5).map(member => (
                     <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b last:border-b-0">
                         <p className="font-medium">{member.name}</p>
@@ -365,3 +389,5 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     </div>
   );
 }
+
+    

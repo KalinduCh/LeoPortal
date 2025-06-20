@@ -7,16 +7,17 @@ import type { User } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
-import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; // firebaseAuth for direct use
-import { createUserWithEmailAndPassword, signOut } from 'firebase/auth'; // direct auth functions
+import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; 
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { createUserProfile, updateUserProfile } from '@/services/userService';
-import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle } from "lucide-react";
+import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { MemberEditForm, type MemberEditFormValues } from '@/components/members/member-edit-form';
@@ -50,7 +51,8 @@ export default function MemberManagementPage() {
     setIsLoading(true);
     try {
       const usersRef = collection(db, "users");
-      const q = user?.role === 'admin' ? query(usersRef) : query(usersRef, where("role", "==", "member"));
+      // Fetch all users for admin, not just 'member' role, to allow admin management
+      const q = query(usersRef); 
       const querySnapshot = await getDocs(q);
       const fetchedMembers: User[] = [];
       querySnapshot.forEach((docSnap) => {
@@ -67,16 +69,16 @@ export default function MemberManagementPage() {
             mobileNumber: data.mobileNumber,
         } as User);
       });
-      setMembers(fetchedMembers);
+      setMembers(fetchedMembers.sort((a, b) => (a.name || "").localeCompare(b.name || ""))); // Sort by name
     } catch (error) {
         console.error("Error fetching members: ", error);
         toast({ title: "Error", description: "Could not load members.", variant: "destructive"});
     }
     setIsLoading(false);
-  }, [toast, user?.role]);
+  }, [toast]);
 
   useEffect(() => {
-    if (user) { 
+    if (user && user.role === 'admin') { 
       fetchMembers();
     }
   }, [user, fetchMembers]);
@@ -97,13 +99,13 @@ export default function MemberManagementPage() {
     setIsSubmitting(true);
     try {
       await updateUserProfile(selectedMemberForEdit.id, data); 
-      toast({title: "Member Updated", description: "Member details have been successfully updated."});
+      toast({title: "User Updated", description: "User details have been successfully updated."});
       fetchMembers();
       setIsEditFormOpen(false);
       setSelectedMemberForEdit(null);
     } catch (error: any) {
-      console.error("Failed to update member:", error);
-      toast({ title: "Error", description: `Could not update member details: ${error.message}`, variant: "destructive" });
+      console.error("Failed to update user:", error);
+      toast({ title: "Error", description: `Could not update user details: ${error.message}`, variant: "destructive" });
     }
     setIsSubmitting(false);
   };
@@ -133,13 +135,13 @@ export default function MemberManagementPage() {
         }
       });
 
-      toast({ title: "Member Created", description: `${data.name} has been successfully added.` });
+      toast({ title: "User Created", description: `${data.name} has been successfully added.` });
       fetchMembers(); 
       setIsAddFormOpen(false); 
 
     } catch (error: any) {
-      console.error("Failed to add member:", error);
-      let errorMessage = "Could not create member account.";
+      console.error("Failed to add user:", error);
+      let errorMessage = "Could not create user account.";
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = "This email address is already in use.";
       } else if (error.code === 'auth/weak-password') {
@@ -147,7 +149,7 @@ export default function MemberManagementPage() {
       } else {
         errorMessage = error.message || errorMessage;
       }
-      toast({ title: "Error Adding Member", description: errorMessage, variant: "destructive" });
+      toast({ title: "Error Adding User", description: errorMessage, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
       if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
@@ -159,30 +161,23 @@ export default function MemberManagementPage() {
 
   const handleDeleteMember = async (memberId: string) => {
     if (!memberId) {
-        toast({ title: "Error", description: "Cannot delete member: Member ID is missing.", variant: "destructive"});
-        console.error("handleDeleteMember: memberId is undefined or empty.");
+        toast({ title: "Error", description: "Cannot delete user: User ID is missing.", variant: "destructive"});
         return;
     }
-
     if (memberId === user?.id) {
         toast({ title: "Action Denied", description: "You cannot delete your own profile from this interface.", variant: "destructive"});
         return;
     }
-
-    if (confirm("Are you sure you want to remove this member's profile from the database? This action does NOT delete their login credentials but removes their app profile data (e.g., NIC, DOB, role etc.). It cannot be undone.")) {
+    if (confirm("Are you sure you want to remove this user's profile from the database? This action does NOT delete their login credentials but removes their app profile data. It cannot be undone.")) {
         setIsSubmitting(true); 
         try {
             const memberDocRef = doc(db, "users", memberId);
             await deleteDoc(memberDocRef);
-            toast({title: "Member Profile Removed", description: "The member's profile has been removed from Firestore."});
-            setMembers(prevMembers => prevMembers.filter(m => m.id !== memberId)); // Optimistic update
+            toast({title: "User Profile Removed", description: "The user's profile has been removed from Firestore."});
+            setMembers(prevMembers => prevMembers.filter(m => m.id !== memberId)); 
         } catch (error: any) {
-            console.error(`Failed to delete member profile for ID ${memberId}:`, error);
-            let description = `Could not remove member profile. Error: ${error.message || 'Unknown Firestore error.'}`;
-            if (error.code) {
-                description += ` (Code: ${error.code})`;
-            }
-            toast({title: "Error Deleting Profile", description, variant: "destructive", duration: 7000});
+            console.error(`Failed to delete user profile for ID ${memberId}:`, error);
+            toast({title: "Error Deleting Profile", description: `Could not remove user profile. Error: ${error.message || 'Unknown Firestore error.'}`, variant: "destructive", duration: 7000});
         }
         setIsSubmitting(false);
     }
@@ -199,10 +194,8 @@ export default function MemberManagementPage() {
   const parseCSV = (csvText: string): { header: string[], data: Record<string, string>[] } => {
     const lines = csvText.trim().split(/\r\n|\n/);
     if (lines.length === 0) return { header: [], data: [] };
-
     const header = lines[0].split(',').map(h => h.trim());
     const data: Record<string, string>[] = [];
-
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(',').map(v => v.trim());
       if (values.length === header.length) {
@@ -368,6 +361,7 @@ export default function MemberManagementPage() {
       setCsvFile(null);
       if(fileInputRef.current) fileInputRef.current.value = ""; 
       setIsImporting(false);
+      setAuthOperationInProgress(false); // Reset flag here
     };
     reader.onerror = () => {
         toast({ title: "Error Reading File", description: "An error occurred while trying to read the file.", variant: "destructive" });
@@ -386,7 +380,7 @@ export default function MemberManagementPage() {
 
   if (authLoading || (isLoading && !isImporting && !members.length)) { 
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
@@ -397,26 +391,26 @@ export default function MemberManagementPage() {
   }
   
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold font-headline">Member Management</h1>
+    <div className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline">User Management</h1>
       </div>
       
       <Card className="shadow-lg">
         <CardHeader>
-            <CardTitle className="flex items-center">
+            <CardTitle className="flex items-center text-lg sm:text-xl">
                 <UploadCloud className="mr-2 h-5 w-5 text-primary" /> Import Users from CSV
             </CardTitle>
-            <CardDescription>Upload a CSV file to batch import member and admin accounts.</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">Upload a CSV file to batch import user accounts.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
                 <Input 
                     type="file" 
                     accept=".csv" 
                     onChange={handleFileChange} 
                     ref={fileInputRef}
-                    className="flex-grow"
+                    className="flex-grow file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:bg-muted file:text-muted-foreground hover:file:bg-primary/10"
                     disabled={isImporting || isSubmitting}
                 />
                 <Button onClick={handleImportMembers} disabled={!csvFile || isImporting || isSubmitting} className="w-full sm:w-auto">
@@ -427,18 +421,13 @@ export default function MemberManagementPage() {
             <Alert>
                 <FileText className="h-4 w-4" />
                 <AlertTitle>CSV Format Instructions</AlertTitle>
-                <AlertDescription>
-                    Ensure your CSV file has the following headers in the first row: <strong>Type, Name, Email, NIC, DateOfBirth, Gender, MobileNumber</strong>.
-                    <ul>
-                        <li>- <strong>Type</strong>: "admin" or "member".</li>
-                        <li>- <strong>Name</strong>: Full name of the user.</li>
-                        <li>- <strong>Email</strong>: User's email (will be their login).</li>
-                        <li>- <strong>NIC</strong>: User's NIC (will be initial password, min 6 chars). Stored in profile.</li>
-                        <li>- <strong>DateOfBirth</strong>: e.g., "YYYY-MM-DD" or "DD/MM/YYYY".</li>
-                        <li>- <strong>Gender</strong>: e.g., "Male", "Female".</li>
-                        <li>- <strong>MobileNumber</strong>: User's phone number.</li>
+                <AlertDescription className="text-xs leading-relaxed">
+                    CSV Headers: <strong>Type, Name, Email, NIC, DateOfBirth, Gender, MobileNumber</strong>.
+                    <ul className="list-disc list-inside mt-1 space-y-0.5">
+                        <li><strong>Type</strong>: "admin" or "member".</li>
+                        <li><strong>NIC</strong>: Used as initial password (min 6 chars).</li>
                     </ul>
-                    Users with emails already in Firebase Authentication will be skipped. Passwords (NIC) must be at least 6 characters.
+                    Emails already in use will be skipped.
                 </AlertDescription>
             </Alert>
         </CardContent>
@@ -446,22 +435,22 @@ export default function MemberManagementPage() {
 
       <Card className="shadow-lg">
         <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
-                    <CardTitle className="flex items-center">
+                    <CardTitle className="flex items-center text-lg sm:text-xl">
                         <UsersIcon className="mr-2 h-5 w-5 text-primary" /> User Accounts
                     </CardTitle>
-                    <CardDescription>View, edit, or add user details. Deletion removes app profile data, not login credentials.</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">View, edit, or add user details. Deletion removes app profile data.</CardDescription>
                 </div>
                 <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
                     <DialogTrigger asChild>
                         <Button onClick={handleOpenAddForm} className="w-full sm:w-auto" disabled={isImporting || isSubmitting}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Add New Member
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add New User
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
-                            <DialogTitle>Add New Member</DialogTitle>
+                            <DialogTitle>Add New User</DialogTitle>
                         </DialogHeader>
                         <MemberAddForm
                             onSubmit={handleAddFormSubmit}
@@ -478,54 +467,100 @@ export default function MemberManagementPage() {
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              disabled={isImporting || isSubmitting}
+              disabled={isImporting || isSubmitting || isLoading}
             />
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading && !isImporting ? (
+          {isLoading ? (
              <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
              </div>
           ) : filteredMembers.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Avatar</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>NIC</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Avatar</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>NIC</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredMembers.map((memberItem) => (
+                      <TableRow key={memberItem.id}>
+                        <TableCell>
+                          <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
+                            <AvatarImage src={memberItem.photoUrl} alt={memberItem.name} data-ai-hint="profile avatar" />
+                            <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                {getInitials(memberItem.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                        <TableCell className="font-medium">{memberItem.name}</TableCell>
+                        <TableCell>{memberItem.email}</TableCell>
+                        <TableCell>
+                            <Badge variant={memberItem.role === 'admin' ? 'default' : 'secondary'} className={memberItem.role === 'admin' ? 'bg-primary/80' : ''}>
+                                {memberItem.role}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>{memberItem.nic || 'N/A'}</TableCell>
+                        <TableCell className="text-right space-x-1 sm:space-x-2">
+                          <Button variant="outline" size="icon" onClick={() => handleOpenEditForm(memberItem)} aria-label="Edit Member" disabled={isImporting || isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="destructive" size="icon" onClick={() => handleDeleteMember(memberItem.id)} aria-label="Delete Member" disabled={isImporting || isSubmitting || memberItem.id === user?.id} className="h-8 w-8 sm:h-9 sm:w-9">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Mobile Card View */}
+              <div className="block md:hidden space-y-3">
                 {filteredMembers.map((memberItem) => (
-                  <TableRow key={memberItem.id}>
-                    <TableCell>
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={memberItem.photoUrl} alt={memberItem.name} data-ai-hint="profile avatar" />
-                        <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                            {getInitials(memberItem.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </TableCell>
-                    <TableCell className="font-medium">{memberItem.name}</TableCell>
-                    <TableCell>{memberItem.email}</TableCell>
-                    <TableCell className="capitalize">{memberItem.role}</TableCell>
-                    <TableCell>{memberItem.nic || 'N/A'}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="outline" size="icon" onClick={() => handleOpenEditForm(memberItem)} aria-label="Edit Member" disabled={isImporting || isSubmitting}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="icon" onClick={() => handleDeleteMember(memberItem.id)} aria-label="Delete Member" disabled={isImporting || isSubmitting || memberItem.id === user?.id}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                    <Card key={memberItem.id} className="shadow-sm">
+                        <CardContent className="p-4">
+                            <div className="flex items-start space-x-3">
+                                <Avatar className="h-10 w-10">
+                                    <AvatarImage src={memberItem.photoUrl} alt={memberItem.name} data-ai-hint="profile avatar" />
+                                    <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                        {getInitials(memberItem.name)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-grow min-w-0">
+                                    <p className="font-semibold text-primary truncate">{memberItem.name}</p>
+                                    <p className="text-xs text-muted-foreground truncate flex items-center">
+                                        <Mail className="h-3 w-3 mr-1"/> {memberItem.email}
+                                    </p>
+                                    <div className="mt-1">
+                                        <Badge variant={memberItem.role === 'admin' ? 'default' : 'secondary'} className={`text-xs ${memberItem.role === 'admin' ? 'bg-primary/80' : ''}`}>
+                                            {memberItem.role}
+                                        </Badge>
+                                        {memberItem.nic && <Badge variant="outline" className="ml-1 text-xs">NIC: {memberItem.nic}</Badge>}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="flex justify-end space-x-2 pt-2 pb-3 px-3 border-t">
+                            <Button variant="outline" size="sm" onClick={() => handleOpenEditForm(memberItem)} disabled={isImporting || isSubmitting}>
+                                <Edit className="mr-1 h-3.5 w-3.5" /> Edit
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteMember(memberItem.id)} disabled={isImporting || isSubmitting || memberItem.id === user?.id}>
+                                <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+                            </Button>
+                        </CardFooter>
+                    </Card>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           ) : (
             <p className="text-center text-muted-foreground py-8">
               {searchTerm ? "No users match your search." : "No users found."}
@@ -558,3 +593,5 @@ export default function MemberManagementPage() {
     </div>
   );
 }
+
+    

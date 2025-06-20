@@ -7,11 +7,11 @@ import type { Event } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, Edit, Trash2, CalendarDays, Loader2, Eye } from "lucide-react";
+import { PlusCircle, Edit, Trash2, CalendarDays, Loader2, Eye, MapPin } from "lucide-react";
 import { format, parseISO, isPast } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { EventForm, type EventFormValues } from "@/components/events/event-form";
@@ -73,7 +73,7 @@ export default function EventManagementPage() {
         try {
             await deleteEventService(eventId);
             toast({title: "Event Deleted", description: "The event has been successfully deleted."});
-            setEvents(prevEvents => prevEvents.filter(e => e.id !== eventId)); // Optimistic update
+            setEvents(prevEvents => prevEvents.filter(e => e.id !== eventId)); 
         } catch (error: any) {
             console.error(`Failed to delete event with ID ${eventId}:`, error);
             let description = `Could not delete the event. Error: ${error.message || 'Unknown Firestore error.'}`;
@@ -111,10 +111,9 @@ export default function EventManagementPage() {
     router.push(`/admin/event-summary/${eventId}`);
   };
 
-
-  if (authLoading || isLoading) {
+  if (authLoading || (isLoading && events.length === 0)) { // Show loader if loading and no events yet
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
@@ -125,15 +124,15 @@ export default function EventManagementPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold font-headline">Event Management</h1>
+    <div className="container mx-auto py-4 sm:py-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Event Management</h1>
         <Dialog open={isFormOpen} onOpenChange={(open) => {
             if (!open) setSelectedEvent(null);
             setIsFormOpen(open);
         }}>
           <DialogTrigger asChild>
-            <Button onClick={handleCreateNew}>
+            <Button onClick={handleCreateNew} className="w-full sm:w-auto">
               <PlusCircle className="mr-2 h-4 w-4" /> Create New Event
             </Button>
           </DialogTrigger>
@@ -156,55 +155,106 @@ export default function EventManagementPage() {
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center">
+          <CardTitle className="flex items-center text-lg sm:text-xl">
             <CalendarDays className="mr-2 h-5 w-5 text-primary" /> All Events
           </CardTitle>
-          <CardDescription>View, edit, or delete club events. Events are sorted by most recent first.</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">View, edit, or delete club events. Events are sorted by most recent first.</CardDescription>
         </CardHeader>
         <CardContent>
-          {events.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          {isLoading && events.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </div>
+          ) : events.length > 0 ? (
+            <>
+              {/* Desktop Table View (hidden on < md) */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {events.map((event) => {
+                      const eventDate = parseISO(event.date);
+                      const isEventPast = isPast(eventDate);
+                      return (
+                        <TableRow key={event.id}>
+                          <TableCell className="font-medium">{event.name}</TableCell>
+                          <TableCell>{format(eventDate, "MMM d, yyyy 'at' h:mm a")}</TableCell>
+                          <TableCell>{event.location}</TableCell>
+                          <TableCell>
+                            <Badge variant={isEventPast ? "secondary" : "default"} className={!isEventPast ? "bg-green-600 hover:bg-green-700 text-white" : ""}>
+                              {isEventPast ? "Past" : "Upcoming"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right space-x-1 sm:space-x-2">
+                            <Button variant="outline" size="icon" onClick={() => handleEditEvent(event)} aria-label="Edit Event" disabled={isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="destructive" size="icon" onClick={() => handleDeleteEvent(event.id)} aria-label="Delete Event" disabled={isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            {isEventPast && (
+                              <Button variant="ghost" size="icon" onClick={() => handleViewSummary(event.id)} aria-label="View Event Summary" disabled={isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Mobile Card View (visible on < md) */}
+              <div className="block md:hidden space-y-4">
                 {events.map((event) => {
                   const eventDate = parseISO(event.date);
                   const isEventPast = isPast(eventDate);
                   return (
-                    <TableRow key={event.id}>
-                      <TableCell className="font-medium">{event.name}</TableCell>
-                      <TableCell>{format(eventDate, "MMM d, yyyy 'at' h:mm a")}</TableCell>
-                      <TableCell>{event.location}</TableCell>
-                      <TableCell>
-                        <Badge variant={isEventPast ? "secondary" : "default"} className={!isEventPast ? "bg-green-600 hover:bg-green-700 text-white" : ""}>
-                          {isEventPast ? "Past" : "Upcoming"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button variant="outline" size="icon" onClick={() => handleEditEvent(event)} aria-label="Edit Event" disabled={isSubmitting}>
-                          <Edit className="h-4 w-4" />
+                    <Card key={event.id} className="shadow-md">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-md font-semibold">{event.name}</CardTitle>
+                        <CardDescription className="text-xs">
+                            <Badge variant={isEventPast ? "secondary" : "default"} className={`text-xs ${!isEventPast ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}>
+                              {isEventPast ? "Past" : "Upcoming"}
+                            </Badge>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-1 text-sm pb-3">
+                        <div className="flex items-center">
+                            <CalendarDays className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                            <span>{format(eventDate, "MMM d, yyyy 'at' h:mm a")}</span>
+                        </div>
+                        <div className="flex items-center">
+                            <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                            <span>{event.location}</span>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="flex justify-end space-x-2 pt-3">
+                        <Button variant="outline" size="sm" onClick={() => handleEditEvent(event)} disabled={isSubmitting}>
+                          <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit
                         </Button>
-                        <Button variant="destructive" size="icon" onClick={() => handleDeleteEvent(event.id)} aria-label="Delete Event" disabled={isSubmitting}>
-                          <Trash2 className="h-4 w-4" />
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteEvent(event.id)} disabled={isSubmitting}>
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
                         </Button>
                         {isEventPast && (
-                           <Button variant="ghost" size="icon" onClick={() => handleViewSummary(event.id)} aria-label="View Event Summary" disabled={isSubmitting}>
-                            <Eye className="h-4 w-4" />
+                          <Button variant="ghost" size="sm" onClick={() => handleViewSummary(event.id)} disabled={isSubmitting}>
+                            <Eye className="mr-1.5 h-3.5 w-3.5" /> Summary
                           </Button>
                         )}
-                      </TableCell>
-                    </TableRow>
+                      </CardFooter>
+                    </Card>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           ) : (
             <p className="text-center text-muted-foreground py-8">No events found. Create one to get started!</p>
           )}
@@ -213,3 +263,5 @@ export default function EventManagementPage() {
     </div>
   );
 }
+
+    

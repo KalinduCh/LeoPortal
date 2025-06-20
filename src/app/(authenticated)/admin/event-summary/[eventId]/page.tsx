@@ -9,16 +9,16 @@ import { getEvent } from '@/services/eventService';
 import { getAttendanceRecordsForEvent } from '@/services/attendanceService';
 import { getUserProfile } from '@/services/userService'; 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-// Removed Avatar imports
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft } from 'lucide-react';
+import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Mail, UserCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Added Avatar imports
 
 export default function EventSummaryPage() {
   const params = useParams();
@@ -38,8 +38,12 @@ export default function EventSummaryPage() {
     documentTitle: event ? `Event Summary - ${event.name}` : 'Event Summary',
   });
 
-  // getInitials is no longer needed here as Avatar is removed from this page
-  // const getInitials = (name?: string) => { ... };
+  const getInitials = (name?: string) => {
+    if (!name) return "??";
+    const names = name.split(' ');
+    if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+  };
 
   const fetchEventData = useCallback(async () => {
     if (!eventId) {
@@ -72,7 +76,7 @@ export default function EventSummaryPage() {
           });
         }
       }
-      setParticipantsSummary(summaries);
+      setParticipantsSummary(summaries.sort((a,b) => (a.user.name || "").localeCompare(b.user.name || ""))); // Sort by name
     } catch (err: any) {
       console.error("Error fetching event summary data:", err);
       setError(`Failed to load event data: ${err.message}`);
@@ -96,7 +100,7 @@ export default function EventSummaryPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto py-8 text-center">
+      <div className="container mx-auto py-4 sm:py-8 text-center">
         <Alert variant="destructive" className="max-w-md mx-auto">
           <AlertTitle>Loading Failed</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -110,7 +114,7 @@ export default function EventSummaryPage() {
 
   if (!event) {
     return (
-       <div className="container mx-auto py-8 text-center">
+       <div className="container mx-auto py-4 sm:py-8 text-center">
         <Alert className="max-w-md mx-auto">
           <AlertTitle>Event Not Found</AlertTitle>
           <AlertDescription>The requested event could not be loaded or does not exist.</AlertDescription>
@@ -123,28 +127,27 @@ export default function EventSummaryPage() {
   }
   
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <div className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <Button onClick={() => router.push('/dashboard')} variant="outline" size="sm" className="mb-2 print-hide">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+            <Button onClick={() => router.back()} variant="outline" size="sm" className="mb-2 print-hide">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <h1 className="text-3xl font-bold font-headline text-primary">{event.name} - Summary</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold font-headline text-primary">{event.name} - Summary</h1>
         </div>
         <Button onClick={handlePrint} className="print-hide w-full sm:w-auto">
           <Printer className="mr-2 h-4 w-4" /> Print / Download Summary
         </Button>
       </div>
 
-      <div ref={componentRef} className="p-2 sm:p-6 space-y-6 rounded-lg border bg-card text-card-foreground shadow-sm modal-print-area">
-        {/* Event Details Card */}
+      <div ref={componentRef} className="p-2 sm:p-4 md:p-6 space-y-6 rounded-lg border bg-card text-card-foreground shadow-sm modal-print-area">
         <Card className="shadow-none border-0 sm:border sm:shadow-sm">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-primary print-title flex items-center">
+            <CardTitle className="text-lg sm:text-xl font-semibold text-primary print-title flex items-center">
                 <Info className="mr-2 h-5 w-5" /> Event Details
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 print-section">
+          <CardContent className="space-y-2 sm:space-y-3 print-section">
             <div className="flex items-center text-sm">
               <CalendarDays className="mr-2 h-4 w-4 text-muted-foreground" />
               <span className="font-medium">Date & Time:</span>
@@ -172,45 +175,87 @@ export default function EventSummaryPage() {
           </CardContent>
         </Card>
 
-        {/* Participants Card */}
         <Card className="shadow-none border-0 sm:border sm:shadow-sm">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-primary print-title flex items-center">
+            <CardTitle className="text-lg sm:text-xl font-semibold text-primary print-title flex items-center">
               <Users className="mr-2 h-5 w-5" /> Participants ({participantsSummary.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="print-section">
             {participantsSummary.length > 0 ? (
-              <ScrollArea className="max-h-[400px] border rounded-md print-scroll">
-                <Table className="print-table">
-                  <TableHeader className="print-table-header bg-muted/50">
-                    <TableRow>
-                      {/* Removed Avatar TableHead */}
-                      <TableHead>Name</TableHead>
-                      <TableHead>Designation</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Timestamp</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody className="print-table-body">
-                    {participantsSummary.map((summary) => (
-                      <TableRow key={summary.user.id}>
-                        {/* Removed Avatar TableCell */}
-                        <TableCell className="font-medium">{summary.user.name}</TableCell>
-                        <TableCell className="capitalize text-xs">
-                            <Badge variant={summary.user.role === 'admin' ? "default" : "secondary"} className={summary.user.role === 'admin' ? "bg-primary/80" : ""}>
-                                {summary.user.role}
-                            </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{summary.user.email}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a")}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+              <>
+                {/* Desktop Table View */}
+                <div className="hidden md:block">
+                  <ScrollArea className="max-h-[400px] border rounded-md print-scroll">
+                    <Table className="print-table">
+                      <TableHeader className="print-table-header bg-muted/50">
+                        <TableRow>
+                          <TableHead className="w-12 print-hide">Avatar</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Designation</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Timestamp</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody className="print-table-body">
+                        {participantsSummary.map((summary) => (
+                          <TableRow key={summary.user.id}>
+                            <TableCell className="print-hide">
+                               <Avatar className="h-9 w-9">
+                                <AvatarImage src={summary.user.photoUrl} alt={summary.user.name} data-ai-hint="profile avatar" />
+                                <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                    {getInitials(summary.user.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                            </TableCell>
+                            <TableCell className="font-medium">{summary.user.name}</TableCell>
+                            <TableCell className="capitalize text-xs">
+                                <Badge variant={summary.user.role === 'admin' ? "default" : "secondary"} className={summary.user.role === 'admin' ? "bg-primary/80" : ""}>
+                                    {summary.user.role}
+                                </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{summary.user.email}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a")}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
+                {/* Mobile Card View */}
+                <div className="block md:hidden space-y-3">
+                  {participantsSummary.map((summary) => (
+                    <Card key={summary.user.id} className="shadow-sm">
+                      <CardContent className="p-3">
+                        <div className="flex items-start space-x-3">
+                            <Avatar className="h-10 w-10">
+                                <AvatarImage src={summary.user.photoUrl} alt={summary.user.name} data-ai-hint="profile avatar" />
+                                <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                    {getInitials(summary.user.name)}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-grow min-w-0">
+                                <p className="font-semibold text-primary truncate">{summary.user.name}</p>
+                                <p className="text-xs text-muted-foreground truncate flex items-center">
+                                    <Mail className="h-3 w-3 mr-1"/> {summary.user.email}
+                                </p>
+                                <div className="mt-1">
+                                    <Badge variant={summary.user.role === 'admin' ? 'default' : 'secondary'} className={`text-xs ${summary.user.role === 'admin' ? 'bg-primary/80' : ''}`}>
+                                        {summary.user.role}
+                                    </Badge>
+                                </div>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2 text-right">
+                          Attended: {format(parseISO(summary.attendanceTimestamp), "MMM d, h:mm a")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
             ) : (
               <p className="text-sm text-muted-foreground italic text-center py-4">No participants recorded for this event.</p>
             )}
@@ -220,3 +265,5 @@ export default function EventSummaryPage() {
     </div>
   );
 }
+
+    
