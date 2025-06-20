@@ -1,66 +1,83 @@
+
 // src/components/dashboard/member-dashboard.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import type { User, Event, AttendanceRecord } from '@/types';
 import { EventList } from '@/components/events/event-list';
-// import { mockEvents, mockAttendanceRecords as initialMockAttendance } from '@/lib/data'; // Using Firestore now
-import { getEvents } from '@/services/eventService'; // Import service to fetch live events
-import { mockAttendanceRecords as initialMockAttendance } from '@/lib/data'; // Keep mock attendance for now
+import { getEvents } from '@/services/eventService';
+import { getAttendanceRecordsForUser } from '@/services/attendanceService'; // Using actual service
 import { AiChatWidget } from '@/components/ai/ai-chat-widget';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { CheckSquare, MessageCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface MemberDashboardProps {
-  user: User;
+  user: User; // This component now expects user as a prop
 }
 
 export function MemberDashboard({ user }: MemberDashboardProps) {
   const [events, setEvents] = useState<Event[]>([]);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(initialMockAttendance); // Keep mock for now
+  const [userAttendanceRecords, setUserAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-  const [isAttendanceActionLoading, setIsAttendanceActionLoading] = useState(false);
+  const [isLoadingAttendance, setIsLoadingAttendance] = useState(true);
   const { toast } = useToast();
 
-  const fetchLiveEvents = useCallback(async () => {
+  const fetchDashboardData = useCallback(async () => {
+    if (!user?.id) {
+      setIsLoadingEvents(false);
+      setIsLoadingAttendance(false);
+      return;
+    }
+
     setIsLoadingEvents(true);
+    setIsLoadingAttendance(true);
+
     try {
       const allEvents = await getEvents();
-      const upcomingEvents = allEvents.filter(event => new Date(event.date) >= new Date());
-      setEvents(upcomingEvents); // Already sorted by service if needed, or sort here
+      const upcomingEvents = allEvents
+        .filter(event => new Date(event.date) >= new Date())
+        .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      setEvents(upcomingEvents);
     } catch (error) {
         console.error("Failed to fetch events for member dashboard:", error);
-        toast({ title: "Error", description: "Could not load upcoming events.", variant: "destructive"});
+        toast({ title: "Error Loading Events", description: "Could not load upcoming events.", variant: "destructive"});
     }
     setIsLoadingEvents(false);
-  }, [toast]);
+
+    try {
+      const attendance = await getAttendanceRecordsForUser(user.id);
+      setUserAttendanceRecords(attendance);
+    } catch (error) {
+      console.error("Failed to fetch attendance records:", error);
+      toast({ title: "Error Loading Attendance", description: "Could not load your attendance records.", variant: "destructive"});
+    }
+    setIsLoadingAttendance(false);
+  }, [user?.id, toast]);
 
   useEffect(() => {
-    fetchLiveEvents();
-  }, [fetchLiveEvents]);
+    // Fetch data when the component mounts or user changes
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user, fetchDashboardData]);
 
-  // Filter attendance records for the current user
-  const userAttendanceRecords = attendanceRecords.filter(ar => ar.userId === user.id);
-
-  const handleMarkAttendance = async (eventId: string, status: 'present') => {
-    setIsAttendanceActionLoading(true);
-    // TODO: Implement storing attendance in Firestore
-    // For now, this remains a mock local update.
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const newRecord: AttendanceRecord = {
-      id: `att${Date.now()}`,
-      eventId,
-      userId: user.id,
-      timestamp: new Date().toISOString(),
-      status,
-    };
-    setAttendanceRecords(prev => [...prev, newRecord]);
-    toast({ title: "Attendance Marked (Mock)", description: `Your attendance for the event has been recorded as ${status}. This is a mock action.`});
-    setIsAttendanceActionLoading(false);
+  const handleAttendanceMarked = () => {
+    // Re-fetch all dashboard data after an attendance action
+    if (user) {
+      fetchDashboardData();
+    }
   };
+
+  if (!user) {
+    // Should not happen if DashboardPage guards correctly, but good for safety
+    return (
+        <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="ml-2">Loading user data...</p>
+        </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -79,14 +96,21 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <EventList 
-            events={events} 
-            userRole="member"
-            onMarkAttendance={handleMarkAttendance}
-            attendanceRecords={userAttendanceRecords}
-            isAttendanceActionLoading={isAttendanceActionLoading}
-            isLoading={isLoadingEvents}
-          />
+          {(isLoadingEvents || isLoadingAttendance) && !events.length ? (
+             <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2">Loading events and attendance...</p>
+             </div>
+          ) : (
+            <EventList 
+                events={events} 
+                user={user} // Pass the user prop
+                userRole="member"
+                userAttendanceRecords={userAttendanceRecords}
+                onAttendanceMarked={handleAttendanceMarked}
+                isLoading={isLoadingEvents || isLoadingAttendance}
+            />
+          )}
         </CardContent>
       </Card>
       

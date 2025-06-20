@@ -1,5 +1,5 @@
 
-// src/components/dashboard/member-dashboard.tsx
+// src/app/(authenticated)/dashboard/member-dashboard.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -9,7 +9,6 @@ import { getEvents } from '@/services/eventService';
 import { getAttendanceRecordsForUser } from '@/services/attendanceService';
 import { AiChatWidget } from '@/components/ai/ai-chat-widget';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { CheckSquare, MessageCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,14 +24,20 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const { toast } = useToast();
 
   const fetchDashboardData = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setIsLoadingEvents(false);
+      setIsLoadingAttendance(false);
+      return;
+    }
 
     setIsLoadingEvents(true);
     setIsLoadingAttendance(true);
 
     try {
       const allEvents = await getEvents();
-      const upcomingEvents = allEvents.filter(event => new Date(event.date) >= new Date()).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const upcomingEvents = allEvents
+        .filter(event => new Date(event.date) >= new Date())
+        .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       setEvents(upcomingEvents);
     } catch (error) {
         console.error("Failed to fetch events for member dashboard:", error);
@@ -55,17 +60,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   }, [fetchDashboardData]);
   
   const handleAttendanceMarked = () => {
-    // Re-fetch attendance records after one is marked
-    if (user?.id) {
-        setIsLoadingAttendance(true);
-        getAttendanceRecordsForUser(user.id)
-            .then(setUserAttendanceRecords)
-            .catch(error => {
-                console.error("Failed to refresh attendance records:", error);
-                toast({ title: "Error Refreshing Attendance", description: "Could not refresh attendance data.", variant: "destructive"});
-            })
-            .finally(() => setIsLoadingAttendance(false));
-    }
+    // Re-fetch all dashboard data (events and attendance) after an attendance action
+    fetchDashboardData();
   };
 
 
