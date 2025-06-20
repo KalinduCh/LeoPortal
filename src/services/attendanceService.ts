@@ -72,11 +72,21 @@ export async function markUserAttendance(
           record: newRecord
         };
     } else {
-        throw new Error("Failed to retrieve newly created attendance record.");
+        // This case should ideally not happen if addDoc was successful.
+        // If it does, it indicates an issue retrieving the doc immediately after creation.
+        return {
+            status: 'error',
+            message: 'Attendance recorded but failed to retrieve confirmation details.'
+        }
     }
-  } catch (error) {
+  } catch (error: any) { // Catching 'any' for Firebase errors or other unexpected issues
     console.error("Error adding attendance document to Firestore:", error);
-    throw error; 
+    // Rethrow or return a structured error for the UI to handle.
+    // For now, a simple message, but you could inspect error.code for Firebase specific errors.
+    return {
+        status: 'error',
+        message: `Failed to record attendance: ${error.message || 'Unknown error'}`
+    };
   }
 }
 
@@ -109,6 +119,23 @@ export async function getUserAttendanceForEvent(
 
 export async function getAttendanceRecordsForUser(userId: string): Promise<AttendanceRecord[]> {
   const q = query(attendanceCollectionRef, where('userId', '==', userId), orderBy('timestamp', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(docSnap => {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      eventId: data.eventId,
+      userId: data.userId,
+      timestamp: (data.timestamp as Timestamp).toDate().toISOString(),
+      status: data.status,
+      markedLatitude: data.markedLatitude,
+      markedLongitude: data.markedLongitude,
+    } as AttendanceRecord;
+  });
+}
+
+export async function getAttendanceRecordsForEvent(eventId: string): Promise<AttendanceRecord[]> {
+  const q = query(attendanceCollectionRef, where('eventId', '==', eventId), orderBy('timestamp', 'asc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(docSnap => {
     const data = docSnap.data();

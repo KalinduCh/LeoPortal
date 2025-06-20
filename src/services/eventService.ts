@@ -1,6 +1,6 @@
 
 // src/services/eventService.ts
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, Timestamp, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import type { Event } from '@/types';
 import type { EventFormValues } from '@/components/events/event-form';
@@ -35,6 +35,24 @@ export async function getEvents(): Promise<Event[]> {
       longitude: data.longitude,
     } as Event;
   });
+}
+
+export async function getEvent(eventId: string): Promise<Event | null> {
+  const eventRef = doc(db, 'events', eventId);
+  const docSnap = await getDoc(eventRef);
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      name: data.name,
+      date: (data.date as Timestamp).toDate().toISOString(),
+      location: data.location,
+      description: data.description,
+      latitude: data.latitude,
+      longitude: data.longitude,
+    } as Event;
+  }
+  return null;
 }
 
 export async function updateEvent(eventId: string, data: EventFormValues): Promise<void> {

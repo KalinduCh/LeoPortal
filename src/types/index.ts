@@ -35,3 +35,8 @@ export interface AttendanceRecord {
   markedLongitude?: number;
 }
 
+export interface EventParticipantSummary {
+  user: User;
+  attendanceTimestamp: string; // ISO string
+}
+
