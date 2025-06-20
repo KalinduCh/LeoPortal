@@ -18,6 +18,7 @@ import { format, parseISO } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from "@/components/ui/badge"; // Added import for Badge
 
 export default function EventSummaryPage() {
   const params = useParams();
@@ -228,3 +229,4 @@ export default function EventSummaryPage() {
     </div>
   );
 }
+
