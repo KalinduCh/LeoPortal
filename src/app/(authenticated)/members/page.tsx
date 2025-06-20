@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/members/page.tsx
 "use client";
 
@@ -47,38 +48,42 @@ export default function MemberManagementPage() {
     setIsLoading(true);
     try {
       const usersRef = collection(db, "users");
-      const q = query(usersRef); // Fetch all users, admin will filter if needed or just display all roles
+      // Fetch all users if admin, or perhaps only 'member' role users
+      const q = user?.role === 'admin' ? query(usersRef) : query(usersRef, where("role", "==", "member"));
       const querySnapshot = await getDocs(q);
       const fetchedMembers: User[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((docSnap) => { // Renamed doc to docSnap to avoid conflict
+        const data = docSnap.data();
         fetchedMembers.push({
-            id: doc.id, // Firestore document ID is the UID
+            id: docSnap.id, 
             name: data.name,
             email: data.email,
             photoUrl: data.photoUrl,
             role: data.role,
+            nic: data.nic,
+            dateOfBirth: data.dateOfBirth,
+            gender: data.gender,
+            mobileNumber: data.mobileNumber,
         } as User);
       });
-      // Filter out the currently logged-in admin from the list if desired, or show all
-      // setMembers(fetchedMembers.filter(m => m.id !== user?.id)); 
       setMembers(fetchedMembers);
     } catch (error) {
         console.error("Error fetching members: ", error);
         toast({ title: "Error", description: "Could not load members.", variant: "destructive"});
     }
     setIsLoading(false);
-  }, [toast]);
+  }, [toast, user?.role]);
 
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (user) { // Fetch members if user is loaded, role check is inside fetchMembers
       fetchMembers();
     }
   }, [user, fetchMembers]);
 
-  const filteredMembers = members.filter(memberItem => // Renamed to avoid conflict with user
-    memberItem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    memberItem.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredMembers = members.filter(memberItem => 
+    (memberItem.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (memberItem.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (memberItem.nic?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
   
   const handleOpenEditForm = (memberToEdit: User) => {
@@ -90,7 +95,7 @@ export default function MemberManagementPage() {
     if (!selectedMemberForEdit) return;
     setIsSubmitting(true);
     try {
-      await updateUserProfile(selectedMemberForEdit.id, data);
+      await updateUserProfile(selectedMemberForEdit.id, data); // `updateUserProfile` needs to handle these fields
       toast({title: "Member Updated", description: "Member details have been successfully updated."});
       fetchMembers();
       setIsEditFormOpen(false);
@@ -152,7 +157,7 @@ export default function MemberManagementPage() {
       return;
     }
     setIsImporting(true);
-    const originalAuthUserUID = firebaseAuth.currentUser?.uid; // Store admin's UID
+    const originalAuthUserUID = firebaseAuth.currentUser?.uid;
 
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -164,7 +169,7 @@ export default function MemberManagementPage() {
       }
 
       const { header, data } = parseCSV(csvText);
-      const requiredHeaders = ["Type", "Name", "Email", "NIC"];
+      const requiredHeaders = ["Type", "Name", "Email", "NIC", "DateOfBirth", "Gender", "MobileNumber"];
       if (!requiredHeaders.every(h => header.includes(h))) {
         toast({
           title: "Invalid CSV Format",
@@ -181,51 +186,57 @@ export default function MemberManagementPage() {
 
       for (const row of data) {
         const email = row["Email"];
-        const password = row["NIC"]; 
+        const password = row["NIC"]; // NIC is used as password
         const name = row["Name"];
         const type = row["Type"]?.toLowerCase();
         const role = type === 'admin' ? 'admin' : 'member';
+        const nic = row["NIC"];
+        const dateOfBirth = row["DateOfBirth"];
+        const gender = row["Gender"];
+        const mobileNumber = row["MobileNumber"];
 
-        if (!email || !password || !name || !type) {
-          errors.push(`Skipping row due to missing data: ${JSON.stringify(row)}`);
+        if (!email || !password || !name || !type || !nic) {
+          errors.push(`Skipping row due to missing essential data (Email, NIC, Name, Type): ${JSON.stringify(row)}`);
           failureCount++;
           continue;
         }
         if (password.length < 6) {
-          errors.push(`Password (NIC) for ${email} must be at least 6 characters long.`);
+          errors.push(`Password (NIC) for ${email} must be at least 6 characters long. Value: '${password}'`);
           failureCount++;
           continue;
         }
         
         try {
-          // Create user in Firebase Auth
           const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
           const newAuthUser = userCredential.user;
           
-          // Create profile in Firestore
-          await createUserProfile(newAuthUser.uid, email, name, role);
+          await createUserProfile(
+            newAuthUser.uid, 
+            email, 
+            name, 
+            role, 
+            undefined, // photoUrl - can be default in createUserProfile
+            nic,
+            dateOfBirth,
+            gender,
+            mobileNumber
+          );
           
-          // Sign out the newly created user to prevent session hijacking for the admin
-          // This ensures the admin's session remains primary
           if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
             await signOut(firebaseAuth);
           }
           successCount++;
         } catch (error: any) {
           failureCount++;
-          const firebaseError = error.code ? `${error.code}: ${error.message}` : error.message;
+          const firebaseError = error.code ? `${error.code}: ${error.message}` : String(error);
           errors.push(`Failed to import ${email}: ${firebaseError}`);
           console.error(`Failed to import ${email}:`, error);
-           // If a user creation failed, sign out any potentially lingering new user session
           if (firebaseAuth.currentUser && firebaseAuth.currentUser.email === email) {
             await signOut(firebaseAuth);
           }
         }
       }
       
-      // After the loop, onAuthStateChanged should eventually restore the admin's session
-      // if Firebase persistence is working as expected.
-      // Add a small delay to allow onAuthStateChanged to potentially run.
       await new Promise(resolve => setTimeout(resolve, 1000)); 
 
       if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
@@ -238,7 +249,7 @@ export default function MemberManagementPage() {
       } else {
          toast({
             title: "Import Complete",
-            description: `${successCount} users imported. ${failureCount} failed. Check console for details.`,
+            description: `${successCount} users imported. ${failureCount} failed. ${errors.length > 0 ? 'Check console for error details.' : ''}`,
             variant: successCount > 0 && failureCount === 0 ? "default" : "destructive",
             duration: 10000, 
         });
@@ -260,14 +271,14 @@ export default function MemberManagementPage() {
     reader.readAsText(csvFile);
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name?: string) => {
     if (!name) return "??";
     const names = name.split(' ');
     if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
     return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   }
 
-  if (authLoading || (isLoading && !isImporting)) {
+  if (authLoading || (isLoading && !isImporting && !members.length)) { // Show loader if auth or initial member load is happening
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -275,7 +286,7 @@ export default function MemberManagementPage() {
     );
   }
 
-  if (!user || user.role !== 'admin') {
+  if (!user || user.role !== 'admin') { // Should be handled by layout, but good failsafe
     return null; 
   }
   
@@ -311,12 +322,15 @@ export default function MemberManagementPage() {
                 <FileText className="h-4 w-4" />
                 <AlertTitle>CSV Format Instructions</AlertTitle>
                 <AlertDescription>
-                    Ensure your CSV file has the following headers in the first row: <strong>Type, Name, Email, NIC</strong>.
+                    Ensure your CSV file has the following headers in the first row: <strong>Type, Name, Email, NIC, DateOfBirth, Gender, MobileNumber</strong>.
                     <ul>
                         <li>- <strong>Type</strong>: "admin" or "member".</li>
                         <li>- <strong>Name</strong>: Full name of the user.</li>
                         <li>- <strong>Email</strong>: User's email (will be their login).</li>
-                        <li>- <strong>NIC</strong>: Used as initial password (must be at least 6 characters).</li>
+                        <li>- <strong>NIC</strong>: User's NIC (will be initial password, min 6 chars). Stored in profile.</li>
+                        <li>- <strong>DateOfBirth</strong>: e.g., "YYYY-MM-DD" or "DD/MM/YYYY".</li>
+                        <li>- <strong>Gender</strong>: e.g., "Male", "Female".</li>
+                        <li>- <strong>MobileNumber</strong>: User's phone number.</li>
                     </ul>
                     Other columns will be ignored.
                 </AlertDescription>
@@ -333,7 +347,7 @@ export default function MemberManagementPage() {
           <div className="mt-4 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
-              placeholder="Search users by name or email..." 
+              placeholder="Search users by name, email, or NIC..." 
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -353,6 +367,7 @@ export default function MemberManagementPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>NIC</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -370,6 +385,7 @@ export default function MemberManagementPage() {
                     <TableCell className="font-medium">{memberItem.name}</TableCell>
                     <TableCell>{memberItem.email}</TableCell>
                     <TableCell className="capitalize">{memberItem.role}</TableCell>
+                    <TableCell>{memberItem.nic || 'N/A'}</TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button variant="outline" size="icon" onClick={() => handleOpenEditForm(memberItem)} aria-label="Edit Member" disabled={isImporting || isSubmitting}>
                         <Edit className="h-4 w-4" />

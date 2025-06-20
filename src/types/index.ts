@@ -7,6 +7,10 @@ export interface User {
   email: string;
   photoUrl?: string;
   role: UserRole;
+  nic?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  mobileNumber?: string;
   // createdAt?: any; // Can be added if you store it from Firestore (Timestamp or string)
 }
 
