@@ -22,6 +22,13 @@ export const mockUsers: User[] = [
     photoUrl: 'https://placehold.co/100x100.png',
     role: 'member',
   },
+  {
+    id: 'user4',
+    name: 'Admin Two',
+    email: 'check2@gmail.com',
+    photoUrl: 'https://placehold.co/100x100.png',
+    role: 'admin',
+  },
 ];
 
 export const mockEvents: Event[] = [
@@ -58,3 +65,4 @@ export const mockAttendanceRecords: AttendanceRecord[] = [
   //   status: 'present',
   // },
 ];
+
