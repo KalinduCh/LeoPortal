@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Mail, User as UserIcon, Shield, Edit3, UploadCloud, Briefcase, Calendar, Phone, Smile } from 'lucide-react';
+import { Mail, User as UserIcon, Shield, Edit3, UploadCloud, Briefcase, Calendar as CalendarIconLucide, Phone, Smile } from 'lucide-react';
 import type { User } from '@/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -63,11 +63,29 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
   }, [user, form, isEditing]); // Reset form when user data changes or edit mode toggles
 
   const handleFormSubmit = async (values: ProfileFormValues) => {
+    // Ensure dateOfBirth is formatted as "yyyy-MM-dd" string if it's a Date object
+    // or keep it as string if it already is (or undefined if empty)
+    let dobToSave: string | undefined = undefined;
+    if (values.dateOfBirth) {
+        if (values.dateOfBirth instanceof Date) {
+            dobToSave = format(values.dateOfBirth, "yyyy-MM-dd");
+        } else {
+            // If it's already a string, try to parse and reformat to ensure consistency
+            const parsedFromString = parseISO(values.dateOfBirth);
+            if (isValid(parsedFromString)) {
+                dobToSave = format(parsedFromString, "yyyy-MM-dd");
+            } else {
+                // If string is not valid ISO, consider it invalid or handle as per requirements
+                // For now, we'll pass it as is if it's not empty, or handle validation earlier
+                dobToSave = values.dateOfBirth; // Or set to undefined if invalid strings are not allowed
+            }
+        }
+    }
+    
     await onUpdateProfile({
       id: user.id, // pass id for service to know which user to update
       ...values,
-      // For dateOfBirth, if it's a Date object from a picker, format it
-      dateOfBirth: values.dateOfBirth instanceof Date ? format(values.dateOfBirth, "yyyy-MM-dd") : values.dateOfBirth
+      dateOfBirth: dobToSave,
     });
     setIsEditing(false); // Exit edit mode on successful submission
   };
@@ -79,16 +97,27 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
     return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   };
   
-  const initialDate = user.dateOfBirth ? parseISO(user.dateOfBirth) : undefined;
-  const selectedDate = form.watch("dateOfBirth");
-  let displayDate: Date | undefined = undefined;
-  if (typeof selectedDate === 'string' && selectedDate) {
-    const parsed = parseISO(selectedDate);
-    if (isValid(parsed)) {
-      displayDate = parsed;
+  // For displaying Date of Birth in non-edit mode
+  let displayFormattedDoB: string | undefined = undefined;
+  if (user.dateOfBirth && typeof user.dateOfBirth === 'string') {
+    const parsedDate = parseISO(user.dateOfBirth);
+    if (isValid(parsedDate)) {
+      displayFormattedDoB = format(parsedDate, "MMMM d, yyyy");
     }
-  } else if (selectedDate instanceof Date) {
-    displayDate = selectedDate;
+  }
+  
+  // For the Calendar component in edit mode
+  const selectedDateForPicker = form.watch("dateOfBirth");
+  let dateForPicker: Date | undefined = undefined;
+  if (selectedDateForPicker) {
+    if (selectedDateForPicker instanceof Date) {
+      dateForPicker = selectedDateForPicker;
+    } else if (typeof selectedDateForPicker === 'string') {
+      const parsed = parseISO(selectedDateForPicker);
+      if (isValid(parsed)) {
+        dateForPicker = parsed;
+      }
+    }
   }
 
 
@@ -157,23 +186,23 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
                             variant={"outline"}
                             className={cn(
                               "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
+                              !field.value && "text-muted-foreground" // field.value here is string from form
                             )}
                           >
-                            {displayDate ? (
-                              format(displayDate, "PPP")
+                            {dateForPicker ? ( // Use the parsed and validated dateForPicker for display
+                              format(dateForPicker, "PPP")
                             ) : (
                               <span>Pick a date</span>
                             )}
-                            <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                            <CalendarIconLucide className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <CalendarComponent
                           mode="single"
-                          selected={displayDate}
-                          onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                          selected={dateForPicker} // Pass the Date object to the calendar
+                          onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")} // Store as "yyyy-MM-dd" string
                           disabled={(date) =>
                             date > new Date() || date < new Date("1900-01-01")
                           }
@@ -224,7 +253,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
             <ProfileInfoItem icon={Mail} label="Email Address" value={user.email} />
             <ProfileInfoItem icon={Shield} label="Role" value={user.role} className="capitalize" />
             <ProfileInfoItem icon={Briefcase} label="NIC" value={user.nic} />
-            <ProfileInfoItem icon={Calendar} label="Date of Birth" value={user.dateOfBirth ? format(parseISO(user.dateOfBirth), "MMMM d, yyyy") : undefined} />
+            <ProfileInfoItem icon={CalendarIconLucide} label="Date of Birth" value={displayFormattedDoB} />
             <ProfileInfoItem icon={Smile} label="Gender" value={user.gender} />
             <ProfileInfoItem icon={Phone} label="Mobile Number" value={user.mobileNumber} />
             
@@ -257,3 +286,4 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon: Icon, label, va
     </div>
   </div>
 );
+
