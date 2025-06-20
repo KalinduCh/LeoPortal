@@ -38,10 +38,10 @@ export default function EventManagementPage() {
     setIsLoading(true);
     try {
       const fetchedEvents = await getEvents();
-      setEvents(fetchedEvents.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); // Sort by date descending
-    } catch (error) {
+      setEvents(fetchedEvents.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); 
+    } catch (error: any) {
       console.error("Failed to fetch events:", error);
-      toast({ title: "Error", description: "Could not load events.", variant: "destructive" });
+      toast({ title: "Error", description: `Could not load events: ${error.message}`, variant: "destructive" });
     }
     setIsLoading(false);
   }, [toast]);
@@ -63,15 +63,24 @@ export default function EventManagementPage() {
   };
 
   const handleDeleteEvent = async (eventId: string) => {
+    if (!eventId) {
+        toast({ title: "Error", description: "Cannot delete event: Event ID is missing.", variant: "destructive"});
+        console.error("handleDeleteEvent: eventId is undefined or empty.");
+        return;
+    }
     if(confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
         setIsSubmitting(true);
         try {
             await deleteEventService(eventId);
             toast({title: "Event Deleted", description: "The event has been successfully deleted."});
-            fetchEvents(); // Refresh the list
-        } catch (error) {
-            console.error("Failed to delete event:", error);
-            toast({ title: "Error", description: "Could not delete the event.", variant: "destructive" });
+            setEvents(prevEvents => prevEvents.filter(e => e.id !== eventId)); // Optimistic update
+        } catch (error: any) {
+            console.error(`Failed to delete event with ID ${eventId}:`, error);
+            let description = `Could not delete the event. Error: ${error.message || 'Unknown Firestore error.'}`;
+            if (error.code) {
+                description += ` (Code: ${error.code})`;
+            }
+            toast({ title: "Error Deleting Event", description, variant: "destructive", duration: 7000 });
         }
         setIsSubmitting(false);
     }
@@ -80,20 +89,20 @@ export default function EventManagementPage() {
   const handleFormSubmit = async (data: EventFormValues) => {
     setIsSubmitting(true);
     try {
-      if (selectedEvent) { // Editing existing event
+      if (selectedEvent) { 
         await updateEvent(selectedEvent.id, data);
         toast({title: "Event Updated", description: "The event details have been successfully updated."});
-      } else { // Creating new event
+      } else { 
         await createEvent(data);
         toast({title: "Event Created", description: "The new event has been successfully created."});
       }
-      fetchEvents(); // Refresh the list
+      fetchEvents(); 
       setIsFormOpen(false);
       setSelectedEvent(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save event:", error);
       const action = selectedEvent ? "update" : "create";
-      toast({ title: "Error", description: `Could not ${action} the event.`, variant: "destructive" });
+      toast({ title: "Error", description: `Could not ${action} the event: ${error.message}`, variant: "destructive" });
     }
     setIsSubmitting(false);
   };
@@ -204,4 +213,3 @@ export default function EventManagementPage() {
     </div>
   );
 }
-

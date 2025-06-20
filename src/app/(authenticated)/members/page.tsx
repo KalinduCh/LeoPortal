@@ -23,7 +23,7 @@ import { MemberEditForm, type MemberEditFormValues } from '@/components/members/
 import { MemberAddForm, type MemberAddFormValues } from '@/components/members/member-add-form';
 
 export default function MemberManagementPage() {
-  const { user, isLoading: authLoading, performAdminAuthOperation, setAuthOperationInProgress } = useAuth(); // Get performAdminAuthOperation
+  const { user, isLoading: authLoading, performAdminAuthOperation, setAuthOperationInProgress } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -101,9 +101,9 @@ export default function MemberManagementPage() {
       fetchMembers();
       setIsEditFormOpen(false);
       setSelectedMemberForEdit(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update member:", error);
-      toast({ title: "Error", description: "Could not update member details.", variant: "destructive" });
+      toast({ title: "Error", description: `Could not update member details: ${error.message}`, variant: "destructive" });
     }
     setIsSubmitting(false);
   };
@@ -118,7 +118,6 @@ export default function MemberManagementPage() {
 
     try {
       await performAdminAuthOperation(async () => {
-        // This block runs within the performAdminAuthOperation wrapper from useAuth
         const userCredential = await createUserWithEmailAndPassword(firebaseAuth, data.email, data.password);
         const newAuthUser = userCredential.user;
 
@@ -127,19 +126,16 @@ export default function MemberManagementPage() {
           data.email,
           data.name,
           data.role 
-          // Other fields like NIC, DOB can be added here if collected by MemberAddForm
         );
         
-        // If Firebase auth state changed to the new user, sign them out
-        // to attempt to restore the admin's session via onAuthStateChanged.
         if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
           await signOut(firebaseAuth);
         }
       });
 
       toast({ title: "Member Created", description: `${data.name} has been successfully added.` });
-      fetchMembers(); // Refresh member list
-      setIsAddFormOpen(false); // Close dialog
+      fetchMembers(); 
+      setIsAddFormOpen(false); 
 
     } catch (error: any) {
       console.error("Failed to add member:", error);
@@ -148,22 +144,14 @@ export default function MemberManagementPage() {
         errorMessage = "This email address is already in use.";
       } else if (error.code === 'auth/weak-password') {
         errorMessage = "The password is too weak. It must be at least 6 characters.";
+      } else {
+        errorMessage = error.message || errorMessage;
       }
       toast({ title: "Error Adding Member", description: errorMessage, variant: "destructive" });
-      // performAdminAuthOperation already handles resetting flags on error
     } finally {
       setIsSubmitting(false);
-      // A small delay can sometimes help ensure auth state propagation before UI check
-      await new Promise(resolve => setTimeout(resolve, 200)); 
       if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
-        // This check might be less necessary if performAdminAuthOperation is robust,
-        // but can be a fallback warning.
-        // toast({
-        //   title: "Session Notice",
-        //   description: "Admin session re-validated. If issues persist, please refresh.",
-        //   variant: "default", 
-        //   duration: 7000, 
-        // });
+        // This message is handled by performAdminAuthOperation and onAuthStateChanged in useAuth
       }
     }
   };
@@ -176,20 +164,25 @@ export default function MemberManagementPage() {
         return;
     }
 
-    if (confirm("Are you sure you want to remove this member's profile from the database? This does NOT delete their login credentials but removes their app profile data.")) {
+    if (memberId === user?.id) {
+        toast({ title: "Action Denied", description: "You cannot delete your own profile from this interface.", variant: "destructive"});
+        return;
+    }
+
+    if (confirm("Are you sure you want to remove this member's profile from the database? This action does NOT delete their login credentials but removes their app profile data (e.g., NIC, DOB, role etc.). It cannot be undone.")) {
         setIsSubmitting(true); 
         try {
             const memberDocRef = doc(db, "users", memberId);
             await deleteDoc(memberDocRef);
             toast({title: "Member Profile Removed", description: "The member's profile has been removed from Firestore."});
-            fetchMembers(); 
+            setMembers(prevMembers => prevMembers.filter(m => m.id !== memberId)); // Optimistic update
         } catch (error: any) {
             console.error(`Failed to delete member profile for ID ${memberId}:`, error);
-            let description = "Could not remove member profile.";
-            if (error.code === 'permission-denied') {
-                description += " This might be due to Firestore security rules.";
+            let description = `Could not remove member profile. Error: ${error.message || 'Unknown Firestore error.'}`;
+            if (error.code) {
+                description += ` (Code: ${error.code})`;
             }
-            toast({title: "Error Deleting Profile", description, variant: "destructive"});
+            toast({title: "Error Deleting Profile", description, variant: "destructive", duration: 7000});
         }
         setIsSubmitting(false);
     }
@@ -229,7 +222,7 @@ export default function MemberManagementPage() {
       return;
     }
     setIsImporting(true);
-    setAuthOperationInProgress(true); // Signal start of a potentially long auth-affecting operation
+    setAuthOperationInProgress(true); 
     const originalAuthUserUID = firebaseAuth.currentUser?.uid;
 
     const reader = new FileReader();
@@ -286,9 +279,6 @@ export default function MemberManagementPage() {
         }
         
         try {
-          // Each creation is an auth operation that might temporarily change context
-          // This part is tricky with the global `setAuthOperationInProgress` if not using a wrapper per user.
-          // For a loop, it's better to set the flag once for the whole batch.
           const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
           const newAuthUser = userCredential.user;
           
@@ -337,23 +327,16 @@ export default function MemberManagementPage() {
             }
           }
         }
-      } // End of loop
+      } 
       
-      // After the loop, onAuthStateChanged should eventually restore admin session
-      // and setAuthOperationInProgress to false.
       fetchMembers(); 
-
-      // Delay slightly before final toasts to allow auth state to settle
       await new Promise(resolve => setTimeout(resolve, 1000)); 
-
 
       let toastTitle = "Import Process Complete";
       let toastDescription = `${successCount} users imported.`;
       let toastVariant: "default" | "destructive" = "default";
 
-      if (skippedCount > 0) {
-        toastDescription += ` ${skippedCount} skipped.`;
-      }
+      if (skippedCount > 0) toastDescription += ` ${skippedCount} skipped.`;
       if (errorCount > 0) {
         toastDescription += ` ${errorCount} failed.`;
         toastVariant = "destructive";
@@ -385,12 +368,11 @@ export default function MemberManagementPage() {
       setCsvFile(null);
       if(fileInputRef.current) fileInputRef.current.value = ""; 
       setIsImporting(false);
-      // setAuthOperationInProgress(false); // Let onAuthStateChanged handle this final reset
     };
     reader.onerror = () => {
         toast({ title: "Error Reading File", description: "An error occurred while trying to read the file.", variant: "destructive" });
         setIsImporting(false);
-        setAuthOperationInProgress(false); // Reset on direct file read error
+        setAuthOperationInProgress(false); 
     }
     reader.readAsText(csvFile);
   };
