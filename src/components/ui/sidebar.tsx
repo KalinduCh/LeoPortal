@@ -534,65 +534,60 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
+interface SidebarMenuButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>, // Or React.AnchorHTMLAttributes<HTMLAnchorElement> if it can be an anchor
+    VariantProps<typeof sidebarMenuButtonVariants> {
+  asChild?: boolean;
+  isActive?: boolean;
+  tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+}
+
+
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & { // Changed from ComponentProps<"button">
-    asChild?: boolean
-    isActive?: boolean
-    tooltip?: string | React.ComponentProps<typeof TooltipContent>
-  } & VariantProps<typeof sidebarMenuButtonVariants>
+  HTMLButtonElement, // This should be flexible based on asChild, but HTMLButtonElement is a common base
+  SidebarMenuButtonProps
 >(
   (
-    initialProps, // All props passed to SidebarMenuButton
-    ref
-  ) => {
-    const {
-      asChild: propAsChild = false, // Prop passed to SidebarMenuButton (e.g., from Link asChild)
+    {
+      asChild: propAsChild = false,
       isActive = false,
       variant = "default",
       size = "default",
       tooltip,
       className,
-      children, // Destructure children explicitly
+      children,
       ...restProps // All other props (like href from Link, or event handlers)
-    } = initialProps;
-
+    },
+    ref
+  ) => {
     const Comp = propAsChild ? Slot : "button";
     const { isMobile, state } = useSidebar();
 
-    const elementToRender = (
+    // Element to be rendered, either Slot or button
+    const buttonElement = (
       <Comp
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...restProps} // Spread restProps which includes href, onClick, etc.
+        {...restProps} // Spread restProps, `asChild` is not included here due to destructuring
       >
-        {children} {/* Render children here */}
+        {children}
       </Comp>
     );
 
     if (!tooltip) {
-      return elementToRender;
+      return buttonElement;
     }
 
     const tooltipContentProps = typeof tooltip === 'string' ? { children: tooltip } : tooltip;
 
     return (
       <Tooltip>
-        {/*
-          If SidebarMenuButton is already a Slot (propAsChild is true, likely due to <Link asChild>),
-          then TooltipTrigger should NOT use asChild. It will render its own button,
-          and elementToRender (the Slot from Link) will be its child.
-          This prevents the Slot (which would become the <a> tag) from receiving asChild from TooltipTrigger
-          and trying to pass it to its own children (icon and span).
-
-          If SidebarMenuButton is a regular button (propAsChild is false),
-          then TooltipTrigger CAN use asChild to make that button the trigger.
-        */}
-        <TooltipTrigger asChild={!propAsChild}>
-          {elementToRender}
+        <TooltipTrigger asChild>
+          {/* TooltipTrigger always wraps the buttonElement as its child trigger */}
+          {buttonElement}
         </TooltipTrigger>
         <TooltipContent
           side="right"
@@ -720,14 +715,17 @@ const SidebarMenuSubItem = React.forwardRef<
 >(({ ...props }, ref) => <li ref={ref} {...props} />)
 SidebarMenuSubItem.displayName = "SidebarMenuSubItem"
 
+interface SidebarMenuSubButtonProps
+  extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  asChild?: boolean;
+  size?: "sm" | "md";
+  isActive?: boolean;
+}
+
 const SidebarMenuSubButton = React.forwardRef<
   HTMLAnchorElement,
-  React.AnchorHTMLAttributes<HTMLAnchorElement> & { // Changed from ComponentProps<"a">
-    asChild?: boolean
-    size?: "sm" | "md"
-    isActive?: boolean
-  }
->(({ asChild = false, size = "md", isActive, className, children, ...props }, ref) => { // Added children to destructure
+  SidebarMenuSubButtonProps
+>(({ asChild = false, size = "md", isActive, className, children, ...props }, ref) => {
   const Comp = asChild ? Slot : "a"
 
   return (
@@ -746,7 +744,7 @@ const SidebarMenuSubButton = React.forwardRef<
       )}
       {...props}
     >
-      {children} {/* Pass children here */}
+      {children}
     </Comp>
   )
 })
@@ -778,3 +776,4 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
