@@ -1,3 +1,4 @@
+
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -75,7 +76,7 @@ export function SidebarNav() {
                 <SidebarMenuSub>
                   {item.children.map(child => (
                     <SidebarMenuSubItem key={child.href}>
-                       <Link href={child.href} passHref legacyBehavior>
+                       <Link href={child.href}>
                         <SidebarMenuSubButton
                           isActive={pathname === child.href || pathname.startsWith(child.href + "/")}
                         >
@@ -89,7 +90,7 @@ export function SidebarNav() {
               )}
             </>
           ) : (
-            <Link href={item.href} passHref legacyBehavior>
+            <Link href={item.href}>
               <SidebarMenuButton
                 isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
                 tooltip={{ children: item.label, className: "font-sans" }}
