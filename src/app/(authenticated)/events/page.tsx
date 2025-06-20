@@ -9,11 +9,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, Edit, Trash2, CalendarDays, Loader2 } from "lucide-react";
-import { format, parseISO } from 'date-fns';
+import { PlusCircle, Edit, Trash2, CalendarDays, Loader2, Eye } from "lucide-react";
+import { format, parseISO, isPast } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { EventForm, type EventFormValues } from "@/components/events/event-form"; 
+import { EventForm, type EventFormValues } from "@/components/events/event-form";
 import { getEvents, createEvent, updateEvent, deleteEvent as deleteEventService } from '@/services/eventService';
 
 export default function EventManagementPage() {
@@ -37,7 +38,7 @@ export default function EventManagementPage() {
     setIsLoading(true);
     try {
       const fetchedEvents = await getEvents();
-      setEvents(fetchedEvents);
+      setEvents(fetchedEvents.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); // Sort by date descending
     } catch (error) {
       console.error("Failed to fetch events:", error);
       toast({ title: "Error", description: "Could not load events.", variant: "destructive" });
@@ -50,7 +51,7 @@ export default function EventManagementPage() {
       fetchEvents();
     }
   }, [user, fetchEvents]);
-  
+
   const handleCreateNew = () => {
     setSelectedEvent(null);
     setIsFormOpen(true);
@@ -75,7 +76,7 @@ export default function EventManagementPage() {
         setIsSubmitting(false);
     }
   };
-  
+
   const handleFormSubmit = async (data: EventFormValues) => {
     setIsSubmitting(true);
     try {
@@ -97,6 +98,10 @@ export default function EventManagementPage() {
     setIsSubmitting(false);
   };
 
+  const handleViewSummary = (eventId: string) => {
+    router.push(`/admin/event-summary/${eventId}`);
+  };
+
 
   if (authLoading || isLoading) {
     return (
@@ -107,7 +112,7 @@ export default function EventManagementPage() {
   }
 
   if (!user || user.role !== 'admin') {
-    return null; 
+    return null;
   }
 
   return (
@@ -115,7 +120,7 @@ export default function EventManagementPage() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold font-headline">Event Management</h1>
         <Dialog open={isFormOpen} onOpenChange={(open) => {
-            if (!open) setSelectedEvent(null); 
+            if (!open) setSelectedEvent(null);
             setIsFormOpen(open);
         }}>
           <DialogTrigger asChild>
@@ -127,9 +132,9 @@ export default function EventManagementPage() {
             <DialogHeader>
               <DialogTitle>{selectedEvent ? "Edit Event" : "Create New Event"}</DialogTitle>
             </DialogHeader>
-            <EventForm 
-                event={selectedEvent} 
-                onSubmit={handleFormSubmit} 
+            <EventForm
+                event={selectedEvent}
+                onSubmit={handleFormSubmit}
                 onCancel={() => {
                     setIsFormOpen(false);
                     setSelectedEvent(null);
@@ -145,7 +150,7 @@ export default function EventManagementPage() {
           <CardTitle className="flex items-center">
             <CalendarDays className="mr-2 h-5 w-5 text-primary" /> All Events
           </CardTitle>
-          <CardDescription>View, edit, or delete club events.</CardDescription>
+          <CardDescription>View, edit, or delete club events. Events are sorted by most recent first.</CardDescription>
         </CardHeader>
         <CardContent>
           {events.length > 0 ? (
@@ -155,25 +160,40 @@ export default function EventManagementPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Location</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {events.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell className="font-medium">{event.name}</TableCell>
-                    <TableCell>{format(parseISO(event.date), "MMM d, yyyy 'at' h:mm a")}</TableCell>
-                    <TableCell>{event.location}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="outline" size="icon" onClick={() => handleEditEvent(event)} aria-label="Edit Event" disabled={isSubmitting}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="icon" onClick={() => handleDeleteEvent(event.id)} aria-label="Delete Event" disabled={isSubmitting}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {events.map((event) => {
+                  const eventDate = parseISO(event.date);
+                  const isEventPast = isPast(eventDate);
+                  return (
+                    <TableRow key={event.id}>
+                      <TableCell className="font-medium">{event.name}</TableCell>
+                      <TableCell>{format(eventDate, "MMM d, yyyy 'at' h:mm a")}</TableCell>
+                      <TableCell>{event.location}</TableCell>
+                      <TableCell>
+                        <Badge variant={isEventPast ? "secondary" : "default"} className={!isEventPast ? "bg-green-600 hover:bg-green-700 text-white" : ""}>
+                          {isEventPast ? "Past" : "Upcoming"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button variant="outline" size="icon" onClick={() => handleEditEvent(event)} aria-label="Edit Event" disabled={isSubmitting}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="icon" onClick={() => handleDeleteEvent(event.id)} aria-label="Delete Event" disabled={isSubmitting}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        {isEventPast && (
+                           <Button variant="ghost" size="icon" onClick={() => handleViewSummary(event.id)} aria-label="View Event Summary" disabled={isSubmitting}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (
@@ -184,3 +204,4 @@ export default function EventManagementPage() {
     </div>
   );
 }
+
