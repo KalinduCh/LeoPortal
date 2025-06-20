@@ -1,3 +1,4 @@
+
 // src/components/layout/app-shell.tsx
 "use client";
 
@@ -32,13 +33,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/dashboard" className="flex items-center gap-2 text-primary hover:text-accent transition-colors">
             <Image 
               src={logoUrl} 
-              alt="LeoPortal Logo" 
+              alt="LEO Portal Logo" 
               width={32} 
               height={32} 
               className="h-8 w-8 rounded-sm"
               data-ai-hint="club logo"
             />
-            <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">LeoPortal</span>
+            <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">LEO Portal</span>
           </Link>
         </SidebarHeader>
         <Separator className="my-0" />
@@ -61,7 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <SidebarTrigger className="md:hidden" />
             {/* Breadcrumbs or page title can go here */}
-             <h1 className="text-lg font-semibold font-headline hidden md:block">LeoPortal</h1>
+             <h1 className="text-lg font-semibold font-headline hidden md:block">Welcome to Leo Club of Athugalpura...</h1>
           </div>
           <UserDropdown />
         </header>
@@ -69,7 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <footer className="border-t p-4 text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} LeoPortal. All rights reserved.
+            © {new Date().getFullYear()} LEO Portal. All rights reserved.
         </footer>
       </SidebarInset>
     </SidebarProvider>
