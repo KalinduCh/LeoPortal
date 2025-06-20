@@ -21,7 +21,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import { Mail, Users, Send, Loader2, AlertTriangle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { sendBulkEmailAction, type SendBulkEmailState } from '@/app/actions/communicationActions'; // We'll create this
+import { sendBulkEmailAction, type SendBulkEmailState } from '@/app/actions/communicationActions';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const emailFormSchema = z.object({
@@ -87,7 +87,6 @@ export default function CommunicationPage() {
     setFormSubmitting(true);
     setActionState(initialState);
 
-    // Map user IDs to email addresses
     const recipientEmails = data.recipientUserIds.map(userId => {
       const member = members.find(m => m.id === userId);
       return member?.email;
@@ -108,10 +107,10 @@ export default function CommunicationPage() {
     setActionState(result);
 
     if (result.success) {
-      toast({ title: "Email Processed", description: result.message });
+      toast({ title: "Email Processed (Simulation)", description: result.message });
       form.reset();
     } else {
-      toast({ title: "Email Failed", description: result.message || "Could not process the email request.", variant: "destructive" });
+      toast({ title: "Processing Failed", description: result.message || "Could not process the email request.", variant: "destructive" });
     }
     setFormSubmitting(false);
   };
@@ -149,7 +148,7 @@ export default function CommunicationPage() {
         <AlertTitle>Developer Note: Email Sending Simulation</AlertTitle>
         <AlertDescription>
           This form currently <strong className="text-primary">simulates</strong> sending emails. The details (recipients, subject, body) will be logged to the server console.
-          Actual email delivery requires backend setup with an email service (e.g., SendGrid, Mailgun) and Firebase Functions.
+          Actual email delivery requires upgrading your Firebase project to a paid plan (e.g., Blaze) to use Firebase Functions with an external email service (like SendGrid, Mailgun, etc.).
         </AlertDescription>
       </Alert>
 
@@ -269,7 +268,7 @@ export default function CommunicationPage() {
           <div className="flex justify-end">
             <Button type="submit" disabled={formSubmitting || isLoadingMembers} size="lg">
               {formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              {formSubmitting ? "Processing..." : "Send Email"}
+              {formSubmitting ? "Processing..." : "Process Email (Simulated)"}
             </Button>
           </div>
         </form>
@@ -277,5 +276,3 @@ export default function CommunicationPage() {
     </div>
   );
 }
-
-    
