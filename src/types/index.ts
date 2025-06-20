@@ -8,10 +8,10 @@ export interface User {
   photoUrl?: string;
   role: UserRole;
   nic?: string;
-  dateOfBirth?: string;
+  dateOfBirth?: string; // Stored as "YYYY-MM-DD" string
   gender?: string;
   mobileNumber?: string;
-  // createdAt?: any; // Can be added if you store it from Firestore (Timestamp or string)
+  // createdAt?: any;
 }
 
 export interface Event {
@@ -19,13 +19,19 @@ export interface Event {
   name: string;
   date: string; // ISO string (converted from Firestore Timestamp)
   description: string;
-  location: string;
+  location: string; // Textual location
+  latitude?: number;  // For geolocation
+  longitude?: number; // For geolocation
 }
 
 export interface AttendanceRecord {
-  id: string;
+  id: string; // Firestore document ID
   eventId: string;
   userId: string;
-  timestamp: string; // ISO string
-  status: 'present' | 'absent'; // Or other relevant statuses
+  timestamp: string; // ISO string of when attendance was marked
+  status: 'present'; // Initially just 'present'
+  // Optional: store location where attendance was marked for audit
+  markedLatitude?: number;
+  markedLongitude?: number;
 }
+

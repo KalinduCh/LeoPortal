@@ -1,8 +1,9 @@
+
 // src/components/events/event-list.tsx
 "use client";
 
 import React from 'react';
-import type { Event, UserRole, AttendanceRecord } from '@/types';
+import type { Event, UserRole, AttendanceRecord, User } from '@/types';
 import { EventCard } from './event-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CalendarOff } from 'lucide-react';
@@ -11,14 +12,15 @@ import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card'
 
 interface EventListProps {
   events: Event[];
+  user: User | null; // Pass current user
   userRole: UserRole;
-  onMarkAttendance?: (eventId: string, status: 'present') => void;
-  attendanceRecords?: AttendanceRecord[]; // Optional: Pass all records for matching
-  isAttendanceActionLoading?: boolean;
+  // Pass all attendance records for the current user
+  userAttendanceRecords: AttendanceRecord[]; 
+  onAttendanceMarked: () => void; // Callback to refresh attendance data
   isLoading?: boolean;
 }
 
-export function EventList({ events, userRole, onMarkAttendance, attendanceRecords, isAttendanceActionLoading, isLoading }: EventListProps) {
+export function EventList({ events, user, userRole, userAttendanceRecords, onAttendanceMarked, isLoading }: EventListProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -42,15 +44,16 @@ export function EventList({ events, userRole, onMarkAttendance, attendanceRecord
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {events.map(event => {
-        const relevantAttendanceRecord = attendanceRecords?.find(ar => ar.eventId === event.id);
+        // Find the attendance record for this specific event and user
+        const relevantAttendanceRecord = userAttendanceRecords?.find(ar => ar.eventId === event.id && ar.userId === user?.id);
         return (
           <EventCard 
             key={event.id} 
             event={event} 
+            user={user}
             userRole={userRole}
-            onMarkAttendance={onMarkAttendance}
             attendanceRecord={relevantAttendanceRecord}
-            isAttendanceActionLoading={isAttendanceActionLoading}
+            onAttendanceMarked={onAttendanceMarked}
           />
         );
       })}

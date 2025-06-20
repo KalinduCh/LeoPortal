@@ -20,7 +20,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO } from 'date-fns';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { CalendarIcon, Loader2, MapPin } from 'lucide-react';
 import type { Event } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +29,8 @@ const eventFormSchema = z.object({
   date: z.date({ required_error: "Event date is required." }),
   location: z.string().min(3, { message: "Location must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
+  latitude: z.coerce.number().optional(), // Use coerce for string input from <Input type="number">
+  longitude: z.coerce.number().optional(),
 });
 
 export type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -45,10 +47,11 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: event?.name || "",
-      // Ensure date is a Date object for the form, parsing if necessary
       date: event?.date ? parseISO(event.date) : new Date(),
       location: event?.location || "",
       description: event?.description || "",
+      latitude: event?.latitude,
+      longitude: event?.longitude,
     },
   });
 
@@ -59,6 +62,8 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
         date: parseISO(event.date),
         location: event.location,
         description: event.description,
+        latitude: event.latitude,
+        longitude: event.longitude,
       });
     } else {
       form.reset({
@@ -66,6 +71,8 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
         date: new Date(),
         location: "",
         description: "",
+        latitude: undefined,
+        longitude: undefined,
       });
     }
   }, [event, form]);
@@ -121,7 +128,6 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                     mode="single"
                     selected={field.value}
                     onSelect={(date) => {
-                        // Preserve time if date is cleared or a new date is picked
                         const newDate = date || field.value || new Date();
                         const currentTime = field.value || new Date();
                         newDate.setHours(currentTime.getHours());
@@ -130,7 +136,6 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                     }}
                     initialFocus
                   />
-                  {/* Basic Time Picker */}
                    <div className="p-2 border-t border-border">
                     <Label htmlFor="event-time" className="text-sm">Time</Label>
                     <Input
@@ -159,14 +164,46 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
           name="location"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Location</FormLabel>
+              <FormLabel>Location (Text)</FormLabel>
               <FormControl>
-                <Input placeholder="Community Hall" {...field} />
+                <Input placeholder="Community Hall, Main Street" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="latitude"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Latitude (Optional)</FormLabel>
+                <FormControl>
+                  <Input type="number" step="any" placeholder="e.g., 34.0522" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                </FormControl>
+                 <p className="text-xs text-muted-foreground">For geo-restricted attendance.</p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="longitude"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Longitude (Optional)</FormLabel>
+                <FormControl>
+                  <Input type="number" step="any" placeholder="e.g., -118.2437" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">For geo-restricted attendance.</p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
 
         <FormField
           control={form.control}

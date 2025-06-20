@@ -1,3 +1,4 @@
+
 import type { User, Event, AttendanceRecord } from '@/types';
 
 // mockUsers is no longer the primary source of truth for users if Firebase is integrated.
@@ -63,14 +64,6 @@ export const mockEvents: Event[] = [
 ];
 */
 
-// Attendance records might still be useful as mock for now, or can be moved to Firebase later.
-export const mockAttendanceRecords: AttendanceRecord[] = [
-  // Example record, can be populated dynamically
-  // {
-  //   id: 'att1',
-  //   eventId: 'event1', // Assuming event1 has passed for this example
-  //   userId: 'user2',
-  //   timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  //   status: 'present',
-  // },
-];
+// mockAttendanceRecords is no longer needed as primary source; data will be fetched from Firestore.
+// This can be removed or kept empty.
+export const mockAttendanceRecords: AttendanceRecord[] = [];
