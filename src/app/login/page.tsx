@@ -8,7 +8,7 @@ import { AuthForm } from "@/components/auth/auth-form";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { loginAction } from "@/app/actions/auth"; // Assuming server action might be used for pre-validation or similar
-import { Fingerprint } from "lucide-react";
+import { Fingerprint, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
