@@ -7,6 +7,7 @@ import { EventCard } from './event-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CalendarOff } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 
 interface EventListProps {
   events: Event[];
