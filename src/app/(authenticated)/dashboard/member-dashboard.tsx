@@ -37,7 +37,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
     try {
       const fetchedEvents = await getEvents();
-      // console.log("Fetched Events for Member Dashboard:", fetchedEvents); // For debugging
+      // console.log("Fetched Events for Member Dashboard:", fetchedEvents);
       setAllEvents(fetchedEvents);
     } catch (error) {
         console.error("Failed to fetch events for member dashboard:", error);
@@ -63,51 +63,44 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   
   const handleAttendanceMarked = () => {
     if (user) {
-      fetchDashboardData(); // Re-fetch all data if attendance is marked
+      fetchDashboardData(); 
     }
   };
 
   const upcomingAndOngoingEvents = allEvents.filter(event => {
     const now = new Date();
+    if (!event.startDate || !isValid(parseISO(event.startDate))) {
+        return false;
+    }
     const startDate = parseISO(event.startDate);
     
-    if (!isValid(startDate)) {
-        // console.warn(`Invalid startDate for event: ${event.name} (${event.id}). Skipping.`);
-        return false; 
-    }
-
     if (isFuture(startDate)) {
-        return true; // Event is strictly in the future
+        return true; 
     }
 
-    // Event has started or is starting now
     if (event.endDate) {
-        const endDate = parseISO(event.endDate);
-        if (isValid(endDate)) {
-            return isWithinInterval(now, { start: startDate, end: endDate }); // Ongoing with a defined end
-        } else {
-            // console.warn(`Invalid endDate for event: ${event.name} (${event.id}) but startDate is valid and past/current. Treating as ongoing.`);
-            return true; // Start date is past/current, end date invalid, consider ongoing
+        if (!isValid(parseISO(event.endDate))) {
+            return true; 
         }
+        const endDate = parseISO(event.endDate);
+        return isWithinInterval(now, { start: startDate, end: endDate }); 
     }
     
-    // No end date, and start date is past or current
-    return true; // Ongoing indefinitely
+    return true; 
   }).sort((a,b) => {
       const dateA = parseISO(a.startDate);
       const dateB = parseISO(b.startDate);
       if (!isValid(dateA) || !isValid(dateB)) return 0;
-      return dateA.getTime() - dateB.getTime(); // Earliest first
+      return dateA.getTime() - dateB.getTime(); 
   });
 
   const attendedPastEvents = allEvents.filter(event => {
+    if (!event.startDate || !isValid(parseISO(event.startDate))) {
+        return false;
+    }
     const eventStartDate = parseISO(event.startDate);
-    if (!isValid(eventStartDate)) return false;
-
-    const isEventInPastOrCurrent = !isFuture(eventStartDate); // Could be past or current day
     
-    // To be strictly "past", we might want to check if endDate (if exists) is also past.
-    // For simplicity here, if it's not strictly future, we consider it eligible for history if attended.
+    const isEventInPastOrCurrent = !isFuture(eventStartDate);
     
     const hasAttended = user?.id
       ? userAttendanceRecords.some(ar => ar.eventId === event.id && ar.userId === user.id && ar.status === 'present')
@@ -117,7 +110,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     const dateA = parseISO(a.startDate);
     const dateB = parseISO(b.startDate);
     if (!isValid(dateA) || !isValid(dateB)) return 0;
-    return dateB.getTime() - dateA.getTime(); // Most recent attended first
+    return dateB.getTime() - dateA.getTime(); 
   });
 
 
@@ -162,7 +155,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 userAttendanceRecords={userAttendanceRecords}
                 onAttendanceMarked={handleAttendanceMarked}
                 isLoading={isLoading}
-                listTitle="" // Title is now in CardHeader
+                listTitle="" 
                 emptyStateTitle="No Upcoming or Ongoing Events"
                 emptyStateMessage="There are currently no upcoming or ongoing events scheduled. Please check back later!"
             />
@@ -183,14 +176,29 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="ml-2">Loading your event history...</p>
             </div>
-          ) : attendedPastEvents.length > 0 ? (
+          ) : !isLoading && attendedPastEvents.length > 0 ? (
             <ScrollArea className="h-[400px] pr-3"> 
               <ul className="space-y-4">
                 {attendedPastEvents.map(event => {
                   const attendance = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user.id);
-                  const eventStartDate = parseISO(event.startDate);
-                  const eventEndDate = event.endDate ? parseISO(event.endDate) : null;
-                  const attendanceTimestamp = attendance ? parseISO(attendance.timestamp) : null;
+                  
+                  let formattedEventDate = "Date unavailable";
+                  if (event.startDate && isValid(parseISO(event.startDate))) {
+                    const eventStartDateObj = parseISO(event.startDate);
+                    formattedEventDate = format(eventStartDateObj, "MMM d, yyyy, h:mm a");
+                    if (event.endDate && isValid(parseISO(event.endDate))) {
+                        const eventEndDateObj = parseISO(event.endDate);
+                        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
+                            (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
+                             formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
+                        }
+                    }
+                  }
+                  
+                  let formattedAttendanceTime = "Not available";
+                  if (attendance?.timestamp && isValid(parseISO(attendance.timestamp))) {
+                    formattedAttendanceTime = format(parseISO(attendance.timestamp), "MMM d, yyyy, h:mm a");
+                  }
 
                   return (
                     <li key={event.id} className="p-4 border rounded-lg shadow-sm hover:bg-muted/50 transition-colors">
@@ -198,17 +206,16 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                       <div className="mt-1 space-y-0.5">
                         <p className="text-sm text-muted-foreground flex items-center">
                           <CalendarDays className="mr-1.5 h-4 w-4 shrink-0" />
-                          {isValid(eventStartDate) ? format(eventStartDate, "MMM d, yyyy, h:mm a") : "Date unavailable"}
-                          {eventEndDate && isValid(eventEndDate) ? ` - ${format(eventEndDate, "h:mm a")}` : ""}
+                          {formattedEventDate}
                         </p>
                         <p className="text-sm text-muted-foreground flex items-center">
                           <MapPin className="mr-1.5 h-4 w-4 shrink-0" />
                           {event.location || "Location not specified"}
                         </p>
-                        {attendanceTimestamp && isValid(attendanceTimestamp) && (
+                        {attendance && (
                           <p className="text-xs text-accent-foreground bg-accent/20 px-2 py-1 rounded-md inline-flex items-center mt-1.5">
                             <CheckSquare className="mr-1.5 h-3.5 w-3.5 text-accent" />
-                            You attended: {format(attendanceTimestamp, "MMM d, yyyy, h:mm a")}
+                            You attended: {formattedAttendanceTime}
                           </p>
                         )}
                       </div>
@@ -217,7 +224,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 })}
               </ul>
             </ScrollArea>
-          ) : (
+          ) : ( 
             <p className="text-muted-foreground text-center py-6">You have no past attended events recorded.</p>
           )}
         </CardContent>
@@ -238,3 +245,4 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   );
 }
 
+    
