@@ -13,8 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
-import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp';
-import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; // firebaseAuth for direct use
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth'; // direct auth functions
 import { createUserProfile, updateUserProfile } from '@/services/userService';
 import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +23,7 @@ import { MemberEditForm, type MemberEditFormValues } from '@/components/members/
 import { MemberAddForm, type MemberAddFormValues } from '@/components/members/member-add-form';
 
 export default function MemberManagementPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, performAdminAuthOperation, setAuthOperationInProgress } = useAuth(); // Get performAdminAuthOperation
   const router = useRouter();
   const { toast } = useToast();
 
@@ -114,33 +114,32 @@ export default function MemberManagementPage() {
 
   const handleAddFormSubmit = async (data: MemberAddFormValues) => {
     setIsSubmitting(true);
-    const originalAuthUserUID = firebaseAuth.currentUser?.uid; // Capture admin's UID
+    const originalAuthUserUID = firebaseAuth.currentUser?.uid;
 
     try {
-      // Create the new user in Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(firebaseAuth, data.email, data.password);
-      const newAuthUser = userCredential.user;
+      await performAdminAuthOperation(async () => {
+        // This block runs within the performAdminAuthOperation wrapper from useAuth
+        const userCredential = await createUserWithEmailAndPassword(firebaseAuth, data.email, data.password);
+        const newAuthUser = userCredential.user;
 
-      // Create the user profile in Firestore
-      await createUserProfile(
-        newAuthUser.uid,
-        data.email,
-        data.name,
-        data.role,
-        undefined, // photoUrl (will use placeholder)
-        // Add other fields like NIC, DOB if they are part of MemberAddFormValues and form
-        // For now, keeping it simple as per the form
-      );
-      
+        await createUserProfile(
+          newAuthUser.uid,
+          data.email,
+          data.name,
+          data.role 
+          // Other fields like NIC, DOB can be added here if collected by MemberAddForm
+        );
+        
+        // If Firebase auth state changed to the new user, sign them out
+        // to attempt to restore the admin's session via onAuthStateChanged.
+        if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
+          await signOut(firebaseAuth);
+        }
+      });
+
       toast({ title: "Member Created", description: `${data.name} has been successfully added.` });
       fetchMembers(); // Refresh member list
       setIsAddFormOpen(false); // Close dialog
-
-      // If Firebase auth state changed to the new user, sign them out
-      // to attempt to restore the admin's session via onAuthStateChanged.
-      if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
-        await signOut(firebaseAuth);
-      }
 
     } catch (error: any) {
       console.error("Failed to add member:", error);
@@ -151,29 +150,20 @@ export default function MemberManagementPage() {
         errorMessage = "The password is too weak. It must be at least 6 characters.";
       }
       toast({ title: "Error Adding Member", description: errorMessage, variant: "destructive" });
-
-      // Defensive sign-out if error occurred and current user IS the one being created
-      if (firebaseAuth.currentUser && firebaseAuth.currentUser.email === data.email) {
-          try {
-            await signOut(firebaseAuth);
-          } catch (signOutError) {
-            console.error("Error during defensive sign-out after add member error:", signOutError);
-          }
-      }
+      // performAdminAuthOperation already handles resetting flags on error
     } finally {
       setIsSubmitting(false);
-      // Allow a moment for auth state changes to propagate
-      await new Promise(resolve => setTimeout(resolve, 500)); 
-
-      // Check if the current user is still the original admin. If not, inform the admin.
-      // This means onAuthStateChanged might not have restored the admin session yet, or it was lost.
+      // A small delay can sometimes help ensure auth state propagation before UI check
+      await new Promise(resolve => setTimeout(resolve, 200)); 
       if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
-        toast({
-          title: "Session Notice",
-          description: "Your admin session may have been affected by creating a new user. If you experience issues, please log out and log back in to ensure your session is correctly restored.",
-          variant: "destructive", 
-          duration: 15000, 
-        });
+        // This check might be less necessary if performAdminAuthOperation is robust,
+        // but can be a fallback warning.
+        // toast({
+        //   title: "Session Notice",
+        //   description: "Admin session re-validated. If issues persist, please refresh.",
+        //   variant: "default", 
+        //   duration: 7000, 
+        // });
       }
     }
   };
@@ -239,6 +229,7 @@ export default function MemberManagementPage() {
       return;
     }
     setIsImporting(true);
+    setAuthOperationInProgress(true); // Signal start of a potentially long auth-affecting operation
     const originalAuthUserUID = firebaseAuth.currentUser?.uid;
 
     const reader = new FileReader();
@@ -247,6 +238,7 @@ export default function MemberManagementPage() {
       if (!csvText) {
         toast({ title: "Error Reading File", description: "Could not read the CSV file.", variant: "destructive" });
         setIsImporting(false);
+        setAuthOperationInProgress(false);
         return;
       }
 
@@ -260,6 +252,7 @@ export default function MemberManagementPage() {
           duration: 10000,
         });
         setIsImporting(false);
+        setAuthOperationInProgress(false);
         return;
       }
 
@@ -293,6 +286,9 @@ export default function MemberManagementPage() {
         }
         
         try {
+          // Each creation is an auth operation that might temporarily change context
+          // This part is tricky with the global `setAuthOperationInProgress` if not using a wrapper per user.
+          // For a loop, it's better to set the flag once for the whole batch.
           const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
           const newAuthUser = userCredential.user;
           
@@ -341,11 +337,15 @@ export default function MemberManagementPage() {
             }
           }
         }
-      }
+      } // End of loop
       
-      fetchMembers(); // Refresh member list *after* loop, *before* final toasts
+      // After the loop, onAuthStateChanged should eventually restore admin session
+      // and setAuthOperationInProgress to false.
+      fetchMembers(); 
 
-      await new Promise(resolve => setTimeout(resolve, 500)); 
+      // Delay slightly before final toasts to allow auth state to settle
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
+
 
       let toastTitle = "Import Process Complete";
       let toastDescription = `${successCount} users imported.`;
@@ -366,17 +366,15 @@ export default function MemberManagementPage() {
           console.warn("--- End of Import Summary ---");
       }
       
-      // This toast for the overall import result should come AFTER the session notice if applicable.
       const showSessionNotice = originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID);
 
       if (showSessionNotice) {
         toast({
           title: "Session Notice (Import Related)",
-          description: "Your admin session may have been affected by importing users. If you experience issues, please log out and log back in to ensure your session is correctly restored.",
+          description: "Your admin session may have been affected by importing users. If you experience issues, please log out and log back in.",
           variant: "destructive", 
           duration: 15000, 
         });
-        // Delay the main import result toast slightly if session notice is shown
         setTimeout(() => {
             toast({ title: toastTitle, description: toastDescription, variant: toastVariant, duration: 10000 });
         }, 500); 
@@ -387,10 +385,12 @@ export default function MemberManagementPage() {
       setCsvFile(null);
       if(fileInputRef.current) fileInputRef.current.value = ""; 
       setIsImporting(false);
+      // setAuthOperationInProgress(false); // Let onAuthStateChanged handle this final reset
     };
     reader.onerror = () => {
         toast({ title: "Error Reading File", description: "An error occurred while trying to read the file.", variant: "destructive" });
         setIsImporting(false);
+        setAuthOperationInProgress(false); // Reset on direct file read error
     }
     reader.readAsText(csvFile);
   };
@@ -435,9 +435,9 @@ export default function MemberManagementPage() {
                     onChange={handleFileChange} 
                     ref={fileInputRef}
                     className="flex-grow"
-                    disabled={isImporting}
+                    disabled={isImporting || isSubmitting}
                 />
-                <Button onClick={handleImportMembers} disabled={!csvFile || isImporting} className="w-full sm:w-auto">
+                <Button onClick={handleImportMembers} disabled={!csvFile || isImporting || isSubmitting} className="w-full sm:w-auto">
                     {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
                     {isImporting ? "Importing..." : "Import Users"}
                 </Button>
@@ -473,7 +473,7 @@ export default function MemberManagementPage() {
                 </div>
                 <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
                     <DialogTrigger asChild>
-                        <Button onClick={handleOpenAddForm} className="w-full sm:w-auto">
+                        <Button onClick={handleOpenAddForm} className="w-full sm:w-auto" disabled={isImporting || isSubmitting}>
                             <PlusCircle className="mr-2 h-4 w-4" /> Add New Member
                         </Button>
                     </DialogTrigger>
@@ -496,6 +496,7 @@ export default function MemberManagementPage() {
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={isImporting || isSubmitting}
             />
           </div>
         </CardHeader>
@@ -575,6 +576,3 @@ export default function MemberManagementPage() {
     </div>
   );
 }
-
-
-    
