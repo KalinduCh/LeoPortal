@@ -223,45 +223,61 @@ export default function MemberManagementPage() {
           );
           
           if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
-            await signOut(firebaseAuth);
+            await signOut(firebaseAuth); // Sign out the newly created user to keep admin session
           }
           successCount++;
         } catch (error: any) {
           failureCount++;
-          const firebaseError = error.code ? `${error.code}: ${error.message}` : String(error);
-          errors.push(`Failed to import ${email}: ${firebaseError}`);
+          if (error.code === 'auth/email-already-in-use') {
+            errors.push(`Skipped: Email ${email} already exists in Firebase Authentication.`);
+          } else {
+            const firebaseError = error.code ? `${error.code}: ${error.message}` : String(error);
+            errors.push(`Failed to import ${email}: ${firebaseError}`);
+          }
           console.error(`Failed to import ${email}:`, error);
+          // If the error was creating the auth user, and somehow that user (who failed to create)
+          // became the current user (very unlikely), sign them out.
           if (firebaseAuth.currentUser && firebaseAuth.currentUser.email === email) {
             await signOut(firebaseAuth);
           }
         }
       }
       
+      // Attempt to re-establish admin session if it was lost, though signOut should prevent this.
+      // This part is a bit tricky without forcing admin to re-login.
+      // Best effort: The signOut above should keep the original admin logged in.
+      // We'll rely on the onAuthStateChanged listener in useAuth to reflect the correct admin user.
+      // A small delay might allow Firebase auth state to propagate.
       await new Promise(resolve => setTimeout(resolve, 1000)); 
 
+
       if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
+        // This state implies the admin's session was lost or changed.
+        // The toast below is important. Admin might need to log in again.
         toast({
           title: "Session Notice",
-          description: "Import process complete. Your session may have been affected. If you experience issues, please log out and log back in.",
-          variant: "default",
-          duration: 10000,
+          description: "Import process complete. Your session may have been affected by the import process. If you experience issues, please log out and log back in.",
+          variant: "default", // Or destructive if considered a major issue
+          duration: 10000, // Longer duration
         });
       } else {
+         // Admin session appears intact.
          toast({
             title: "Import Complete",
-            description: `${successCount} users imported. ${failureCount} failed. ${errors.length > 0 ? 'Check console for error details.' : ''}`,
-            variant: successCount > 0 && failureCount === 0 ? "default" : "destructive",
-            duration: 10000, 
+            description: `${successCount} users imported. ${failureCount} failed. ${errors.length > 0 ? 'Check console/details for errors.' : ''}`,
+            variant: successCount > 0 && failureCount === 0 ? "default" : (failureCount > 0 ? "destructive" : "default"),
+            duration: 10000, // Longer duration for errors
         });
       }
       
       if (errors.length > 0) {
-        console.warn("Import errors:", errors);
+        console.warn("Import errors/skipped users:", errors);
+        // Optionally, display these errors in a more user-friendly way (e.g., a dialog)
       }
 
       setCsvFile(null);
-      if(fileInputRef.current) fileInputRef.current.value = "";
-      fetchMembers(); 
+      if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+      fetchMembers(); // Refresh the member list
       setIsImporting(false);
     };
     reader.onerror = () => {
@@ -332,7 +348,7 @@ export default function MemberManagementPage() {
                         <li>- <strong>Gender</strong>: e.g., "Male", "Female".</li>
                         <li>- <strong>MobileNumber</strong>: User's phone number.</li>
                     </ul>
-                    Other columns will be ignored.
+                    Users with emails already in Firebase Authentication will be skipped.
                 </AlertDescription>
             </Alert>
         </CardContent>
@@ -430,3 +446,4 @@ export default function MemberManagementPage() {
     </div>
   );
 }
+
