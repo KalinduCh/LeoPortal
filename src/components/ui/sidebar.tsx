@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -535,62 +536,76 @@ const sidebarMenuButtonVariants = cva(
 
 const SidebarMenuButton = React.forwardRef<
   HTMLButtonElement,
-  React.ComponentProps<"button"> & {
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { // Changed from ComponentProps<"button">
     asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
   } & VariantProps<typeof sidebarMenuButtonVariants>
 >(
   (
-    {
-      asChild = false,
+    initialProps, // All props passed to SidebarMenuButton
+    ref
+  ) => {
+    const {
+      asChild: propAsChild = false, // Prop passed to SidebarMenuButton (e.g., from Link asChild)
       isActive = false,
       variant = "default",
       size = "default",
       tooltip,
       className,
-      ...props
-    },
-    ref
-  ) => {
-    const Comp = asChild ? Slot : "button"
-    const { isMobile, state } = useSidebar()
+      children, // Destructure children explicitly
+      ...restProps // All other props (like href from Link, or event handlers)
+    } = initialProps;
 
-    const button = (
+    const Comp = propAsChild ? Slot : "button";
+    const { isMobile, state } = useSidebar();
+
+    const elementToRender = (
       <Comp
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
-        className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
-        {...props}
-      />
-    )
+        className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
+        {...restProps} // Spread restProps which includes href, onClick, etc.
+      >
+        {children} {/* Render children here */}
+      </Comp>
+    );
 
     if (!tooltip) {
-      return button
+      return elementToRender;
     }
 
-    if (typeof tooltip === "string") {
-      tooltip = {
-        children: tooltip,
-      }
-    }
+    const tooltipContentProps = typeof tooltip === 'string' ? { children: tooltip } : tooltip;
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        {/*
+          If SidebarMenuButton is already a Slot (propAsChild is true, likely due to <Link asChild>),
+          then TooltipTrigger should NOT use asChild. It will render its own button,
+          and elementToRender (the Slot from Link) will be its child.
+          This prevents the Slot (which would become the <a> tag) from receiving asChild from TooltipTrigger
+          and trying to pass it to its own children (icon and span).
+
+          If SidebarMenuButton is a regular button (propAsChild is false),
+          then TooltipTrigger CAN use asChild to make that button the trigger.
+        */}
+        <TooltipTrigger asChild={!propAsChild}>
+          {elementToRender}
+        </TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
           hidden={state !== "collapsed" || isMobile}
-          {...tooltip}
+          {...tooltipContentProps}
         />
       </Tooltip>
-    )
+    );
   }
 )
 SidebarMenuButton.displayName = "SidebarMenuButton"
+
 
 const SidebarMenuAction = React.forwardRef<
   HTMLButtonElement,
@@ -707,12 +722,12 @@ SidebarMenuSubItem.displayName = "SidebarMenuSubItem"
 
 const SidebarMenuSubButton = React.forwardRef<
   HTMLAnchorElement,
-  React.ComponentProps<"a"> & {
+  React.AnchorHTMLAttributes<HTMLAnchorElement> & { // Changed from ComponentProps<"a">
     asChild?: boolean
     size?: "sm" | "md"
     isActive?: boolean
   }
->(({ asChild = false, size = "md", isActive, className, ...props }, ref) => {
+>(({ asChild = false, size = "md", isActive, className, children, ...props }, ref) => { // Added children to destructure
   const Comp = asChild ? Slot : "a"
 
   return (
@@ -730,7 +745,9 @@ const SidebarMenuSubButton = React.forwardRef<
         className
       )}
       {...props}
-    />
+    >
+      {children} {/* Pass children here */}
+    </Comp>
   )
 })
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton"
