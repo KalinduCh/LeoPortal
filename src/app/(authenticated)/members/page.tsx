@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Removed DialogTrigger as it's not directly used here for edit.
 import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -107,18 +107,32 @@ export default function MemberManagementPage() {
   };
 
   const handleDeleteMember = async (memberId: string) => {
-    if(confirm("Are you sure you want to remove this member's profile from the database? This does NOT delete their login credentials but removes their app profile data.")) {
+    console.log(`Attempting to delete member with ID: ${memberId}`);
+    if (!memberId) {
+        toast({ title: "Error", description: "Cannot delete member: Member ID is missing.", variant: "destructive"});
+        console.error("handleDeleteMember: memberId is undefined or empty.");
+        return;
+    }
+
+    if (confirm("Are you sure you want to remove this member's profile from the database? This does NOT delete their login credentials but removes their app profile data.")) {
         setIsSubmitting(true); 
         try {
             const memberDocRef = doc(db, "users", memberId);
+            console.log("Firestore document reference for deletion:", memberDocRef.path);
             await deleteDoc(memberDocRef);
             toast({title: "Member Profile Removed", description: "The member's profile has been removed from Firestore."});
             fetchMembers(); 
-        } catch (error) {
-            console.error("Error deleting member profile:", error);
-            toast({title: "Error", description: "Could not remove member profile.", variant: "destructive"});
+        } catch (error: any) {
+            console.error(`Failed to delete member profile for ID ${memberId}:`, error);
+            let description = "Could not remove member profile.";
+            if (error.code === 'permission-denied') {
+                description += " This might be due to Firestore security rules.";
+            }
+            toast({title: "Error Deleting Profile", description, variant: "destructive"});
         }
         setIsSubmitting(false);
+    } else {
+        console.log(`Deletion cancelled for member ID: ${memberId}`);
     }
   };
 
@@ -172,8 +186,9 @@ export default function MemberManagementPage() {
       if (!requiredHeaders.every(h => header.includes(h))) {
         toast({
           title: "Invalid CSV Format",
-          description: `CSV must contain headers: ${requiredHeaders.join(", ")}.`,
-          variant: "destructive"
+          description: `CSV must contain headers: ${requiredHeaders.join(", ")}. Found: ${header.join(", ")}`,
+          variant: "destructive",
+          duration: 10000,
         });
         setIsImporting(false);
         return;
@@ -182,7 +197,7 @@ export default function MemberManagementPage() {
       let successCount = 0;
       let skippedCount = 0;
       let errorCount = 0;
-      const importMessages: string[] = []; // Stores messages for console/toast summary
+      const importMessages: string[] = []; 
 
       for (const row of data) {
         const email = row["Email"];
@@ -198,11 +213,13 @@ export default function MemberManagementPage() {
         if (!email || !password || !name || !type || !nic) {
           skippedCount++;
           importMessages.push(`Skipped (Missing Data): Row for ${email || 'Unknown Email'} had missing essential data (Email, NIC, Name, Type).`);
+          console.warn(`Skipped (Missing Data): Row for ${email || 'Unknown Email'} had missing essential data. Row:`, row);
           continue;
         }
         if (password.length < 6) {
           skippedCount++;
           importMessages.push(`Skipped (Weak Password for ${email}): NIC (password) must be at least 6 characters. Value: '${password}'`);
+          console.warn(`Skipped (Weak Password for ${email}): NIC (password) must be at least 6 characters. Value: '${password}'`);
           continue;
         }
         
@@ -215,7 +232,7 @@ export default function MemberManagementPage() {
             email, 
             name, 
             role, 
-            undefined, 
+            undefined, // photoUrl - will use default
             nic,
             dateOfBirth,
             gender,
@@ -223,35 +240,43 @@ export default function MemberManagementPage() {
           );
           
           if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
+            // Important: Sign out the newly created user to keep admin session
             await signOut(firebaseAuth); 
+            importMessages.push(`Successfully imported and signed out ${email}.`);
+          } else {
+            importMessages.push(`Successfully imported ${email} (admin session was not current).`);
           }
           successCount++;
         } catch (error: any) {
           if (error.code === 'auth/email-already-in-use') {
             skippedCount++;
             importMessages.push(`Skipped (Email Exists): ${email}`);
+            console.warn(`Skipped (Email Exists): ${email}`);
           } else if (error.code === 'auth/weak-password') {
             skippedCount++;
-            importMessages.push(`Skipped (Weak Password for ${email}): NIC (password) must be at least 6 characters.`);
+            importMessages.push(`Skipped (Weak Password for ${email}): NIC (password) must be at least 6 characters. Password provided: ${password}`);
+            console.warn(`Skipped (Weak Password for ${email}): Password provided: ${password}`);
           } else {
             errorCount++;
             const firebaseErrorMsg = error.message || String(error);
             importMessages.push(`Error importing ${email}: ${firebaseErrorMsg.substring(0,150)}...`);
             console.error(`Full error for ${email}:`, error);
 
+            // If an error occurs during user creation, and somehow the current auth state IS the user being created, sign them out.
             if (firebaseAuth.currentUser && firebaseAuth.currentUser.email === email) {
               try {
                 await signOut(firebaseAuth);
-                importMessages.push(`Defensive sign-out attempted for ${email}.`);
+                importMessages.push(`Defensive sign-out attempted for ${email} after error.`);
               } catch (signOutError) {
-                console.error(`Error during defensive sign-out for ${email}:`, signOutError);
-                importMessages.push(`Error during defensive sign-out for ${email}.`);
+                console.error(`Error during defensive sign-out for ${email} after main error:`, signOutError);
+                importMessages.push(`Error during defensive sign-out for ${email} after main error.`);
               }
             }
           }
         }
       }
       
+      // Brief delay to ensure all async operations (like signOut) have a chance to settle
       await new Promise(resolve => setTimeout(resolve, 500)); 
 
       let toastTitle = "Import Process Complete";
@@ -268,16 +293,20 @@ export default function MemberManagementPage() {
       
       if (skippedCount > 0 || errorCount > 0) {
           toastDescription += " Check browser console for details.";
-          console.warn("Import Summary & Details:", importMessages);
+          console.warn("--- Import Summary & Details ---");
+          importMessages.forEach(msg => console.log(msg));
+          console.warn("--- End of Import Summary ---");
       }
       
+      // Check if admin's session was inadvertently changed
       if (originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID)) {
         toast({
           title: "Session Notice (Import Related)",
-          description: "Your admin session may have been affected by the import. If issues persist, please log out and log back in.",
+          description: "Your admin session may have been affected by the import. If issues persist, please log out and log back in to restore your session.",
           variant: "destructive", 
           duration: 15000, 
         });
+        // Delay the main summary toast if the session notice is shown
         setTimeout(() => {
             toast({ title: toastTitle, description: toastDescription, variant: toastVariant, duration: 10000 });
         }, 500); 
