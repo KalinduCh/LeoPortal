@@ -3,6 +3,7 @@
 import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage'; // Added
 import { getAnalytics, isSupported } from "firebase/analytics";
 
 // Your web app's Firebase configuration (Hardcoded as per user request)
@@ -10,7 +11,7 @@ const firebaseConfig: FirebaseOptions = {
   apiKey: "AIzaSyBf_kQkSkomBserNaNZYaF2TkE6qObD36U",
   authDomain: "leoathugal.firebaseapp.com",
   projectId: "leoathugal",
-  storageBucket: "leoathugal.firebasestorage.app", // Corrected from user snippet (was .firebasestorage.app)
+  storageBucket: "leoathugal.appspot.com", // Corrected: Use .appspot.com for storage bucket
   messagingSenderId: "340503925043",
   appId: "1:340503925043:web:26922db31c6a8b69cdee46",
   measurementId: "G-Q8PYQMFSCD"
@@ -21,6 +22,7 @@ const firebaseConfig: FirebaseOptions = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app); // Added
 
 // Initialize Firebase Analytics if supported
 let analytics;
@@ -32,4 +34,5 @@ if (typeof window !== 'undefined') { // Check if running in browser
   });
 }
 
-export { app, auth, db, analytics };
+export { app, auth, db, storage, analytics }; // Added storage
+

@@ -2,7 +2,7 @@
 // src/components/profile/profile-card.tsx
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,22 +12,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Mail, User as UserIcon, Shield, Edit3, UploadCloud, Briefcase, Calendar as CalendarIconLucide, Phone, Smile } from 'lucide-react';
+import { Mail, User as UserIcon, Shield, Edit3, UploadCloud, Briefcase, Calendar as CalendarIconLucide, Phone, Smile, Loader2 } from 'lucide-react';
 import type { User } from '@/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format, parseISO, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { storage } from '@/lib/firebase/clientApp'; // Import storage
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useToast } from '@/hooks/use-toast';
 
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   nic: z.string().optional(),
-  dateOfBirth: z.string().optional(), // Storing as string, can be refined with date validation
+  dateOfBirth: z.string().optional(), 
   gender: z.string().optional(),
   mobileNumber: z.string().optional(),
-  // photoUrl is handled separately
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -35,11 +37,16 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 interface ProfileCardProps {
   user: User;
   onUpdateProfile: (updatedData: Partial<User>) => Promise<void>;
-  isUpdatingProfile: boolean;
+  isUpdatingProfile: boolean; // This prop indicates if the parent page is handling the overall update
 }
 
-export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: ProfileCardProps) {
+export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParentUpdating }: ProfileCardProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(user.photoUrl || null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -60,34 +67,69 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
       gender: user.gender || "",
       mobileNumber: user.mobileNumber || "",
     });
-  }, [user, form, isEditing]); // Reset form when user data changes or edit mode toggles
+    if (!isEditing) { // Reset preview if not editing or if user data changes
+        setImagePreviewUrl(user.photoUrl || null);
+        setSelectedFile(null);
+    }
+  }, [user, form, isEditing]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({ title: "File Too Large", description: "Profile image must be less than 5MB.", variant: "destructive" });
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        toast({ title: "Invalid File Type", description: "Please select an image file.", variant: "destructive" });
+        return;
+      }
+      setSelectedFile(file);
+      setImagePreviewUrl(URL.createObjectURL(file));
+    }
+  };
 
   const handleFormSubmit = async (values: ProfileFormValues) => {
-    // Ensure dateOfBirth is formatted as "yyyy-MM-dd" string if it's a Date object
-    // or keep it as string if it already is (or undefined if empty)
+    let finalPhotoUrl = user.photoUrl;
+
+    if (selectedFile) {
+      setIsUploadingImage(true);
+      try {
+        const imageRef = storageRef(storage, `profile_images/${user.id}/${selectedFile.name}`);
+        const snapshot = await uploadBytes(imageRef, selectedFile);
+        finalPhotoUrl = await getDownloadURL(snapshot.ref);
+        toast({ title: "Image Uploaded", description: "Profile picture updated successfully." });
+      } catch (error) {
+        console.error("Error uploading image:", error);
+        toast({ title: "Image Upload Failed", description: "Could not upload new profile picture. Please try again.", variant: "destructive" });
+        setIsUploadingImage(false);
+        return; // Don't proceed with profile update if image upload fails
+      }
+      setIsUploadingImage(false);
+    }
+    
     let dobToSave: string | undefined = undefined;
     if (values.dateOfBirth) {
         if (values.dateOfBirth instanceof Date) {
             dobToSave = format(values.dateOfBirth, "yyyy-MM-dd");
         } else {
-            // If it's already a string, try to parse and reformat to ensure consistency
             const parsedFromString = parseISO(values.dateOfBirth);
             if (isValid(parsedFromString)) {
                 dobToSave = format(parsedFromString, "yyyy-MM-dd");
             } else {
-                // If string is not valid ISO, consider it invalid or handle as per requirements
-                // For now, we'll pass it as is if it's not empty, or handle validation earlier
-                dobToSave = values.dateOfBirth; // Or set to undefined if invalid strings are not allowed
+                dobToSave = values.dateOfBirth; 
             }
         }
     }
     
     await onUpdateProfile({
-      id: user.id, // pass id for service to know which user to update
+      id: user.id, 
       ...values,
+      photoUrl: finalPhotoUrl,
       dateOfBirth: dobToSave,
     });
-    setIsEditing(false); // Exit edit mode on successful submission
+    setIsEditing(false); 
+    setSelectedFile(null); // Clear selected file after successful update
   };
 
   const getInitials = (name?: string) => {
@@ -97,7 +139,6 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
     return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   };
   
-  // For displaying Date of Birth in non-edit mode
   let displayFormattedDoB: string | undefined = undefined;
   if (user.dateOfBirth && typeof user.dateOfBirth === 'string') {
     const parsedDate = parseISO(user.dateOfBirth);
@@ -106,7 +147,6 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
     }
   }
   
-  // For the Calendar component in edit mode
   const selectedDateForPicker = form.watch("dateOfBirth");
   let dateForPicker: Date | undefined = undefined;
   if (selectedDateForPicker) {
@@ -120,22 +160,38 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
     }
   }
 
+  const currentLoadingState = isParentUpdating || isUploadingImage;
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
       <CardHeader className="text-center">
         <div className="relative mx-auto w-32 h-32 mb-4">
           <Avatar className="w-32 h-32 border-4 border-primary shadow-md">
-            <AvatarImage src={user.photoUrl} alt={user.name} data-ai-hint="profile large_avatar" />
+            <AvatarImage src={imagePreviewUrl || user.photoUrl} alt={user.name} data-ai-hint="profile large_avatar" />
             <AvatarFallback className="text-4xl bg-primary/20 text-primary font-bold">
               {getInitials(user.name)}
             </AvatarFallback>
           </Avatar>
           {isEditing && (
-            <Button variant="outline" size="icon" className="absolute bottom-0 right-0 rounded-full bg-background hover:bg-accent" disabled>
-              <UploadCloud className="h-5 w-5" />
-              <span className="sr-only">Upload new photo (disabled)</span>
-            </Button>
+            <>
+              <input 
+                type="file" 
+                accept="image/*" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                className="hidden" 
+              />
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="absolute bottom-0 right-0 rounded-full bg-background hover:bg-accent" 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={currentLoadingState}
+              >
+                <UploadCloud className="h-5 w-5" />
+                <span className="sr-only">Upload new photo</span>
+              </Button>
+            </>
           )}
         </div>
         <CardTitle className="text-3xl font-headline">{user.name}</CardTitle>
@@ -152,7 +208,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Full Name</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl><Input {...field} disabled={currentLoadingState} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -168,7 +224,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>NIC</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl><Input {...field} disabled={currentLoadingState} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -184,12 +240,13 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
                         <FormControl>
                           <Button
                             variant={"outline"}
+                            disabled={currentLoadingState}
                             className={cn(
                               "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground" // field.value here is string from form
+                              !field.value && "text-muted-foreground"
                             )}
                           >
-                            {dateForPicker ? ( // Use the parsed and validated dateForPicker for display
+                            {dateForPicker ? (
                               format(dateForPicker, "PPP")
                             ) : (
                               <span>Pick a date</span>
@@ -201,10 +258,10 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
                       <PopoverContent className="w-auto p-0" align="start">
                         <CalendarComponent
                           mode="single"
-                          selected={dateForPicker} // Pass the Date object to the calendar
-                          onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")} // Store as "yyyy-MM-dd" string
+                          selected={dateForPicker} 
+                          onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")} 
                           disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
+                            date > new Date() || date < new Date("1900-01-01") || currentLoadingState
                           }
                           initialFocus
                           captionLayout="dropdown-buttons"
@@ -223,7 +280,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gender</FormLabel>
-                    <FormControl><Input placeholder="e.g., Male, Female, Other" {...field} /></FormControl>
+                    <FormControl><Input placeholder="e.g., Male, Female, Other" {...field} disabled={currentLoadingState} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -234,15 +291,16 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile }: Profil
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Mobile Number</FormLabel>
-                    <FormControl><Input type="tel" {...field} /></FormControl>
+                    <FormControl><Input type="tel" {...field} disabled={currentLoadingState} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={isUpdatingProfile}>Cancel</Button>
-                <Button type="submit" disabled={isUpdatingProfile}>
-                  {isUpdatingProfile ? "Saving..." : "Save Changes"}
+                <Button type="button" variant="outline" onClick={() => {setIsEditing(false); setSelectedFile(null); setImagePreviewUrl(user.photoUrl || null);}} disabled={currentLoadingState}>Cancel</Button>
+                <Button type="submit" disabled={currentLoadingState}>
+                  {currentLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isUploadingImage ? "Uploading..." : (isParentUpdating ? "Saving..." : "Save Changes")}
                 </Button>
               </div>
             </form>

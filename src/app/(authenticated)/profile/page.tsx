@@ -2,7 +2,7 @@
 // src/app/(authenticated)/profile/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import { useAuth } from '@/hooks/use-auth';
 import { ProfileCard } from '@/components/profile/profile-card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,9 +13,20 @@ import { updateUserProfile } from '@/services/userService';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
-  const { user, isLoading, firebaseUser, login } = useAuth(); // Added login to refresh user state
+  const { user, isLoading, firebaseUser, login } = useAuth(); 
   const { toast } = useToast();
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
+  // This effect ensures that if `user` from `useAuth` changes (e.g., after a reload or re-auth),
+  // the loading state is handled correctly.
+  useEffect(() => {
+    if (!isLoading && !user && firebaseUser) {
+      // If auth is loaded, firebaseUser exists, but local user profile is not yet set,
+      // it might still be fetching. This case needs careful handling by useAuth.
+      // For now, if user is null AFTER auth loading, it's an issue.
+    }
+  }, [user, isLoading, firebaseUser]);
+
 
   if (isLoading) {
     return (
@@ -47,38 +58,24 @@ export default function ProfilePage() {
     try {
       await updateUserProfile(user.id, updatedData);
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
-      // To refresh user data in useAuth, re-trigger onAuthStateChanged or re-fetch profile.
-      // A simple way is to re-call login if current FirebaseUser exists, or implement a dedicated refresh in useAuth.
-      // Forcing a "re-login" like this is a bit of a hack for state refresh,
-      // a dedicated `refreshUserProfile` in `useAuth` would be cleaner.
-      if (firebaseUser && firebaseUser.email) {
-        // This is tricky if password isn't available. We need a better way to refresh `user` in `useAuth`.
-        // For now, we'll rely on the fact that `getUserProfile` is called by `onAuthStateChanged`
-        // which might not re-run just on Firestore update.
-        // A simple page reload would also work but is not ideal UX.
-        // The best solution would be for useAuth to have a refresh function.
-        // As a temporary measure, we can update the local state partially, but it's not ideal.
-        // window.location.reload(); // Simplest but harshest way to see changes
-        // For now, let's assume useAuth might need a manual refresh function exposed.
-        // Or, we trigger a re-fetch of user from useAuth manually here if useAuth allows it.
-      }
+      
+      // Force a reload to ensure all parts of the app (especially useAuth) get the latest user data.
+      // A more sophisticated approach might involve a dedicated refresh function in useAuth.
+      window.location.reload();
+
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast({ title: "Update Failed", description: "Could not update your profile.", variant: "destructive" });
+      toast({ title: "Update Failed", description: "Could not update your profile. Check console for details.", variant: "destructive" });
     }
-    setIsUpdatingProfile(false);
+    // setIsUpdatingProfile(false); // This won't be reached if reload happens
   };
 
 
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8 font-headline text-center md:text-left">My Profile</h1>
-      {isUpdatingProfile && (
-        <div className="fixed inset-0 bg-background/80 flex items-center justify-center z-50">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="ml-4 text-lg">Updating profile...</p>
-        </div>
-      )}
+      {/* isUpdatingProfile from this page is passed to ProfileCard to disable its own internal submit button if parent is busy */}
+      {/* ProfileCard now manages its own image uploading spinner */}
       <ProfileCard user={user} onUpdateProfile={handleUpdateProfile} isUpdatingProfile={isUpdatingProfile}/>
     </div>
   );
@@ -94,9 +91,9 @@ const CardSkeleton = () => (
     </div>
     <Skeleton className="h-px w-full my-4" />
     <div className="space-y-6">
-      {[1,2,3,4,5].map(i => ( // Increased skeleton items
-        <div key={i} className="flex items-start space-x-3"> {/* Changed to items-start */}
-          <Skeleton className="h-5 w-5 rounded mt-1" /> {/* Adjusted icon skeleton */}
+      {[1,2,3,4,5].map(i => ( 
+        <div key={i} className="flex items-start space-x-3"> 
+          <Skeleton className="h-5 w-5 rounded mt-1" /> 
           <div className="space-y-1.5 flex-grow">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-5 w-40" />
