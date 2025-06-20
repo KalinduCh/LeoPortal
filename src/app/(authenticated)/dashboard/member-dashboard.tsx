@@ -9,10 +9,10 @@ import { getEvents } from '@/services/eventService';
 import { getAttendanceRecordsForUser } from '@/services/attendanceService';
 import { AiChatWidget } from '@/components/ai/ai-chat-widget';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarDays, CheckSquare, MessageCircle, Loader2, History } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { CalendarDays, CheckSquare, MessageCircle, Loader2, History, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { parseISO, isFuture } from 'date-fns';
+import { parseISO, isFuture, format, isValid, isWithinInterval } from 'date-fns';
 
 interface MemberDashboardProps {
   user: User;
@@ -36,7 +36,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     setIsLoadingAttendance(true);
 
     try {
-      const fetchedEvents = await getEvents(); // Fetches all events, sorted by date already
+      const fetchedEvents = await getEvents();
+      // console.log("Fetched Events for Member Dashboard:", fetchedEvents); // For debugging
       setAllEvents(fetchedEvents);
     } catch (error) {
         console.error("Failed to fetch events for member dashboard:", error);
@@ -62,20 +63,62 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   
   const handleAttendanceMarked = () => {
     if (user) {
-      fetchDashboardData();
+      fetchDashboardData(); // Re-fetch all data if attendance is marked
     }
   };
 
-  const upcomingEvents = allEvents.filter(event => isFuture(parseISO(event.date)));
-  
+  const upcomingAndOngoingEvents = allEvents.filter(event => {
+    const now = new Date();
+    const startDate = parseISO(event.startDate);
+    
+    if (!isValid(startDate)) {
+        // console.warn(`Invalid startDate for event: ${event.name} (${event.id}). Skipping.`);
+        return false; 
+    }
+
+    if (isFuture(startDate)) {
+        return true; // Event is strictly in the future
+    }
+
+    // Event has started or is starting now
+    if (event.endDate) {
+        const endDate = parseISO(event.endDate);
+        if (isValid(endDate)) {
+            return isWithinInterval(now, { start: startDate, end: endDate }); // Ongoing with a defined end
+        } else {
+            // console.warn(`Invalid endDate for event: ${event.name} (${event.id}) but startDate is valid and past/current. Treating as ongoing.`);
+            return true; // Start date is past/current, end date invalid, consider ongoing
+        }
+    }
+    
+    // No end date, and start date is past or current
+    return true; // Ongoing indefinitely
+  }).sort((a,b) => {
+      const dateA = parseISO(a.startDate);
+      const dateB = parseISO(b.startDate);
+      if (!isValid(dateA) || !isValid(dateB)) return 0;
+      return dateA.getTime() - dateB.getTime(); // Earliest first
+  });
+
   const attendedPastEvents = allEvents.filter(event => {
-    const eventIsPast = !isFuture(parseISO(event.date));
-    // Corrected: Ensure user.id exists and attendance record matches current user and is 'present'
-    const hasAttended = user?.id 
-      ? userAttendanceRecords.some(ar => ar.eventId === event.id && ar.userId === user.id && ar.status === 'present') 
+    const eventStartDate = parseISO(event.startDate);
+    if (!isValid(eventStartDate)) return false;
+
+    const isEventInPastOrCurrent = !isFuture(eventStartDate); // Could be past or current day
+    
+    // To be strictly "past", we might want to check if endDate (if exists) is also past.
+    // For simplicity here, if it's not strictly future, we consider it eligible for history if attended.
+    
+    const hasAttended = user?.id
+      ? userAttendanceRecords.some(ar => ar.eventId === event.id && ar.userId === user.id && ar.status === 'present')
       : false;
-    return eventIsPast && hasAttended;
-  }).sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()); // Show most recent attended first
+    return isEventInPastOrCurrent && hasAttended;
+  }).sort((a, b) => {
+    const dateA = parseISO(a.startDate);
+    const dateB = parseISO(b.startDate);
+    if (!isValid(dateA) || !isValid(dateB)) return 0;
+    return dateB.getTime() - dateA.getTime(); // Most recent attended first
+  });
 
 
   const isLoading = isLoadingEvents || isLoadingAttendance;
@@ -101,61 +144,82 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle className="flex items-center font-headline">
-            <CheckSquare className="mr-2 h-6 w-6 text-primary" />
-            Events & Attendance
+            <CalendarDays className="mr-2 h-6 w-6 text-primary" />
+            Upcoming & Ongoing Events
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="upcoming">
-            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 mb-4">
-              <TabsTrigger value="upcoming">
-                <CalendarDays className="mr-2 h-4 w-4" /> Upcoming Events
-              </TabsTrigger>
-              <TabsTrigger value="history">
-                <History className="mr-2 h-4 w-4" /> My Event History
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="upcoming">
-              {isLoading && upcomingEvents.length === 0 ? (
-                 <div className="flex items-center justify-center h-40">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="ml-2">Loading upcoming events...</p>
-                 </div>
-              ) : (
-                <EventList 
-                    events={upcomingEvents} 
-                    user={user}
-                    userRole="member"
-                    userAttendanceRecords={userAttendanceRecords}
-                    onAttendanceMarked={handleAttendanceMarked}
-                    isLoading={isLoading}
-                    listTitle="Upcoming Club Activities"
-                    emptyStateTitle="No Upcoming Events"
-                    emptyStateMessage="There are currently no upcoming events scheduled. Please check back later!"
-                />
-              )}
-            </TabsContent>
-            <TabsContent value="history">
-               {isLoading && attendedPastEvents.length === 0 ? (
-                 <div className="flex items-center justify-center h-40">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="ml-2">Loading your event history...</p>
-                 </div>
-              ) : (
-                <EventList 
-                    events={attendedPastEvents} 
-                    user={user}
-                    userRole="member"
-                    userAttendanceRecords={userAttendanceRecords}
-                    onAttendanceMarked={handleAttendanceMarked} 
-                    isLoading={isLoading}
-                    listTitle="Your Attended Events"
-                    emptyStateTitle="No Attended Events Yet"
-                    emptyStateMessage="You haven't marked attendance for any past events, or no past events found."
-                />
-              )}
-            </TabsContent>
-          </Tabs>
+          {isLoading && upcomingAndOngoingEvents.length === 0 ? (
+             <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2">Loading upcoming events...</p>
+             </div>
+          ) : (
+            <EventList 
+                events={upcomingAndOngoingEvents} 
+                user={user}
+                userRole="member"
+                userAttendanceRecords={userAttendanceRecords}
+                onAttendanceMarked={handleAttendanceMarked}
+                isLoading={isLoading}
+                listTitle="" // Title is now in CardHeader
+                emptyStateTitle="No Upcoming or Ongoing Events"
+                emptyStateMessage="There are currently no upcoming or ongoing events scheduled. Please check back later!"
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center font-headline">
+            <History className="mr-2 h-6 w-6 text-primary" />
+            My Attendance History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading && attendedPastEvents.length === 0 ? (
+            <div className="flex items-center justify-center h-40">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="ml-2">Loading your event history...</p>
+            </div>
+          ) : attendedPastEvents.length > 0 ? (
+            <ScrollArea className="h-[400px] pr-3"> 
+              <ul className="space-y-4">
+                {attendedPastEvents.map(event => {
+                  const attendance = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user.id);
+                  const eventStartDate = parseISO(event.startDate);
+                  const eventEndDate = event.endDate ? parseISO(event.endDate) : null;
+                  const attendanceTimestamp = attendance ? parseISO(attendance.timestamp) : null;
+
+                  return (
+                    <li key={event.id} className="p-4 border rounded-lg shadow-sm hover:bg-muted/50 transition-colors">
+                      <h4 className="font-semibold text-md text-primary">{event.name}</h4>
+                      <div className="mt-1 space-y-0.5">
+                        <p className="text-sm text-muted-foreground flex items-center">
+                          <CalendarDays className="mr-1.5 h-4 w-4 shrink-0" />
+                          {isValid(eventStartDate) ? format(eventStartDate, "MMM d, yyyy, h:mm a") : "Date unavailable"}
+                          {eventEndDate && isValid(eventEndDate) ? ` - ${format(eventEndDate, "h:mm a")}` : ""}
+                        </p>
+                        <p className="text-sm text-muted-foreground flex items-center">
+                          <MapPin className="mr-1.5 h-4 w-4 shrink-0" />
+                          {event.location || "Location not specified"}
+                        </p>
+                        {attendanceTimestamp && isValid(attendanceTimestamp) && (
+                          <p className="text-xs text-accent-foreground bg-accent/20 px-2 py-1 rounded-md inline-flex items-center mt-1.5">
+                            <CheckSquare className="mr-1.5 h-3.5 w-3.5 text-accent" />
+                            You attended: {format(attendanceTimestamp, "MMM d, yyyy, h:mm a")}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </ScrollArea>
+          ) : (
+            <p className="text-muted-foreground text-center py-6">You have no past attended events recorded.</p>
+          )}
         </CardContent>
       </Card>
       
@@ -173,3 +237,4 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     </div>
   );
 }
+
