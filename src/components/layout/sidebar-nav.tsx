@@ -76,7 +76,7 @@ export function SidebarNav() {
                 <SidebarMenuSub>
                   {item.children.map(child => (
                     <SidebarMenuSubItem key={child.href}>
-                       <Link href={child.href}>
+                       <Link href={child.href} asChild>
                         <SidebarMenuSubButton
                           isActive={pathname === child.href || pathname.startsWith(child.href + "/")}
                         >
