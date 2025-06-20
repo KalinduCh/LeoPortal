@@ -91,20 +91,25 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
       });
 
     } catch (error: any) {
-      console.error("Error marking attendance:", error);
-      let description = "Could not mark attendance.";
-      if (error.message.includes("Geolocation is not supported")) {
+      console.error("Error marking attendance:", error); // Full error object for console
+      let description = "Could not mark attendance."; // Default message
+      const errorMessage = error.message || "An unknown error occurred.";
+
+      if (errorMessage.includes("Geolocation is not supported")) {
         description = "Geolocation is not supported by your browser.";
-      } else if (error.message.includes("User denied the request")) {
+      } else if (errorMessage.includes("User denied the request")) {
         description = "Location permission denied. Please enable location services to mark attendance.";
-      } else if (error.message.includes("Location information is unavailable") || error.message.includes("timed out")) {
+      } else if (errorMessage.includes("Location information is unavailable") || errorMessage.includes("timed out")) {
         description = "Could not determine your location. Please try again.";
-      } else if (error.message.includes("Attendance already marked")) {
+      } else if (errorMessage.includes("Attendance already marked")) {
         description = "You have already marked attendance for this event.";
         // If it was already marked, call onAttendanceMarked to ensure UI is synced with DB
         onAttendanceMarked();
+      } else {
+        // For other errors, include the actual error message from the exception in the toast.
+        description = `Could not mark attendance: ${errorMessage.substring(0, 150)}${errorMessage.length > 150 ? '...' : ''}`;
       }
-      toast({ title: "Attendance Error", description, variant: "destructive" });
+      toast({ title: "Attendance Error", description, variant: "destructive", duration: 10000 });
     } finally {
       setIsSubmittingAttendance(false);
     }
