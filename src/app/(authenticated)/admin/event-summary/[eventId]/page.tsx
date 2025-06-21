@@ -8,7 +8,7 @@ import type { Event, User, AttendanceRecord, EventParticipantSummary } from '@/t
 import { getEvent } from '@/services/eventService';
 import { getAttendanceRecordsForEvent } from '@/services/attendanceService';
 import { getUserProfile } from '@/services/userService'; 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from '@/lib/utils';
 
 export default function EventSummaryPage() {
   const params = useParams();
@@ -173,9 +174,9 @@ export default function EventSummaryPage() {
             </Button>
             <h1 className="text-2xl sm:text-3xl font-bold font-headline text-primary">{event.name} - Summary</h1>
         </div>
-        <Button onClick={handlePrint} className="print-hide w-full sm:w-auto">
+        <button onClick={handlePrint} className={cn(buttonVariants({}), "print-hide w-full sm:w-auto")}>
           <Printer className="mr-2 h-4 w-4" /> Print / Download Summary
-        </Button>
+        </button>
       </div>
 
       <div ref={componentRef} className="p-2 sm:p-4 md:p-6 space-y-6 rounded-lg border bg-card text-card-foreground shadow-sm modal-print-area">
