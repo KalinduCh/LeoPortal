@@ -535,35 +535,33 @@ const sidebarMenuButtonVariants = cva(
 )
 
 interface SidebarMenuButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>, // Or React.AnchorHTMLAttributes<HTMLAnchorElement> if it can be an anchor
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof sidebarMenuButtonVariants> {
-  asChild?: boolean;
-  isActive?: boolean;
-  tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+  asChild?: boolean
+  isActive?: boolean
+  tooltip?: string | React.ComponentProps<typeof TooltipContent>
 }
 
-
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement, // This should be flexible based on asChild, but HTMLButtonElement is a common base
+  HTMLButtonElement,
   SidebarMenuButtonProps
 >(
   (
     {
-      asChild: propAsChild = false,
-      isActive = false,
-      variant = "default",
-      size = "default",
-      tooltip,
       className,
+      variant,
+      size,
+      isActive,
+      asChild = false,
+      tooltip,
       children,
-      ...restProps // All other props (like href from Link, or event handlers)
+      ...props
     },
     ref
   ) => {
-    const Comp = propAsChild ? Slot : "button";
-    const { isMobile, state } = useSidebar();
+    const { isMobile, state } = useSidebar()
+    const Comp = asChild ? Slot : "button"
 
-    // Element to be rendered, either Slot or button
     const buttonElement = (
       <Comp
         ref={ref}
@@ -571,24 +569,22 @@ const SidebarMenuButton = React.forwardRef<
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...restProps} // Spread restProps, `asChild` is not included here due to destructuring
+        {...props}
       >
         {children}
       </Comp>
-    );
+    )
 
     if (!tooltip) {
-      return buttonElement;
+      return buttonElement
     }
 
-    const tooltipContentProps = typeof tooltip === 'string' ? { children: tooltip } : tooltip;
+    const tooltipContentProps =
+      typeof tooltip === "string" ? { children: tooltip } : tooltip
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>
-          {/* TooltipTrigger always wraps the buttonElement as its child trigger */}
-          {buttonElement}
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
@@ -596,11 +592,10 @@ const SidebarMenuButton = React.forwardRef<
           {...tooltipContentProps}
         />
       </Tooltip>
-    );
+    )
   }
 )
 SidebarMenuButton.displayName = "SidebarMenuButton"
-
 
 const SidebarMenuAction = React.forwardRef<
   HTMLButtonElement,
@@ -776,4 +771,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
