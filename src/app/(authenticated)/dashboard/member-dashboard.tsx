@@ -37,7 +37,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
     try {
       const fetchedEvents = await getEvents();
-      // console.log("Fetched Events for Member Dashboard:", fetchedEvents);
       setAllEvents(fetchedEvents);
     } catch (error) {
         console.error("Failed to fetch events for member dashboard:", error);
@@ -84,30 +83,32 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         return isWithinInterval(now, { start: startDate, end: endDate });
     }
     
-    return !isFuture(startDate);
+    // Fallback for events without an end date: consider them active for 24 hours after start.
+    const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+    return isWithinInterval(now, { start: startDate, end: oneDayAfterStart });
+
   }).sort((a,b) => {
-      const dateA = parseISO(a.startDate); // Safe because of filter above
-      const dateB = parseISO(b.startDate); // Safe because of filter above
+      const dateA = parseISO(a.startDate);
+      const dateB = parseISO(b.startDate);
       return dateA.getTime() - dateB.getTime(); 
   });
 
   const attendedPastEvents = allEvents.filter(event => {
     if (!event.startDate || !isValid(parseISO(event.startDate))) {
-        console.warn(`[MemberDashboard/PastAttendedFilter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`, event.startDate);
         return false;
     }
-    const parsedEventStartDate = parseISO(event.startDate);
-    const isEventInPastOrCurrent = !isFuture(parsedEventStartDate);
+    const eventStartDateObj = parseISO(event.startDate);
+    const isEventInPast = event.endDate ? !isFuture(parseISO(event.endDate)) : !isFuture(eventStartDateObj);
 
-    if (!isEventInPastOrCurrent) {
+    if (!isEventInPast) {
         return false;
     }
 
     const attendanceRecord = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user?.id && ar.status === 'present');
     return !!attendanceRecord;
   }).sort((a, b) => {
-    const dateA = parseISO(a.startDate); // Safe because of filter above
-    const dateB = parseISO(b.startDate); // Safe because of filter above
+    const dateA = parseISO(a.startDate);
+    const dateB = parseISO(b.startDate);
     return dateB.getTime() - dateA.getTime(); 
   });
 
@@ -152,7 +153,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 userRole="member"
                 userAttendanceRecords={userAttendanceRecords}
                 onAttendanceMarked={handleAttendanceMarked}
-                isLoading={isLoading} // Pass combined loading state
+                isLoading={isLoading}
                 listTitle="" 
                 emptyStateTitle="No Upcoming or Ongoing Events"
                 emptyStateMessage="There are currently no upcoming or ongoing events scheduled. Please check back later!"
@@ -181,14 +182,14 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   const attendance = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user.id);
                   
                   let formattedEventDate = "Date unavailable";
-                  // event.startDate is guaranteed to be valid and parseable here due to prior filtering
                   const eventStartDateObj = parseISO(event.startDate);
                   formattedEventDate = format(eventStartDateObj, "MMM d, yyyy, h:mm a");
                   if (event.endDate && isValid(parseISO(event.endDate))) {
                       const eventEndDateObj = parseISO(event.endDate);
-                      if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
-                          (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
-                           formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
+                      if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString()) {
+                         formattedEventDate = `${format(eventStartDateObj, "MMM d, h:mm a")} - ${format(eventEndDateObj, "MMM d, h:mm a")}`;
+                      } else {
+                         formattedEventDate = `${format(eventStartDateObj, "MMM d, yyyy, h:mm a")} - ${format(eventEndDateObj, "h:mm a")}`;
                       }
                   }
                   

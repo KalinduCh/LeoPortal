@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+import { Loader2, CalendarDays, MapPin, CheckCircle, AlertTriangle } from 'lucide-react';
 import { format, parseISO, isFuture, isValid, isWithinInterval } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { markVisitorAttendance } from '@/services/attendanceService';
@@ -26,45 +26,32 @@ export default function VisitingLeoPage() {
   const { toast } = useToast();
   const logoUrl = "https://i.imgur.com/aRktweQ.png";
 
-  const fetchUpcomingEvents = useCallback(async () => {
+  const fetchActiveEvents = useCallback(async () => {
     setIsLoading(true);
-    console.log("VisitingLeoPage: Fetching events...");
     try {
       const allEvents = await getEvents();
-      console.log(`VisitingLeoPage: Fetched ${allEvents.length} total events.`);
-      const upcomingAndOngoing = allEvents.filter(event => {
+      const activeEvents = allEvents.filter(event => {
         if (!event.startDate || !isValid(parseISO(event.startDate))) {
-            console.warn(`VisitingLeoPage: Event ${event.id} skipped due to invalid startDate: ${event.startDate}`);
             return false;
         }
-        const startDateObj = parseISO(event.startDate);
+        const startDate = parseISO(event.startDate);
         const now = new Date();
 
-        // Check if the event is in the future
-        if (isFuture(startDateObj)) {
-            // console.log(`VisitingLeoPage: Event ${event.id} is upcoming.`);
+        if (isFuture(startDate)) {
             return true;
         }
         
-        // If it has an endDate, check if it's currently within the interval
         if (event.endDate && isValid(parseISO(event.endDate))) {
-            const endDateObj = parseISO(event.endDate);
-            const isOngoing = isWithinInterval(now, { start: startDateObj, end: endDateObj });
-            // if(isOngoing) console.log(`VisitingLeoPage: Event ${event.id} is ongoing (with endDate).`);
-            return isOngoing;
+            const endDate = parseISO(event.endDate);
+            return isWithinInterval(now, { start: startDate, end: endDate });
         }
         
-        // If no endDate, and startDate is not in the future (i.e., it has started),
-        // consider it ongoing. This might need refinement if "ongoing" means only for a certain duration post-startDate.
-        // For now, if it started and hasn't explicitly ended, it's "ongoing".
-        const isEffectivelyOngoing = !isFuture(startDateObj);
-        // if(isEffectivelyOngoing && !event.endDate) console.log(`VisitingLeoPage: Event ${event.id} is ongoing (no endDate).`);
-        return isEffectivelyOngoing;
+        const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        return isWithinInterval(now, { start: startDate, end: oneDayAfterStart });
 
       }).sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
       
-      console.log(`VisitingLeoPage: Filtered to ${upcomingAndOngoing.length} upcoming/ongoing events.`);
-      setEvents(upcomingAndOngoing);
+      setEvents(activeEvents);
     } catch (error) {
       console.error("Failed to fetch events for visiting Leos:", error);
       toast({ title: "Error", description: "Could not load upcoming events.", variant: "destructive" });
@@ -73,8 +60,8 @@ export default function VisitingLeoPage() {
   }, [toast]);
 
   useEffect(() => {
-    fetchUpcomingEvents();
-  }, [fetchUpcomingEvents]);
+    fetchActiveEvents();
+  }, [fetchActiveEvents]);
 
   const handleOpenForm = (event: Event) => {
     setSelectedEvent(event);
@@ -133,12 +120,13 @@ export default function VisitingLeoPage() {
                 let formattedEventDate = "Date unavailable";
                 if (event.startDate && isValid(parseISO(event.startDate))) {
                     const eventStartDateObj = parseISO(event.startDate);
-                    formattedEventDate = format(eventStartDateObj, "MMMM d, yyyy 'at' h:mm a");
+                    formattedEventDate = format(eventStartDateObj, "MMM d, yyyy, h:mm a");
                     if (event.endDate && isValid(parseISO(event.endDate))) {
                         const eventEndDateObj = parseISO(event.endDate);
-                        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
-                            (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
-                             formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
+                        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString()) {
+                          formattedEventDate = `${format(eventStartDateObj, "MMM d, h:mm a")} - ${format(eventEndDateObj, "MMM d, h:mm a")}`;
+                        } else {
+                          formattedEventDate = `${format(eventStartDateObj, "MMM d, yyyy, h:mm a")} - ${format(eventEndDateObj, "h:mm a")}`;
                         }
                     }
                 }
@@ -203,7 +191,7 @@ export default function VisitingLeoPage() {
                   setSelectedEvent(null);
                 }}
                 isLoading={isSubmitting}
-                eventDate={selectedEvent.startDate && isValid(parseISO(selectedEvent.startDate)) ? format(parseISO(selectedEvent.startDate), "MMMM d, yyyy 'at' h:mm a") : "Date not available"}
+                eventDate={selectedEvent.startDate && isValid(parseISO(selectedEvent.startDate)) ? format(parseISO(selectedEvent.startDate), "MMMM d, yyyy, h:mm a") : "Date not available"}
               />
             </DialogContent>
           </Dialog>

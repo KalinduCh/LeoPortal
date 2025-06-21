@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -17,6 +17,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -27,12 +28,21 @@ import { cn } from '@/lib/utils';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: "Event name must be at least 3 characters." }),
-  date: z.date({ required_error: "Event date is required." }), // This 'date' field in form schema maps to event's conceptual start date
+  startDate: z.date({ required_error: "Event start date is required." }),
+  endDate: z.date().optional(),
   location: z.string().min(3, { message: "Location must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   enableGeoRestriction: z.boolean().optional(),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
+}).refine(data => {
+  if (data.endDate) {
+    return data.endDate > data.startDate;
+  }
+  return true;
+}, {
+  message: "End date must be after start date.",
+  path: ["endDate"], 
 }).refine(data => {
   if (data.enableGeoRestriction) {
     return data.latitude !== undefined && data.longitude !== undefined && !isNaN(data.latitude) && !isNaN(data.longitude);
@@ -43,7 +53,6 @@ const eventFormSchema = z.object({
   path: ["latitude"], 
 });
 
-
 export type EventFormValues = z.infer<typeof eventFormSchema>;
 
 interface EventFormProps {
@@ -53,12 +62,77 @@ interface EventFormProps {
   isLoading?: boolean;
 }
 
+const DateTimePicker = ({ field, label }: { field: any, label: string }) => {
+    const handleDateSelect = (date: Date | undefined) => {
+        const newDate = date || field.value || new Date();
+        const currentTime = field.value || new Date(); // Keep existing time on date change
+        newDate.setHours(currentTime.getHours());
+        newDate.setMinutes(currentTime.getMinutes());
+        field.onChange(newDate);
+    };
+
+    const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const [hours, minutes] = e.target.value.split(':').map(Number);
+        const newDate = new Date(field.value || Date.now());
+        newDate.setHours(hours);
+        newDate.setMinutes(minutes);
+        field.onChange(newDate);
+    };
+
+    return (
+        <FormItem className="flex flex-col">
+          <FormLabel>{label}</FormLabel>
+          <Popover>
+            <PopoverTrigger asChild>
+              <FormControl>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full pl-3 text-left font-normal",
+                    !field.value && "text-muted-foreground"
+                  )}
+                >
+                  {field.value ? (
+                    format(field.value, "PPP HH:mm")
+                  ) : (
+                    <span>Pick a date and time</span>
+                  )}
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </FormControl>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={field.value}
+                onSelect={handleDateSelect}
+                initialFocus
+              />
+               <div className="p-2 border-t border-border">
+                <Label htmlFor={`time-${field.name}`} className="text-sm">Time</Label>
+                <Input
+                  id={`time-${field.name}`}
+                  type="time"
+                  defaultValue={field.value ? format(field.value, "HH:mm") : ""}
+                  onChange={handleTimeChange}
+                  className="mt-1"
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
+          <FormMessage />
+        </FormItem>
+    );
+};
+
+
 export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormProps) {
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: event?.name || "",
-      date: event?.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : new Date(),
+      startDate: event?.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : new Date(),
+      endDate: event?.endDate && isValid(parseISO(event.endDate)) ? parseISO(event.endDate) : undefined,
       location: event?.location || "",
       description: event?.description || "",
       enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
@@ -68,27 +142,16 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
   });
 
   useEffect(() => {
-    if (event) {
-      form.reset({
-        name: event.name,
-        date: event.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : new Date(),
-        location: event.location,
-        description: event.description,
-        enableGeoRestriction: !!(event.latitude !== undefined && event.longitude !== undefined),
-        latitude: event.latitude,
-        longitude: event.longitude,
-      });
-    } else {
-      form.reset({
-        name: "",
-        date: new Date(),
-        location: "",
-        description: "",
-        enableGeoRestriction: false, 
-        latitude: undefined,
-        longitude: undefined,
-      });
-    }
+    form.reset({
+        name: event?.name || "",
+        startDate: event?.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : new Date(),
+        endDate: event?.endDate && isValid(parseISO(event.endDate)) ? parseISO(event.endDate) : undefined,
+        location: event?.location || "",
+        description: event?.description || "",
+        enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
+        latitude: event?.latitude,
+        longitude: event?.longitude,
+    });
   }, [event, form]);
 
   const handleFormSubmit = async (values: EventFormValues) => {
@@ -118,67 +181,19 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
             </FormItem>
           )}
         />
-
-        <FormField
-          control={form.control}
-          name="date" // This form field is named 'date' but corresponds to the event's start date conceptually
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Event Start Date & Time</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, "PPP HH:mm")
-                      ) : (
-                        <span>Pick a date and time</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={(date) => {
-                        const newDate = date || field.value || new Date();
-                        const currentTime = field.value || new Date();
-                        newDate.setHours(currentTime.getHours());
-                        newDate.setMinutes(currentTime.getMinutes());
-                        field.onChange(newDate);
-                    }}
-                    initialFocus
-                  />
-                   <div className="p-2 border-t border-border">
-                    <Label htmlFor="event-time" className="text-sm">Time</Label>
-                    <Input
-                      id="event-time"
-                      type="time"
-                      defaultValue={field.value ? format(field.value, "HH:mm") : "12:00"}
-                      onChange={(e) => {
-                        const [hours, minutes] = e.target.value.split(':').map(Number);
-                        const newDate = new Date(field.value || Date.now());
-                        newDate.setHours(hours);
-                        newDate.setMinutes(minutes);
-                        field.onChange(newDate);
-                      }}
-                      className="mt-1"
-                    />
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="startDate"
+              render={({ field }) => <DateTimePicker field={field} label="Start Date & Time" />}
+            />
+             <FormField
+              control={form.control}
+              name="endDate"
+              render={({ field }) => <DateTimePicker field={field} label="End Date & Time (Optional)" />}
+            />
+        </div>
         
         <FormField
           control={form.control}
@@ -215,9 +230,9 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                 <FormLabel>
                   Enable Geo-restriction for Attendance
                 </FormLabel>
-                <p className="text-xs text-muted-foreground">
+                <FormDescription className="text-xs">
                   If checked, members must be within a certain radius of the specified coordinates to mark attendance.
-                </p>
+                </FormDescription>
               </div>
             </FormItem>
           )}
@@ -254,7 +269,6 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
           </div>
         )}
 
-
         <FormField
           control={form.control}
           name="description"
@@ -286,4 +300,3 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
     </Form>
   );
 }
-
