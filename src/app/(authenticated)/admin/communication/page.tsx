@@ -19,10 +19,11 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
-import { Mail, Users, Send, Loader2, AlertTriangle, Info } from "lucide-react";
+import { Mail, Users, Send, Loader2, AlertTriangle, Info, Sparkles } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import emailjs from 'emailjs-com';
+import { generateCommunication, type GenerateCommunicationInput } from '@/ai/flows/generate-communication-flow';
 
 const emailFormSchema = z.object({
   subject: z.string().min(3, { message: "Subject must be at least 3 characters." }),
@@ -44,6 +45,8 @@ export default function CommunicationPage() {
   const [members, setMembers] = useState<User[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
 
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailFormSchema),
@@ -83,6 +86,25 @@ export default function CommunicationPage() {
       fetchMembers();
     }
   }, [user, fetchMembers]);
+
+  const handleGenerateContent = async () => {
+    if (!aiTopic.trim()) {
+        toast({ title: "Topic Required", description: "Please enter a topic for the AI to write about.", variant: "destructive"});
+        return;
+    }
+    setIsGenerating(true);
+    try {
+        const input: GenerateCommunicationInput = { topic: aiTopic };
+        const result = await generateCommunication(input);
+        form.setValue("subject", result.subject, { shouldValidate: true });
+        form.setValue("body", result.body, { shouldValidate: true });
+        toast({ title: "Content Generated", description: "The email subject and body have been populated." });
+    } catch (error) {
+        console.error("Error generating AI content:", error);
+        toast({ title: "AI Generation Failed", description: "Could not generate content. Please try again.", variant: "destructive"});
+    }
+    setIsGenerating(false);
+  }
 
   const onSubmit = async (data: EmailFormValues) => {
     if (!SERVICE_ID || !TEMPLATE_ID || !USER_ID) {
@@ -137,9 +159,11 @@ export default function CommunicationPage() {
     if (emailsSent > 0 && emailsFailed === 0) {
       toast({ title: "Emails Sent", description: emailsSent + " email(s) sent successfully." });
       form.reset();
+      setAiTopic("");
     } else if (emailsSent > 0 && emailsFailed > 0) {
       toast({ title: "Emails Partially Sent", description: emailsSent + " email(s) sent, " + emailsFailed + " failed. Check console for details.", variant: "destructive" });
        form.reset(); 
+       setAiTopic("");
     } else if (emailsFailed > 0 && emailsSent === 0) {
       toast({ title: "Email Sending Failed", description: "All " + emailsFailed + " email(s) failed to send. Check console, EmailJS setup, and .env.local.", variant: "destructive" });
     } else { 
@@ -274,11 +298,36 @@ export default function CommunicationPage() {
               )}
             </CardContent>
           </Card>
+          
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl"><Sparkles className="mr-2 h-5 w-5 text-primary" /> AI Content Assistant</CardTitle>
+              <CardDescription className="text-sm">Provide a topic and let the AI generate a draft for your email.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+               <div>
+                  <Label htmlFor="ai-topic">Email Topic</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input 
+                      id="ai-topic"
+                      placeholder="e.g., Monthly meeting reminder for August"
+                      value={aiTopic}
+                      onChange={(e) => setAiTopic(e.target.value)}
+                      disabled={isGenerating || formSubmitting}
+                    />
+                    <Button type="button" onClick={handleGenerateContent} disabled={isGenerating || formSubmitting}>
+                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        Generate
+                    </Button>
+                  </div>
+               </div>
+            </CardContent>
+          </Card>
 
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle>
-              <CardDescription className="text-sm">Write the subject and body of your email.</CardDescription>
+              <CardDescription className="text-sm">Write or edit the subject and body of your email.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -317,7 +366,7 @@ export default function CommunicationPage() {
           <div className="flex justify-end">
             <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers || !isEmailJsConfigured} size="lg">
               {formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              {formSubmitting ? "Sending..." : "Send Emails"}
+              {formSubmitting ? "Sending..." : `Send Email to ${watchedRecipients.length} Member(s)`}
             </Button>
           </div>
         </form>

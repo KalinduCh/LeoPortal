@@ -7,10 +7,9 @@ import type { User, Event, AttendanceRecord } from '@/types';
 import { EventList } from '@/components/events/event-list';
 import { getEvents } from '@/services/eventService';
 import { getAttendanceRecordsForUser } from '@/services/attendanceService';
-import { AiChatWidget } from '@/components/ai/ai-chat-widget';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CalendarDays, CheckSquare, MessageCircle, Loader2, History, MapPin } from 'lucide-react';
+import { CalendarDays, CheckSquare, Loader2, History, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { parseISO, isPast, isValid, format, isFuture, isWithinInterval } from 'date-fns';
 
@@ -67,7 +66,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   };
 
   const { upcomingAndOngoingEvents, attendedPastEvents } = useMemo(() => {
-    const now = new Date();
     const upcoming: Event[] = [];
     const pastAttended: Event[] = [];
 
@@ -78,25 +76,19 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       }
       
       const startDate = parseISO(event.startDate);
+      const now = new Date();
       let isEventOver = false;
-      
+
+      // Determine if the event is over
       if (event.endDate && isValid(parseISO(event.endDate))) {
-        const endDate = parseISO(event.endDate);
-        if (isPast(endDate)) {
+        if (isPast(parseISO(event.endDate))) {
           isEventOver = true;
-        } else if (isWithinInterval(now, { start: startDate, end: endDate })) {
-          upcoming.push(event); // It's ongoing
-        } else if (isFuture(startDate)) {
-          upcoming.push(event); // It's upcoming
         }
       } else {
-        const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-        if (isPast(oneDayAfterStart)) {
+        // If no end date, consider it over 24 hours after it started
+        const twentyFourHoursAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        if (isPast(twentyFourHoursAfterStart)) {
           isEventOver = true;
-        } else if (isWithinInterval(now, { start: startDate, end: oneDayAfterStart })) {
-           upcoming.push(event); // It's ongoing (within 24hr window)
-        } else if (isFuture(startDate)) {
-           upcoming.push(event); // It's upcoming
         }
       }
       
@@ -105,6 +97,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         if (hasAttended) {
           pastAttended.push(event);
         }
+      } else {
+        // If it's not over, it's upcoming or ongoing
+        upcoming.push(event);
       }
     });
 
@@ -229,18 +224,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           ) : ( 
             <p className="text-muted-foreground text-center py-6">You have no past attended events recorded.</p>
           )}
-        </CardContent>
-      </Card>
-      
-      <Card className="shadow-md">
-         <CardHeader>
-          <CardTitle className="flex items-center font-headline">
-            <MessageCircle className="mr-2 h-6 w-6 text-primary" />
-            AI Assistant
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AiChatWidget />
         </CardContent>
       </Card>
     </div>

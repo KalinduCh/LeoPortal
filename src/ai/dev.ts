@@ -25,5 +25,4 @@ configDotenv({ path: path.resolve(process.cwd(), '.env') });
 // However, the two explicit loads above are generally preferred for clarity.
 
 
-import '@/ai/flows/answer-profile-update-questions.ts';
-import '@/ai/flows/answer-schedule-questions.ts';
+import '@/ai/flows/generate-communication-flow.ts';
