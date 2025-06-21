@@ -30,8 +30,11 @@ export default function VisitingLeoPage() {
     setIsLoading(true);
     try {
       const allEvents = await getEvents();
+      console.log(`[VisitingLeoPage] Received ${allEvents.length} total events from service.`);
+      
       const activeEvents = allEvents.filter(event => {
         if (!event.startDate || !isValid(parseISO(event.startDate))) {
+            console.warn(`[VisitingLeoPage/Filter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`);
             return false;
         }
         const startDate = parseISO(event.startDate);
@@ -51,6 +54,7 @@ export default function VisitingLeoPage() {
 
       }).sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
       
+      console.log(`[VisitingLeoPage] Filtered down to ${activeEvents.length} active events.`);
       setEvents(activeEvents);
     } catch (error) {
       console.error("Failed to fetch events for visiting Leos:", error);

@@ -68,7 +68,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
   const upcomingAndOngoingEvents = allEvents.filter(event => {
     if (!event.startDate || !isValid(parseISO(event.startDate))) {
-        console.warn(`[MemberDashboard/UpcomingFilter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`, event.startDate);
+        console.warn(`[MemberDashboard/UpcomingFilter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`);
         return false;
     }
     const startDate = parseISO(event.startDate);
@@ -182,15 +182,17 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   const attendance = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user.id);
                   
                   let formattedEventDate = "Date unavailable";
-                  const eventStartDateObj = parseISO(event.startDate);
-                  formattedEventDate = format(eventStartDateObj, "MMM d, yyyy, h:mm a");
-                  if (event.endDate && isValid(parseISO(event.endDate))) {
-                      const eventEndDateObj = parseISO(event.endDate);
-                      if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString()) {
-                         formattedEventDate = `${format(eventStartDateObj, "MMM d, h:mm a")} - ${format(eventEndDateObj, "MMM d, h:mm a")}`;
-                      } else {
-                         formattedEventDate = `${format(eventStartDateObj, "MMM d, yyyy, h:mm a")} - ${format(eventEndDateObj, "h:mm a")}`;
-                      }
+                  if (event.startDate && isValid(parseISO(event.startDate))) {
+                    const eventStartDateObj = parseISO(event.startDate);
+                    formattedEventDate = format(eventStartDateObj, "MMM d, yyyy, h:mm a");
+                    if (event.endDate && isValid(parseISO(event.endDate))) {
+                        const eventEndDateObj = parseISO(event.endDate);
+                        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString()) {
+                          formattedEventDate = `${format(eventStartDateObj, "MMM d, h:mm a")} - ${format(eventEndDateObj, "MMM d, h:mm a")}`;
+                        } else {
+                          formattedEventDate = `${format(eventStartDateObj, "MMM d, yyyy, h:mm a")} - ${format(eventEndDateObj, "h:mm a")}`;
+                        }
+                    }
                   }
                   
                   let formattedAttendanceTime = "Not available";

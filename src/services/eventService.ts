@@ -34,31 +34,46 @@ export async function createEvent(data: EventFormValues): Promise<string> {
 }
 
 export async function getEvents(): Promise<Event[]> {
-  const q = query(eventsCollection, orderBy('startDate', 'asc'));
-  const snapshot = await getDocs(q);
-  
-  const events = snapshot.docs.map(docSnap => {
-    const data = docSnap.data();
-    if (!data.startDate || typeof data.startDate.toDate !== 'function') {
-      console.warn(`Event ${docSnap.id} has invalid or missing startDate. Skipping. Data:`, data);
-      return null; 
+  console.log("[EventService] Attempting to fetch events from Firestore...");
+  try {
+    const q = query(eventsCollection, orderBy('startDate', 'asc'));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      console.warn("[EventService] Firestore 'events' collection is empty or the query returned no documents.");
+      return [];
     }
-    const event: Event = {
-      id: docSnap.id,
-      name: data.name,
-      startDate: (data.startDate as Timestamp).toDate().toISOString(),
-      location: data.location,
-      description: data.description,
-      latitude: data.latitude,
-      longitude: data.longitude,
-    };
-    if (data.endDate && typeof data.endDate.toDate === 'function') {
-      event.endDate = (data.endDate as Timestamp).toDate().toISOString();
-    }
-    return event;
-  }).filter(event => event !== null) as Event[];
-  
-  return events;
+
+    console.log(`[EventService] Successfully fetched ${snapshot.docs.length} raw event documents.`);
+
+    const events = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      if (!data.startDate || typeof data.startDate.toDate !== 'function') {
+        console.warn(`[EventService] Event ${docSnap.id} has invalid or missing startDate. Skipping. Data:`, data);
+        return null;
+      }
+      const event: Event = {
+        id: docSnap.id,
+        name: data.name,
+        startDate: (data.startDate as Timestamp).toDate().toISOString(),
+        location: data.location,
+        description: data.description,
+        latitude: data.latitude,
+        longitude: data.longitude,
+      };
+      if (data.endDate && typeof data.endDate.toDate === 'function') {
+        event.endDate = (data.endDate as Timestamp).toDate().toISOString();
+      }
+      return event;
+    }).filter(event => event !== null) as Event[];
+    
+    console.log(`[EventService] Returning ${events.length} parsed and valid events.`);
+    return events;
+  } catch (error) {
+      console.error("CRITICAL ERROR in getEvents service:", error);
+      // Return empty array to prevent app crash, the error is logged for debugging.
+      return [];
+  }
 }
 
 export async function getEvent(eventId: string): Promise<Event | null> {
