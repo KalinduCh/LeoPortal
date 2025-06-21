@@ -205,11 +205,9 @@ export default function EventManagementPage() {
                             <Button variant="destructive" size="icon" onClick={() => handleDeleteEvent(event.id)} aria-label="Delete Event" disabled={isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9">
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                            {(isEventPast || !isEventPast) && ( // Show summary for all events for now
-                              <Button variant="ghost" size="icon" onClick={() => handleViewSummary(event.id)} aria-label="View Event Summary" disabled={isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <Button variant="ghost" size="icon" onClick={() => handleViewSummary(event.id)} aria-label="View Event Summary" disabled={isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9">
+                              <Eye className="h-4 w-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );
@@ -249,11 +247,9 @@ export default function EventManagementPage() {
                         <Button variant="destructive" size="sm" onClick={() => handleDeleteEvent(event.id)} disabled={isSubmitting}>
                           <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
                         </Button>
-                        {(isEventPast || !isEventPast) && (
-                          <Button variant="ghost" size="sm" onClick={() => handleViewSummary(event.id)} disabled={isSubmitting}>
-                            <Eye className="mr-1.5 h-3.5 w-3.5" /> Summary
-                          </Button>
-                        )}
+                        <Button variant="ghost" size="sm" onClick={() => handleViewSummary(event.id)} disabled={isSubmitting}>
+                          <Eye className="mr-1.5 h-3.5 w-3.5" /> Summary
+                        </Button>
                       </CardFooter>
                     </Card>
                   );
