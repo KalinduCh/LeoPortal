@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { format, parseISO, getYear, getMonth, isPast } from 'date-fns';
+import { format, parseISO, getYear, getMonth, isPast, isValid } from 'date-fns';
 
 interface AdminDashboardProps {
   user: User;
@@ -81,19 +81,30 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   }, [fetchData]);
 
   const upcomingEvents = useMemo(() => {
-    return allEvents.filter(event => !isPast(parseISO(event.date)));
+    return allEvents.filter(event => {
+        if (!event.startDate || !isValid(parseISO(event.startDate))) {
+            return false;
+        }
+        return !isPast(parseISO(event.startDate));
+    });
   }, [allEvents]);
 
   const pastEvents = useMemo(() => {
     return allEvents
-      .filter(event => isPast(parseISO(event.date)))
-      .sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+      .filter(event => {
+          if (!event.startDate || !isValid(parseISO(event.startDate))) {
+            return false;
+          }
+          return isPast(parseISO(event.startDate));
+      })
+      .sort((a,b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime());
   }, [allEvents]);
 
   const memberStats = useMemo(() => {
     const stats: Record<string, { count: number; user: User | undefined }> = {};
 
     allAttendance.forEach(record => {
+      if (!record.userId || !record.timestamp || !isValid(parseISO(record.timestamp))) return;
       const recordDate = parseISO(record.timestamp);
       const recordYear = getYear(recordDate);
       const recordMonth = getMonth(recordDate); 
@@ -125,10 +136,14 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   const availableYears = useMemo(() => {
     const years = new Set<string>();
     allAttendance.forEach(record => {
-      years.add(getYear(parseISO(record.timestamp)).toString());
+      if (record.timestamp && isValid(parseISO(record.timestamp))) {
+        years.add(getYear(parseISO(record.timestamp)).toString());
+      }
     });
     allEvents.forEach(event => { 
-        years.add(getYear(parseISO(event.date)).toString());
+      if (event.startDate && isValid(parseISO(event.startDate))) {
+        years.add(getYear(parseISO(event.startDate)).toString());
+      }
     });
     if (!years.has(new Date().getFullYear().toString())) {
         years.add(new Date().getFullYear().toString());
@@ -344,7 +359,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                         </Button>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {format(parseISO(event.date), "MMM d, yyyy 'at' h:mm a")} - {event.location}
+                      {event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), "MMM d, yyyy 'at' h:mm a") : "Date not set"} - {event.location}
                     </p>
                     <p className="text-sm mt-1 text-muted-foreground">{event.description.substring(0,100)}{event.description.length > 100 ? "..." : ""}</p>
                   </div>
@@ -389,5 +404,3 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     </div>
   );
 }
-
-    
