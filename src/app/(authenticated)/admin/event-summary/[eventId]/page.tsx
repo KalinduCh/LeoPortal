@@ -12,7 +12,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Mail, UserCircle, Briefcase, Star, MessageSquare } from 'lucide-react';
+import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Mail, UserCircle, Briefcase, Star, MessageSquare, ClipboardCopy } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 import { useToast } from '@/hooks/use-toast';
@@ -127,6 +127,62 @@ export default function EventSummaryPage() {
     }
   }
 
+  const handleCopySummary = () => {
+    if (!event) return;
+
+    const headers = ["Type", "Name", "Role/Designation", "Email/Club", "Comment", "Timestamp"];
+    const rows = participantsSummary.map(summary => {
+      const timestamp = summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp))
+        ? format(parseISO(summary.attendanceTimestamp), "yyyy-MM-dd HH:mm:ss")
+        : "Invalid Date";
+        
+      if (summary.type === 'member') {
+        return [
+          "Member",
+          summary.userName || "",
+          summary.userRole || "Member",
+          summary.userEmail || "",
+          "N/A",
+          timestamp
+        ].join('\t');
+      } else { // visitor
+        return [
+          "Visitor",
+          summary.visitorName || "",
+          summary.visitorDesignation || "",
+          summary.visitorClub || "",
+          summary.visitorComment || "N/A",
+          timestamp
+        ].join('\t');
+      }
+    });
+
+    const summaryText = [
+      `Event Summary: ${event.name}`,
+      `Date & Time: ${formattedEventDate}`,
+      `Location: ${event.location}`,
+      `Description: ${event.description}`,
+      '', // blank line
+      '--- Participants ---',
+      headers.join('\t'),
+      ...rows
+    ].join('\n');
+
+    navigator.clipboard.writeText(summaryText).then(() => {
+      toast({
+        title: "Summary Copied!",
+        description: "The event summary has been copied to your clipboard.",
+      });
+    }).catch(err => {
+      console.error("Failed to copy summary: ", err);
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy to clipboard. Check browser permissions.",
+        variant: "destructive",
+      });
+    });
+  };
+
 
   if (isLoading) {
     return (
@@ -174,9 +230,14 @@ export default function EventSummaryPage() {
             </Button>
             <h1 className="text-2xl sm:text-3xl font-bold font-headline text-primary">{event.name} - Summary</h1>
         </div>
-        <button onClick={handlePrint} className={cn(buttonVariants({}), "print-hide w-full sm:w-auto")}>
-          <Printer className="mr-2 h-4 w-4" /> Print / Download Summary
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 print-hide w-full sm:w-auto">
+            <button onClick={handleCopySummary} className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
+              <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Summary
+            </button>
+            <button onClick={handlePrint} className={cn(buttonVariants({}), "w-full sm:w-auto")}>
+              <Printer className="mr-2 h-4 w-4" /> Print / PDF
+            </button>
+        </div>
       </div>
 
       <div ref={componentRef} className="p-2 sm:p-4 md:p-6 space-y-6 rounded-lg border bg-card text-card-foreground shadow-sm modal-print-area">
