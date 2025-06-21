@@ -150,8 +150,9 @@ export default function CommunicationPage() {
         emailsSent++;
       } catch (error: any) {
         console.error("Failed to send email to " + recipient.email + ":", error);
-        const errorText = error?.text || error?.message || (typeof error === 'object' ? JSON.stringify(error) : 'Unknown error');
-        toast({ title: "EmailJS Send Error", description: "Failed for " + recipient.email + ": " + errorText, variant: "destructive", duration: 10000});
+        // Using String(error) is more robust for capturing details from standard Error objects
+        const errorText = error?.text || String(error);
+        toast({ title: "EmailJS Send Error", description: `Failed for ${recipient.email}: ${errorText}`, variant: "destructive", duration: 10000});
         emailsFailed++;
       }
     }
