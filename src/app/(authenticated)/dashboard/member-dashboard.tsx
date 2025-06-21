@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CalendarDays, CheckSquare, MessageCircle, Loader2, History, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { parseISO, isFuture, format, isValid, isWithinInterval } from 'date-fns';
+import { parseISO, isPast, isValid, format } from 'date-fns';
 
 interface MemberDashboardProps {
   user: User;
@@ -37,6 +37,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
     try {
       const fetchedEvents = await getEvents();
+      console.log(`[MemberDashboard] Fetched ${fetchedEvents.length} total events.`);
       setAllEvents(fetchedEvents);
     } catch (error) {
         console.error("Failed to fetch events for member dashboard:", error);
@@ -68,48 +69,59 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
   const upcomingAndOngoingEvents = allEvents.filter(event => {
     if (!event.startDate || !isValid(parseISO(event.startDate))) {
-        console.warn(`[MemberDashboard/UpcomingFilter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`);
-        return false;
-    }
-    const startDate = parseISO(event.startDate);
-    const now = new Date();
-
-    if (isFuture(startDate)) {
-        return true; 
+      return false; // Skip invalid events
     }
     
+    const now = new Date();
+    
+    // Case 1: Event has a valid end date
     if (event.endDate && isValid(parseISO(event.endDate))) {
         const endDate = parseISO(event.endDate);
-        return isWithinInterval(now, { start: startDate, end: endDate });
+        // Show if it hasn't ended yet
+        return !isPast(endDate); 
     }
     
-    // Fallback for events without an end date: consider them active for 24 hours after start.
+    // Case 2: Event does not have an end date
+    // Show if it's in the future OR started within the last 24 hours
+    const startDate = parseISO(event.startDate);
     const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-    return isWithinInterval(now, { start: startDate, end: oneDayAfterStart });
+    return !isPast(oneDayAfterStart);
 
   }).sort((a,b) => {
-      const dateA = parseISO(a.startDate);
-      const dateB = parseISO(b.startDate);
-      return dateA.getTime() - dateB.getTime(); 
+      // Sort by start date, ascending
+      return parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime();
   });
 
   const attendedPastEvents = allEvents.filter(event => {
     if (!event.startDate || !isValid(parseISO(event.startDate))) {
-        return false;
-    }
-    const eventStartDateObj = parseISO(event.startDate);
-    const isEventInPast = event.endDate ? !isFuture(parseISO(event.endDate)) : !isFuture(eventStartDateObj);
-
-    if (!isEventInPast) {
-        return false;
+      return false; // Skip invalid events
     }
 
-    const attendanceRecord = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user?.id && ar.status === 'present');
-    return !!attendanceRecord;
+    // Check if the user attended this event first
+    const hasAttended = userAttendanceRecords.some(ar => ar.eventId === event.id && ar.userId === user?.id && ar.status === 'present');
+    if (!hasAttended) {
+        return false;
+    }
+    
+    const startDate = parseISO(event.startDate);
+    let isEventOver = false;
+
+    // Case 1: Event has a valid end date
+    if (event.endDate && isValid(parseISO(event.endDate))) {
+        const endDate = parseISO(event.endDate);
+        isEventOver = isPast(endDate);
+    } else {
+    // Case 2: Event does not have an end date
+    // It's over if it's been more than 24 hours since it started
+        const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        isEventOver = isPast(oneDayAfterStart);
+    }
+    
+    return isEventOver;
+
   }).sort((a, b) => {
-    const dateA = parseISO(a.startDate);
-    const dateB = parseISO(b.startDate);
-    return dateB.getTime() - dateA.getTime(); 
+    // Sort by start date, descending (most recent past event first)
+    return parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime(); 
   });
 
 
