@@ -406,7 +406,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
               </Link>
             </div>
              <CardDescription>Recently added or active members.</CardDescription>
-          </Header>
+          </CardHeader>
           <CardContent>
             {isLoading && allUsers.filter(u => u.role === 'member').length === 0 ? (
                 <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>

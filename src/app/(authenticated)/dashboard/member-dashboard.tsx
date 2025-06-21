@@ -47,7 +47,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     try {
       const attendance = await getAttendanceRecordsForUser(user.id);
       setUserAttendanceRecords(attendance);
-    } catch (error)      console.error("Failed to fetch attendance records:", error);
+    } catch (error) {
+      console.error("Failed to fetch attendance records:", error);
       toast({ title: "Error Loading Attendance", description: "Could not load your attendance records.", variant: "destructive"});
     }
     setIsLoadingAttendance(false);
