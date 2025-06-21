@@ -1,5 +1,5 @@
 
-// src/components/dashboard/admin-dashboard.tsx
+// src/app/(authenticated)/dashboard/admin-dashboard.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -12,12 +12,12 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, CalendarDays, Activity, PlusCircle, Eye, History, Award, Filter, Loader2, ExternalLink, BarChart3 } from 'lucide-react';
+import { Users, CalendarDays, Activity, PlusCircle, Eye, History, Award, Filter, Loader2, ExternalLink } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { format, parseISO, getYear, getMonth, isPast, isValid } from 'date-fns';
+import { format, parseISO, getYear, getMonth, isPast, isValid, isFuture, isWithinInterval } from 'date-fns';
 
 interface AdminDashboardProps {
   user: User;
@@ -80,27 +80,47 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     fetchData();
   }, [fetchData]);
 
-  const upcomingEvents = useMemo(() => {
-    return allEvents.filter(event => {
-        if (!event.startDate || !isValid(parseISO(event.startDate))) {
-            console.warn(`[AdminDashboard/UpcomingEventsFilter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`, event.startDate);
-            return false;
+  const { upcomingEvents, pastEvents } = useMemo(() => {
+    const upcoming: Event[] = [];
+    const past: Event[] = [];
+    const now = new Date();
+
+    allEvents.forEach(event => {
+      if (!event.startDate || !isValid(parseISO(event.startDate))) {
+        console.warn(`[AdminDashboard/Filter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`);
+        return;
+      }
+      
+      const startDate = parseISO(event.startDate);
+      let isEventOver = false;
+
+      if (event.endDate && isValid(parseISO(event.endDate))) {
+        const endDate = parseISO(event.endDate);
+        if (isPast(endDate)) {
+          isEventOver = true;
+        } else {
+          upcoming.push(event); // Ongoing or upcoming
         }
-        return !isPast(parseISO(event.startDate));
+      } else {
+        const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        if (isPast(oneDayAfterStart)) {
+          isEventOver = true;
+        } else {
+          upcoming.push(event); // Ongoing or upcoming
+        }
+      }
+
+      if (isEventOver) {
+        past.push(event);
+      }
     });
+
+    return {
+      upcomingEvents: upcoming.sort((a,b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime()),
+      pastEvents: past.sort((a,b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime())
+    };
   }, [allEvents]);
 
-  const pastEvents = useMemo(() => {
-    return allEvents
-      .filter(event => {
-          if (!event.startDate || !isValid(parseISO(event.startDate))) {
-            console.warn(`[AdminDashboard/PastEventsFilter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`, event.startDate);
-            return false;
-          }
-          return isPast(parseISO(event.startDate));
-      })
-      .sort((a,b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime());
-  }, [allEvents]);
 
   const memberStats = useMemo(() => {
     const stats: Record<string, { count: number; user: User | undefined }> = {};

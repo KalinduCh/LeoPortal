@@ -3,8 +3,8 @@
 
 import React from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { AdminDashboard } from '@/components/dashboard/admin-dashboard';
-import { MemberDashboard } from '@/components/dashboard/member-dashboard';
+import { AdminDashboard } from '@/app/(authenticated)/dashboard/admin-dashboard';
+import { MemberDashboard } from '@/app/(authenticated)/dashboard/member-dashboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';

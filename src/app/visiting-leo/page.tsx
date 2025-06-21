@@ -40,17 +40,15 @@ export default function VisitingLeoPage() {
         const startDate = parseISO(event.startDate);
         const now = new Date();
 
-        if (isFuture(startDate)) {
-            return true;
-        }
-        
+        // If it has an end date, check if we are currently within the event interval.
         if (event.endDate && isValid(parseISO(event.endDate))) {
             const endDate = parseISO(event.endDate);
-            return isWithinInterval(now, { start: startDate, end: endDate });
+            return isWithinInterval(now, { start: startDate, end: endDate }) || isFuture(startDate);
         }
         
+        // If it has no end date, assume it's "ongoing" for 24 hours after its start time.
         const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-        return isWithinInterval(now, { start: startDate, end: oneDayAfterStart });
+        return isWithinInterval(now, { start: startDate, end: oneDayAfterStart }) || isFuture(startDate);
 
       }).sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
       

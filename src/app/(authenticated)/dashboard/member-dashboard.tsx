@@ -2,7 +2,7 @@
 // src/app/(authenticated)/dashboard/member-dashboard.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { User, Event, AttendanceRecord } from '@/types';
 import { EventList } from '@/components/events/event-list';
 import { getEvents } from '@/services/eventService';
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CalendarDays, CheckSquare, MessageCircle, Loader2, History, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { parseISO, isPast, isValid, format } from 'date-fns';
+import { parseISO, isPast, isValid, format, isFuture, isWithinInterval } from 'date-fns';
 
 interface MemberDashboardProps {
   user: User;
@@ -37,7 +37,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
     try {
       const fetchedEvents = await getEvents();
-      console.log(`[MemberDashboard] Fetched ${fetchedEvents.length} total events.`);
       setAllEvents(fetchedEvents);
     } catch (error) {
         console.error("Failed to fetch events for member dashboard:", error);
@@ -48,8 +47,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     try {
       const attendance = await getAttendanceRecordsForUser(user.id);
       setUserAttendanceRecords(attendance);
-    } catch (error) {
-      console.error("Failed to fetch attendance records:", error);
+    } catch (error)      console.error("Failed to fetch attendance records:", error);
       toast({ title: "Error Loading Attendance", description: "Could not load your attendance records.", variant: "destructive"});
     }
     setIsLoadingAttendance(false);
@@ -67,63 +65,54 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     }
   };
 
-  const upcomingAndOngoingEvents = allEvents.filter(event => {
-    if (!event.startDate || !isValid(parseISO(event.startDate))) {
-      return false; // Skip invalid events
-    }
-    
+  const { upcomingAndOngoingEvents, attendedPastEvents } = useMemo(() => {
     const now = new Date();
-    
-    // Case 1: Event has a valid end date
-    if (event.endDate && isValid(parseISO(event.endDate))) {
+    const upcoming: Event[] = [];
+    const pastAttended: Event[] = [];
+
+    allEvents.forEach(event => {
+      if (!event.startDate || !isValid(parseISO(event.startDate))) {
+        console.warn(`[MemberDashboard/Filter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`);
+        return;
+      }
+      
+      const startDate = parseISO(event.startDate);
+      let isEventOver = false;
+      
+      if (event.endDate && isValid(parseISO(event.endDate))) {
         const endDate = parseISO(event.endDate);
-        // Show if it hasn't ended yet
-        return !isPast(endDate); 
-    }
-    
-    // Case 2: Event does not have an end date
-    // Show if it's in the future OR started within the last 24 hours
-    const startDate = parseISO(event.startDate);
-    const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-    return !isPast(oneDayAfterStart);
-
-  }).sort((a,b) => {
-      // Sort by start date, ascending
-      return parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime();
-  });
-
-  const attendedPastEvents = allEvents.filter(event => {
-    if (!event.startDate || !isValid(parseISO(event.startDate))) {
-      return false; // Skip invalid events
-    }
-
-    // Check if the user attended this event first
-    const hasAttended = userAttendanceRecords.some(ar => ar.eventId === event.id && ar.userId === user?.id && ar.status === 'present');
-    if (!hasAttended) {
-        return false;
-    }
-    
-    const startDate = parseISO(event.startDate);
-    let isEventOver = false;
-
-    // Case 1: Event has a valid end date
-    if (event.endDate && isValid(parseISO(event.endDate))) {
-        const endDate = parseISO(event.endDate);
-        isEventOver = isPast(endDate);
-    } else {
-    // Case 2: Event does not have an end date
-    // It's over if it's been more than 24 hours since it started
+        if (isPast(endDate)) {
+          isEventOver = true;
+        } else if (isWithinInterval(now, { start: startDate, end: endDate })) {
+          upcoming.push(event); // It's ongoing
+        } else if (isFuture(startDate)) {
+          upcoming.push(event); // It's upcoming
+        }
+      } else {
         const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-        isEventOver = isPast(oneDayAfterStart);
-    }
-    
-    return isEventOver;
+        if (isPast(oneDayAfterStart)) {
+          isEventOver = true;
+        } else if (isWithinInterval(now, { start: startDate, end: oneDayAfterStart })) {
+           upcoming.push(event); // It's ongoing (within 24hr window)
+        } else if (isFuture(startDate)) {
+           upcoming.push(event); // It's upcoming
+        }
+      }
+      
+      if (isEventOver) {
+        const hasAttended = userAttendanceRecords.some(ar => ar.eventId === event.id && ar.userId === user?.id && ar.status === 'present');
+        if (hasAttended) {
+          pastAttended.push(event);
+        }
+      }
+    });
 
-  }).sort((a, b) => {
-    // Sort by start date, descending (most recent past event first)
-    return parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime(); 
-  });
+    return {
+      upcomingAndOngoingEvents: upcoming.sort((a,b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime()),
+      attendedPastEvents: pastAttended.sort((a, b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime())
+    };
 
+  }, [allEvents, userAttendanceRecords, user?.id]);
 
   const isLoading = isLoadingEvents || isLoadingAttendance;
 
