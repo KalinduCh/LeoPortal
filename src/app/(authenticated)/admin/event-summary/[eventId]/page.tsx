@@ -224,7 +224,7 @@ export default function EventSummaryPage() {
             {participantsSummary.length > 0 ? (
               <>
                 {/* Desktop Table View */}
-                <div className="hidden md:block">
+                <div className="hidden md:block print-force-table-view">
                   <ScrollArea className="max-h-[400px] border rounded-md print-scroll">
                     <Table className="print-table">
                       <TableHeader className="print-table-header bg-muted/50">
@@ -274,7 +274,7 @@ export default function EventSummaryPage() {
                   </ScrollArea>
                 </div>
                 {/* Mobile Card View */}
-                <div className="block md:hidden space-y-3">
+                <div className="block md:hidden print-hide-card-view">
                   {participantsSummary.map((summary) => (
                     <Card key={summary.id} className="shadow-sm">
                       <CardContent className="p-3">

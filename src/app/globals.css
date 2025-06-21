@@ -118,13 +118,14 @@ body {
   .print-hide {
     display: none !important;
   }
-  .print-content { /* Class for the main dialog content area */
-     box-shadow: none !important;
-     border: none !important;
-     max-height: none !important; /* Allow full height for printing */
-  }
   .modal-print-area { /* Class for the content inside the modal meant for printing */
     padding: 1rem !important; /* Adjust padding for print */
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .modal-print-area .card {
+    border: none !important;
+    box-shadow: none !important;
   }
   .print-title {
     font-size: 1.5rem !important; /* Larger title for print */
@@ -158,6 +159,13 @@ body {
   }
   .print-table-body .font-medium, .print-table-body .text-xs { /* Ensure text is visible */
     color: #333 !important;
+  }
+
+  .print-force-table-view {
+    display: block !important;
+  }
+  .print-hide-card-view {
+    display: none !important;
   }
 }
 
