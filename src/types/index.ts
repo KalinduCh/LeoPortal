@@ -7,6 +7,7 @@ export interface User {
   email: string;
   photoUrl?: string;
   role: UserRole;
+  designation?: string;
   nic?: string;
   dateOfBirth?: string; // Stored as "YYYY-MM-DD" string
   gender?: string;
@@ -57,6 +58,7 @@ export interface EventParticipantSummary {
   userName?: string; 
   userEmail?: string;
   userRole?: UserRole;
+  userDesignation?: string;
   userPhotoUrl?: string;
   userNic?: string; // Example: If NIC needs to be displayed for members
 

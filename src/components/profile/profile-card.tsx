@@ -25,6 +25,7 @@ const MAX_FILE_SIZE_KB = 200;
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  designation: z.string().optional(),
   nic: z.string().optional(),
   dateOfBirth: z.string().optional(), 
   gender: z.string().optional(),
@@ -51,6 +52,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: user.name || "",
+      designation: user.designation || "",
       nic: user.nic || "",
       dateOfBirth: user.dateOfBirth || "",
       gender: user.gender || "",
@@ -62,6 +64,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
   useEffect(() => {
     form.reset({
       name: user.name || "",
+      designation: user.designation || "",
       nic: user.nic || "",
       dateOfBirth: user.dateOfBirth || "",
       gender: user.gender || "",
@@ -123,6 +126,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
     await onUpdateProfile({
       id: user.id, 
       name: values.name,
+      designation: values.designation,
       nic: values.nic,
       gender: values.gender,
       mobileNumber: values.mobileNumber,
@@ -196,7 +200,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
           )}
         </div>
         <CardTitle className="text-2xl sm:text-3xl font-headline">{user.name}</CardTitle>
-        <CardDescription className="text-base sm:text-lg text-primary capitalize">{user.role}</CardDescription>
+        <CardDescription className="text-base sm:text-lg text-primary capitalize">{user.designation || user.role}</CardDescription>
       </CardHeader>
       <Separator />
       <CardContent className="p-4 sm:p-6 pt-6 space-y-4 sm:space-y-6">
@@ -210,6 +214,17 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
                   <FormItem>
                     <FormLabel>Full Name</FormLabel>
                     <FormControl><Input {...field} disabled={currentLoadingState} className="w-full" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="designation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Designation</FormLabel>
+                    <FormControl><Input placeholder="e.g., Club President" {...field} disabled={currentLoadingState} className="w-full" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -309,6 +324,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
         ) : (
           <>
             <ProfileInfoItem icon={UserIcon} label="Full Name" value={user.name} />
+            <ProfileInfoItem icon={Briefcase} label="Designation" value={user.designation} className="capitalize" />
             <ProfileInfoItem icon={Mail} label="Email Address" value={user.email} />
             <ProfileInfoItem icon={Shield} label="Role" value={user.role} className="capitalize" />
             <ProfileInfoItem icon={Briefcase} label="NIC" value={user.nic} />

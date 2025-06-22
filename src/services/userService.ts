@@ -13,7 +13,8 @@ export async function createUserProfile(
   nic?: string,
   dateOfBirth?: string,
   gender?: string,
-  mobileNumber?: string
+  mobileNumber?: string,
+  designation?: string
 ): Promise<void> {
   const userRef = doc(db, 'users', uid);
   const placeholderChar = name && name.trim().length > 0 ? name.trim().charAt(0).toUpperCase() : 'U';
@@ -32,6 +33,7 @@ export async function createUserProfile(
   if (dateOfBirth) profileData.dateOfBirth = dateOfBirth; // Expects "YYYY-MM-DD" string
   if (gender) profileData.gender = gender;
   if (mobileNumber) profileData.mobileNumber = mobileNumber;
+  if (designation) profileData.designation = designation;
 
   await setDoc(userRef, profileData);
 }
@@ -52,6 +54,7 @@ export async function getUserProfile(uid: string): Promise<User | null> {
         // If photoUrl exists (could be Base64 or placeholder), use it. Else, generate placeholder.
         photoUrl: data.photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
         role: data.role,
+        designation: data.designation,
         nic: data.nic,
         dateOfBirth: data.dateOfBirth, // Expects "YYYY-MM-DD" string
         gender: data.gender,

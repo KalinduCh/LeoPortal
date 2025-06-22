@@ -1,3 +1,4 @@
+
 // src/components/members/member-add-form.tsx
 "use client";
 
@@ -29,7 +30,8 @@ const memberAddFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-  role: z.enum(['member', 'admin'], { required_error: "Role is required." })
+  role: z.enum(['member', 'admin'], { required_error: "Role is required." }),
+  designation: z.string().min(2, { message: "Designation is required." }),
 });
 
 export type MemberAddFormValues = z.infer<typeof memberAddFormSchema>;
@@ -48,6 +50,7 @@ export function MemberAddForm({ onSubmit, onCancel, isLoading }: MemberAddFormPr
       email: "",
       password: "",
       role: "member",
+      designation: "Member",
     },
   });
 
@@ -66,6 +69,20 @@ export function MemberAddForm({ onSubmit, onCancel, isLoading }: MemberAddFormPr
               <FormLabel>Full Name</FormLabel>
               <FormControl>
                 <Input placeholder="John Doe" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="designation"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Designation</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Club President, Member" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -93,7 +110,7 @@ export function MemberAddForm({ onSubmit, onCancel, isLoading }: MemberAddFormPr
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
+                <Input type="password" placeholder="••••••••" />
               </FormControl>
               <FormMessage />
             </FormItem>

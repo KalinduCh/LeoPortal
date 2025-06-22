@@ -1,3 +1,4 @@
+
 // src/components/members/member-edit-form.tsx
 "use client";
 
@@ -27,7 +28,8 @@ import type { User, UserRole } from '@/types';
 
 const memberEditFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  role: z.enum(['member', 'admin'], { required_error: "Role is required." })
+  role: z.enum(['member', 'admin'], { required_error: "Role is required." }),
+  designation: z.string().min(2, { message: "Designation is required." }),
 });
 
 export type MemberEditFormValues = z.infer<typeof memberEditFormSchema>;
@@ -45,6 +47,7 @@ export function MemberEditForm({ member, onSubmit, onCancel, isLoading }: Member
     defaultValues: {
       name: member.name || "",
       role: member.role || "member",
+      designation: member.designation || "",
     },
   });
 
@@ -52,6 +55,7 @@ export function MemberEditForm({ member, onSubmit, onCancel, isLoading }: Member
     form.reset({
       name: member.name || "",
       role: member.role || "member",
+      designation: member.designation || "",
     });
   }, [member, form]);
 
@@ -70,6 +74,20 @@ export function MemberEditForm({ member, onSubmit, onCancel, isLoading }: Member
               <FormLabel>Full Name</FormLabel>
               <FormControl>
                 <Input placeholder="John Doe" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="designation"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Designation</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Club President, Member" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

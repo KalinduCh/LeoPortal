@@ -17,7 +17,7 @@ import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/fire
 import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; 
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { createUserProfile, updateUserProfile } from '@/services/userService';
-import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail } from "lucide-react";
+import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { MemberEditForm, type MemberEditFormValues } from '@/components/members/member-edit-form';
@@ -63,6 +63,7 @@ export default function MemberManagementPage() {
             email: data.email,
             photoUrl: data.photoUrl,
             role: data.role,
+            designation: data.designation,
             nic: data.nic,
             dateOfBirth: data.dateOfBirth,
             gender: data.gender,
@@ -86,7 +87,7 @@ export default function MemberManagementPage() {
   const filteredMembers = members.filter(memberItem => 
     (memberItem.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (memberItem.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (memberItem.nic?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    (memberItem.designation?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
   
   const handleOpenEditForm = (memberToEdit: User) => {
@@ -127,7 +128,13 @@ export default function MemberManagementPage() {
           newAuthUser.uid,
           data.email,
           data.name,
-          data.role 
+          data.role,
+          undefined,
+          undefined, // NIC not in this form
+          undefined, // DoB not in this form
+          undefined, // Gender not in this form
+          undefined, // Mobile not in this form
+          data.designation 
         );
         
         if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
@@ -229,7 +236,7 @@ export default function MemberManagementPage() {
       }
 
       const { header, data } = parseCSV(csvText);
-      const requiredHeaders = ["Type", "Name", "Email", "NIC", "DateOfBirth", "Gender", "MobileNumber"];
+      const requiredHeaders = ["Type", "Name", "Email", "NIC", "DateOfBirth", "Gender", "MobileNumber", "Designation"];
       if (!requiredHeaders.every(h => header.includes(h))) {
         toast({
           title: "Invalid CSV Format",
@@ -257,10 +264,11 @@ export default function MemberManagementPage() {
         const dateOfBirth = row["DateOfBirth"];
         const gender = row["Gender"];
         const mobileNumber = row["MobileNumber"];
+        const designation = row["Designation"];
 
-        if (!email || !password || !name || !type || !nic) {
+        if (!email || !password || !name || !type || !nic || !designation) {
           skippedCount++;
-          importMessages.push(`Skipped (Missing Data): Row for ${email || 'Unknown Email'} had missing essential data (Email, NIC, Name, Type).`);
+          importMessages.push(`Skipped (Missing Data): Row for ${email || 'Unknown Email'} had missing essential data (Email, NIC, Name, Type, Designation).`);
           console.warn(`Skipped (Missing Data): Row for ${email || 'Unknown Email'} had missing essential data. Row:`, row);
           continue;
         }
@@ -284,7 +292,8 @@ export default function MemberManagementPage() {
             nic,
             dateOfBirth,
             gender,
-            mobileNumber
+            mobileNumber,
+            designation
           );
           
           if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
@@ -422,9 +431,10 @@ export default function MemberManagementPage() {
                 <FileText className="h-4 w-4" />
                 <AlertTitle>CSV Format Instructions</AlertTitle>
                 <AlertDescription className="text-xs leading-relaxed">
-                    CSV Headers: <strong>Type, Name, Email, NIC, DateOfBirth, Gender, MobileNumber</strong>.
+                    CSV Headers: <strong>Type, Name, Email, NIC, DateOfBirth, Gender, MobileNumber, Designation</strong>.
                     <ul className="list-disc list-inside mt-1 space-y-0.5">
                         <li><strong>Type</strong>: "admin" or "member".</li>
+                        <li><strong>Designation</strong>: e.g., "Club President", "Member".</li>
                         <li><strong>NIC</strong>: Used as initial password (min 6 chars).</li>
                     </ul>
                     Emails already in use will be skipped.
@@ -463,7 +473,7 @@ export default function MemberManagementPage() {
           <div className="mt-4 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
-              placeholder="Search users by name, email, or NIC..." 
+              placeholder="Search users by name, email, or designation..." 
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -486,8 +496,8 @@ export default function MemberManagementPage() {
                       <TableHead>Avatar</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Designation</TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead>NIC</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -504,12 +514,12 @@ export default function MemberManagementPage() {
                         </TableCell>
                         <TableCell className="font-medium">{memberItem.name}</TableCell>
                         <TableCell>{memberItem.email}</TableCell>
+                        <TableCell className="capitalize">{memberItem.designation || 'N/A'}</TableCell>
                         <TableCell>
                             <Badge variant={memberItem.role === 'admin' ? 'default' : 'secondary'} className={memberItem.role === 'admin' ? 'bg-primary/80' : ''}>
                                 {memberItem.role}
                             </Badge>
                         </TableCell>
-                        <TableCell>{memberItem.nic || 'N/A'}</TableCell>
                         <TableCell className="text-right space-x-1 sm:space-x-2">
                           <Button variant="outline" size="icon" onClick={() => handleOpenEditForm(memberItem)} aria-label="Edit Member" disabled={isImporting || isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9">
                             <Edit className="h-4 w-4" />
@@ -540,11 +550,13 @@ export default function MemberManagementPage() {
                                     <p className="text-xs text-muted-foreground truncate flex items-center">
                                         <Mail className="h-3 w-3 mr-1"/> {memberItem.email}
                                     </p>
-                                    <div className="mt-1">
+                                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                        <Badge variant="outline" className="text-xs capitalize">
+                                          <Briefcase className="mr-1 h-3 w-3" /> {memberItem.designation || 'Not Set'}
+                                        </Badge>
                                         <Badge variant={memberItem.role === 'admin' ? 'default' : 'secondary'} className={`text-xs ${memberItem.role === 'admin' ? 'bg-primary/80' : ''}`}>
                                             {memberItem.role}
                                         </Badge>
-                                        {memberItem.nic && <Badge variant="outline" className="ml-1 text-xs">NIC: {memberItem.nic}</Badge>}
                                     </div>
                                 </div>
                             </div>
@@ -593,5 +605,3 @@ export default function MemberManagementPage() {
     </div>
   );
 }
-
-    
