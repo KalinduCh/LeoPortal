@@ -1,27 +1,43 @@
 // src/app/(authenticated)/admin/reports/page.tsx
 "use client";
 
-import React, { useState } from 'react';
-import type { User, Event, AttendanceRecord } from '@/types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import type { User, Event, AttendanceRecord, BadgeId } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Download, Loader2, Users, Calendar, BarChart } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, LineChart } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { getAllUsers } from '@/services/userService';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
+import Papa from 'papaparse';
+import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+
+interface MemberStat {
+  userId: string;
+  name: string;
+  email: string;
+  attendanceCount: number;
+  badges: BadgeId[];
+}
 
 export default function ReportsPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
-  const [isExportingMembers, setIsExportingMembers] = useState(false);
-  const [isExportingEvents, setIsExportingEvents] = useState(false);
-  const [isExportingAttendance, setIsExportingAttendance] = useState(false);
+  const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   React.useEffect(() => {
     if (!authLoading && (!user || user.role !== 'admin')) {
@@ -29,114 +45,101 @@ export default function ReportsPage() {
     }
   }, [user, authLoading, router]);
 
-  const escapeCsvField = (field: any): string => {
-    if (field === null || field === undefined) {
-      return '';
-    }
-    const stringField = String(field);
-    // If the field contains a comma, double quote, or newline, wrap it in double quotes.
-    if (/[",\n\r]/.test(stringField)) {
-      // Also, double up any existing double quotes.
-      return `"${stringField.replace(/"/g, '""')}"`;
-    }
-    return stringField;
-  };
-
-  const handleExportMembers = async () => {
-    setIsExportingMembers(true);
-    toast({ title: "Generating Report...", description: "Fetching all member data." });
+  const fetchData = useCallback(async () => {
+    setIsLoadingData(true);
     try {
-      const members = await getAllUsers();
-      const headers = ['ID', 'Name', 'Email', 'Role', 'Status', 'Designation', 'NIC', 'DateOfBirth', 'Gender', 'MobileNumber'];
-      const rows = members.map(member =>
-        [
-          escapeCsvField(member.id),
-          escapeCsvField(member.name),
-          escapeCsvField(member.email),
-          escapeCsvField(member.role),
-          escapeCsvField(member.status),
-          escapeCsvField(member.designation),
-          escapeCsvField(member.nic),
-          escapeCsvField(member.dateOfBirth),
-          escapeCsvField(member.gender),
-          escapeCsvField(member.mobileNumber),
-        ].join(',')
-      );
-
-      downloadCsv(
-        [headers.join(','), ...rows].join('\n'),
-        `leo-portal_members_${new Date().toISOString().split('T')[0]}.csv`
-      );
-      toast({ title: "Success", description: "Member data has been exported." });
+      const [users, events, attendance] = await Promise.all([
+        getAllUsers(),
+        getEvents(),
+        getAllAttendanceRecords()
+      ]);
+      setAllUsers(users);
+      setAllEvents(events);
+      setAllAttendance(attendance);
     } catch (error) {
-      console.error("Failed to export members:", error);
-      toast({ title: "Error", description: "Could not export member data.", variant: "destructive" });
+      console.error("Failed to fetch data for reports page:", error);
+      toast({ title: "Error", description: "Could not load data for reports.", variant: "destructive" });
     }
-    setIsExportingMembers(false);
-  };
+    setIsLoadingData(false);
+  }, [toast]);
 
-  const handleExportEvents = async () => {
-    setIsExportingEvents(true);
-    toast({ title: "Generating Report...", description: "Fetching all event data." });
+  useEffect(() => {
+    if (user && user.role === 'admin') {
+      fetchData();
+    }
+  }, [user, fetchData]);
+
+  const memberLeaderboard = useMemo(() => {
+    const stats: Record<string, { count: number; user: User | undefined }> = {};
+    allAttendance.forEach(record => {
+      if (record.userId) {
+        if (!stats[record.userId]) {
+          stats[record.userId] = { count: 0, user: allUsers.find(u => u.id === record.userId) };
+        }
+        stats[record.userId].count++;
+      }
+    });
+
+    const calculatedStats = Object.entries(stats)
+      .filter(([, data]) => data.user?.role === 'member' && data.user?.status === 'approved' && data.count > 0)
+      .map(([userId, data]) => ({
+        userId,
+        name: data.user!.name || 'Unknown User',
+        email: data.user!.email || 'N/A',
+        attendanceCount: data.count,
+      }))
+      .sort((a, b) => b.attendanceCount - a.attendanceCount);
+
+    const topVolunteerCount = calculatedStats.length > 0 ? calculatedStats[0].attendanceCount : 0;
+    
+    return calculatedStats.map(stat => {
+        const user = allUsers.find(u => u.id === stat.userId);
+        if (!user) return { ...stat, badges: [] };
+        const userAttendance = allAttendance.filter(a => a.userId === stat.userId);
+        const isTopVolunteer = topVolunteerCount > 0 && stat.attendanceCount === topVolunteerCount;
+        const badges = calculateBadgeIds(user, userAttendance, isTopVolunteer);
+        return { ...stat, badges };
+    });
+  }, [allAttendance, allUsers]);
+
+  const handleExport = async (type: 'members' | 'events' | 'attendance') => {
+    setIsExporting(type);
+    toast({ title: "Generating Report...", description: `Fetching all ${type} data.` });
     try {
-      const events = await getEvents();
-      const headers = ['ID', 'Name', 'StartDate', 'EndDate', 'Location', 'Description', 'Latitude', 'Longitude'];
-      const rows = events.map(event =>
-        [
-          escapeCsvField(event.id),
-          escapeCsvField(event.name),
-          escapeCsvField(event.startDate ? format(parseISO(event.startDate), 'yyyy-MM-dd HH:mm:ss') : ''),
-          escapeCsvField(event.endDate ? format(parseISO(event.endDate), 'yyyy-MM-dd HH:mm:ss') : ''),
-          escapeCsvField(event.location),
-          escapeCsvField(event.description),
-          escapeCsvField(event.latitude),
-          escapeCsvField(event.longitude),
-        ].join(',')
-      );
-      downloadCsv(
-        [headers.join(','), ...rows].join('\n'),
-        `leo-portal_events_${new Date().toISOString().split('T')[0]}.csv`
-      );
-      toast({ title: "Success", description: "Event data has been exported." });
-    } catch (error) {
-      console.error("Failed to export events:", error);
-      toast({ title: "Error", description: "Could not export event data.", variant: "destructive" });
-    }
-    setIsExportingEvents(false);
-  };
+      let data;
+      let fileName;
 
-  const handleExportAttendance = async () => {
-    setIsExportingAttendance(true);
-    toast({ title: "Generating Report...", description: "Fetching all attendance records." });
-    try {
-      const records = await getAllAttendanceRecords();
-      const headers = ['RecordID', 'EventID', 'UserID', 'Timestamp', 'Status', 'AttendanceType', 'VisitorName', 'VisitorDesignation', 'VisitorClub', 'VisitorComment', 'MarkedLatitude', 'MarkedLongitude'];
-      const rows = records.map(record =>
-        [
-          escapeCsvField(record.id),
-          escapeCsvField(record.eventId),
-          escapeCsvField(record.userId),
-          escapeCsvField(record.timestamp ? format(parseISO(record.timestamp), 'yyyy-MM-dd HH:mm:ss') : ''),
-          escapeCsvField(record.status),
-          escapeCsvField(record.attendanceType),
-          escapeCsvField(record.visitorName),
-          escapeCsvField(record.visitorDesignation),
-          escapeCsvField(record.visitorClub),
-          escapeCsvField(record.visitorComment),
-          escapeCsvField(record.markedLatitude),
-          escapeCsvField(record.markedLongitude),
-        ].join(',')
-      );
-      downloadCsv(
-        [headers.join(','), ...rows].join('\n'),
-        `leo-portal_attendance-log_${new Date().toISOString().split('T')[0]}.csv`
-      );
-      toast({ title: "Success", description: "Full attendance log has been exported." });
+      if (type === 'members') {
+        data = allUsers.map(member => ({
+          ID: member.id, Name: member.name, Email: member.email, Role: member.role, Status: member.status,
+          Designation: member.designation, NIC: member.nic, DateOfBirth: member.dateOfBirth, Gender: member.gender, MobileNumber: member.mobileNumber
+        }));
+        fileName = `leo-portal_members_${new Date().toISOString().split('T')[0]}.csv`;
+      } else if (type === 'events') {
+        data = allEvents.map(event => ({
+          ID: event.id, Name: event.name,
+          StartDate: event.startDate ? format(parseISO(event.startDate), 'yyyy-MM-dd HH:mm:ss') : '',
+          EndDate: event.endDate ? format(parseISO(event.endDate), 'yyyy-MM-dd HH:mm:ss') : '',
+          Location: event.location, Description: event.description, Latitude: event.latitude, Longitude: event.longitude
+        }));
+        fileName = `leo-portal_events_${new Date().toISOString().split('T')[0]}.csv`;
+      } else { // attendance
+        data = allAttendance.map(record => ({
+          RecordID: record.id, EventID: record.eventId, UserID: record.userId, Timestamp: record.timestamp ? format(parseISO(record.timestamp), 'yyyy-MM-dd HH:mm:ss') : '',
+          Status: record.status, AttendanceType: record.attendanceType, VisitorName: record.visitorName, VisitorDesignation: record.visitorDesignation,
+          VisitorClub: record.visitorClub, VisitorComment: record.visitorComment, MarkedLatitude: record.markedLatitude, MarkedLongitude: record.markedLongitude
+        }));
+        fileName = `leo-portal_attendance-log_${new Date().toISOString().split('T')[0]}.csv`;
+      }
+
+      const csv = Papa.unparse(data);
+      downloadCsv(csv, fileName);
+      toast({ title: "Success", description: `${type.charAt(0).toUpperCase() + type.slice(1)} data has been exported.` });
     } catch (error) {
-      console.error("Failed to export attendance:", error);
-      toast({ title: "Error", description: "Could not export attendance log.", variant: "destructive" });
+      console.error(`Failed to export ${type}:`, error);
+      toast({ title: "Error", description: `Could not export ${type} data.`, variant: "destructive" });
     }
-    setIsExportingAttendance(false);
+    setIsExporting(null);
   };
 
   const downloadCsv = (content: string, fileName: string) => {
@@ -155,7 +158,6 @@ export default function ReportsPage() {
   if (authLoading) {
     return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
-
   if (!user || user.role !== 'admin') {
     return null;
   }
@@ -163,59 +165,153 @@ export default function ReportsPage() {
   return (
     <div className="container mx-auto py-4 sm:py-8">
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Reports & Data Exports</h1>
-        <p className="text-muted-foreground mt-1">Generate and download reports for members, events, and attendance.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Reports & Data</h1>
+        <p className="text-muted-foreground mt-1">Analyze club data and export records as needed.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-6 w-6 text-primary" /> Member Reports</CardTitle>
-            <CardDescription>Export a full list of all registered members in the system.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">The CSV file will include all profile information for every user, including their role and approval status.</p>
-          </CardContent>
-          <CardFooter>
-            <Button onClick={handleExportMembers} disabled={isExportingMembers} className="w-full">
-              {isExportingMembers ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              {isExportingMembers ? 'Exporting...' : 'Export All Members (CSV)'}
-            </Button>
-          </CardFooter>
-        </Card>
+      <Tabs defaultValue="member-reports" className="w-full">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 h-auto">
+          <TabsTrigger value="member-reports" className="py-2"><Users2 className="mr-2 h-4 w-4"/>Member Reports</TabsTrigger>
+          <TabsTrigger value="event-reports" className="py-2"><Calendar className="mr-2 h-4 w-4"/>Event Reports</TabsTrigger>
+          <TabsTrigger value="data-exports" className="py-2"><Download className="mr-2 h-4 w-4"/>Data Exports</TabsTrigger>
+        </TabsList>
 
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center text-xl"><Calendar className="mr-2 h-6 w-6 text-primary" /> Event Reports</CardTitle>
-            <CardDescription>Export a full list of all created events, past and upcoming.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">The CSV file will contain event details such as name, dates, location, and description.</p>
-          </CardContent>
-          <CardFooter>
-            <Button onClick={handleExportEvents} disabled={isExportingEvents} className="w-full">
-              {isExportingEvents ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              {isExportingEvents ? 'Exporting...' : 'Export All Events (CSV)'}
-            </Button>
-          </CardFooter>
-        </Card>
+        <TabsContent value="member-reports" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><Award className="mr-2 h-5 w-5 text-primary"/>Member Participation Leaderboard</CardTitle>
+              <CardDescription>Top attendees across all events. Based on total attendance records.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingData ? (
+                <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+              ) : memberLeaderboard.length > 0 ? (
+                <TooltipProvider>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]">Rank</TableHead>
+                        <TableHead>Member</TableHead>
+                        <TableHead className="text-right">Attendance Count</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {memberLeaderboard.slice(0, 20).map((stat, index) => (
+                        <TableRow key={stat.userId}>
+                          <TableCell><Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80" : ""}>{index + 1}</Badge></TableCell>
+                          <TableCell className="font-semibold flex items-center gap-2">
+                              {stat.name}
+                              <div className="flex items-center gap-1.5">
+                                  {stat.badges.map(badgeId => {
+                                      const badge = BADGE_DEFINITIONS[badgeId];
+                                      if(!badge) return null;
+                                      const Icon = badge.icon;
+                                      return (
+                                          <Tooltip key={badgeId}>
+                                              <TooltipTrigger><Icon className="h-4 w-4 text-yellow-500" /></TooltipTrigger>
+                                              <TooltipContent><p className="font-semibold">{badge.name}</p></TooltipContent>
+                                          </Tooltip>
+                                      )
+                                  })}
+                              </div>
+                          </TableCell>
+                          <TableCell className="text-right"><Badge variant="outline">{stat.attendanceCount}</Badge></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TooltipProvider>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">No attendance data available to generate a leaderboard.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center text-xl"><BarChart className="mr-2 h-6 w-6 text-primary" /> Attendance Reports</CardTitle>
-            <CardDescription>Export a complete log of all attendance records for all events.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">The CSV file will contain every attendance entry, including member and visitor details.</p>
-          </CardContent>
-          <CardFooter>
-            <Button onClick={handleExportAttendance} disabled={isExportingAttendance} className="w-full">
-              {isExportingAttendance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              {isExportingAttendance ? 'Exporting...' : 'Export Attendance Log (CSV)'}
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
+        <TabsContent value="event-reports" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Event Summary List</CardTitle>
+              <CardDescription>A list of all events. Click on any event to view its detailed attendance summary.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingData ? (
+                <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+              ) : allEvents.length > 0 ? (
+                <div className="max-h-[600px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Event Name</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead className="text-right">View</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allEvents.sort((a,b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime()).map((event) => (
+                        <TableRow key={event.id}>
+                          <TableCell className="font-medium">{event.name}</TableCell>
+                          <TableCell>{event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell>
+                          <TableCell>{event.location}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>
+                              Summary <ExternalLink className="ml-2 h-3 w-3" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                 <p className="text-center text-muted-foreground py-8">No events have been created yet.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="data-exports" className="mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-6 w-6 text-primary" /> All Members</CardTitle>
+                <CardDescription>Export a full list of all registered members in the system.</CardDescription>
+              </CardHeader>
+              <CardFooter>
+                <Button onClick={() => handleExport('members')} disabled={!!isExporting} className="w-full">
+                  {isExporting === 'members' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                  {isExporting === 'members' ? 'Exporting...' : 'Export Members (CSV)'}
+                </Button>
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center text-xl"><Calendar className="mr-2 h-6 w-6 text-primary" /> All Events</CardTitle>
+                <CardDescription>Export a list of all events, past and upcoming.</CardDescription>
+              </CardHeader>
+              <CardFooter>
+                <Button onClick={() => handleExport('events')} disabled={!!isExporting} className="w-full">
+                  {isExporting === 'events' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                  {isExporting === 'events' ? 'Exporting...' : 'Export Events (CSV)'}
+                </Button>
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center text-xl"><BarChart className="mr-2 h-6 w-6 text-primary" /> Attendance Log</CardTitle>
+                <CardDescription>Export a complete log of all attendance records for all events.</CardDescription>
+              </CardHeader>
+              <CardFooter>
+                <Button onClick={() => handleExport('attendance')} disabled={!!isExporting} className="w-full">
+                  {isExporting === 'attendance' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                  {isExporting === 'attendance' ? 'Exporting...' : 'Export Attendance (CSV)'}
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

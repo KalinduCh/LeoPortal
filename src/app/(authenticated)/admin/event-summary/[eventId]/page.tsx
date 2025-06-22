@@ -16,6 +16,7 @@ import { Loader2, CalendarDays, MapPin, Info, Users, Download, ArrowLeft, Mail, 
 import { format, parseISO, isValid } from 'date-fns';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from "@/components/ui/badge";
@@ -45,86 +46,107 @@ export default function EventSummaryPage() {
     const pdfFileName = `Event-Summary-${event.name.replace(/ /g, '_')}.pdf`;
 
     // Temporarily modify styles for better PDF capture
+    const elementsToHide = Array.from(input.querySelectorAll('.print-hide')) as HTMLElement[];
     const scrollArea = input.querySelector('.print-scroll') as HTMLElement;
-    const originalStyles = {
+    
+    const originalStyles: {el: HTMLElement, display: string}[] = [];
+    elementsToHide.forEach(el => {
+        originalStyles.push({el, display: el.style.display});
+        el.style.display = 'none';
+    });
+
+    const originalScrollStyles = {
       maxHeight: scrollArea?.style.maxHeight,
       overflowY: scrollArea?.style.overflowY,
       border: scrollArea?.style.border,
     };
-
     if (scrollArea) {
       scrollArea.style.maxHeight = 'none';
       scrollArea.style.overflowY = 'visible';
-      scrollArea.style.border = 'none'; // remove border from scroll area itself
+      scrollArea.style.border = 'none';
     }
 
-    // Hide mobile card view, force table view for PDF
-    const mobileView = input.querySelector('.print-hide-card-view') as HTMLElement;
-    const tableView = input.querySelector('.print-force-table-view') as HTMLElement;
-    const originalMobileDisplay = mobileView?.style.display;
-    const originalTableDisplay = tableView?.style.display;
-
-    if(mobileView) mobileView.style.display = 'none';
-    if(tableView) tableView.style.display = 'block';
-
-
-    html2canvas(input, { 
-      scale: 2, // Use a higher scale for better resolution
-      useCORS: true, // Important for external images if any
-      windowWidth: input.scrollWidth,
-      windowHeight: input.scrollHeight,
-    })
+    html2canvas(input, { scale: 2, useCORS: true })
     .then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
-      
-      // Calculate the aspect ratio
       const ratio = canvasWidth / canvasHeight;
-      
       let imgWidth = pdfWidth - 20; // 10mm margin on each side
       let imgHeight = imgWidth / ratio;
-      
       let heightLeft = imgHeight;
       let position = 10; // Top margin
 
       pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-      heightLeft -= (pdfHeight - 20); // Subtract one page height (with margins)
+      heightLeft -= (pdf.internal.pageSize.getHeight() - 20);
 
       while (heightLeft > 0) {
-        position = -heightLeft + 10; // Recalculate position for the next page
+        position = -heightLeft + 10;
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-        heightLeft -= (pdfHeight - 20);
+        heightLeft -= (pdf.internal.pageSize.getHeight() - 20);
       }
-
       pdf.save(pdfFileName);
-      toast({
-        title: "PDF Generated",
-        description: "Your report is downloading.",
-      });
+      toast({ title: "PDF Generated", description: "Your report is downloading." });
     })
     .catch(err => {
       console.error("Could not generate PDF: ", err);
-      toast({
-          title: "PDF Generation Failed",
-          description: "There was an issue creating the PDF. Please try again.",
-          variant: "destructive",
-      });
+      toast({ title: "PDF Generation Failed", variant: "destructive" });
     })
     .finally(() => {
-        // Restore original styles
+        originalStyles.forEach(s => s.el.style.display = s.display);
         if (scrollArea) {
-          scrollArea.style.maxHeight = originalStyles.maxHeight || '';
-          scrollArea.style.overflowY = originalStyles.overflowY || '';
-          scrollArea.style.border = originalStyles.border || '';
+          scrollArea.style.maxHeight = originalScrollStyles.maxHeight || '';
+          scrollArea.style.overflowY = originalScrollStyles.overflowY || '';
+          scrollArea.style.border = originalScrollStyles.border || '';
         }
-        if(mobileView) mobileView.style.display = originalMobileDisplay || '';
-        if(tableView) tableView.style.display = originalTableDisplay || '';
+    });
+  };
+
+  const handleDownloadCsv = () => {
+    if (!event) return;
+
+    const csvData = participantsSummary.map(summary => {
+      const timestamp = summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp))
+        ? format(parseISO(summary.attendanceTimestamp), "yyyy-MM-dd HH:mm:ss") : "Invalid Date";
+      if (summary.type === 'member') {
+        return {
+          Type: "Member",
+          Name: summary.userName || "",
+          "Role/Designation": summary.userDesignation || summary.userRole || "Member",
+          "Email/Club": summary.userEmail || "",
+          Comment: "N/A",
+          Timestamp: timestamp,
+        };
+      } else { // visitor
+        return {
+          Type: "Visitor",
+          Name: summary.visitorName || "",
+          "Role/Designation": summary.visitorDesignation || "",
+          "Email/Club": summary.visitorClub || "",
+          Comment: summary.visitorComment || "N/A",
+          Timestamp: timestamp,
+        };
+      }
+    });
+
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.href) {
+        URL.revokeObjectURL(link.href);
+    }
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', `Event-Participants-${event.name.replace(/ /g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({
+        title: "CSV Generated",
+        description: "Your participant list is downloading.",
     });
   };
 
@@ -315,14 +337,17 @@ export default function EventSummaryPage() {
     <div className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <Button onClick={() => router.back()} variant="outline" size="sm" className="mb-2 print-hide">
+            <Button onClick={() => router.back()} variant="outline" size="sm" className="mb-2">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
             <h1 className="text-2xl sm:text-3xl font-bold font-headline text-primary">{event.name} - Summary</h1>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 print-hide w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <button onClick={handleCopySummary} className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
               <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Summary
+            </button>
+            <button onClick={handleDownloadCsv} className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
+              <Download className="mr-2 h-4 w-4" /> Download CSV
             </button>
             <button onClick={handleDownloadPdf} className={cn(buttonVariants({}), "w-full sm:w-auto")}>
               <Download className="mr-2 h-4 w-4" /> Download PDF
@@ -330,14 +355,14 @@ export default function EventSummaryPage() {
         </div>
       </div>
 
-      <div ref={componentRef} className="p-2 sm:p-4 md:p-6 space-y-6 rounded-lg border bg-card text-card-foreground shadow-sm modal-print-area">
+      <div ref={componentRef} className="p-2 sm:p-4 md:p-6 space-y-6 rounded-lg border bg-card text-card-foreground shadow-sm">
         <Card className="shadow-none border-0 sm:border sm:shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg sm:text-xl font-semibold text-primary print-title flex items-center">
+            <CardTitle className="text-lg sm:text-xl font-semibold text-primary flex items-center">
                 <Info className="mr-2 h-5 w-5" /> Event Details
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 sm:space-y-3 print-section">
+          <CardContent className="space-y-2 sm:space-y-3">
             <div className="flex items-center text-sm">
               <CalendarDays className="mr-2 h-4 w-4 text-muted-foreground" />
               <span className="font-medium">Date & Time:</span>
@@ -367,116 +392,59 @@ export default function EventSummaryPage() {
 
         <Card className="shadow-none border-0 sm:border sm:shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg sm:text-xl font-semibold text-primary print-title flex items-center">
+            <CardTitle className="text-lg sm:text-xl font-semibold text-primary flex items-center">
               <Users className="mr-2 h-5 w-5" /> Participants ({participantsSummary.length})
             </CardTitle>
           </CardHeader>
-          <CardContent className="print-section">
+          <CardContent>
             {participantsSummary.length > 0 ? (
-              <>
-                {/* Desktop Table View */}
-                <div className="hidden md:block print-force-table-view">
-                  <ScrollArea className="max-h-[400px] border rounded-md print-scroll">
-                    <Table className="print-table">
-                      <TableHeader className="print-table-header bg-muted/50">
-                        <TableRow>
-                          <TableHead className="w-12 print-hide">Avatar/Icon</TableHead>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Role/Designation</TableHead>
-                          <TableHead>Email/Club</TableHead>
-                          <TableHead>Comment</TableHead>
-                          <TableHead>Timestamp</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody className="print-table-body">
-                        {participantsSummary.map((summary) => (
-                          <TableRow key={summary.id}>
-                            <TableCell className="print-hide">
-                               {summary.type === 'member' ? (
-                                 <Avatar className="h-9 w-9">
-                                  <AvatarImage src={summary.userPhotoUrl} alt={summary.userName} data-ai-hint="profile avatar" />
-                                  <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                                      {getInitials(summary.userName)}
-                                  </AvatarFallback>
-                                </Avatar>
-                               ) : (
-                                <Star className="h-7 w-7 text-yellow-500" /> 
-                               )}
-                            </TableCell>
-                            <TableCell className="font-medium">{summary.userName || summary.visitorName}</TableCell>
-                            <TableCell className="capitalize text-xs">
-                                <Badge variant={summary.type === 'member' ? (summary.userRole === 'admin' ? "default" : "secondary") : "outline"} className={summary.type === 'member' && summary.userRole === 'admin' ? "bg-primary/80" : (summary.type === 'visitor' ? "border-yellow-500 text-yellow-600" : "") }>
-                                    {summary.userDesignation || summary.userRole || summary.visitorDesignation || 'Visitor'}
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                                {summary.userEmail || summary.visitorClub}
-                            </TableCell>
-                             <TableCell className="text-xs text-muted-foreground italic">
-                                {summary.type === 'visitor' ? (summary.visitorComment || 'N/A') : 'N/A'}
-                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a") : "Invalid Date"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </div>
-                {/* Mobile Card View */}
-                <div className="block md:hidden print-hide-card-view">
-                  {participantsSummary.map((summary) => (
-                    <Card key={summary.id} className="shadow-sm">
-                      <CardContent className="p-3">
-                        <div className="flex items-start space-x-3">
-                            {summary.type === 'member' ? (
-                                <Avatar className="h-10 w-10">
-                                    <AvatarImage src={summary.userPhotoUrl} alt={summary.userName} data-ai-hint="profile avatar" />
-                                    <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                                        {getInitials(summary.userName)}
-                                    </AvatarFallback>
-                                </Avatar>
-                            ) : (
-                                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-yellow-100">
-                                 <Star className="h-6 w-6 text-yellow-500" />
-                                </div>
-                            )}
-                            <div className="flex-grow min-w-0">
-                                <p className="font-semibold text-primary truncate">{summary.userName || summary.visitorName}</p>
-                                {summary.type === 'member' && summary.userEmail && (
-                                     <p className="text-xs text-muted-foreground truncate flex items-center">
-                                        <Mail className="h-3 w-3 mr-1"/> {summary.userEmail}
-                                    </p>
-                                )}
-                                {summary.type === 'visitor' && summary.visitorClub && (
-                                     <p className="text-xs text-muted-foreground truncate flex items-center">
-                                        <Users className="h-3 w-3 mr-1"/> {summary.visitorClub}
-                                    </p>
-                                )}
-                                <div className="mt-1">
-                                    <Badge 
-                                      variant={summary.type === 'member' ? (summary.userRole === 'admin' ? 'default' : 'secondary') : 'outline'} 
-                                      className={`text-xs capitalize ${summary.type === 'member' && summary.userRole === 'admin' ? 'bg-primary/80' : (summary.type === 'visitor' ? 'border-yellow-500 text-yellow-600' : '')}`}
-                                    >
-                                        {summary.userDesignation || summary.userRole || summary.visitorDesignation || 'Visitor'}
-                                    </Badge>
-                                </div>
-                            </div>
-                        </div>
-                        {summary.type === 'visitor' && summary.visitorComment && (
-                            <p className="text-xs text-muted-foreground mt-2 italic flex items-start">
-                               <MessageSquare className="h-3 w-3 mr-1.5 mt-0.5 shrink-0" /> {summary.visitorComment}
-                            </p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-2 text-right">
-                          Attended: {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? format(parseISO(summary.attendanceTimestamp), "MMM d, h:mm a") : "Invalid Date"}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </>
+              <ScrollArea className="max-h-[600px] border rounded-md print-scroll">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead className="w-12 print-hide">Avatar/Icon</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Role/Designation</TableHead>
+                      <TableHead>Email/Club</TableHead>
+                      <TableHead>Comment</TableHead>
+                      <TableHead>Timestamp</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {participantsSummary.map((summary) => (
+                      <TableRow key={summary.id}>
+                        <TableCell className="print-hide">
+                           {summary.type === 'member' ? (
+                             <Avatar className="h-9 w-9">
+                              <AvatarImage src={summary.userPhotoUrl} alt={summary.userName} data-ai-hint="profile avatar" />
+                              <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                  {getInitials(summary.userName)}
+                              </AvatarFallback>
+                            </Avatar>
+                           ) : (
+                            <Star className="h-7 w-7 text-yellow-500" /> 
+                           )}
+                        </TableCell>
+                        <TableCell className="font-medium">{summary.userName || summary.visitorName}</TableCell>
+                        <TableCell className="capitalize text-xs">
+                            <Badge variant={summary.type === 'member' ? (summary.userRole === 'admin' ? "default" : "secondary") : "outline"} className={summary.type === 'member' && summary.userRole === 'admin' ? "bg-primary/80" : (summary.type === 'visitor' ? "border-yellow-500 text-yellow-600" : "") }>
+                                {summary.userDesignation || summary.userRole || summary.visitorDesignation || 'Visitor'}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                            {summary.userEmail || summary.visitorClub}
+                        </TableCell>
+                         <TableCell className="text-xs text-muted-foreground italic">
+                            {summary.type === 'visitor' ? (summary.visitorComment || 'N/A') : 'N/A'}
+                         </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a") : "Invalid Date"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
             ) : (
               <p className="text-sm text-muted-foreground italic text-center py-4">No participants recorded for this event.</p>
             )}
