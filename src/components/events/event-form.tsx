@@ -106,7 +106,9 @@ const DateTimePicker = ({ field, label }: { field: any, label: string }) => {
                 mode="single"
                 selected={field.value}
                 onSelect={handleDateSelect}
-                initialFocus
+                captionLayout="dropdown-buttons"
+                fromYear={new Date().getFullYear() - 10}
+                toYear={new Date().getFullYear() + 10}
               />
                <div className="p-2 border-t border-border">
                 <Label htmlFor={`time-${field.name}`} className="text-sm">Time</Label>
