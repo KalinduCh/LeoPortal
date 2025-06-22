@@ -16,7 +16,7 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, UserCircle, CalendarDays, Users, Settings, ChevronDown, ChevronUp, Bot, Mail, FileText } from "lucide-react"; // Added Mail
+import { LayoutDashboard, UserCircle, CalendarDays, Users, Settings, ChevronDown, ChevronUp, Bot, Mail } from "lucide-react"; // Removed FileText
 
 interface NavItem {
   href: string;
@@ -29,17 +29,9 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, role: "all" },
   { href: "/profile", label: "Profile", icon: UserCircle, role: "all" },
-  { href: "/documents", label: "Documents", icon: FileText, role: "all" },
   { href: "/events", label: "Event Management", icon: CalendarDays, role: "admin" },
   { href: "/members", label: "Member Management", icon: Users, role: "admin" },
-  { href: "/admin/communication", label: "Communication", icon: Mail, role: "admin" }, // New communication link
-  // Example with sub-menu
-  // {
-  //   href: "#", label: "Reports", icon: BarChart3, role: "admin", children: [
-  //     { href: "/reports/attendance", label: "Attendance", icon: CheckSquare },
-  //     { href: "/reports/membership", label: "Membership", icon: UserCheck },
-  //   ]
-  // },
+  { href: "/admin/communication", label: "Communication", icon: Mail, role: "admin" },
 ];
 
 export function SidebarNav() {
@@ -106,5 +98,3 @@ export function SidebarNav() {
     </SidebarMenu>
   );
 }
-
-    
