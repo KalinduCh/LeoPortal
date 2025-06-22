@@ -231,27 +231,31 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
         <CardDescription className="text-base sm:text-lg text-primary capitalize">{user.designation || user.role}</CardDescription>
       </CardHeader>
       
-      <Separator />
-
-      <CardContent className="p-4 sm:p-6">
-        <div className="space-y-2">
-          <div className="flex justify-between items-center mb-1">
-            <h3 className="text-sm font-semibold text-muted-foreground tracking-wider">PROFILE COMPLETION</h3>
-            <span className="text-sm font-bold text-primary">{percentage}%</span>
-          </div>
-          <Progress value={percentage} className="w-full" />
-          {percentage < 100 && !isEditing && (
-            <div className="text-xs text-muted-foreground pt-2">
-              <p>To complete your profile, please add:</p>
-              <ul className="list-disc list-inside">
-                {missingFields.map(field => <li key={field}>{field}</li>)}
-              </ul>
+      {percentage < 100 && (
+        <>
+          <Separator />
+          <CardContent className="p-4 sm:p-6">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center mb-1">
+                <h3 className="text-sm font-semibold text-muted-foreground tracking-wider">PROFILE COMPLETION</h3>
+                <span className="text-sm font-bold text-primary">{percentage}%</span>
+              </div>
+              <Progress value={percentage} className="w-full" />
+              {!isEditing && (
+                <div className="text-xs text-muted-foreground pt-2">
+                  <p>To complete your profile, please add:</p>
+                  <ul className="list-disc list-inside">
+                    {missingFields.map(field => <li key={field}>{field}</li>)}
+                  </ul>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </CardContent>
-
+          </CardContent>
+        </>
+      )}
+      
       <Separator />
+      
       <CardContent className="p-4 sm:p-6">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4 text-center tracking-wider">MY ACHIEVEMENTS</h3>
         {isLoadingBadges ? (
