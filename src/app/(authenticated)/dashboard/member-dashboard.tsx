@@ -210,8 +210,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                           {event.location || "Location not specified"}
                         </p>
                         {attendance && (
-                          <p className="text-xs text-accent-foreground bg-accent/20 px-2 py-1 rounded-md inline-flex items-center mt-1.5">
-                            <CheckSquare className="mr-1.5 h-3.5 w-3.5 text-accent" />
+                          <p className="text-xs text-secondary-foreground bg-secondary px-2 py-1 rounded-md inline-flex items-center mt-1.5">
+                            <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
                             You attended: {formattedAttendanceTime}
                           </p>
                         )}
