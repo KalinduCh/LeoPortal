@@ -206,49 +206,47 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
         <CardDescription className="text-base sm:text-lg text-primary capitalize">{user.designation || user.role}</CardDescription>
       </CardHeader>
       
-      {(badges.length > 0 || isLoadingBadges) && (
-        <>
-          <Separator />
-          <CardContent className="p-4 sm:p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-4 text-center">MY ACHIEVEMENTS</h3>
-            {isLoadingBadges ? (
-               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {[1,2,3].map(i => (
-                      <div key={i} className="flex flex-col items-center text-center gap-2 p-2 border rounded-lg bg-muted/20">
-                          <Skeleton className="h-8 w-8 rounded-full" />
-                          <Skeleton className="h-4 w-20" />
+      <Separator />
+      <CardContent className="p-4 sm:p-6">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4 text-center">MY ACHIEVEMENTS</h3>
+        {isLoadingBadges ? (
+           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {[1,2,3].map(i => (
+                  <div key={i} className="flex flex-col items-center text-center gap-2 p-2 border rounded-lg bg-muted/20">
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                      <Skeleton className="h-4 w-20" />
+                  </div>
+              ))}
+           </div>
+        ) : badges.length > 0 ? (
+          <TooltipProvider>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {badges.map((badgeId) => {
+                const badge = BADGE_DEFINITIONS[badgeId];
+                if (!badge) return null;
+                const Icon = badge.icon;
+                return (
+                  <Tooltip key={badgeId}>
+                    <TooltipTrigger asChild>
+                      <div className="flex flex-col items-center text-center gap-2 p-2 border rounded-lg bg-muted/30 hover:bg-muted/70 transition-colors cursor-pointer">
+                        <div className="p-2 bg-primary/10 rounded-full">
+                            <Icon className="h-6 w-6 text-primary" />
+                        </div>
+                        <p className="text-xs font-semibold">{badge.name}</p>
                       </div>
-                  ))}
-               </div>
-            ) : (
-              <TooltipProvider>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {badges.map((badgeId) => {
-                    const badge = BADGE_DEFINITIONS[badgeId];
-                    if (!badge) return null;
-                    const Icon = badge.icon;
-                    return (
-                      <Tooltip key={badgeId}>
-                        <TooltipTrigger asChild>
-                          <div className="flex flex-col items-center text-center gap-2 p-2 border rounded-lg bg-muted/30 hover:bg-muted/70 transition-colors cursor-pointer">
-                            <div className="p-2 bg-primary/10 rounded-full">
-                                <Icon className="h-6 w-6 text-primary" />
-                            </div>
-                            <p className="text-xs font-semibold">{badge.name}</p>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{badge.description}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
-                </div>
-              </TooltipProvider>
-            )}
-          </CardContent>
-        </>
-      )}
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{badge.description}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </TooltipProvider>
+        ) : (
+          <p className="text-center text-muted-foreground italic text-sm">No achievements yet. Keep participating in events to earn badges!</p>
+        )}
+      </CardContent>
 
       <Separator />
       <CardContent className="p-4 sm:p-6 pt-6 space-y-4 sm:space-y-6">
