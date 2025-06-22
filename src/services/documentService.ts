@@ -1,6 +1,4 @@
 // src/services/documentService.ts
-'use server';
-
 import {
   collection,
   addDoc,
