@@ -1,9 +1,8 @@
-
 // src/lib/firebase/clientApp.ts
 import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-// Removed: import { getStorage } from 'firebase/storage';
+import { getStorage } from 'firebase/storage';
 import { getAnalytics, isSupported } from "firebase/analytics";
 
 // Your web app's Firebase configuration (Hardcoded as per user request)
@@ -22,7 +21,7 @@ const firebaseConfig: FirebaseOptions = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
-// Removed: const storage = getStorage(app); 
+const storage = getStorage(app); 
 
 // Initialize Firebase Analytics if supported
 let analytics;
@@ -34,4 +33,4 @@ if (typeof window !== 'undefined') { // Check if running in browser
   });
 }
 
-export { app, auth, db, analytics }; // Removed storage from exports
+export { app, auth, db, storage, analytics };

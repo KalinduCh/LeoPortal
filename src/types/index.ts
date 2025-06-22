@@ -1,4 +1,3 @@
-
 import type { ReactElement, ElementType } from 'react';
 
 export type UserRole = 'admin' | 'member';
@@ -78,4 +77,14 @@ export interface EventParticipantSummary {
   visitorDesignation?: string;
   visitorClub?: string;
   visitorComment?: string; // Displaying comments could be useful
+}
+
+export interface Document {
+  id: string; // Firestore document ID
+  name: string;
+  url: string;
+  storagePath: string; // Path in Firebase Storage
+  uploadDate: string; // ISO String
+  size: number; // in bytes
+  contentType: string;
 }
