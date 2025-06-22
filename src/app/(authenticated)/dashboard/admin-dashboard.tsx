@@ -361,7 +361,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="font-semibold text-primary flex items-center gap-2">
+                          <div className="font-semibold text-primary flex items-center gap-2">
                               {index + 1}. {stat.name}
                               <div className="flex items-center gap-1.5">
                                   {stat.badges.map(badgeId => {
@@ -378,7 +378,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                                       )
                                   })}
                               </div>
-                          </p>
+                          </div>
                           <p className="text-xs text-muted-foreground">{stat.email}</p>
                         </div>
                         <Badge variant="outline" className="text-md px-2.5 py-1 border-accent text-accent">
