@@ -12,9 +12,10 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Mail, UserCircle, Briefcase, Star, MessageSquare, ClipboardCopy } from 'lucide-react';
+import { Loader2, CalendarDays, MapPin, Info, Users, Download, ArrowLeft, Mail, UserCircle, Briefcase, Star, MessageSquare, ClipboardCopy } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
-import { useReactToPrint } from 'react-to-print';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from "@/components/ui/badge";
@@ -34,10 +35,98 @@ export default function EventSummaryPage() {
 
   const componentRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
-    documentTitle: event ? `Event Summary - ${event.name}` : 'Event Summary',
-  });
+  const handleDownloadPdf = () => {
+    if (!componentRef.current || !event) {
+      toast({ title: "Error", description: "Cannot generate PDF. Report content not found.", variant: "destructive"});
+      return;
+    }
+    
+    const input = componentRef.current;
+    const pdfFileName = `Event-Summary-${event.name.replace(/ /g, '_')}.pdf`;
+
+    // Temporarily modify styles for better PDF capture
+    const scrollArea = input.querySelector('.print-scroll') as HTMLElement;
+    const originalStyles = {
+      maxHeight: scrollArea?.style.maxHeight,
+      overflowY: scrollArea?.style.overflowY,
+      border: scrollArea?.style.border,
+    };
+
+    if (scrollArea) {
+      scrollArea.style.maxHeight = 'none';
+      scrollArea.style.overflowY = 'visible';
+      scrollArea.style.border = 'none'; // remove border from scroll area itself
+    }
+
+    // Hide mobile card view, force table view for PDF
+    const mobileView = input.querySelector('.print-hide-card-view') as HTMLElement;
+    const tableView = input.querySelector('.print-force-table-view') as HTMLElement;
+    const originalMobileDisplay = mobileView?.style.display;
+    const originalTableDisplay = tableView?.style.display;
+
+    if(mobileView) mobileView.style.display = 'none';
+    if(tableView) tableView.style.display = 'block';
+
+
+    html2canvas(input, { 
+      scale: 2, // Use a higher scale for better resolution
+      useCORS: true, // Important for external images if any
+      windowWidth: input.scrollWidth,
+      windowHeight: input.scrollHeight,
+    })
+    .then((canvas) => {
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      
+      // Calculate the aspect ratio
+      const ratio = canvasWidth / canvasHeight;
+      
+      let imgWidth = pdfWidth - 20; // 10mm margin on each side
+      let imgHeight = imgWidth / ratio;
+      
+      let heightLeft = imgHeight;
+      let position = 10; // Top margin
+
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= (pdfHeight - 20); // Subtract one page height (with margins)
+
+      while (heightLeft > 0) {
+        position = -heightLeft + 10; // Recalculate position for the next page
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= (pdfHeight - 20);
+      }
+
+      pdf.save(pdfFileName);
+      toast({
+        title: "PDF Generated",
+        description: "Your report is downloading.",
+      });
+    })
+    .catch(err => {
+      console.error("Could not generate PDF: ", err);
+      toast({
+          title: "PDF Generation Failed",
+          description: "There was an issue creating the PDF. Please try again.",
+          variant: "destructive",
+      });
+    })
+    .finally(() => {
+        // Restore original styles
+        if (scrollArea) {
+          scrollArea.style.maxHeight = originalStyles.maxHeight || '';
+          scrollArea.style.overflowY = originalStyles.overflowY || '';
+          scrollArea.style.border = originalStyles.border || '';
+        }
+        if(mobileView) mobileView.style.display = originalMobileDisplay || '';
+        if(tableView) tableView.style.display = originalTableDisplay || '';
+    });
+  };
 
   const getInitials = (name?: string) => {
     if (!name) return "??";
@@ -79,6 +168,7 @@ export default function EventSummaryPage() {
               userName: userProfile.name,
               userEmail: userProfile.email,
               userRole: userProfile.role,
+              userDesignation: userProfile.designation,
               userPhotoUrl: userProfile.photoUrl,
             });
           }
@@ -140,7 +230,7 @@ export default function EventSummaryPage() {
         return [
           "Member",
           summary.userName || "",
-          summary.userRole || "Member",
+          summary.userDesignation || summary.userRole || "Member",
           summary.userEmail || "",
           "N/A",
           timestamp
@@ -234,8 +324,8 @@ export default function EventSummaryPage() {
             <button onClick={handleCopySummary} className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
               <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Summary
             </button>
-            <button onClick={handlePrint} className={cn(buttonVariants({}), "w-full sm:w-auto")}>
-              <Printer className="mr-2 h-4 w-4" /> Print / PDF
+            <button onClick={handleDownloadPdf} className={cn(buttonVariants({}), "w-full sm:w-auto")}>
+              <Download className="mr-2 h-4 w-4" /> Download PDF
             </button>
         </div>
       </div>
@@ -316,7 +406,7 @@ export default function EventSummaryPage() {
                             <TableCell className="font-medium">{summary.userName || summary.visitorName}</TableCell>
                             <TableCell className="capitalize text-xs">
                                 <Badge variant={summary.type === 'member' ? (summary.userRole === 'admin' ? "default" : "secondary") : "outline"} className={summary.type === 'member' && summary.userRole === 'admin' ? "bg-primary/80" : (summary.type === 'visitor' ? "border-yellow-500 text-yellow-600" : "") }>
-                                    {summary.userRole || summary.visitorDesignation || 'Visitor'}
+                                    {summary.userDesignation || summary.userRole || summary.visitorDesignation || 'Visitor'}
                                 </Badge>
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
@@ -367,9 +457,9 @@ export default function EventSummaryPage() {
                                 <div className="mt-1">
                                     <Badge 
                                       variant={summary.type === 'member' ? (summary.userRole === 'admin' ? 'default' : 'secondary') : 'outline'} 
-                                      className={`text-xs ${summary.type === 'member' && summary.userRole === 'admin' ? 'bg-primary/80' : (summary.type === 'visitor' ? 'border-yellow-500 text-yellow-600' : '')}`}
+                                      className={`text-xs capitalize ${summary.type === 'member' && summary.userRole === 'admin' ? 'bg-primary/80' : (summary.type === 'visitor' ? 'border-yellow-500 text-yellow-600' : '')}`}
                                     >
-                                        {summary.userRole || summary.visitorDesignation || 'Visitor'}
+                                        {summary.userDesignation || summary.userRole || summary.visitorDesignation || 'Visitor'}
                                     </Badge>
                                 </div>
                             </div>

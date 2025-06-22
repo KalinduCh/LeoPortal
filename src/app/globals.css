@@ -104,67 +104,6 @@ body {
   }
 }
 
-/* Print-specific styles */
-@media print {
-  body {
-    font-family: 'Arial', sans-serif; /* Use a common print font */
-    background-color: white !important;
-    color: black !important;
-  }
-  .print-hide {
-    display: none !important;
-  }
-  .modal-print-area { /* Class for the content inside the modal meant for printing */
-    padding: 1rem !important; /* Adjust padding for print */
-    border: none !important;
-    box-shadow: none !important;
-  }
-  .modal-print-area .card {
-    border: none !important;
-    box-shadow: none !important;
-  }
-  .print-title {
-    font-size: 1.5rem !important; /* Larger title for print */
-    color: black !important;
-  }
-  .print-description, .print-subtitle, .print-section p, .print-section span, .print-table-header th, .print-table-body td {
-    color: #333 !important; /* Darker text for print */
-    font-size: 10pt !important;
-  }
-  .print-section {
-    margin-bottom: 1rem;
-  }
-  .print-scroll { /* Remove scroll behavior for printing */
-    overflow-y: visible !important;
-    max-height: none !important;
-  }
-  .print-table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-  }
-  .print-table-header th, .print-table-body td {
-    border: 1px solid #ccc !important;
-    padding: 0.25rem 0.5rem !important;
-  }
-   .print-table-header th {
-    background-color: #f0f0f0 !important; /* Light gray background for table headers */
-  }
-  /* Hide avatars in print by default to save ink, unless explicitly shown */
-  .print-table-body .lucide-react, .print-table-body img {
-    display: none !important; /* Hide icons and images in table cells for print by default */
-  }
-  .print-table-body .font-medium, .print-table-body .text-xs { /* Ensure text is visible */
-    color: #333 !important;
-  }
-
-  .print-force-table-view {
-    display: block !important;
-  }
-  .print-hide-card-view {
-    display: none !important;
-  }
-}
-
 /* Splash Screen Animations */
 @keyframes backgroundGradientShift {
   0% { background-position: 0% 50%; }
@@ -188,7 +127,7 @@ body {
 }
 
 .animate-background-gradient-shift {
-  background: linear-gradient(-45deg, #1e40af, hsl(var(--primary)), hsl(var(--accent)), #1e40af);
+  background: linear-gradient(-45deg, #1e3a8a, hsl(var(--primary)), hsl(var(--accent)), #1e3a8a);
   background-size: 400% 400%;
   animation: backgroundGradientShift 15s ease infinite;
 }
