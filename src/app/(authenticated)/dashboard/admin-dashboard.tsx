@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Users, CalendarDays, Activity, PlusCircle, Eye, History, Award, Filter, Loader2, ExternalLink } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { format, parseISO, getYear, getMonth, isPast, isValid, isFuture, isWithinInterval } from 'date-fns';
@@ -31,6 +32,7 @@ interface MemberStat {
   email: string;
   attendanceCount: number;
   badges: BadgeId[];
+  photoUrl?: string;
 }
 
 export function AdminDashboard({ user }: AdminDashboardProps) {
@@ -85,14 +87,19 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     fetchData();
   }, [fetchData]);
 
+  const getInitials = (name?: string) => {
+    if (!name) return "??";
+    const names = name.split(' ');
+    if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+  };
+
   const { upcomingEvents, pastEvents } = useMemo(() => {
     const upcoming: Event[] = [];
     const past: Event[] = [];
-    const now = new Date();
 
     allEvents.forEach(event => {
       if (!event.startDate || !isValid(parseISO(event.startDate))) {
-        console.warn(`[AdminDashboard/Filter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`);
         return;
       }
       
@@ -104,14 +111,14 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         if (isPast(endDate)) {
           isEventOver = true;
         } else {
-          upcoming.push(event); // Ongoing or upcoming
+          upcoming.push(event);
         }
       } else {
         const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
         if (isPast(oneDayAfterStart)) {
           isEventOver = true;
         } else {
-          upcoming.push(event); // Ongoing or upcoming
+          upcoming.push(event);
         }
       }
 
@@ -149,13 +156,15 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       }
     });
     
-    const calculatedStats = Object.entries(stats)
+    const calculatedStats: MemberStat[] = Object.entries(stats)
       .filter(([userId, data]) => data.user?.role === 'member' && data.user?.status === 'approved' && data.count > 0) 
       .map(([userId, data]) => ({
         userId,
         name: data.user!.name || 'Unknown User', 
         email: data.user!.email || 'N/A',      
         attendanceCount: data.count,
+        photoUrl: data.user!.photoUrl,
+        badges: [], // Placeholder, will be calculated next
       }))
       .sort((a, b) => b.attendanceCount - a.attendanceCount);
     
@@ -359,33 +368,39 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
               <div className="block md:hidden space-y-3">
                 {memberStats.slice(0, 10).map((stat, index) => (
                   <Card key={stat.userId} className="shadow-sm">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-semibold text-primary flex items-center gap-2">
-                              {index + 1}. {stat.name}
-                              <div className="flex items-center gap-1.5">
-                                  {stat.badges.map(badgeId => {
-                                      const badge = BADGE_DEFINITIONS[badgeId];
-                                      if(!badge) return null;
-                                      const Icon = badge.icon;
-                                      return (
-                                          <Tooltip key={badgeId}>
-                                              <TooltipTrigger>
-                                                  <Icon className="h-4 w-4 text-yellow-500" />
-                                              </TooltipTrigger>
-                                              <TooltipContent><p>{badge.name}</p></TooltipContent>
-                                          </Tooltip>
-                                      )
-                                  })}
-                              </div>
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                         <Avatar className="h-12 w-12">
+                            <AvatarImage src={stat.photoUrl} alt={stat.name} data-ai-hint="profile avatar" />
+                            <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                {getInitials(stat.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-primary truncate flex items-center gap-2">
+                                {index + 1}. {stat.name}
+                                <div className="flex items-center gap-1.5">
+                                    {stat.badges.map(badgeId => {
+                                        const badge = BADGE_DEFINITIONS[badgeId];
+                                        if(!badge) return null;
+                                        const Icon = badge.icon;
+                                        return (
+                                            <Tooltip key={badgeId}>
+                                                <TooltipTrigger>
+                                                    <Icon className="h-4 w-4 text-yellow-500" />
+                                                </TooltipTrigger>
+                                                <TooltipContent><p>{badge.name}</p></TooltipContent>
+                                            </Tooltip>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{stat.email}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground">{stat.email}</p>
-                        </div>
-                        <Badge variant="outline" className="text-md px-2.5 py-1 border-accent text-accent">
-                          {stat.attendanceCount} <span className="ml-1 text-xs">attended</span>
-                        </Badge>
                       </div>
+                      <Badge variant="outline" className="text-md px-2.5 py-1 border-accent text-accent flex-shrink-0">
+                        {stat.attendanceCount}
+                      </Badge>
                     </CardContent>
                   </Card>
                 ))}

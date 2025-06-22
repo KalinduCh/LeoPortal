@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/reports/page.tsx
 "use client";
 
@@ -19,6 +20,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import Papa from 'papaparse';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface MemberStat {
   userId: string;
@@ -26,6 +28,7 @@ interface MemberStat {
   email: string;
   attendanceCount: number;
   badges: BadgeId[];
+  photoUrl?: string;
 }
 
 export default function ReportsPage() {
@@ -69,6 +72,13 @@ export default function ReportsPage() {
     }
   }, [user, fetchData]);
 
+  const getInitials = (name?: string) => {
+    if (!name) return "??";
+    const names = name.split(' ');
+    if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+  };
+
   const memberLeaderboard = useMemo(() => {
     const stats: Record<string, { count: number; user: User | undefined }> = {};
     allAttendance.forEach(record => {
@@ -87,6 +97,7 @@ export default function ReportsPage() {
         name: data.user!.name || 'Unknown User',
         email: data.user!.email || 'N/A',
         attendanceCount: data.count,
+        photoUrl: data.user!.photoUrl,
       }))
       .sort((a, b) => b.attendanceCount - a.attendanceCount);
 
@@ -187,39 +198,81 @@ export default function ReportsPage() {
                 <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : memberLeaderboard.length > 0 ? (
                 <TooltipProvider>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[60px]">Rank</TableHead>
-                        <TableHead>Member</TableHead>
-                        <TableHead className="text-right">Attendance Count</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {memberLeaderboard.slice(0, 20).map((stat, index) => (
-                        <TableRow key={stat.userId}>
-                          <TableCell><Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80" : ""}>{index + 1}</Badge></TableCell>
-                          <TableCell className="font-semibold flex items-center gap-2">
-                              {stat.name}
-                              <div className="flex items-center gap-1.5">
-                                  {stat.badges.map(badgeId => {
+                   {/* Desktop Table View */}
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[60px]">Rank</TableHead>
+                          <TableHead>Member</TableHead>
+                          <TableHead className="text-right">Attendance Count</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {memberLeaderboard.slice(0, 20).map((stat, index) => (
+                          <TableRow key={stat.userId}>
+                            <TableCell><Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80" : ""}>{index + 1}</Badge></TableCell>
+                            <TableCell className="font-semibold flex items-center gap-2">
+                                {stat.name}
+                                <div className="flex items-center gap-1.5">
+                                    {stat.badges.map(badgeId => {
+                                        const badge = BADGE_DEFINITIONS[badgeId];
+                                        if(!badge) return null;
+                                        const Icon = badge.icon;
+                                        return (
+                                            <Tooltip key={badgeId}>
+                                                <TooltipTrigger><Icon className="h-4 w-4 text-yellow-500" /></TooltipTrigger>
+                                                <TooltipContent><p className="font-semibold">{badge.name}</p></TooltipContent>
+                                            </Tooltip>
+                                        )
+                                    })}
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-right"><Badge variant="outline">{stat.attendanceCount}</Badge></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                   {/* Mobile Card View */}
+                  <div className="block md:hidden space-y-3">
+                    {memberLeaderboard.slice(0, 20).map((stat, index) => (
+                      <Card key={stat.userId} className="shadow-sm">
+                        <CardContent className="p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                              <Avatar className="h-12 w-12">
+                                <AvatarImage src={stat.photoUrl} alt={stat.name} data-ai-hint="profile avatar" />
+                                <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                  {getInitials(stat.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-semibold flex items-center gap-2">
+                                  {index + 1}. {stat.name}
+                                  <span className="flex items-center gap-1.5">
+                                    {stat.badges.map(badgeId => {
                                       const badge = BADGE_DEFINITIONS[badgeId];
                                       if(!badge) return null;
                                       const Icon = badge.icon;
                                       return (
-                                          <Tooltip key={badgeId}>
-                                              <TooltipTrigger><Icon className="h-4 w-4 text-yellow-500" /></TooltipTrigger>
-                                              <TooltipContent><p className="font-semibold">{badge.name}</p></TooltipContent>
-                                          </Tooltip>
-                                      )
-                                  })}
+                                        <Tooltip key={badgeId}>
+                                          <TooltipTrigger asChild>
+                                            <Icon className="h-4 w-4 text-yellow-500" />
+                                          </TooltipTrigger>
+                                          <TooltipContent><p>{badge.name}</p></TooltipContent>
+                                        </Tooltip>
+                                      );
+                                    })}
+                                  </span>
+                                </p>
+                                <p className="text-xs text-muted-foreground">{stat.email}</p>
                               </div>
-                          </TableCell>
-                          <TableCell className="text-right"><Badge variant="outline">{stat.attendanceCount}</Badge></TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                          </div>
+                          <Badge variant="outline" className="text-lg px-3 py-1">{stat.attendanceCount}</Badge>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </TooltipProvider>
               ) : (
                 <p className="text-center text-muted-foreground py-8">No attendance data available to generate a leaderboard.</p>
@@ -243,17 +296,22 @@ export default function ReportsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Event Name</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Location</TableHead>
+                        <TableHead className="hidden sm:table-cell">Date</TableHead>
+                        <TableHead className="hidden md:table-cell">Location</TableHead>
                         <TableHead className="text-right">View</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {allEvents.sort((a,b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime()).map((event) => (
                         <TableRow key={event.id}>
-                          <TableCell className="font-medium">{event.name}</TableCell>
-                          <TableCell>{event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell>
-                          <TableCell>{event.location}</TableCell>
+                          <TableCell className="font-medium">
+                            {event.name}
+                            <div className="text-xs text-muted-foreground sm:hidden mt-1">
+                                {event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell">{event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell>
+                          <TableCell className="hidden md:table-cell">{event.location}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="outline" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>
                               Summary <ExternalLink className="ml-2 h-3 w-3" />
