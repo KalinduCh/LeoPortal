@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { User, Event, AttendanceRecord } from '@/types';
+import type { User, Event, AttendanceRecord, BadgeId } from '@/types';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
 import { collection, getDocs } from 'firebase/firestore';
@@ -18,6 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { format, parseISO, getYear, getMonth, isPast, isValid, isFuture, isWithinInterval } from 'date-fns';
+import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface AdminDashboardProps {
   user: User;
@@ -28,6 +30,7 @@ interface MemberStat {
   name: string;
   email: string;
   attendanceCount: number;
+  badges: BadgeId[];
 }
 
 export function AdminDashboard({ user }: AdminDashboardProps) {
@@ -54,6 +57,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           name: data.name,
           email: data.email,
           role: data.role,
+          designation: data.designation,
           photoUrl: data.photoUrl,
           nic: data.nic,
           dateOfBirth: data.dateOfBirth,
@@ -144,7 +148,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       }
     });
     
-    return Object.entries(stats)
+    const calculatedStats = Object.entries(stats)
       .filter(([userId, data]) => data.user?.role === 'member' && data.count > 0) 
       .map(([userId, data]) => ({
         userId,
@@ -153,6 +157,21 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         attendanceCount: data.count,
       }))
       .sort((a, b) => b.attendanceCount - a.attendanceCount);
+    
+    const topVolunteerCount = calculatedStats.length > 0 ? calculatedStats[0].attendanceCount : 0;
+
+    return calculatedStats.map(stat => {
+        const user = allUsers.find(u => u.id === stat.userId);
+        const userAttendance = allAttendance.filter(a => a.userId === stat.userId);
+        if (!user) {
+            return { ...stat, badges: [] };
+        }
+        
+        const isTopVolunteer = topVolunteerCount > 0 && stat.attendanceCount === topVolunteerCount;
+        const badges = calculateBadgeIds(user, userAttendance, isTopVolunteer);
+        
+        return { ...stat, badges };
+    });
   }, [allAttendance, allUsers, selectedYear, selectedMonth]);
 
   const availableYears = useMemo(() => {
@@ -284,7 +303,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           {isLoading ? (
             <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : memberStats.length > 0 ? (
-            <>
+            <TooltipProvider>
               {/* Desktop Table View */}
               <div className="hidden md:block overflow-x-auto">
                 <Table>
@@ -304,7 +323,26 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                                 {index + 1}
                             </Badge>
                         </TableCell>
-                        <TableCell className="font-semibold">{stat.name}</TableCell>
+                        <TableCell className="font-semibold flex items-center gap-2">
+                            {stat.name}
+                            <div className="flex items-center gap-1.5">
+                                {stat.badges.map(badgeId => {
+                                    const badge = BADGE_DEFINITIONS[badgeId];
+                                    if(!badge) return null;
+                                    const Icon = badge.icon;
+                                    return (
+                                        <Tooltip key={badgeId}>
+                                            <TooltipTrigger>
+                                                <Icon className="h-4 w-4 text-yellow-500" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p className="font-semibold">{badge.name}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )
+                                })}
+                            </div>
+                        </TableCell>
                         <TableCell className="text-muted-foreground text-xs sm:text-sm">{stat.email}</TableCell>
                         <TableCell className="text-right">
                           <Badge variant="outline" className="text-lg px-3 py-1 border-accent text-accent">
@@ -323,7 +361,24 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="font-semibold text-primary">{index + 1}. {stat.name}</p>
+                          <p className="font-semibold text-primary flex items-center gap-2">
+                              {index + 1}. {stat.name}
+                              <div className="flex items-center gap-1.5">
+                                  {stat.badges.map(badgeId => {
+                                      const badge = BADGE_DEFINITIONS[badgeId];
+                                      if(!badge) return null;
+                                      const Icon = badge.icon;
+                                      return (
+                                          <Tooltip key={badgeId}>
+                                              <TooltipTrigger>
+                                                  <Icon className="h-4 w-4 text-yellow-500" />
+                                              </TooltipTrigger>
+                                              <TooltipContent><p>{badge.name}</p></TooltipContent>
+                                          </Tooltip>
+                                      )
+                                  })}
+                              </div>
+                          </p>
                           <p className="text-xs text-muted-foreground">{stat.email}</p>
                         </div>
                         <Badge variant="outline" className="text-md px-2.5 py-1 border-accent text-accent">
@@ -334,7 +389,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                   </Card>
                 ))}
               </div>
-            </>
+            </TooltipProvider>
           ) : (
             <p className="text-center text-muted-foreground py-8">No attendance data for the selected period, or no members found.</p>
           )}

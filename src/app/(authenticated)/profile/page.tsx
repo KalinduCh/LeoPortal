@@ -2,30 +2,47 @@
 // src/app/(authenticated)/profile/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react'; // Added useEffect
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { ProfileCard } from '@/components/profile/profile-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 import { Terminal, Loader2 } from 'lucide-react';
-import type { User } from '@/types';
+import type { User, AttendanceRecord, BadgeId } from '@/types';
 import { updateUserProfile } from '@/services/userService';
 import { useToast } from '@/hooks/use-toast';
+import { getAttendanceRecordsForUser } from '@/services/attendanceService';
+import { calculateBadgeIds } from '@/services/badgeService';
 
 export default function ProfilePage() {
-  const { user, isLoading, firebaseUser, login } = useAuth(); 
+  const { user, isLoading, firebaseUser } = useAuth(); 
   const { toast } = useToast();
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  
+  const [userBadges, setUserBadges] = useState<BadgeId[]>([]);
+  const [isFetchingActivity, setIsFetchingActivity] = useState(true);
 
-  // This effect ensures that if `user` from `useAuth` changes (e.g., after a reload or re-auth),
-  // the loading state is handled correctly.
+  // Fetch attendance records for badge calculation
   useEffect(() => {
-    if (!isLoading && !user && firebaseUser) {
-      // If auth is loaded, firebaseUser exists, but local user profile is not yet set,
-      // it might still be fetching. This case needs careful handling by useAuth.
-      // For now, if user is null AFTER auth loading, it's an issue.
+    if (user?.id) {
+      setIsFetchingActivity(true);
+      getAttendanceRecordsForUser(user.id)
+        .then((records) => {
+          const badgeIds = calculateBadgeIds(user, records);
+          setUserBadges(badgeIds);
+        })
+        .catch(err => {
+          console.error("Failed to get user activity for badges:", err);
+          toast({ title: "Could not load badges", description: "Failed to fetch user activity.", variant: "destructive" });
+        })
+        .finally(() => {
+          setIsFetchingActivity(false);
+        });
+    } else {
+        setIsFetchingActivity(false);
     }
-  }, [user, isLoading, firebaseUser]);
+  }, [user, toast]);
 
 
   if (isLoading) {
@@ -59,24 +76,25 @@ export default function ProfilePage() {
       await updateUserProfile(user.id, updatedData);
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
       
-      // Force a reload to ensure all parts of the app (especially useAuth) get the latest user data.
-      // A more sophisticated approach might involve a dedicated refresh function in useAuth.
       window.location.reload();
 
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({ title: "Update Failed", description: "Could not update your profile. Check console for details.", variant: "destructive" });
     }
-    // setIsUpdatingProfile(false); // This won't be reached if reload happens
   };
 
 
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8 font-headline text-center md:text-left">My Profile</h1>
-      {/* isUpdatingProfile from this page is passed to ProfileCard to disable its own internal submit button if parent is busy */}
-      {/* ProfileCard now manages its own image uploading spinner */}
-      <ProfileCard user={user} onUpdateProfile={handleUpdateProfile} isUpdatingProfile={isUpdatingProfile}/>
+      <ProfileCard 
+        user={user} 
+        onUpdateProfile={handleUpdateProfile} 
+        isUpdatingProfile={isUpdatingProfile}
+        badges={userBadges}
+        isLoadingBadges={isFetchingActivity}
+      />
     </div>
   );
 }
@@ -89,8 +107,20 @@ const CardSkeleton = () => (
       <Skeleton className="h-8 w-48 mb-2" />
       <Skeleton className="h-6 w-32" />
     </div>
-    <Skeleton className="h-px w-full my-4" />
-    <div className="space-y-6">
+    <Separator />
+    {/* Badge Skeleton */}
+    <div className="p-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {[1,2,3].map(i => (
+                <div key={i} className="flex flex-col items-center text-center gap-2 p-2 border rounded-lg">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-4 w-20" />
+                </div>
+            ))}
+        </div>
+    </div>
+    <Skeleton className="h-px w-full my-0" />
+    <div className="space-y-6 p-6">
       {[1,2,3,4,5].map(i => ( 
         <div key={i} className="flex items-start space-x-3"> 
           <Skeleton className="h-5 w-5 rounded mt-1" /> 

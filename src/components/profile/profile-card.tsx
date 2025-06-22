@@ -11,15 +11,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Mail, User as UserIcon, Shield, Edit3, UploadCloud, Briefcase, Calendar as CalendarIconLucide, Phone, Smile, Loader2 } from 'lucide-react';
-import type { User } from '@/types';
+import type { User, BadgeId } from '@/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format, parseISO, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { BADGE_DEFINITIONS } from '@/services/badgeService';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const MAX_FILE_SIZE_KB = 200;
 
@@ -39,9 +42,11 @@ interface ProfileCardProps {
   user: User;
   onUpdateProfile: (updatedData: Partial<User>) => Promise<void>;
   isUpdatingProfile: boolean; 
+  badges: BadgeId[];
+  isLoadingBadges: boolean;
 }
 
-export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParentUpdating }: ProfileCardProps) {
+export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParentUpdating, badges, isLoadingBadges }: ProfileCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedBase64Image, setSelectedBase64Image] = useState<string | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(user.photoUrl || null);
@@ -117,8 +122,6 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
         if (isValid(parsedFromString)) {
             dobToSave = format(parsedFromString, "yyyy-MM-dd");
         } else {
-            // Attempt to parse if it's in another common format or keep as is if not recognized
-            // This part might need adjustment based on expected input formats if not strictly ISO
             dobToSave = values.dateOfBirth; 
         }
     }
@@ -155,7 +158,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
   const selectedDateForPicker = form.watch("dateOfBirth");
   let dateForPicker: Date | undefined = undefined;
   if (selectedDateForPicker) {
-    if (selectedDateForPicker instanceof Date) { // Should not happen given schema type is string
+    if (selectedDateForPicker instanceof Date) {
       dateForPicker = selectedDateForPicker;
     } else if (typeof selectedDateForPicker === 'string') {
       const parsed = parseISO(selectedDateForPicker);
@@ -202,6 +205,51 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
         <CardTitle className="text-2xl sm:text-3xl font-headline">{user.name}</CardTitle>
         <CardDescription className="text-base sm:text-lg text-primary capitalize">{user.designation || user.role}</CardDescription>
       </CardHeader>
+      
+      {(badges.length > 0 || isLoadingBadges) && (
+        <>
+          <Separator />
+          <CardContent className="p-4 sm:p-6">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-4 text-center">MY ACHIEVEMENTS</h3>
+            {isLoadingBadges ? (
+               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {[1,2,3].map(i => (
+                      <div key={i} className="flex flex-col items-center text-center gap-2 p-2 border rounded-lg bg-muted/20">
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                          <Skeleton className="h-4 w-20" />
+                      </div>
+                  ))}
+               </div>
+            ) : (
+              <TooltipProvider>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {badges.map((badgeId) => {
+                    const badge = BADGE_DEFINITIONS[badgeId];
+                    if (!badge) return null;
+                    const Icon = badge.icon;
+                    return (
+                      <Tooltip key={badgeId}>
+                        <TooltipTrigger asChild>
+                          <div className="flex flex-col items-center text-center gap-2 p-2 border rounded-lg bg-muted/30 hover:bg-muted/70 transition-colors cursor-pointer">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <Icon className="h-6 w-6 text-primary" />
+                            </div>
+                            <p className="text-xs font-semibold">{badge.name}</p>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{badge.description}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </TooltipProvider>
+            )}
+          </CardContent>
+        </>
+      )}
+
       <Separator />
       <CardContent className="p-4 sm:p-6 pt-6 space-y-4 sm:space-y-6">
         {isEditing ? (
@@ -258,7 +306,7 @@ export function ProfileCard({ user, onUpdateProfile, isUpdatingProfile: isParent
                             variant={"outline"}
                             disabled={currentLoadingState}
                             className={cn(
-                              "w-full pl-3 text-left font-normal", // Ensure full width
+                              "w-full pl-3 text-left font-normal",
                               !field.value && "text-muted-foreground"
                             )}
                           >
@@ -355,7 +403,7 @@ interface ProfileInfoItemProps {
 const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon: Icon, label, value, className }) => (
   <div className="flex items-start space-x-3">
     <Icon className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
-    <div className="min-w-0"> {/* Added for text wrapping */}
+    <div className="min-w-0">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className={cn("font-medium break-words", className)}>{value || <span className="italic text-muted-foreground/70">Not set</span>}</p>
     </div>

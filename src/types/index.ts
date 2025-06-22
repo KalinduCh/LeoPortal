@@ -1,5 +1,16 @@
 
+import type { ReactElement, ElementType } from 'react';
+
 export type UserRole = 'admin' | 'member';
+
+export type BadgeId = 'club_leader' | 'top_volunteer' | 'active_leo';
+
+export interface Badge {
+  id: BadgeId;
+  name: string;
+  description: string;
+  icon: ElementType;
+}
 
 export interface User {
   id: string; // This will be the Firebase Auth UID
@@ -12,7 +23,7 @@ export interface User {
   dateOfBirth?: string; // Stored as "YYYY-MM-DD" string
   gender?: string;
   mobileNumber?: string;
-  // createdAt?: any;
+  badges?: BadgeId[];
 }
 
 export interface Event {
