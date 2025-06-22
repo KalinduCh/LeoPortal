@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PlusCircle, Edit, Trash2, CalendarDays, Loader2, Eye, MapPin } from "lucide-react";
-import { format, parseISO, isPast, isValid } from 'date-fns';
+import { format, parseISO, isPast, isFuture, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { EventForm, type EventFormValues } from "@/components/events/event-form";
 import { getEvents, createEvent, updateEvent, deleteEvent as deleteEventService } from '@/services/eventService';
@@ -187,15 +187,33 @@ export default function EventManagementPage() {
                   <TableBody>
                     {events.map((event) => {
                       const eventStartDateObj = event.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : null;
-                      const isEventPast = eventStartDateObj ? isPast(eventStartDateObj) : false;
+                      const eventEndDateObj = event.endDate && isValid(parseISO(event.endDate)) ? parseISO(event.endDate) : null;
+
+                      let statusText: 'Upcoming' | 'Ongoing' | 'Past' | 'Invalid Date' = 'Invalid Date';
+                      let statusClassName = 'bg-yellow-500 hover:bg-yellow-600 text-white';
+
+                      if (eventStartDateObj) {
+                        const effectiveEndDate = eventEndDateObj || new Date(eventStartDateObj.getTime() + 24 * 60 * 60 * 1000); // 24 hours if no end date
+                        if (isFuture(eventStartDateObj)) {
+                          statusText = 'Upcoming';
+                          statusClassName = 'bg-green-600 hover:bg-green-700 text-white'; // Green
+                        } else if (isPast(effectiveEndDate)) {
+                          statusText = 'Past';
+                          statusClassName = 'bg-gray-500 hover:bg-gray-600 text-white'; // Ash
+                        } else {
+                          statusText = 'Ongoing';
+                          statusClassName = 'bg-blue-600 hover:bg-blue-700 text-white'; // Blue
+                        }
+                      }
+                      
                       return (
                         <TableRow key={event.id}>
                           <TableCell className="font-medium">{event.name}</TableCell>
                           <TableCell>{eventStartDateObj ? format(eventStartDateObj, "MMM d, yyyy 'at' h:mm a") : "Invalid Date"}</TableCell>
                           <TableCell>{event.location}</TableCell>
                           <TableCell>
-                            <Badge variant={isEventPast ? "secondary" : "default"} className={!isEventPast ? "bg-green-600 hover:bg-green-700 text-white" : ""}>
-                              {isEventPast ? "Past" : "Upcoming/Ongoing"}
+                            <Badge variant="default" className={statusClassName}>
+                              {statusText}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right space-x-1 sm:space-x-2">
@@ -219,14 +237,32 @@ export default function EventManagementPage() {
               <div className="block md:hidden space-y-4">
                 {events.map((event) => {
                   const eventStartDateObj = event.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : null;
-                  const isEventPast = eventStartDateObj ? isPast(eventStartDateObj) : false;
+                  const eventEndDateObj = event.endDate && isValid(parseISO(event.endDate)) ? parseISO(event.endDate) : null;
+
+                  let statusText: 'Upcoming' | 'Ongoing' | 'Past' | 'Invalid Date' = 'Invalid Date';
+                  let statusClassName = 'bg-yellow-500 hover:bg-yellow-600 text-white';
+
+                  if (eventStartDateObj) {
+                    const effectiveEndDate = eventEndDateObj || new Date(eventStartDateObj.getTime() + 24 * 60 * 60 * 1000);
+                    if (isFuture(eventStartDateObj)) {
+                      statusText = 'Upcoming';
+                      statusClassName = 'bg-green-600 hover:bg-green-700 text-white';
+                    } else if (isPast(effectiveEndDate)) {
+                      statusText = 'Past';
+                      statusClassName = 'bg-gray-500 hover:bg-gray-600 text-white';
+                    } else {
+                      statusText = 'Ongoing';
+                      statusClassName = 'bg-blue-600 hover:bg-blue-700 text-white';
+                    }
+                  }
+
                   return (
                     <Card key={event.id} className="shadow-md">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-md font-semibold">{event.name}</CardTitle>
                         <CardDescription className="text-xs">
-                            <Badge variant={isEventPast ? "secondary" : "default"} className={`text-xs ${!isEventPast ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}>
-                              {isEventPast ? "Past" : "Upcoming/Ongoing"}
+                            <Badge variant="default" className={`text-xs ${statusClassName}`}>
+                              {statusText}
                             </Badge>
                         </CardDescription>
                       </CardHeader>
@@ -264,3 +300,5 @@ export default function EventManagementPage() {
     </div>
   );
 }
+
+    
