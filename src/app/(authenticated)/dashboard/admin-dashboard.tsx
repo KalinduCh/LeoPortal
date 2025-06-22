@@ -57,6 +57,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           name: data.name,
           email: data.email,
           role: data.role,
+          status: data.status || 'approved',
           designation: data.designation,
           photoUrl: data.photoUrl,
           nic: data.nic,
@@ -66,7 +67,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         } as User);
       });
       setAllUsers(fetchedUsers);
-      setTotalMembers(fetchedUsers.filter(u => u.role === 'member').length);
+      setTotalMembers(fetchedUsers.filter(u => u.role === 'member' && u.status === 'approved').length);
 
       const fetchedEvents = await getEvents();
       setAllEvents(fetchedEvents);
@@ -142,14 +143,14 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         if (!stats[record.userId]) {
           stats[record.userId] = { count: 0, user: allUsers.find(u => u.id === record.userId) };
         }
-        if (stats[record.userId].user && stats[record.userId].user?.role === 'member') { 
+        if (stats[record.userId].user && stats[record.userId].user?.role === 'member' && stats[record.userId].user?.status === 'approved') { 
             stats[record.userId].count += 1;
         }
       }
     });
     
     const calculatedStats = Object.entries(stats)
-      .filter(([userId, data]) => data.user?.role === 'member' && data.count > 0) 
+      .filter(([userId, data]) => data.user?.role === 'member' && data.user?.status === 'approved' && data.count > 0) 
       .map(([userId, data]) => ({
         userId,
         name: data.user!.name || 'Unknown User', 
@@ -225,7 +226,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-3">
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium font-headline">Total Members</CardTitle>
+            <CardTitle className="text-sm font-medium font-headline">Total Approved Members</CardTitle>
             <Users className="h-6 w-6 text-primary" />
           </CardHeader>
           <CardContent>
@@ -465,8 +466,8 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           <CardContent>
             {isLoading && allUsers.filter(u => u.role === 'member').length === 0 ? (
                 <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-            ) : allUsers.filter(u => u.role === 'member').slice(0,5).length > 0 ? ( 
-                allUsers.filter(u => u.role === 'member').slice(0,5).map(member => (
+            ) : allUsers.filter(u => u.role === 'member' && u.status === 'approved').slice(0,5).length > 0 ? ( 
+                allUsers.filter(u => u.role === 'member' && u.status === 'approved').slice(0,5).map(member => (
                     <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b last:border-b-0">
                         <p className="font-medium">{member.name}</p>
                         <p className="text-sm text-muted-foreground">{member.email}</p>

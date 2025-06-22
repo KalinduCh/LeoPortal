@@ -1,3 +1,4 @@
+
 import type { ReactElement, ElementType } from 'react';
 
 export type UserRole = 'admin' | 'member';
@@ -17,6 +18,7 @@ export interface User {
   email: string;
   photoUrl?: string;
   role: UserRole;
+  status: 'pending' | 'approved';
   designation?: string;
   nic?: string;
   dateOfBirth?: string; // Stored as "YYYY-MM-DD" string

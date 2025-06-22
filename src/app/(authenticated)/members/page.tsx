@@ -2,7 +2,7 @@
 // src/app/(authenticated)/members/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { User } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
@@ -16,8 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; 
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { createUserProfile, updateUserProfile } from '@/services/userService';
-import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase } from "lucide-react";
+import { createUserProfile, updateUserProfile, approveUser as approveUserService, deleteUserProfile } from '@/services/userService';
+import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { MemberEditForm, type MemberEditFormValues } from '@/components/members/member-edit-form';
@@ -51,7 +51,6 @@ export default function MemberManagementPage() {
     setIsLoading(true);
     try {
       const usersRef = collection(db, "users");
-      // Fetch all users for admin, not just 'member' role, to allow admin management
       const q = query(usersRef); 
       const querySnapshot = await getDocs(q);
       const fetchedMembers: User[] = [];
@@ -63,6 +62,7 @@ export default function MemberManagementPage() {
             email: data.email,
             photoUrl: data.photoUrl,
             role: data.role,
+            status: data.status || 'approved', // Default to approved for older users
             designation: data.designation,
             nic: data.nic,
             dateOfBirth: data.dateOfBirth,
@@ -70,7 +70,7 @@ export default function MemberManagementPage() {
             mobileNumber: data.mobileNumber,
         } as User);
       });
-      setMembers(fetchedMembers.sort((a, b) => (a.name || "").localeCompare(b.name || ""))); // Sort by name
+      setMembers(fetchedMembers.sort((a, b) => (a.name || "").localeCompare(b.name || "")));
     } catch (error) {
         console.error("Error fetching members: ", error);
         toast({ title: "Error", description: "Could not load members.", variant: "destructive"});
@@ -84,7 +84,13 @@ export default function MemberManagementPage() {
     }
   }, [user, fetchMembers]);
 
-  const filteredMembers = members.filter(memberItem => 
+  const { approvedMembers, pendingMembers } = useMemo(() => {
+    const approved = members.filter(m => m.status === 'approved');
+    const pending = members.filter(m => m.status === 'pending');
+    return { approvedMembers: approved, pendingMembers: pending };
+  }, [members]);
+
+  const filteredMembers = approvedMembers.filter(memberItem => 
     (memberItem.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (memberItem.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (memberItem.designation?.toLowerCase() || '').includes(searchTerm.toLowerCase())
@@ -129,11 +135,12 @@ export default function MemberManagementPage() {
           data.email,
           data.name,
           data.role,
+          'approved', // Admins add pre-approved users
           undefined,
-          undefined, // NIC not in this form
-          undefined, // DoB not in this form
-          undefined, // Gender not in this form
-          undefined, // Mobile not in this form
+          undefined, 
+          undefined, 
+          undefined, 
+          undefined, 
           data.designation 
         );
         
@@ -142,7 +149,7 @@ export default function MemberManagementPage() {
         }
       });
 
-      toast({ title: "User Created", description: `${data.name} has been successfully added.` });
+      toast({ title: "User Created", description: `${data.name} has been successfully added as an approved user.` });
       fetchMembers(); 
       setIsAddFormOpen(false); 
 
@@ -164,7 +171,33 @@ export default function MemberManagementPage() {
       }
     }
   };
+  
+  const handleApprove = async (memberId: string) => {
+    setIsSubmitting(true);
+    try {
+        await approveUserService(memberId);
+        toast({ title: "User Approved", description: "The user can now log in."});
+        fetchMembers();
+    } catch (error: any) {
+        toast({ title: "Approval Failed", description: `Could not approve user: ${error.message}`, variant: "destructive" });
+    }
+    setIsSubmitting(false);
+  };
 
+  const handleReject = async (memberId: string, memberEmail?: string) => {
+    if (!memberId) return;
+    if (confirm(`Are you sure you want to reject and delete the profile for ${memberEmail || 'this user'}? This action cannot be undone.`)) {
+        setIsSubmitting(true);
+        try {
+            await deleteUserProfile(memberId);
+            toast({ title: "User Rejected", description: "The user's pending application has been deleted."});
+            fetchMembers();
+        } catch (error: any) {
+            toast({ title: "Rejection Failed", description: `Could not delete user profile: ${error.message}`, variant: "destructive" });
+        }
+        setIsSubmitting(false);
+    }
+  };
 
   const handleDeleteMember = async (memberId: string) => {
     if (!memberId) {
@@ -175,12 +208,11 @@ export default function MemberManagementPage() {
         toast({ title: "Action Denied", description: "You cannot delete your own profile from this interface.", variant: "destructive"});
         return;
     }
-    if (confirm("Are you sure you want to remove this user's profile from the database? This action does NOT delete their login credentials but removes their app profile data. It cannot be undone.")) {
+    if (confirm("Are you sure you want to remove this user's profile from the database? This action cannot be undone.")) {
         setIsSubmitting(true); 
         try {
-            const memberDocRef = doc(db, "users", memberId);
-            await deleteDoc(memberDocRef);
-            toast({title: "User Profile Removed", description: "The user's profile has been removed from Firestore."});
+            await deleteUserProfile(memberId);
+            toast({title: "User Profile Removed", description: "The user's profile has been removed."});
             setMembers(prevMembers => prevMembers.filter(m => m.id !== memberId)); 
         } catch (error: any) {
             console.error(`Failed to delete user profile for ID ${memberId}:`, error);
@@ -288,6 +320,7 @@ export default function MemberManagementPage() {
             email, 
             name, 
             role, 
+            'approved', // Users from CSV are pre-approved
             undefined, 
             nic,
             dateOfBirth,
@@ -405,12 +438,51 @@ export default function MemberManagementPage() {
         <h1 className="text-2xl sm:text-3xl font-bold font-headline">User Management</h1>
       </div>
       
+      {pendingMembers.length > 0 && (
+         <Card className="shadow-lg border-yellow-500/50">
+            <CardHeader>
+                <CardTitle className="flex items-center text-lg sm:text-xl text-yellow-600">
+                    <UserCheck className="mr-2 h-5 w-5" /> Pending Approvals ({pendingMembers.length})
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">These users have signed up and are waiting for your approval to log in.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-3">
+                    {pendingMembers.map((member) => (
+                        <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-md border bg-muted/30">
+                            <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                    <AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="profile avatar" />
+                                    <AvatarFallback className="bg-yellow-500/20 text-yellow-600 font-semibold">
+                                        {getInitials(member.name)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-medium">{member.name}</p>
+                                    <p className="text-xs text-muted-foreground">{member.email}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 mt-3 sm:mt-0 w-full sm:w-auto">
+                                <Button onClick={() => handleReject(member.id, member.email)} variant="destructive" size="sm" className="flex-1 sm:flex-none" disabled={isSubmitting}>
+                                    <UserX className="mr-1.5 h-4 w-4" /> Reject
+                                </Button>
+                                <Button onClick={() => handleApprove(member.id)} variant="default" size="sm" className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700" disabled={isSubmitting}>
+                                    <UserCheck className="mr-1.5 h-4 w-4" /> Approve
+                                </Button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+         </Card>
+      )}
+
       <Card className="shadow-lg">
         <CardHeader>
             <CardTitle className="flex items-center text-lg sm:text-xl">
                 <UploadCloud className="mr-2 h-5 w-5 text-primary" /> Import Users from CSV
             </CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Upload a CSV file to batch import user accounts.</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">Upload a CSV file to batch import user accounts. Imported users are automatically approved.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
@@ -448,7 +520,7 @@ export default function MemberManagementPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                     <CardTitle className="flex items-center text-lg sm:text-xl">
-                        <UsersIcon className="mr-2 h-5 w-5 text-primary" /> User Accounts
+                        <UsersIcon className="mr-2 h-5 w-5 text-primary" /> Approved User Accounts
                     </CardTitle>
                     <CardDescription className="text-xs sm:text-sm">View, edit, or add user details. Deletion removes app profile data.</CardDescription>
                 </div>
@@ -460,7 +532,7 @@ export default function MemberManagementPage() {
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
-                            <DialogTitle>Add New User</DialogTitle>
+                            <DialogTitle>Add New Approved User</DialogTitle>
                         </DialogHeader>
                         <MemberAddForm
                             onSubmit={handleAddFormSubmit}
@@ -473,7 +545,7 @@ export default function MemberManagementPage() {
           <div className="mt-4 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
-              placeholder="Search users by name, email, or designation..." 
+              placeholder="Search approved users by name, email, or designation..." 
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -575,7 +647,7 @@ export default function MemberManagementPage() {
             </>
           ) : (
             <p className="text-center text-muted-foreground py-8">
-              {searchTerm ? "No users match your search." : "No users found."}
+              {searchTerm ? "No approved users match your search." : "No approved users found."}
             </p>
           )}
         </CardContent>

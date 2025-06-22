@@ -19,7 +19,9 @@ export default function SignupPage() {
   const logoUrl = "https://i.imgur.com/aRktweQ.png";
 
   React.useEffect(() => {
-    if (user && !authLoading) {
+    // If a user is logged in and approved, redirect to dashboard.
+    // The login flow will handle kicking out non-approved users.
+    if (user && !authLoading && user.status === 'approved') {
       router.replace("/dashboard");
     }
   }, [user, authLoading, router]);
@@ -28,15 +30,20 @@ export default function SignupPage() {
     setFormLoading(true);
     const signedUpUser = await signup(values.name, values.email, values.password);
     if (signedUpUser) {
-      toast({ title: "Signup Successful", description: `Welcome, ${signedUpUser.name}! Your account has been created.` });
-      router.push("/dashboard");
+      toast({ 
+        title: "Account Created & Pending Approval", 
+        description: `Welcome, ${signedUpUser.name}! Your account requires admin approval before you can log in.`,
+        duration: 10000,
+      });
+      // The signup hook now handles signing the user out, so we just redirect to login.
+      router.push("/login");
     } else {
       toast({ title: "Signup Failed", description: "Could not create account. The email might already be in use.", variant: "destructive" });
     }
     setFormLoading(false);
   };
 
-  if (authLoading || user) {
+  if (authLoading || (user && user.status === 'approved')) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
