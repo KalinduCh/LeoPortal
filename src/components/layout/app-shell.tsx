@@ -18,8 +18,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { UserDropdown } from "./user-dropdown";
-import { SidebarNav } from "./sidebar-nav";
-import { useAuth } from "@/hooks/use-auth"; // To get user info for sidebar footer if needed
+import { useAuth } from "@/hooks/use-auth";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { UserCircle, Mail, Phone } from "lucide-react";
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -48,10 +57,58 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarContent>
         <Separator className="my-0" />
         <SidebarFooter className="p-4">
-          {/* Footer content, e.g., quick links or user status */}
-          <Button variant="outline" size="sm" className="w-full group-data-[collapsible=icon]:hidden">
-            Need help?
-          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full group-data-[collapsible=icon]:hidden">
+                Need help?
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Help & Support</DialogTitle>
+                <DialogDescription>
+                  If you have any questions or need assistance, please contact one of the administrators below.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6 py-2">
+                <div>
+                  <h4 className="font-semibold text-primary mb-2">Club President</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <UserCircle className="h-4 w-4 text-muted-foreground" />
+                      <span>Alex Perera</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <a href="mailto:president@leoclub.com" className="hover:underline">president@leoclub.com</a>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <a href="tel:+94771234567" className="hover:underline">+94 77 123 4567</a>
+                    </div>
+                  </div>
+                </div>
+                <Separator />
+                <div>
+                  <h4 className="font-semibold text-primary mb-2">IT Support</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <UserCircle className="h-4 w-4 text-muted-foreground" />
+                      <span>Chris Fernando</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <a href="mailto:support@leoclub.com" className="hover:underline">support@leoclub.com</a>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <a href="tel:+94711234567" className="hover:underline">+94 71 123 4567</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           {user && (
              <p className="text-xs text-muted-foreground mt-2 group-data-[collapsible=icon]:hidden">Logged in as {user.role}</p>
           )}
@@ -61,8 +118,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="md:hidden" />
-            {/* Breadcrumbs or page title can go here */}
-             <h1 className="text-lg font-semibold font-headline hidden md:block">Welcome to Leo Club of Athugalpura...</h1>
+            <h1 className="text-lg font-semibold font-headline hidden md:block">Welcome to Leo Club of Athugalpura...</h1>
           </div>
           <UserDropdown />
         </header>
