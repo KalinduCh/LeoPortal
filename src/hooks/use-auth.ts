@@ -14,15 +14,22 @@ import { createUserProfile, getUserProfile } from '@/services/userService';
 import type { User } from '@/types';
 import { useToast } from './use-toast';
 
+// Define a result type for the login function for more detailed feedback
+export interface LoginResult {
+  user: User | null;
+  success: boolean;
+  reason?: 'pending' | 'not_found' | 'invalid_credentials';
+}
+
 interface AuthState {
   user: User | null;
   firebaseUser: FirebaseUser | null;
   isLoading: boolean;
-  isAuthOperationInProgress: boolean; // New flag
-  login: (email: string, pass: string) => Promise<User | null>;
+  isAuthOperationInProgress: boolean;
+  login: (email: string, pass: string) => Promise<LoginResult>;
   signup: (name: string, email: string, pass: string) => Promise<User | null>;
   logout: () => Promise<void>;
-  performAdminAuthOperation: (asyncTask: () => Promise<void>) => Promise<void>; // New wrapper
+  performAdminAuthOperation: (asyncTask: () => Promise<void>) => Promise<void>;
   setAuthOperationInProgress: (inProgress: boolean) => void;
 }
 
@@ -41,16 +48,12 @@ export function useAuth(): AuthState {
         const userProfile = await getUserProfile(fbUser.uid);
         if (userProfile) {
           if (userProfile.status === 'pending') {
-             // This can happen if an approved admin signs out and a pending user immediately signs in.
-             // We ensure they are logged out and cannot proceed.
              setUser(null);
              await firebaseSignOut(auth);
           } else {
             setUser(userProfile);
           }
         } else {
-           // This handles the brief moment after self-signup before the profile is created.
-           // Or if a user exists in Auth but not in Firestore.
            setUser(null);
         }
       } else {
@@ -64,7 +67,7 @@ export function useAuth(): AuthState {
     return () => unsubscribe();
   }, []);
 
-  const login = useCallback(async (email: string, pass: string): Promise<User | null> => {
+  const login = useCallback(async (email: string, pass: string): Promise<LoginResult> => {
     setIsAuthOperationInProgress(true);
     setIsLoading(true);
     try {
@@ -73,35 +76,31 @@ export function useAuth(): AuthState {
       const userProfile = await getUserProfile(fbUser.uid);
 
       if (!userProfile) {
-        toast({ title: "Login Failed", description: "Your user profile does not exist. Please contact an admin.", variant: "destructive"});
         await firebaseSignOut(auth);
         setIsLoading(false);
         setIsAuthOperationInProgress(false);
-        return null;
+        return { user: null, success: false, reason: 'not_found' };
       }
 
       if (userProfile.status === 'pending') {
-        toast({ title: "Account Pending", description: "Your account is still awaiting admin approval.", variant: "destructive", duration: 8000 });
         await firebaseSignOut(auth);
         setIsLoading(false);
         setIsAuthOperationInProgress(false);
-        return null;
+        return { user: null, success: false, reason: 'pending' };
       }
       
-      // onAuthStateChanged will handle setting the final user state.
-      // This immediate return gives quicker feedback to the caller.
       setUser(userProfile);
       setIsLoading(false);
       setIsAuthOperationInProgress(false);
-      return userProfile;
+      return { user: userProfile, success: true };
 
     } catch (error: any) {
       console.error("Firebase login error:", error.message);
       setIsLoading(false);
       setIsAuthOperationInProgress(false);
-      return null;
+      return { user: null, success: false, reason: 'invalid_credentials' };
     }
-  }, [toast]);
+  }, []);
 
   const signup = useCallback(async (name: string, email: string, pass: string): Promise<User | null> => {
     setIsAuthOperationInProgress(true);
@@ -110,11 +109,9 @@ export function useAuth(): AuthState {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       const fbUser = userCredential.user;
       
-      // Create profile with 'pending' status
       await createUserProfile(fbUser.uid, email, name, 'member', 'pending'); 
       const newUserProfile = await getUserProfile(fbUser.uid); 
       
-      // Immediately sign the user out after they sign up.
       await firebaseSignOut(auth);
       
       setIsLoading(false);
@@ -135,7 +132,6 @@ export function useAuth(): AuthState {
     setIsLoading(true);
     try {
       await firebaseSignOut(auth);
-      // onAuthStateChanged will handle setting user to null and isLoading/isAuthOperationInProgress to false
     } catch (error: any) {
       console.error("Firebase logout error:", error.message);
       setIsLoading(false);

@@ -1,22 +1,23 @@
-
 // src/app/login/page.tsx
 "use client";
 
 import * as React from "react";
 import Link from "next/link";
-import Image from "next/image"; // Import Image
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AuthForm } from "@/components/auth/auth-form";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-// import { loginAction } from "@/app/actions/auth"; // Not directly used for submission logic here
-import { Loader2, UserCheck } from "lucide-react";
+import { Loader2, UserCheck, AlertTriangle, Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading: authLoading, user } = useAuth();
   const { toast } = useToast();
   const [formLoading, setFormLoading] = React.useState(false);
+  const [loginMessage, setLoginMessage] = React.useState<{type: 'error' | 'info', text: string} | null>(null);
   const logoUrl = "https://i.imgur.com/aRktweQ.png";
 
   React.useEffect(() => {
@@ -27,12 +28,22 @@ export default function LoginPage() {
 
   const handleSubmit = async (values: any) => {
     setFormLoading(true);
-    const loggedInUser = await login(values.email, values.password);
-    if (loggedInUser) {
-      toast({ title: "Login Successful", description: `Welcome back, ${loggedInUser.name}!` });
+    setLoginMessage(null); // Clear previous messages
+    const result = await login(values.email, values.password);
+    
+    if (result.success && result.user) {
+      toast({ title: "Login Successful", description: `Welcome back, ${result.user.name}!` });
       router.push("/dashboard");
     } else {
-      toast({ title: "Login Failed", description: "Invalid email or password. Please try again.", variant: "destructive" });
+      if (result.reason === 'pending') {
+          setLoginMessage({ 
+              type: 'info', 
+              text: 'Your account is awaiting admin approval. Please check back later or contact an administrator if you believe this is an error.' 
+          });
+      } else {
+          // For 'not_found' or 'invalid_credentials'
+          setLoginMessage({ type: 'error', text: 'Invalid email or password. Please try again.' });
+      }
     }
     setFormLoading(false);
   };
@@ -58,7 +69,16 @@ export default function LoginPage() {
         />
         <h1 className="text-2xl font-bold font-headline">LEO Portal</h1>
       </div>
-      <AuthForm mode="login" onSubmit={handleSubmit} loading={formLoading} />
+      <div className="w-full max-w-md space-y-4">
+        {loginMessage && (
+            <Alert variant={loginMessage.type === 'error' ? 'destructive' : 'default'}>
+                {loginMessage.type === 'error' ? <AlertTriangle className="h-4 w-4" /> : <Info className="h-4 w-4" />}
+                <AlertTitle>{loginMessage.type === 'error' ? 'Login Failed' : 'Account Status'}</AlertTitle>
+                <AlertDescription>{loginMessage.text}</AlertDescription>
+            </Alert>
+        )}
+        <AuthForm mode="login" onSubmit={handleSubmit} loading={formLoading} />
+      </div>
       <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
         <p>
           Don&apos;t have an account?{" "}
