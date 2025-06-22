@@ -47,7 +47,7 @@ export async function getUserProfile(uid: string): Promise<User | null> {
     const userName = data.name || ""; 
     const placeholderChar = userName && userName.trim().length > 0 ? userName.trim().charAt(0).toUpperCase() : 'U';
 
-    return {
+    const userProfile: User = {
         id: userSnap.id,
         name: data.name || "Unnamed User",
         email: data.email,
@@ -59,7 +59,13 @@ export async function getUserProfile(uid: string): Promise<User | null> {
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
         mobileNumber: data.mobileNumber,
-     } as User;
+     };
+
+     if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+        userProfile.createdAt = (data.createdAt as Timestamp).toDate().toISOString();
+     }
+
+     return userProfile;
   }
   return null;
 }
@@ -71,7 +77,7 @@ export async function getAllUsers(): Promise<User[]> {
     const fetchedUsers: User[] = [];
     querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        fetchedUsers.push({
+        const userProfile: User = {
             id: docSnap.id, 
             name: data.name,
             email: data.email,
@@ -83,7 +89,11 @@ export async function getAllUsers(): Promise<User[]> {
             dateOfBirth: data.dateOfBirth,
             gender: data.gender,
             mobileNumber: data.mobileNumber,
-        } as User);
+        };
+        if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+            userProfile.createdAt = (data.createdAt as Timestamp).toDate().toISOString();
+        }
+        fetchedUsers.push(userProfile);
     });
     return fetchedUsers.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
@@ -93,6 +103,7 @@ export async function updateUserProfile(uid: string, data: Partial<User>): Promi
   const updateData: { [key: string]: any } = { ...data };
   
   delete updateData.id; 
+  delete updateData.createdAt; // Prevent createdAt from being updated
   
   Object.keys(updateData).forEach(key => {
     if (updateData[key] === undefined) {

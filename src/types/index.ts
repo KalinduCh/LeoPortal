@@ -19,6 +19,7 @@ export interface User {
   photoUrl?: string;
   role: UserRole;
   status: 'pending' | 'approved';
+  createdAt?: string; // ISO string of when user was created
   designation?: string;
   nic?: string;
   dateOfBirth?: string; // Stored as "YYYY-MM-DD" string

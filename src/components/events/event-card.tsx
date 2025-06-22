@@ -6,11 +6,12 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Event, UserRole, AttendanceRecord, User } from '@/types';
-import { CalendarDays, MapPin, Info, CheckCircle, Clock, Navigation } from 'lucide-react';
+import { CalendarDays, MapPin, Info, CheckCircle, Clock, Navigation, CalendarPlus } from 'lucide-react';
 import { format, parseISO, isFuture, isPast, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentPosition, calculateDistanceInMeters, MAX_ATTENDANCE_DISTANCE_METERS } from '@/lib/geolocation';
 import { markUserAttendance, type MarkAttendanceResult } from '@/services/attendanceService';
+import { Separator } from '../ui/separator';
 
 interface EventCardProps {
   event: Event;
@@ -127,6 +128,25 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
     }
   };
 
+  const handleAddToCalendar = () => {
+    const formatGoogleCalendarDate = (date: Date): string => {
+        return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    const startDate = parseISO(event.startDate);
+    // Use end date if available, otherwise default to one hour after start
+    const endDate = event.endDate ? parseISO(event.endDate) : new Date(startDate.getTime() + 60 * 60 * 1000);
+
+    const googleCalendarUrl = new URL("https://www.google.com/calendar/render");
+    googleCalendarUrl.searchParams.append("action", "TEMPLATE");
+    googleCalendarUrl.searchParams.append("text", event.name);
+    googleCalendarUrl.searchParams.append("dates", `${formatGoogleCalendarDate(startDate)}/${formatGoogleCalendarDate(endDate)}`);
+    googleCalendarUrl.searchParams.append("details", event.description);
+    googleCalendarUrl.searchParams.append("location", event.location);
+
+    window.open(googleCalendarUrl.toString(), "_blank");
+  };
+
   return (
     <Card className="w-full shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col">
       <CardHeader>
@@ -154,16 +174,15 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
           </div>
         </div>
       </CardContent>
-      <CardFooter className="border-t pt-4">
+      <CardFooter className="border-t pt-4 flex-col gap-3">
         {userRole === 'member' && (
           <div className="w-full">
-            {currentAttendanceRecord && currentAttendanceRecord.status === 'present' && (
-              <div className="flex items-center p-2 rounded-md bg-green-100 text-green-700">
+            {currentAttendanceRecord && currentAttendanceRecord.status === 'present' ? (
+              <div className="flex items-center p-2 rounded-md bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
                 <CheckCircle className="mr-2 h-5 w-5" />
                 Attended on {format(parseISO(currentAttendanceRecord.timestamp), "MMM d, h:mm a")}
               </div>
-            )}
-            {canAttemptToMarkAttendance && (
+            ) : canAttemptToMarkAttendance ? (
               <Button 
                 className="w-full" 
                 onClick={handleMarkAttendance}
@@ -172,18 +191,26 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
                 {isSubmittingAttendance ? <Clock className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                 {isSubmittingAttendance ? "Processing..." : "Mark My Attendance"}
               </Button>
-            )}
-            {isEventPast && !currentAttendanceRecord && (
+            ) : isEventPast && !currentAttendanceRecord ? (
                <p className="text-sm text-center text-muted-foreground">Attendance for this past event was not recorded.</p>
-            )}
+            ) : null}
           </div>
         )}
          {userRole === 'admin' && (
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground w-full text-center">
             {isGeoRestrictionActive 
               ? "Geo-restricted attendance is enabled."
               : "Standard attendance marking is enabled."}
           </div>
+        )}
+        {(userRole === 'member' || userRole === 'admin') && (
+            <>
+              {(canAttemptToMarkAttendance || userRole === 'admin') && <Separator />}
+              <Button onClick={handleAddToCalendar} variant="outline" className="w-full">
+                  <CalendarPlus className="mr-2 h-4 w-4"/>
+                  Add to Google Calendar
+              </Button>
+            </>
         )}
       </CardFooter>
     </Card>
