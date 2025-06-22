@@ -16,7 +16,7 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, UserCircle, CalendarDays, Users, Settings, ChevronDown, ChevronUp, Bot, Mail } from "lucide-react"; // Removed FileText
+import { LayoutDashboard, UserCircle, CalendarDays, Users, Settings, ChevronDown, ChevronUp, Bot, Mail, FileText } from "lucide-react"; 
 
 interface NavItem {
   href: string;
@@ -32,6 +32,7 @@ const navItems: NavItem[] = [
   { href: "/events", label: "Event Management", icon: CalendarDays, role: "admin" },
   { href: "/members", label: "Member Management", icon: Users, role: "admin" },
   { href: "/admin/communication", label: "Communication", icon: Mail, role: "admin" },
+  { href: "/admin/reports", label: "Reports", icon: FileText, role: "admin" },
 ];
 
 export function SidebarNav() {
@@ -85,7 +86,7 @@ export function SidebarNav() {
           ) : (
             <Link href={item.href} asChild>
               <SidebarMenuButton
-                isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))}
                 tooltip={{ children: item.label, className: "font-sans" }}
               >
                 <item.icon />

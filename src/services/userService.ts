@@ -1,6 +1,5 @@
-
 // src/services/userService.ts
-import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc, deleteDoc, collection, query, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import type { User, UserRole } from '@/types';
 
@@ -63,6 +62,30 @@ export async function getUserProfile(uid: string): Promise<User | null> {
      } as User;
   }
   return null;
+}
+
+export async function getAllUsers(): Promise<User[]> {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef); 
+    const querySnapshot = await getDocs(q);
+    const fetchedUsers: User[] = [];
+    querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        fetchedUsers.push({
+            id: docSnap.id, 
+            name: data.name,
+            email: data.email,
+            photoUrl: data.photoUrl,
+            role: data.role,
+            status: data.status || 'approved',
+            designation: data.designation,
+            nic: data.nic,
+            dateOfBirth: data.dateOfBirth,
+            gender: data.gender,
+            mobileNumber: data.mobileNumber,
+        } as User);
+    });
+    return fetchedUsers.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
 export async function updateUserProfile(uid: string, data: Partial<User>): Promise<void> {
