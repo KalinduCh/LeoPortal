@@ -35,17 +35,17 @@ export default function HomePage() {
                 <Image
                     src={logoUrl}
                     alt="LEO Portal Logo"
-                    width={96}
-                    height={96}
+                    width={128}
+                    height={128}
                     priority // Preload the logo image
-                    className="h-24 w-24 rounded-lg shadow-2xl"
+                    className="h-32 w-32 rounded-lg shadow-2xl"
                     data-ai-hint="club logo"
                 />
             </div>
-            <h1 className="text-4xl font-bold font-headline opacity-0 animate-fade-in-leo-text tracking-wide">LEO Portal</h1>
+            <h1 className="text-5xl font-bold font-headline opacity-0 animate-fade-in-leo-text tracking-wide">LEO Portal</h1>
         </div>
 
-        <div className="mt-8 flex flex-col sm:flex-row sm:gap-8 text-lg font-semibold tracking-wider">
+        <div className="mt-8 flex flex-col sm:flex-row sm:gap-8 text-xl font-semibold tracking-wider">
             <h2 className="opacity-0 animate-fade-in-rise-leadership">Leadership</h2>
             <h2 className="opacity-0 animate-fade-in-rise-experience">Experience</h2>
             <h2 className="opacity-0 animate-fade-in-rise-opportunity">Opportunity</h2>
