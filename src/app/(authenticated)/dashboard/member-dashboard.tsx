@@ -130,104 +130,102 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         <p className="text-muted-foreground">Here&apos;s what&apos;s happening in your Leo Club.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center font-headline">
-              <CalendarDays className="mr-2 h-6 w-6 text-primary" />
-              Upcoming & Ongoing Events
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading && upcomingAndOngoingEvents.length === 0 ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="ml-2">Loading upcoming events...</p>
-                </div>
-            ) : (
-              <EventList 
-                  events={upcomingAndOngoingEvents} 
-                  user={user}
-                  userRole="member"
-                  userAttendanceRecords={userAttendanceRecords}
-                  onAttendanceMarked={handleAttendanceMarked}
-                  isLoading={isLoading}
-                  listTitle="" 
-                  emptyStateTitle="No Upcoming or Ongoing Events"
-                  emptyStateMessage="There are currently no upcoming or ongoing events scheduled. Please check back later!"
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center font-headline">
-              <History className="mr-2 h-6 w-6 text-primary" />
-              My Attendance History
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading && attendedPastEvents.length === 0 ? (
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center font-headline">
+            <CalendarDays className="mr-2 h-6 w-6 text-primary" />
+            Upcoming & Ongoing Events
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading && upcomingAndOngoingEvents.length === 0 ? (
               <div className="flex items-center justify-center h-40">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-2">Loading your event history...</p>
+                <p className="ml-2">Loading upcoming events...</p>
               </div>
-            ) : !isLoading && attendedPastEvents.length > 0 ? (
-              <ScrollArea className="h-[400px] pr-3"> 
-                <ul className="space-y-4">
-                  {attendedPastEvents.map(event => {
-                    const attendance = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user.id);
-                    
-                    let formattedEventDate = "Date unavailable";
-                    if (event.startDate && isValid(parseISO(event.startDate))) {
-                      const eventStartDateObj = parseISO(event.startDate);
-                      formattedEventDate = format(eventStartDateObj, "MMM d, yyyy, h:mm a");
-                      if (event.endDate && isValid(parseISO(event.endDate))) {
-                          const eventEndDateObj = parseISO(event.endDate);
-                          if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString()) {
-                            formattedEventDate = `${format(eventStartDateObj, "MMM d, h:mm a")} - ${format(eventEndDateObj, "MMM d, h:mm a")}`;
-                          } else {
-                            formattedEventDate = `${format(eventStartDateObj, "MMM d, yyyy, h:mm a")} - ${format(eventEndDateObj, "h:mm a")}`;
-                          }
-                      }
-                    }
-                    
-                    let formattedAttendanceTime = "Not available";
-                    if (attendance?.timestamp && isValid(parseISO(attendance.timestamp))) {
-                      formattedAttendanceTime = format(parseISO(attendance.timestamp), "MMM d, yyyy, h:mm a");
-                    }
+          ) : (
+            <EventList 
+                events={upcomingAndOngoingEvents} 
+                user={user}
+                userRole="member"
+                userAttendanceRecords={userAttendanceRecords}
+                onAttendanceMarked={handleAttendanceMarked}
+                isLoading={isLoading}
+                listTitle="" 
+                emptyStateTitle="No Upcoming or Ongoing Events"
+                emptyStateMessage="There are currently no upcoming or ongoing events scheduled. Please check back later!"
+            />
+          )}
+        </CardContent>
+      </Card>
 
-                    return (
-                      <li key={event.id} className="p-4 border rounded-lg shadow-sm hover:bg-muted/50 transition-colors">
-                        <h4 className="font-semibold text-md text-primary">{event.name}</h4>
-                        <div className="mt-1 space-y-0.5">
-                          <p className="text-sm text-muted-foreground flex items-center">
-                            <CalendarDays className="mr-1.5 h-4 w-4 shrink-0" />
-                            {formattedEventDate}
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center font-headline">
+            <History className="mr-2 h-6 w-6 text-primary" />
+            My Attendance History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading && attendedPastEvents.length === 0 ? (
+            <div className="flex items-center justify-center h-40">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="ml-2">Loading your event history...</p>
+            </div>
+          ) : !isLoading && attendedPastEvents.length > 0 ? (
+            <ScrollArea className="h-[400px] pr-3"> 
+              <ul className="space-y-4">
+                {attendedPastEvents.map(event => {
+                  const attendance = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user.id);
+                  
+                  let formattedEventDate = "Date unavailable";
+                  if (event.startDate && isValid(parseISO(event.startDate))) {
+                    const eventStartDateObj = parseISO(event.startDate);
+                    formattedEventDate = format(eventStartDateObj, "MMM d, yyyy, h:mm a");
+                    if (event.endDate && isValid(parseISO(event.endDate))) {
+                        const eventEndDateObj = parseISO(event.endDate);
+                        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString()) {
+                          formattedEventDate = `${format(eventStartDateObj, "MMM d, h:mm a")} - ${format(eventEndDateObj, "MMM d, h:mm a")}`;
+                        } else {
+                          formattedEventDate = `${format(eventStartDateObj, "MMM d, yyyy, h:mm a")} - ${format(eventEndDateObj, "h:mm a")}`;
+                        }
+                    }
+                  }
+                  
+                  let formattedAttendanceTime = "Not available";
+                  if (attendance?.timestamp && isValid(parseISO(attendance.timestamp))) {
+                    formattedAttendanceTime = format(parseISO(attendance.timestamp), "MMM d, yyyy, h:mm a");
+                  }
+
+                  return (
+                    <li key={event.id} className="p-4 border rounded-lg shadow-sm hover:bg-muted/50 transition-colors">
+                      <h4 className="font-semibold text-md text-primary">{event.name}</h4>
+                      <div className="mt-1 space-y-0.5">
+                        <p className="text-sm text-muted-foreground flex items-center">
+                          <CalendarDays className="mr-1.5 h-4 w-4 shrink-0" />
+                          {formattedEventDate}
+                        </p>
+                        <p className="text-sm text-muted-foreground flex items-center">
+                          <MapPin className="mr-1.5 h-4 w-4 shrink-0" />
+                          {event.location || "Location not specified"}
+                        </p>
+                        {attendance && (
+                          <p className="text-xs text-secondary-foreground bg-secondary px-2 py-1 rounded-md inline-flex items-center mt-1.5">
+                            <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
+                            You attended: {formattedAttendanceTime}
                           </p>
-                          <p className="text-sm text-muted-foreground flex items-center">
-                            <MapPin className="mr-1.5 h-4 w-4 shrink-0" />
-                            {event.location || "Location not specified"}
-                          </p>
-                          {attendance && (
-                            <p className="text-xs text-secondary-foreground bg-secondary px-2 py-1 rounded-md inline-flex items-center mt-1.5">
-                              <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
-                              You attended: {formattedAttendanceTime}
-                            </p>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </ScrollArea>
-            ) : ( 
-              <p className="text-muted-foreground text-center py-6">You have no past attended events recorded.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </ScrollArea>
+          ) : ( 
+            <p className="text-muted-foreground text-center py-6">You have no past attended events recorded.</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
