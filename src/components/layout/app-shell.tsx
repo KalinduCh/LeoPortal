@@ -28,6 +28,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { UserCircle, Mail, Phone } from "lucide-react";
+import { SidebarNav } from "./sidebar-nav";
 
 
 export function AppShell({ children }: { children: React.ReactNode }) {
