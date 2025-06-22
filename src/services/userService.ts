@@ -1,4 +1,3 @@
-
 // src/services/userService.ts
 import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
@@ -66,18 +65,21 @@ export async function getUserProfile(uid: string): Promise<User | null> {
 
 export async function updateUserProfile(uid: string, data: Partial<User>): Promise<void> {
   const userRef = doc(db, 'users', uid);
-  const updateData: Partial<User> = { ...data }; 
+  // We need a mutable object that we can delete keys from.
+  const updateData: { [key: string]: any } = { ...data };
   
+  // The 'id' field is not part of the 'users' document data model, so it should be removed.
   delete updateData.id; 
+  
+  // Sanitize the data to remove any fields with `undefined` values.
+  // Firestore does not support `undefined` and will throw an error.
+  Object.keys(updateData).forEach(key => {
+    if (updateData[key] === undefined) {
+      delete updateData[key];
+    }
+  });
 
-  // If photoUrl is an empty string, explicitly set it to null or use a server-side delete if needed.
-  // For now, if it's empty, it will save an empty string. If it's undefined, the field won't be updated.
-  // If it's null, it might remove the field or set it to null based on Firestore behavior.
-  // For Base64, an empty string means no image, null means remove previous.
-  // Let's ensure if an empty string is passed for photoUrl, it signifies "no custom image".
-  // The consumer (ProfileCard) should send a placeholder URL or an empty string/null if they want to clear it.
-  // For now, we assume ProfileCard sends a valid Base64 data URI, a placeholder, or existing value.
-
+  // Only proceed with the update if there's actual data to update.
   if (Object.keys(updateData).length > 0) {
     await updateDoc(userRef, updateData);
   }
