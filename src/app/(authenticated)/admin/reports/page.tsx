@@ -11,16 +11,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, LineChart } from "lucide-react";
+import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, LineChart as LineChartIcon } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { getAllUsers } from '@/services/userService';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
-import { format, parseISO, isValid } from 'date-fns';
+import { format, parseISO, isValid, getYear, getMonth } from 'date-fns';
 import Papa from 'papaparse';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 
 interface MemberStat {
   userId: string;
@@ -113,6 +115,33 @@ export default function ReportsPage() {
     });
   }, [allAttendance, allUsers]);
 
+  const memberSignupData = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const monthlySignups = Array.from({ length: 12 }, (_, i) => ({
+      month: format(new Date(currentYear, i), 'MMM'),
+      total: 0,
+    }));
+
+    allUsers.forEach(user => {
+      if (user.createdAt && isValid(parseISO(user.createdAt))) {
+        const joinDate = parseISO(user.createdAt);
+        if (getYear(joinDate) === currentYear) {
+          const monthIndex = getMonth(joinDate);
+          monthlySignups[monthIndex].total++;
+        }
+      }
+    });
+
+    return monthlySignups;
+  }, [allUsers]);
+
+  const chartConfig = {
+    total: {
+      label: "New Members",
+      color: "hsl(var(--primary))",
+    },
+  } satisfies ChartConfig;
+
   const handleExport = async (type: 'members' | 'events' | 'attendance') => {
     setIsExporting(type);
     toast({ title: "Generating Report...", description: `Fetching all ${type} data.` });
@@ -187,7 +216,7 @@ export default function ReportsPage() {
           <TabsTrigger value="data-exports" className="py-2"><Download className="mr-2 h-4 w-4"/>Data Exports</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="member-reports" className="mt-6">
+        <TabsContent value="member-reports" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center"><Award className="mr-2 h-5 w-5 text-primary"/>Member Participation Leaderboard</CardTitle>
@@ -279,6 +308,37 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
+
+           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><LineChartIcon className="mr-2 h-5 w-5 text-primary"/>Member Growth (Current Year)</CardTitle>
+              <CardDescription>Monthly new member signups.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingData ? (
+                <div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+              ) : (
+                <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                  <RechartsBarChart accessibilityLayer data={memberSignupData}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                    />
+                    <YAxis allowDecimals={false} />
+                    <ChartTooltip
+                      cursor={false}
+                      content={<ChartTooltipContent indicator="dot" />}
+                    />
+                    <Bar dataKey="total" fill="var(--color-primary)" radius={4} />
+                  </RechartsBarChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+
         </TabsContent>
 
         <TabsContent value="event-reports" className="mt-6">
