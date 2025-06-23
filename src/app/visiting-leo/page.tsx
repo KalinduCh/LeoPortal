@@ -1,4 +1,3 @@
-
 // src/app/visiting-leo/page.tsx
 "use client";
 
@@ -11,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, CalendarDays, MapPin, CheckCircle, AlertTriangle, Clock, Navigation } from 'lucide-react';
-import { format, parseISO, isFuture, isValid, isWithinInterval } from 'date-fns';
+import { format, parseISO, isPast, isFuture, isValid, isWithinInterval } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { markVisitorAttendance } from '@/services/attendanceService';
 import Link from 'next/link';
