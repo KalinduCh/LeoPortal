@@ -10,12 +10,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CalendarDays, MapPin, CheckCircle, AlertTriangle, Clock, Navigation } from 'lucide-react';
 import { format, parseISO, isFuture, isValid, isWithinInterval } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { markVisitorAttendance } from '@/services/attendanceService';
 import Link from 'next/link';
 import Image from 'next/image';
+import { getCurrentPosition, calculateDistanceInMeters, MAX_ATTENDANCE_DISTANCE_METERS } from '@/lib/geolocation';
+import { Badge } from '@/components/ui/badge';
 
 export default function VisitingLeoPage() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -38,17 +40,16 @@ export default function VisitingLeoPage() {
             return false;
         }
         const startDate = parseISO(event.startDate);
-        const now = new Date();
-
-        // If it has an end date, check if we are currently within the event interval.
+        
+        // If it has an end date, check if it's already past. If not, include it.
         if (event.endDate && isValid(parseISO(event.endDate))) {
             const endDate = parseISO(event.endDate);
-            return isWithinInterval(now, { start: startDate, end: endDate }) || isFuture(startDate);
+            return !isPast(endDate);
         }
         
-        // If it has no end date, assume it's "ongoing" for 24 hours after its start time.
+        // If it has no end date, assume it's "active" for 24 hours after its start time.
         const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-        return isWithinInterval(now, { start: startDate, end: oneDayAfterStart }) || isFuture(startDate);
+        return !isPast(oneDayAfterStart);
 
       }).sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
       
@@ -76,8 +77,40 @@ export default function VisitingLeoPage() {
       return;
     }
     setIsSubmitting(true);
+    
+    let userLatitude: number | undefined = undefined;
+    let userLongitude: number | undefined = undefined;
+    const isGeoRestrictionActive = typeof selectedEvent.latitude === 'number' && typeof selectedEvent.longitude === 'number';
+
     try {
-      const result = await markVisitorAttendance(selectedEvent.id, data);
+      if (isGeoRestrictionActive && selectedEvent.latitude && selectedEvent.longitude) { 
+        toast({ title: "Verifying Location...", description: "Please wait while we check your location.", duration: 4000 });
+        const position = await getCurrentPosition(); 
+        userLatitude = position.latitude;
+        userLongitude = position.longitude;
+        
+        const distance = calculateDistanceInMeters(
+          position.latitude,
+          position.longitude,
+          selectedEvent.latitude, 
+          selectedEvent.longitude
+        );
+
+        if (distance > MAX_ATTENDANCE_DISTANCE_METERS) {
+          toast({
+            title: "Too Far",
+            description: `You must be within ${MAX_ATTENDANCE_DISTANCE_METERS}m of the event. You are ~${Math.round(distance)}m away.`,
+            variant: "destructive",
+            duration: 7000,
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        toast({ title: "Location Verified", description: `You are within the allowed radius (${Math.round(distance)}m). Submitting...`, duration: 3000 });
+      }
+
+      const result = await markVisitorAttendance(selectedEvent.id, data, userLatitude, userLongitude);
+
       if (result.status === 'success') {
         toast({ title: "Attendance Marked!", description: `Thank you, ${data.name}, for marking your attendance for ${selectedEvent.name}.` });
         setIsFormOpen(false);
@@ -85,11 +118,25 @@ export default function VisitingLeoPage() {
       } else {
         toast({ title: "Submission Error", description: result.message || "Could not mark attendance.", variant: "destructive" });
       }
+
     } catch (error: any) {
-      console.error("Failed to mark visitor attendance:", error);
-      toast({ title: "Submission Error", description: `Could not mark attendance: ${error.message}`, variant: "destructive" });
+      console.error("Error during visitor attendance submission process:", error);
+      let description = "Could not mark attendance.";
+      const errorMessage = error.message || "An unknown error occurred.";
+
+      if (errorMessage.includes("Geolocation is not supported")) {
+        description = "Geolocation is not supported by your browser.";
+      } else if (errorMessage.includes("User denied the request")) {
+        description = "Location permission denied. Please enable location services to mark attendance.";
+      } else if (errorMessage.includes("Location information is unavailable") || errorMessage.includes("timed out")) {
+        description = "Could not determine your location. Please try again.";
+      } else {
+        description = `Could not mark attendance: ${errorMessage}`;
+      }
+      toast({ title: "Submission Error", description, variant: "destructive", duration: 10000 });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
@@ -132,11 +179,28 @@ export default function VisitingLeoPage() {
                         }
                     }
                 }
+
+                const now = new Date();
+                const startDate = parseISO(event.startDate);
+                const endDate = event.endDate && isValid(parseISO(event.endDate)) ? parseISO(event.endDate) : new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+
+                let eventStatus: 'Ongoing' | 'Upcoming' = 'Upcoming';
+                if (isWithinInterval(now, { start: startDate, end: endDate })) {
+                    eventStatus = 'Ongoing';
+                }
+
+                const isButtonDisabled = eventStatus !== 'Ongoing';
+
                 return (
                 <Card key={event.id} className="shadow-lg hover:shadow-xl transition-shadow">
                   <CardHeader>
-                    <CardTitle className="font-headline text-xl text-primary">{event.name}</CardTitle>
-                    <CardDescription className="flex items-center text-sm">
+                    <div className="flex justify-between items-start">
+                        <CardTitle className="font-headline text-xl text-primary pr-2">{event.name}</CardTitle>
+                        <Badge variant={eventStatus === 'Ongoing' ? 'default' : 'secondary'} className={eventStatus === 'Ongoing' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}>
+                            {eventStatus}
+                        </Badge>
+                    </div>
+                    <CardDescription className="flex items-center text-sm pt-1">
                       <CalendarDays className="mr-2 h-4 w-4" />
                       {formattedEventDate}
                     </CardDescription>
@@ -146,11 +210,18 @@ export default function VisitingLeoPage() {
                       <MapPin className="mr-2 h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
                       <span className="text-muted-foreground">{event.location}</span>
                     </div>
+                    {typeof event.latitude === 'number' && typeof event.longitude === 'number' && (
+                        <div className="flex items-start text-xs text-green-600 mt-2">
+                            <Navigation className="mr-2 h-3 w-3 mt-0.5 shrink-0" />
+                            <span>Geo-restricted attendance enabled.</span>
+                        </div>
+                    )}
                     <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{event.description}</p>
                   </CardContent>
                   <CardFooter>
-                    <Button className="w-full" onClick={() => handleOpenForm(event)}>
-                      <CheckCircle className="mr-2 h-4 w-4" /> Mark My Attendance
+                    <Button className="w-full" onClick={() => handleOpenForm(event)} disabled={isButtonDisabled}>
+                      {isButtonDisabled ? <Clock className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                      {isButtonDisabled ? "Event Not Started" : "Mark My Attendance"}
                     </Button>
                   </CardFooter>
                 </Card>

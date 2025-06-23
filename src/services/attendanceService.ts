@@ -100,7 +100,9 @@ export async function markUserAttendance(
 
 export async function markVisitorAttendance(
   eventId: string,
-  visitorData: VisitorAttendanceFormValues
+  visitorData: VisitorAttendanceFormValues,
+  markedLatitude?: number,
+  markedLongitude?: number
 ): Promise<MarkAttendanceResult> {
   console.log(`Attempting to mark visitor attendance for eventId: ${eventId}. Visitor: ${visitorData.name}`);
   const attendanceData: Omit<AttendanceRecord, 'id' | 'timestamp' | 'userId'> & { timestamp: any; createdAt: any } = {
@@ -115,19 +117,17 @@ export async function markVisitorAttendance(
     timestamp: Timestamp.now(),
   };
 
+  if (markedLatitude !== undefined && markedLongitude !== undefined) {
+    attendanceData.markedLatitude = markedLatitude;
+    attendanceData.markedLongitude = markedLongitude;
+  }
+
   try {
     console.log(`Adding new visitor attendance record for event ${eventId}. Data:`, attendanceData);
-    const docRef = await addDoc(attendanceCollectionRef, attendanceData);
-    const newDocSnap = await getDoc(doc(db, 'attendance', docRef.id));
-     if (newDocSnap.exists()) {
-        const newRecord = dataToAttendanceRecord(newDocSnap.id, newDocSnap.data());
-        if (newRecord) {
-            console.log(`Successfully recorded and retrieved visitor attendance for event ${eventId}, visitor ${visitorData.name}.`);
-            return { status: 'success', message: 'Visitor attendance has been recorded.', record: newRecord };
-        }
-    }
-    console.error(`Visitor attendance recorded for event ${eventId}, visitor ${visitorData.name}, but failed to retrieve confirmation.`);
-    return { status: 'error', message: 'Visitor attendance recorded but failed to retrieve confirmation details.' };
+    await addDoc(attendanceCollectionRef, attendanceData);
+    console.log(`Successfully recorded visitor attendance for event ${eventId}, visitor ${visitorData.name}.`);
+    // Return a success message directly to avoid the race condition from getDoc.
+    return { status: 'success', message: 'Your attendance has been recorded.' };
   } catch (error: any) {
     console.error("Error adding visitor attendance document to Firestore for event " + eventId + ":", error);
     return { status: 'error', message: `Failed to record visitor attendance: ${error.message || 'Unknown error'}` };
