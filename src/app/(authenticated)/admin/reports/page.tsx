@@ -135,20 +135,15 @@ export default function ReportsPage() {
     return monthlySignups;
   }, [allUsers]);
   
-  const eventParticipationData = useMemo(() => {
+  const eventReportsData = useMemo(() => {
     if (!allEvents.length) return [];
-    return allEvents.map(event => {
-        const participants = allAttendance.filter(a => a.eventId === event.id);
-        const memberCount = participants.filter(p => p.attendanceType === 'member').length;
-        const visitorCount = participants.filter(p => p.attendanceType === 'visitor').length;
-        return {
-            ...event,
-            totalParticipants: participants.length,
-            memberCount,
-            visitorCount
-        };
-    }).sort((a, b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime());
-  }, [allEvents, allAttendance]);
+    // Sort by most recent start date first
+    return [...allEvents].sort((a, b) => {
+        const dateA = a.startDate ? parseISO(a.startDate).getTime() : 0;
+        const dateB = b.startDate ? parseISO(b.startDate).getTime() : 0;
+        return dateB - dateA;
+    });
+  }, [allEvents]);
 
 
   const chartConfig = {
@@ -360,13 +355,13 @@ export default function ReportsPage() {
         <TabsContent value="event-reports" className="mt-6">
             <Card>
                 <CardHeader>
-                <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Event Participation Overview</CardTitle>
-                <CardDescription>A list of all events with participation counts. Click an event to view its detailed summary.</CardDescription>
+                <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Event List</CardTitle>
+                <CardDescription>A list of all created events, sorted by most recent. Click an event to view its detailed summary.</CardDescription>
                 </CardHeader>
                 <CardContent>
                 {isLoadingData ? (
                     <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                ) : eventParticipationData.length > 0 ? (
+                ) : eventReportsData.length > 0 ? (
                     <div className="max-h-[600px] overflow-y-auto">
                     {/* Desktop Table View */}
                     <div className="hidden md:block">
@@ -375,30 +370,19 @@ export default function ReportsPage() {
                             <TableRow>
                             <TableHead>Event Name</TableHead>
                             <TableHead>Date</TableHead>
-                            <TableHead className="text-center">Participants</TableHead>
-                            <TableHead className="text-right">View Summary</TableHead>
+                            <TableHead>Location</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {eventParticipationData.map((event) => (
+                            {eventReportsData.map((event) => (
                             <TableRow key={event.id}>
                                 <TableCell className="font-medium">{event.name}</TableCell>
                                 <TableCell>{event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell>
-                                <TableCell className="text-center">
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Badge variant="secondary" className="text-base px-3 py-1">{event.totalParticipants}</Badge>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{event.memberCount} Members, {event.visitorCount} Visitors</p>
-                                        </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </TableCell>
+                                <TableCell>{event.location}</TableCell>
                                 <TableCell className="text-right">
                                 <Button variant="outline" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>
-                                    Summary <ExternalLink className="ml-2 h-3 w-3" />
+                                    View Summary <ExternalLink className="ml-2 h-3 w-3" />
                                 </Button>
                                 </TableCell>
                             </TableRow>
@@ -408,34 +392,22 @@ export default function ReportsPage() {
                     </div>
                     {/* Mobile Card View */}
                     <div className="block md:hidden space-y-3">
-                        {eventParticipationData.map((event) => (
+                        {eventReportsData.map((event) => (
                         <Card key={event.id} className="shadow-sm">
-                            <CardContent className="p-4 flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-primary truncate">{event.name}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-base font-semibold text-primary">{event.name}</CardTitle>
+                                <CardDescription className="text-xs">
                                     {event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}
-                                </p>
-                                <div className="mt-2">
-                                    <Button variant="outline" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>
-                                    View Summary <ExternalLink className="ml-2 h-3 w-3" />
-                                    </Button>
-                                </div>
-                                </div>
-                                <div className="flex flex-col items-center pl-3">
-                                <p className="text-xs text-muted-foreground">Count</p>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Badge variant="secondary" className="text-lg px-3 py-1">{event.totalParticipants}</Badge>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{event.memberCount} Members, {event.visitorCount} Visitors</p>
-                                    </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                                </div>
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="pb-4">
+                                <p className="text-sm text-muted-foreground">{event.location}</p>
                             </CardContent>
+                            <CardFooter>
+                                <Button variant="outline" className="w-full" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>
+                                    View Summary <ExternalLink className="ml-2 h-3 w-3" />
+                                </Button>
+                            </CardFooter>
                         </Card>
                         ))}
                     </div>
@@ -445,7 +417,7 @@ export default function ReportsPage() {
                 )}
                 </CardContent>
             </Card>
-            </TabsContent>
+        </TabsContent>
 
         <TabsContent value="data-exports" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -491,4 +463,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
