@@ -134,6 +134,22 @@ export default function ReportsPage() {
 
     return monthlySignups;
   }, [allUsers]);
+  
+  const eventParticipationData = useMemo(() => {
+    if (!allEvents.length) return [];
+    return allEvents.map(event => {
+        const participants = allAttendance.filter(a => a.eventId === event.id);
+        const memberCount = participants.filter(p => p.attendanceType === 'member').length;
+        const visitorCount = participants.filter(p => p.attendanceType === 'visitor').length;
+        return {
+            ...event,
+            totalParticipants: participants.length,
+            memberCount,
+            visitorCount
+        };
+    }).sort((a, b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime());
+  }, [allEvents, allAttendance]);
+
 
   const chartConfig = {
     total: {
@@ -342,52 +358,94 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="event-reports" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Event Summary List</CardTitle>
-              <CardDescription>A list of all events. Click on any event to view its detailed attendance summary.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingData ? (
-                <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : allEvents.length > 0 ? (
-                <div className="max-h-[600px] overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Event Name</TableHead>
-                        <TableHead className="hidden sm:table-cell">Date</TableHead>
-                        <TableHead className="hidden md:table-cell">Location</TableHead>
-                        <TableHead className="text-right">View</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {allEvents.sort((a,b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime()).map((event) => (
-                        <TableRow key={event.id}>
-                          <TableCell className="font-medium">
-                            {event.name}
-                            <div className="text-xs text-muted-foreground sm:hidden mt-1">
-                                {event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell">{event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell>
-                          <TableCell className="hidden md:table-cell">{event.location}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="outline" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>
-                              Summary <ExternalLink className="ml-2 h-3 w-3" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                 <p className="text-center text-muted-foreground py-8">No events have been created yet.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            <Card>
+                <CardHeader>
+                <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Event Participation Overview</CardTitle>
+                <CardDescription>A list of all events with participation counts. Click an event to view its detailed summary.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                {isLoadingData ? (
+                    <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                ) : eventParticipationData.length > 0 ? (
+                    <div className="max-h-[600px] overflow-y-auto">
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block">
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Event Name</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-center">Participants</TableHead>
+                            <TableHead className="text-right">View Summary</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {eventParticipationData.map((event) => (
+                            <TableRow key={event.id}>
+                                <TableCell className="font-medium">{event.name}</TableCell>
+                                <TableCell>{event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell>
+                                <TableCell className="text-center">
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Badge variant="secondary" className="text-base px-3 py-1">{event.totalParticipants}</Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{event.memberCount} Members, {event.visitorCount} Visitors</p>
+                                        </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                <Button variant="outline" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>
+                                    Summary <ExternalLink className="ml-2 h-3 w-3" />
+                                </Button>
+                                </TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </div>
+                    {/* Mobile Card View */}
+                    <div className="block md:hidden space-y-3">
+                        {eventParticipationData.map((event) => (
+                        <Card key={event.id} className="shadow-sm">
+                            <CardContent className="p-4 flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-primary truncate">{event.name}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}
+                                </p>
+                                <div className="mt-2">
+                                    <Button variant="outline" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>
+                                    View Summary <ExternalLink className="ml-2 h-3 w-3" />
+                                    </Button>
+                                </div>
+                                </div>
+                                <div className="flex flex-col items-center pl-3">
+                                <p className="text-xs text-muted-foreground">Count</p>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge variant="secondary" className="text-lg px-3 py-1">{event.totalParticipants}</Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{event.memberCount} Members, {event.visitorCount} Visitors</p>
+                                    </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        ))}
+                    </div>
+                    </div>
+                ) : (
+                    <p className="text-center text-muted-foreground py-8">No events have been created yet.</p>
+                )}
+                </CardContent>
+            </Card>
+            </TabsContent>
 
         <TabsContent value="data-exports" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -433,3 +491,4 @@ export default function ReportsPage() {
     </div>
   );
 }
+
