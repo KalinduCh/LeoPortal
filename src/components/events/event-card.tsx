@@ -1,4 +1,3 @@
-
 // src/components/events/event-card.tsx
 "use client";
 
@@ -7,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import type { Event, UserRole, AttendanceRecord, User } from '@/types';
 import { CalendarDays, MapPin, Info, CheckCircle, Clock, Navigation, CalendarPlus } from 'lucide-react';
-import { format, parseISO, isFuture, isPast, isValid } from 'date-fns';
+import { format, parseISO, isFuture, isPast, isValid, isWithinInterval } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentPosition, calculateDistanceInMeters, MAX_ATTENDANCE_DISTANCE_METERS } from '@/lib/geolocation';
 import { markUserAttendance, type MarkAttendanceResult } from '@/services/attendanceService';
 import { Separator } from '../ui/separator';
+import { Badge } from "@/components/ui/badge";
 
 interface EventCardProps {
   event: Event;
@@ -53,10 +53,25 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
     }
   }
 
+  // NEW LOGIC for event status
+  const now = new Date();
+  const endDateForCheck = event.endDate && isValid(parseISO(event.endDate)) 
+                ? parseISO(event.endDate) 
+                : new Date(eventStartDateObj.getTime() + 24 * 60 * 60 * 1000); // Default 24h duration if no end date
 
-  const isEventPast = event.endDate ? isPast(parseISO(event.endDate)) : isPast(eventStartDateObj);
+  let eventStatus: 'Ongoing' | 'Upcoming' | 'Past' = 'Past';
+  let statusClassName = 'bg-gray-500 hover:bg-gray-600 text-white';
+
+  if (isWithinInterval(now, { start: eventStartDateObj, end: endDateForCheck })) {
+      eventStatus = 'Ongoing';
+      statusClassName = 'bg-blue-600 hover:bg-blue-700 text-white';
+  } else if (isFuture(eventStartDateObj)) {
+      eventStatus = 'Upcoming';
+      statusClassName = 'bg-green-600 hover:bg-green-700 text-white';
+  }
+  
+  const canMarkAttendance = userRole === 'member' && eventStatus === 'Ongoing' && !currentAttendanceRecord;
   const isGeoRestrictionActive = typeof event.latitude === 'number' && typeof event.longitude === 'number';
-  const canAttemptToMarkAttendance = userRole === 'member' && !isEventPast && !currentAttendanceRecord;
 
   const handleMarkAttendance = async () => {
     if (!user) {
@@ -146,11 +161,21 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
 
     window.open(googleCalendarUrl.toString(), "_blank");
   };
-
+  
+  const getButtonText = () => {
+    if (isSubmittingAttendance) return "Processing...";
+    if (eventStatus === 'Upcoming') return "Event Has Not Started";
+    if (eventStatus === 'Past') return "Event Has Ended";
+    return "Mark My Attendance";
+  };
+  
   return (
     <Card className="w-full shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col">
       <CardHeader>
-        <CardTitle className="font-headline text-xl">{event.name}</CardTitle>
+        <div className="flex justify-between items-start">
+            <CardTitle className="font-headline text-xl pr-2">{event.name}</CardTitle>
+            <Badge variant="default" className={statusClassName}>{eventStatus}</Badge>
+        </div>
         <div className="flex items-center text-sm text-muted-foreground pt-1">
           <CalendarDays className="mr-2 h-4 w-4" />
           <span>{formattedDate}</span>
@@ -178,22 +203,20 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
         {userRole === 'member' && (
           <div className="w-full">
             {currentAttendanceRecord && currentAttendanceRecord.status === 'present' ? (
-              <div className="flex items-center p-2 rounded-md bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
+              <div className="flex items-center justify-center p-2 rounded-md bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
                 <CheckCircle className="mr-2 h-5 w-5" />
                 Attended on {format(parseISO(currentAttendanceRecord.timestamp), "MMM d, h:mm a")}
               </div>
-            ) : canAttemptToMarkAttendance ? (
+            ) : (
               <Button 
                 className="w-full" 
                 onClick={handleMarkAttendance}
-                disabled={isSubmittingAttendance}
+                disabled={!canMarkAttendance || isSubmittingAttendance}
               >
                 {isSubmittingAttendance ? <Clock className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                {isSubmittingAttendance ? "Processing..." : "Mark My Attendance"}
+                {getButtonText()}
               </Button>
-            ) : isEventPast && !currentAttendanceRecord ? (
-               <p className="text-sm text-center text-muted-foreground">Attendance for this past event was not recorded.</p>
-            ) : null}
+            )}
           </div>
         )}
          {userRole === 'admin' && (
@@ -203,9 +226,9 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
               : "Standard attendance marking is enabled."}
           </div>
         )}
-        {(userRole === 'member' || userRole === 'admin') && (
+        {(userRole === 'member' || userRole === 'admin') && eventStatus !== 'Past' && (
             <>
-              {(canAttemptToMarkAttendance || userRole === 'admin') && <Separator />}
+              {(userRole === 'member' && !currentAttendanceRecord) && <Separator />}
               <Button onClick={handleAddToCalendar} variant="outline" className="w-full">
                   <CalendarPlus className="mr-2 h-4 w-4"/>
                   Add to Google Calendar
