@@ -28,8 +28,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, role: "all" },
-  { href: "/events", label: "Events", icon: CalendarDays, role: "admin" },
-  { href: "/members", label: "Members", icon: Users, role: "admin" },
+  { href: "/events", label: "Event Management", icon: CalendarDays, role: "admin" },
+  { href: "/members", label: "Member Management", icon: Users, role: "admin" },
   { href: "/admin/reports", label: "Reports", icon: FileText, role: "admin" },
   { href: "/admin/communication", label: "Communication", icon: Mail, role: "admin" },
 ];
