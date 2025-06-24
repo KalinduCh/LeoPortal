@@ -1,12 +1,21 @@
 
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
-  title: 'LEO Portal',
+  title: 'LEO Portal | Athugalpura',
   description: 'Leo Club Member Portal',
+  manifest: '/manifest.json',
+  icons: {
+    icon: 'https://i.imgur.com/MP1YFNf.png',
+    apple: 'https://i.imgur.com/MP1YFNf.png',
+  }
+};
+
+export const viewport: Viewport = {
+  themeColor: '#2563EB',
 };
 
 export default function RootLayout({
