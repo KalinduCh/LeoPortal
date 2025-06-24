@@ -59,6 +59,7 @@ export async function getUserProfile(uid: string): Promise<User | null> {
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
         mobileNumber: data.mobileNumber,
+        fcmToken: data.fcmToken, // Add fcmToken
      };
 
      if (data.createdAt && typeof data.createdAt.toDate === 'function') {
@@ -89,6 +90,7 @@ export async function getAllUsers(): Promise<User[]> {
             dateOfBirth: data.dateOfBirth,
             gender: data.gender,
             mobileNumber: data.mobileNumber,
+            fcmToken: data.fcmToken,
         };
         if (data.createdAt && typeof data.createdAt.toDate === 'function') {
             userProfile.createdAt = (data.createdAt as Timestamp).toDate().toISOString();
@@ -121,9 +123,11 @@ export async function approveUser(uid: string): Promise<void> {
 }
 
 export async function deleteUserProfile(uid: string): Promise<void> {
-    // This function only deletes the Firestore document.
-    // Deleting the Firebase Auth user requires admin privileges and is handled separately
-    // for security reasons if a backend is implemented.
     const userRef = doc(db, 'users', uid);
     await deleteDoc(userRef);
+}
+
+export async function updateFcmToken(userId: string, token: string | null): Promise<void> {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, { fcmToken: token });
 }

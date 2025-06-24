@@ -3,50 +3,97 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useRouter } from "next/navigation"; // Added usePathname
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/layout/app-shell";
-import { Loader2 } from "lucide-react";
+import { Loader2, BellRing, Settings, HelpCircle } from "lucide-react";
+import { useFcm } from "@/hooks/use-fcm";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 export default function AuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading, isAuthOperationInProgress } = useAuth(); // Added isAuthOperationInProgress
+  const { user, isLoading, isAuthOperationInProgress } = useAuth();
   const router = useRouter();
-  const pathname = usePathname(); // Get current path
+  const pathname = usePathname();
+  const { requestPermission, notificationPermissionStatus } = useFcm(user);
+  
+  const [isPermissionDialogOpen, setIsPermissionDialogOpen] = React.useState(false);
+
+  // Effect to ask for notification permission
+  React.useEffect(() => {
+    // Only ask if user is logged in, not loading, and permission is 'default'
+    if (user && !isLoading && notificationPermissionStatus === 'default') {
+      // Delay the dialog slightly to not be too intrusive on login
+      const timer = setTimeout(() => setIsPermissionDialogOpen(true), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, isLoading, notificationPermissionStatus]);
 
   React.useEffect(() => {
-    // If not loading, no user, and no auth operation in progress, then redirect.
     if (!isLoading && !user && !isAuthOperationInProgress) {
       router.replace("/login");
     }
   }, [user, isLoading, isAuthOperationInProgress, router]);
 
-  // Show loading spinner if:
-  // 1. Auth is genuinely loading.
-  // 2. Or, there's no user AND an auth operation is in progress (e.g., admin creating user, temp sign out),
-  //    AND we are not already on the login page (to prevent spinner on login page if redirect happens too fast).
   if (isLoading || (!user && isAuthOperationInProgress && !pathname.startsWith('/login'))) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="sr-only">Loading application...</p>
       </div>
     );
   }
   
-  // If, after loading and no auth op, there's still no user, it means redirect should have happened or is about to.
-  // Rendering null here can prevent a brief flash of AppShell before redirect.
   if (!user) {
       return (
          <div className="flex h-screen w-screen items-center justify-center bg-background">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="sr-only">Redirecting...</p>
          </div>
       );
   }
 
-  return <AppShell>{children}</AppShell>;
+  const handleAllowNotifications = async () => {
+    await requestPermission();
+    setIsPermissionDialogOpen(false);
+  };
+  
+  const handleDenyNotifications = () => {
+    setIsPermissionDialogOpen(false);
+  };
+  
+  return (
+    <>
+      <AppShell>
+        {children}
+      </AppShell>
+      <AlertDialog open={isPermissionDialogOpen} onOpenChange={setIsPermissionDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <BellRing className="mr-2 h-5 w-5 text-primary"/> Stay Updated with Notifications
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Allow notifications to get instant alerts about new events, attendance confirmations, and important club announcements right on your device.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDenyNotifications}>Maybe Later</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAllowNotifications}>Allow Notifications</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
 }

@@ -10,11 +10,10 @@ import {
   type User as FirebaseUser 
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/clientApp';
-import { createUserProfile, getUserProfile } from '@/services/userService';
+import { createUserProfile, getUserProfile, updateFcmToken } from '@/services/userService';
 import type { User } from '@/types';
 import { useToast } from './use-toast';
 
-// Define a result type for the login function for more detailed feedback
 export interface LoginResult {
   user: User | null;
   success: boolean;
@@ -42,7 +41,6 @@ export function useAuth(): AuthState {
   const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const logoutDueToInactivity = useCallback(() => {
-    // Directly sign out. The onAuthStateChanged listener will handle state updates.
     firebaseSignOut(auth);
     toast({
         title: "Session Expired",
@@ -75,8 +73,6 @@ export function useAuth(): AuthState {
         if (userProfile) {
           if (userProfile.status === 'pending') {
              setUser(null);
-             // Don't sign out here if the login logic already handles it.
-             // But if a pending user somehow gets an auth state, clear it.
              if (auth.currentUser) await firebaseSignOut(auth);
           } else {
             setUser(userProfile);
@@ -95,17 +91,11 @@ export function useAuth(): AuthState {
     return () => unsubscribe();
   }, []);
 
-  // Set up inactivity listeners when user is authenticated
   useEffect(() => {
     if (user && !isLoading) {
         const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
-        
-        resetInactivityTimeout(); // Set the initial timeout
-
-        // Add event listeners to reset timeout on activity
+        resetInactivityTimeout();
         events.forEach(event => window.addEventListener(event, resetInactivityTimeout));
-
-        // Cleanup function
         return () => {
             if (inactivityTimeoutRef.current) {
                 clearTimeout(inactivityTimeoutRef.current);
@@ -180,16 +170,29 @@ export function useAuth(): AuthState {
     if (inactivityTimeoutRef.current) {
         clearTimeout(inactivityTimeoutRef.current);
     }
+    
+    // Clear the FCM token from Firestore before signing out
+    if (user?.id) {
+        try {
+            await updateFcmToken(user.id, null);
+            console.log("FCM token cleared on logout.");
+        } catch (error) {
+            console.error("Failed to clear FCM token on logout:", error);
+        }
+    }
+
     setIsAuthOperationInProgress(true);
     setIsLoading(true);
     try {
       await firebaseSignOut(auth);
     } catch (error: any) {
       console.error("Firebase logout error:", error.message);
+      // Still proceed with state update even if signout fails
+    } finally {
       setIsLoading(false);
       setIsAuthOperationInProgress(false);
     }
-  }, []);
+  }, [user]);
 
   const performAdminAuthOperation = useCallback(async (asyncTask: () => Promise<void>): Promise<void> => {
     setIsAuthOperationInProgress(true);

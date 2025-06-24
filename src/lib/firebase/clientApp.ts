@@ -1,36 +1,69 @@
 // src/lib/firebase/clientApp.ts
-import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-// import { getStorage } from 'firebase/storage'; // Removed
-import { getAnalytics, isSupported } from "firebase/analytics";
+import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
+import { getMessaging, onMessage, type Messaging } from 'firebase/messaging';
+import { getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 
-// Your web app's Firebase configuration (Hardcoded as per user request)
 const firebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaSyBf_kQkSkomBserNaNZYaF2TkE6qObD36U",
-  authDomain: "leoathugal.firebaseapp.com",
-  projectId: "leoathugal",
-  storageBucket: "leoathugal.appspot.com", 
-  messagingSenderId: "340503925043",
-  appId: "1:340503925043:web:26922db31c6a8b69cdee46",
-  measurementId: "G-Q8PYQMFSCD"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, 
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-// This check ensures Firebase is only initialized once.
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-const db = getFirestore(app);
-// const storage = getStorage(app); // Removed
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+let functions: Functions;
+let analytics: Analytics | undefined;
+let messaging: Messaging | undefined;
 
-// Initialize Firebase Analytics if supported
-let analytics;
-if (typeof window !== 'undefined') { // Check if running in browser
-  isSupported().then((supported) => {
-    if (supported) {
-      analytics = getAnalytics(app);
+// Check if all required Firebase config values are present
+export const isFirebaseConfigured = !!(
+    firebaseConfig.apiKey &&
+    firebaseConfig.authDomain &&
+    firebaseConfig.projectId
+);
+
+if (isFirebaseConfigured) {
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+    db = getFirestore(app);
+    functions = getFunctions(app);
+
+    if (typeof window !== 'undefined') {
+        isSupported().then((supported) => {
+            if (supported) {
+                analytics = getAnalytics(app);
+                messaging = getMessaging(app);
+
+                onMessage(messaging, (payload) => {
+                    console.log('Foreground message received. ', payload);
+                    const notificationTitle = payload.notification?.title || "New Notification";
+                    const notificationBody = payload.notification?.body || "";
+                    new Notification(notificationTitle, { body: notificationBody });
+                });
+            }
+        });
     }
-  });
+} else {
+    console.error("Firebase is not configured. Please add your Firebase config to .env.local and restart the development server.");
+    // @ts-ignore - These will be guarded by isFirebaseConfigured in the app
+    app = null;
+    // @ts-ignore
+    auth = null;
+    // @ts-ignore
+    db = null;
+    // @ts-ignore
+    functions = null;
+    analytics = undefined;
+    messaging = undefined;
 }
 
-export { app, auth, db, analytics }; // Removed storage from exports
+
+export { app, auth, db, analytics, messaging, functions, httpsCallable };

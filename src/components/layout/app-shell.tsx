@@ -27,13 +27,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { UserCircle, Mail, Phone } from "lucide-react";
+import { UserCircle, Mail, Phone, Settings, LifeBuoy } from "lucide-react";
 import { SidebarNav } from "./sidebar-nav";
 
+interface AppShellProps {
+    children: React.ReactNode;
+}
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: AppShellProps) {
   const { user } = useAuth();
   const logoUrl = "https://i.imgur.com/aRktweQ.png";
+
+  const president = { name: 'Alex Perera', email: 'president@leoclub.com', phone: '+94 77 123 4567' };
+  const support = { name: 'Chris Fernando', email: 'support@leoclub.com', phone: '+94 71 123 4567' };
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -61,6 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="w-full group-data-[collapsible=icon]:hidden">
+                <LifeBuoy className="mr-2 h-4 w-4"/>
                 Need help?
               </Button>
             </DialogTrigger>
@@ -77,15 +84,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <UserCircle className="h-4 w-4 text-muted-foreground" />
-                      <span>Alex Perera</span>
+                      <span>{president.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href="mailto:president@leoclub.com" className="hover:underline">president@leoclub.com</a>
+                      <a href={`mailto:${president.email}`} className="hover:underline">{president.email}</a>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href="tel:+94771234567" className="hover:underline">+94 77 123 4567</a>
+                      <a href={`tel:${president.phone.replace(/\s/g, '')}`} className="hover:underline">{president.phone}</a>
                     </div>
                   </div>
                 </div>
@@ -95,15 +102,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <UserCircle className="h-4 w-4 text-muted-foreground" />
-                      <span>Chris Fernando</span>
+                      <span>{support.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href="mailto:support@leoclub.com" className="hover:underline">support@leoclub.com</a>
+                      <a href={`mailto:${support.email}`} className="hover:underline">{support.email}</a>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href="tel:+94711234567" className="hover:underline">+94 71 123 4567</a>
+                      <a href={`tel:${support.phone.replace(/\s/g, '')}`} className="hover:underline">{support.phone}</a>
                     </div>
                   </div>
                 </div>
