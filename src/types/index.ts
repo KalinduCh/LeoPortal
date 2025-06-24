@@ -26,6 +26,7 @@ export interface User {
   gender?: string;
   mobileNumber?: string;
   badges?: BadgeId[];
+  fcmToken?: string; // For Push Notifications
 }
 
 export interface Event {
@@ -37,6 +38,7 @@ export interface Event {
   location: string; // Textual location
   latitude?: number;  // For geolocation
   longitude?: number; // For geolocation
+  reminderSent?: boolean; // To track if a reminder has been sent
 }
 
 export interface AttendanceRecord {
@@ -73,11 +75,22 @@ export interface EventParticipantSummary {
   userRole?: UserRole;
   userDesignation?: string;
   userPhotoUrl?: string;
-  userNic?: string; // Example: If NIC needs to be displayed for members
+  userNic?: string; 
 
   // Visitor specific details (taken directly from AttendanceRecord if type is 'visitor')
   visitorName?: string;
   visitorDesignation?: string;
   visitorClub?: string;
-  visitorComment?: string; // Displaying comments could be useful
+  visitorComment?: string;
+}
+
+export interface ContactInfo {
+    name: string;
+    email: string;
+    phone: string;
+}
+
+export interface ContactSettings {
+    president: ContactInfo;
+    support: ContactInfo;
 }

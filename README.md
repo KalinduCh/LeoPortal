@@ -63,11 +63,13 @@ To get a local copy up and running, follow these simple steps.
     ```
 
 3.  **Set up Environment Variables:**
-    - Create a `.env.local` file in the root of your project by copying the example file:
+    - Create a file named `.env.local` in the root of your project.
+    - Open `.env.local` and fill in your project-specific credentials. See the [Environment Variables](#-environment-variables) section for details on what to add.
+    - **Important**: After creating or modifying `.env.local`, you **must restart your development server** for the changes to take effect:
       ```sh
-      cp .env.local.example .env.local
+      # Stop the server with Ctrl+C, then run:
+      npm run dev
       ```
-    - Open `.env.local` and fill in your project-specific credentials. See the [Environment Variables](#-environment-variables) section for details.
 
 4.  **Set up Firebase Security Rules:**
     - Go to your Firebase project console.
