@@ -69,7 +69,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         } as User);
       });
       setAllUsers(fetchedUsers);
-      setTotalMembers(fetchedUsers.filter(u => u.role === 'member' && u.status === 'approved').length);
+      setTotalMembers(fetchedUsers.filter(u => u.role === 'member').length);
 
       const fetchedEvents = await getEvents();
       setAllEvents(fetchedEvents);
@@ -235,7 +235,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-3">
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium font-headline">Total Approved Members</CardTitle>
+            <CardTitle className="text-sm font-medium font-headline">Total Members</CardTitle>
             <Users className="h-6 w-6 text-primary" />
           </CardHeader>
           <CardContent>
