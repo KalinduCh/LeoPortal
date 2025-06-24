@@ -98,15 +98,6 @@ export function UserDropdown() {
           </DropdownMenuSub>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push('/support')}> {/* Placeholder */}
-            <LifeBuoy className="mr-2 h-4 w-4" />
-            <span>Support</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-            <CreditCard className="mr-2 h-4 w-4" />
-            <span>Billing</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="text-red-500 hover:!text-red-500 focus:text-red-500 hover:!bg-red-500/10">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
