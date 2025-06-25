@@ -63,28 +63,16 @@ To get a local copy up and running, follow these simple steps.
     npm install
     ```
 
-3.  **Configure Push Notifications (Required):**
-    - Go to your **Firebase Project Settings** -> **Cloud Messaging** tab.
-    - Under the **Web configuration** section, find **Web Push certificates**.
-    - If no key pair exists, click **Generate key pair**.
-    - Copy the long string from the **Key pair** field.
-    - Open the file `src/hooks/use-fcm.ts`.
-    - Paste your key to replace the placeholder, like this:
-      ```typescript
-      // src/hooks/use-fcm.ts
-      const VAPID_KEY = "YOUR_KEY_PAIR_STRING_GOES_HERE";
-      ```
-
-4.  **Set up Firebase Security Rules:**
+3.  **Set up Firebase Security Rules:**
     - Go to your Firebase project console.
     - Navigate to **Firestore Database** -> **Rules**.
     - Copy the contents of `firestore.rules` from this repository and paste them into the editor.
     - Click **Publish**.
 
-5.  **Deploy Firebase Functions (Required for Notifications):**
+4.  **Deploy Firebase Functions (Required for Notifications):**
     - Follow the instructions in `TESTING.md` to set up and deploy the backend functions necessary for sending notifications.
 
-6.  **Run the development server:**
+5.  **Run the development server:**
     ```sh
     npm run dev
     ```

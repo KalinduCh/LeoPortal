@@ -6,9 +6,8 @@ import type { User } from '@/types';
 import { updateFcmToken } from '@/services/userService';
 import { useToast } from './use-toast';
 
-// --- ACTION REQUIRED ---
-// Paste your VAPID key from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
-const VAPID_KEY = "PASTE_YOUR_FIREBASE_VAPID_KEY_HERE";
+// VAPID key from Firebase Console
+const VAPID_KEY = "BIc9bH71DzSMqmg3pBlve0gm14FLcVAh4EacFVw4Ovg4uEd3k11ETlLIimkEinqQgObmFoOLWdKb4ZKCN1Nn-oM";
 
 export function useFcm(user: User | null) {
   const { toast } = useToast();
@@ -26,9 +25,10 @@ export function useFcm(user: User | null) {
         // 1. Check if the VAPID key has been set by the developer
         if (!VAPID_KEY || VAPID_KEY === "PASTE_YOUR_FIREBASE_VAPID_KEY_HERE") {
             console.error("FCM Error: VAPID key is not set. Please paste your key into `src/hooks/use-fcm.ts`.");
+            // This toast is a fallback, but we should not hit it now.
             toast({
                 title: "Push Notification Setup Error",
-                description: "VAPID key is missing from configuration. See README.md and browser console for instructions.",
+                description: "VAPID key is missing from configuration.",
                 variant: "destructive",
                 duration: 15000
             });
@@ -61,7 +61,7 @@ export function useFcm(user: User | null) {
           console.error('FCM: An error occurred while retrieving token. ', err);
           toast({
             title: "Could not get notification token",
-            description: "There was an issue setting up push notifications. You may need to re-grant permission or check your VAPID key.",
+            description: "There was an issue setting up push notifications. You may need to re-grant permission or check your browser settings.",
             variant: "destructive"
           });
         }
