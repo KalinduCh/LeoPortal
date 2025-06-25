@@ -2,12 +2,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
-  type User as FirebaseUser 
+  type User as FirebaseUser
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/clientApp';
 import { createUserProfile, getUserProfile, updateFcmToken } from '@/services/userService';
@@ -26,7 +26,7 @@ interface AuthState {
   isLoading: boolean;
   isAuthOperationInProgress: boolean;
   login: (email: string, pass: string) => Promise<LoginResult>;
-  signup: (name: string, email: string, pass: string) => Promise<User | null>;
+  signup: (name: string, email: string, pass: string) => Promise<User | null>; // Return User or null
   logout: () => Promise<void>;
   performAdminAuthOperation: (asyncTask: () => Promise<void>) => Promise<void>;
   setAuthOperationInProgress: (inProgress: boolean) => void;
@@ -55,8 +55,8 @@ export function useAuth(): AuthState {
         clearTimeout(inactivityTimeoutRef.current);
     }
     
-    if (user) { 
-        const timeoutDuration = user.role === 'admin' 
+    if (user) {
+        const timeoutDuration = user.role === 'admin'
             ? 30 * 60 * 1000 // 30 minutes for admins
             : 20 * 60 * 1000; // 20 minutes for members
 
@@ -108,7 +108,6 @@ export function useAuth(): AuthState {
 
   const login = useCallback(async (email: string, pass: string): Promise<LoginResult> => {
     setIsAuthOperationInProgress(true);
-    setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const fbUser = userCredential.user;
@@ -116,52 +115,48 @@ export function useAuth(): AuthState {
 
       if (!userProfile) {
         await firebaseSignOut(auth);
-        setIsLoading(false);
-        setIsAuthOperationInProgress(false);
         return { user: null, success: false, reason: 'not_found' };
       }
 
       if (userProfile.status === 'pending') {
         await firebaseSignOut(auth);
-        setIsLoading(false);
-        setIsAuthOperationInProgress(false);
         return { user: null, success: false, reason: 'pending' };
       }
       
       setUser(userProfile);
-      setIsLoading(false);
-      setIsAuthOperationInProgress(false);
       return { user: userProfile, success: true };
 
     } catch (error: any) {
       console.error("Firebase login error:", error.message);
-      setIsLoading(false);
-      setIsAuthOperationInProgress(false);
       return { user: null, success: false, reason: 'invalid_credentials' };
+    } finally {
+        setIsAuthOperationInProgress(false);
     }
   }, []);
 
   const signup = useCallback(async (name: string, email: string, pass: string): Promise<User | null> => {
-    setIsAuthOperationInProgress(true);
-    setIsLoading(true);
     try {
+      // Step 1: Create the user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       const fbUser = userCredential.user;
       
-      await createUserProfile(fbUser.uid, email, name, 'member', 'pending'); 
-      const newUserProfile = await getUserProfile(fbUser.uid); 
-      
+      // Step 2: Create the user profile in Firestore with 'pending' status
+      await createUserProfile(fbUser.uid, email, name, 'member', 'pending');
+      const newUserProfile = await getUserProfile(fbUser.uid);
+
+      // Step 3: Immediately sign the user out. This is crucial to prevent them from
+      // entering the app and to ensure the auth state is clean.
       await firebaseSignOut(auth);
       
-      setIsLoading(false);
-      setIsAuthOperationInProgress(false);
+      // Step 4: Return the newly created profile. The UI will use this to show the success message.
       return newUserProfile;
 
-    } catch (error: any)
-    {
+    } catch (error: any) {
       console.error("Firebase signup error:", error.message);
-      setIsLoading(false);
-      setIsAuthOperationInProgress(false);
+      // Ensure user is signed out even if profile creation fails, though this is unlikely
+      if (auth.currentUser) {
+          await firebaseSignOut(auth);
+      }
       return null;
     }
   }, []);
@@ -171,7 +166,6 @@ export function useAuth(): AuthState {
         clearTimeout(inactivityTimeoutRef.current);
     }
     
-    // Clear the FCM token from Firestore before signing out
     if (user?.id) {
         try {
             await updateFcmToken(user.id, null);
@@ -182,16 +176,11 @@ export function useAuth(): AuthState {
     }
 
     setIsAuthOperationInProgress(true);
-    setIsLoading(true);
-    try {
-      await firebaseSignOut(auth);
-    } catch (error: any) {
-      console.error("Firebase logout error:", error.message);
-      // Still proceed with state update even if signout fails
-    } finally {
-      setIsLoading(false);
-      setIsAuthOperationInProgress(false);
-    }
+    await firebaseSignOut(auth).catch(error => {
+        console.error("Firebase logout error:", error.message);
+    }).finally(() => {
+        setIsAuthOperationInProgress(false);
+    });
   }, [user]);
 
   const performAdminAuthOperation = useCallback(async (asyncTask: () => Promise<void>): Promise<void> => {
@@ -201,12 +190,12 @@ export function useAuth(): AuthState {
       await asyncTask();
     } catch (error: any) {
       console.error("Admin auth operation error:", error.message);
-      setIsLoading(false);
-      setIsAuthOperationInProgress(false);
       throw error;
+    } finally {
+       setIsLoading(false);
+       setIsAuthOperationInProgress(false);
     }
   }, []);
-
 
   return { user, firebaseUser, isLoading, isAuthOperationInProgress, login, signup, logout, performAdminAuthOperation, setAuthOperationInProgress: setIsAuthOperationInProgress };
 }
