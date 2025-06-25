@@ -71,8 +71,8 @@ export default function LoginPage() {
       </div>
       <div className="w-full max-w-md space-y-4">
         {loginMessage && (
-            <Alert variant={loginMessage.type === 'error' ? 'destructive' : 'default'}>
-                {loginMessage.type === 'error' ? <AlertTriangle className="h-4 w-4" /> : <Info className="h-4 w-4" />}
+            <Alert variant={loginMessage.type === 'error' ? 'destructive' : 'default'} className={loginMessage.type === 'info' ? 'border-primary/20 bg-primary/5' : ''}>
+                {loginMessage.type === 'error' ? <AlertTriangle className="h-4 w-4 text-destructive" /> : <Info className="h-4 w-4 text-primary" />}
                 <AlertTitle>{loginMessage.type === 'error' ? 'Login Failed' : 'Account Status'}</AlertTitle>
                 <AlertDescription>{loginMessage.text}</AlertDescription>
             </Alert>
