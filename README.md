@@ -29,13 +29,14 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
     - Clean, responsive design built with Shadcn/UI and Tailwind CSS.
     - Light and Dark mode support.
     - Intuitive navigation and user-friendly forms.
+- **PWA & Push Notifications**: Installable app experience with push notifications for new events and approvals.
 
 ## 🛠️ Tech Stack
 
 - **Framework**: [Next.js](https://nextjs.org/) (App Router)
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
 - **UI**: [React](https://reactjs.org/), [Shadcn/UI](https://ui.shadcn.com/), [Tailwind CSS](https://tailwindcss.com/)
-- **Backend & Database**: [Firebase](https://firebase.google.com/) (Authentication, Firestore)
+- **Backend & Database**: [Firebase](https://firebase.google.com/) (Authentication, Firestore, Functions)
 - **AI Integration**: [Google AI & Genkit](https://firebase.google.com/docs/genkit)
 - **Forms**: [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/)
 - **Styling**: [Lucide React](https://lucide.dev/) for icons
@@ -62,13 +63,16 @@ To get a local copy up and running, follow these simple steps.
     npm install
     ```
 
-3.  **Set up Environment Variables:**
-    - Create a file named `.env.local` in the root of your project.
-    - Open `.env.local` and fill in your project-specific credentials. See the [Environment Variables](#-environment-variables) section for details on what to add.
-    - **Important**: After creating or modifying `.env.local`, you **must restart your development server** for the changes to take effect:
-      ```sh
-      # Stop the server with Ctrl+C, then run:
-      npm run dev
+3.  **Configure Push Notifications (Required):**
+    - Go to your **Firebase Project Settings** -> **Cloud Messaging** tab.
+    - Under the **Web configuration** section, find **Web Push certificates**.
+    - If no key pair exists, click **Generate key pair**.
+    - Copy the long string from the **Key pair** field.
+    - Open the file `src/hooks/use-fcm.ts`.
+    - Paste your key to replace the placeholder, like this:
+      ```typescript
+      // src/hooks/use-fcm.ts
+      const VAPID_KEY = "YOUR_KEY_PAIR_STRING_GOES_HERE";
       ```
 
 4.  **Set up Firebase Security Rules:**
@@ -77,39 +81,14 @@ To get a local copy up and running, follow these simple steps.
     - Copy the contents of `firestore.rules` from this repository and paste them into the editor.
     - Click **Publish**.
 
-5.  **Run the development server:**
+5.  **Deploy Firebase Functions (Required for Notifications):**
+    - Follow the instructions in `TESTING.md` to set up and deploy the backend functions necessary for sending notifications.
+
+6.  **Run the development server:**
     ```sh
     npm run dev
     ```
     Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-## 🔑 Environment Variables
-
-You'll need to create a `.env.local` file in the project root and add the following environment variables. You can get these from your Firebase project settings and EmailJS account dashboard.
-
-```env
-# Firebase Configuration
-# Get these from your Firebase project settings -> General
-NEXT_PUBLIC_FIREBASE_API_KEY="YOUR_API_KEY"
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="YOUR_AUTH_DOMAIN"
-NEXT_PUBLIC_FIREBASE_PROJECT_ID="YOUR_PROJECT_ID"
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="YOUR_STORAGE_BUCKET"
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="YOUR_SENDER_ID"
-NEXT_PUBLIC_FIREBASE_APP_ID="YOUR_APP_ID"
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="YOUR_MEASUREMENT_ID" # Optional
-
-# EmailJS Configuration
-# Optional: For sending emails from the Admin Communication page
-# Get these from your EmailJS account dashboard
-NEXT_PUBLIC_EMAILJS_SERVICE_ID="YOUR_EMAILJS_SERVICE_ID"
-NEXT_PUBLIC_EMAILJS_TEMPLATE_ID="YOUR_EMAILJS_TEMPLATE_ID"
-NEXT_PUBLIC_EMAILJS_USER_ID="YOUR_EMAILJS_PUBLIC_KEY"
-
-# Genkit/Google AI Configuration
-# Required for AI features like the communication assistant
-# Get this from Google AI Studio or Google Cloud Console
-GOOGLE_API_KEY="YOUR_GOOGLE_AI_API_KEY"
-```
 
 ## 📄 License
 
