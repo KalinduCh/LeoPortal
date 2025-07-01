@@ -68,20 +68,20 @@ export default function SignupPage() {
       {signupSuccess ? (
         <Card className="w-full max-w-md shadow-xl text-center">
             <CardHeader>
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                    <CheckCircle className="h-8 w-8 text-green-600" />
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50">
+                    <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
                 </div>
-                <CardTitle className="text-2xl font-bold mt-4">Registration Successful!</CardTitle>
+                <CardTitle className="text-2xl font-bold mt-4">Thank You for Registering!</CardTitle>
                 <CardDescription>
-                    Welcome, {signedUpUserName}! Your account has been created and is now pending admin approval.
+                    Welcome, {signedUpUserName}! We're excited to have you join the Leo community.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                    You will receive a notification once your account is approved. After approval, you will be able to log in.
+                    Your account is now pending review by a club administrator. You will be notified once it's approved. Thank you for your patience.
                 </p>
                 <Button onClick={() => router.push('/login')} className="w-full">
-                    Proceed to Login <ArrowRight className="ml-2 h-4 w-4" />
+                    Return to Login <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
             </CardContent>
         </Card>
