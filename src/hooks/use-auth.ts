@@ -37,6 +37,7 @@ export function useAuth(): AuthState {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthOperationInProgress, setIsAuthOperationInProgress] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false); // New state to manage signup flow
   const { toast } = useToast();
   const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -66,6 +67,10 @@ export function useAuth(): AuthState {
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      // Guard clause: If a signup is in progress, don't run the listener logic.
+      // The signup function will handle the state changes, including signing out.
+      if (isSigningUp) return;
+
       setIsLoading(true);
       if (fbUser) {
         setFirebaseUser(fbUser);
@@ -73,12 +78,16 @@ export function useAuth(): AuthState {
         if (userProfile) {
           if (userProfile.status === 'pending') {
              setUser(null);
+             // This sign out is important for pending users trying to log in
              if (auth.currentUser) await firebaseSignOut(auth);
           } else {
             setUser(userProfile);
           }
         } else {
+           // If a user exists in Auth but not in Firestore (e.g., race condition, or deleted profile)
+           // sign them out to prevent a broken state.
            setUser(null);
+           if (auth.currentUser) await firebaseSignOut(auth);
         }
       } else {
         setFirebaseUser(null);
@@ -89,7 +98,7 @@ export function useAuth(): AuthState {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [isSigningUp]); // Add isSigningUp to dependency array
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -135,8 +144,10 @@ export function useAuth(): AuthState {
   }, []);
 
   const signup = useCallback(async (name: string, email: string, pass: string): Promise<User | null> => {
+    setIsSigningUp(true); // Start of the signup critical section
     try {
-      // Step 1: Create the user in Firebase Auth
+      // Step 1: Create the user in Firebase Auth. This auto-signs them in,
+      // which is why we need the `isSigningUp` flag to pause the listener.
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       const fbUser = userCredential.user;
       
@@ -144,20 +155,21 @@ export function useAuth(): AuthState {
       await createUserProfile(fbUser.uid, email, name, 'member', 'pending');
       const newUserProfile = await getUserProfile(fbUser.uid);
 
-      // Step 3: Immediately sign the user out. This is crucial to prevent them from
-      // entering the app and to ensure the auth state is clean.
+      // Step 3: Immediately sign the user out to enforce the pending status.
       await firebaseSignOut(auth);
       
-      // Step 4: Return the newly created profile. The UI will use this to show the success message.
+      // Step 4: Return the newly created profile for the success message.
       return newUserProfile;
 
     } catch (error: any) {
       console.error("Firebase signup error:", error.message);
-      // Ensure user is signed out even if profile creation fails, though this is unlikely
+      // Ensure user is signed out even if profile creation fails.
       if (auth.currentUser) {
           await firebaseSignOut(auth);
       }
       return null;
+    } finally {
+        setIsSigningUp(false); // End of the signup critical section
     }
   }, []);
 
