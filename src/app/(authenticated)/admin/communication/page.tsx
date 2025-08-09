@@ -149,9 +149,14 @@ export default function CommunicationPage() {
         await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, USER_ID);
         emailsSent++;
       } catch (error: any) {
-        console.error("Failed to send email to " + recipient.email + ":", error);
-        const errorText = error?.text || String(error);
-        toast({ title: "EmailJS Send Error", description: `Failed for ${recipient.email}: ${errorText}`, variant: "destructive", duration: 10000});
+        console.error(`Failed to send email to ${recipient.email}:`, error);
+        
+        let errorText = error?.text || String(error);
+        if (errorText === '[object Object]') { // Check for the unhelpful error
+            errorText = "This is likely a template misconfiguration. Ensure your EmailJS template contains all required variables like {{to_name}}, {{subject}}, and {{body_content}}. See README for details.";
+        }
+
+        toast({ title: "EmailJS Send Error", description: `Failed for ${recipient.email}: ${errorText}`, variant: "destructive", duration: 15000});
         emailsFailed++;
       }
     }
