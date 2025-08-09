@@ -67,7 +67,7 @@ export default function CommunicationPage() {
     setIsLoadingMembers(true);
     try {
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("role", "==", "member"));
+      const q = query(usersRef, where("role", "==", "member"), where("status", "==", "approved"));
       const querySnapshot = await getDocs(q);
       const fetchedMembers: User[] = [];
       querySnapshot.forEach((docSnap) => {
@@ -109,8 +109,8 @@ export default function CommunicationPage() {
   const onSubmit = async (data: EmailFormValues) => {
     if (!SERVICE_ID || !TEMPLATE_ID || !USER_ID) {
       toast({
-        title: "EmailJS Configuration Missing",
-        description: "EmailJS credentials are not set up in environment variables. Emails cannot be sent. Please check your .env.local file and ensure it's loaded correctly by restarting your dev server.",
+        title: "EmailJS Not Configured",
+        description: "EmailJS credentials are not set up. Please follow the instructions in README.md to configure your .env.local file.",
         variant: "destructive",
         duration: 10000,
       });
@@ -142,7 +142,7 @@ export default function CommunicationPage() {
         to_name: recipient.name || 'Member',
         subject: data.subject,
         body_content: data.body,
-        current_year: currentYear, // Pass current year to template
+        current_year: currentYear,
       };
 
       try {
@@ -150,7 +150,6 @@ export default function CommunicationPage() {
         emailsSent++;
       } catch (error: any) {
         console.error("Failed to send email to " + recipient.email + ":", error);
-        // Using String(error) is more robust for capturing details from standard Error objects
         const errorText = error?.text || String(error);
         toast({ title: "EmailJS Send Error", description: `Failed for ${recipient.email}: ${errorText}`, variant: "destructive", duration: 10000});
         emailsFailed++;
@@ -158,17 +157,19 @@ export default function CommunicationPage() {
     }
 
     if (emailsSent > 0 && emailsFailed === 0) {
-      toast({ title: "Emails Sent", description: emailsSent + " email(s) sent successfully." });
+      toast({ title: "Emails Sent", description: `${emailsSent} email(s) sent successfully.` });
       form.reset();
+      form.setValue("recipientUserIds", []);
       setAiTopic("");
     } else if (emailsSent > 0 && emailsFailed > 0) {
-      toast({ title: "Emails Partially Sent", description: emailsSent + " email(s) sent, " + emailsFailed + " failed. Check console for details.", variant: "destructive" });
-       form.reset(); 
+      toast({ title: "Emails Partially Sent", description: `${emailsSent} email(s) sent, ${emailsFailed} failed. Check console for details.`, variant: "destructive" });
+       form.reset();
+       form.setValue("recipientUserIds", []);
        setAiTopic("");
     } else if (emailsFailed > 0 && emailsSent === 0) {
-      toast({ title: "Email Sending Failed", description: "All " + emailsFailed + " email(s) failed to send. Check console, EmailJS setup, and .env.local.", variant: "destructive" });
-    } else { 
-       toast({ title: "No Emails Processed", description: "No emails were attempted. This might be due to no valid recipients selected.", variant: "destructive" });
+      toast({ title: "Email Sending Failed", description: `All ${emailsFailed} email(s) failed to send. Check console and your EmailJS setup.`, variant: "destructive" });
+    } else {
+       toast({ title: "No Emails Processed", description: "No emails were sent. This might be due to no valid recipients being selected.", variant: "destructive" });
     }
     setFormSubmitting(false);
   };
@@ -205,17 +206,15 @@ export default function CommunicationPage() {
 
       <Alert variant={isEmailJsConfigured ? "default" : "destructive"}>
         <Mail className="h-4 w-4" />
-        <AlertTitle>{isEmailJsConfigured ? "Email Sending via EmailJS" : "EmailJS Not Configured"}</AlertTitle>
+        <AlertTitle>{isEmailJsConfigured ? "Email Sending Ready" : "EmailJS Not Configured"}</AlertTitle>
         <AlertDescription>
           {isEmailJsConfigured ? (
             <>
-              This form uses <strong className="text-primary">EmailJS</strong> to send emails.
-              Your EmailJS template should use variables like <code>to_email</code>, <code>to_name</code>, <code>subject</code>, <code>body_content</code>, and <code>current_year</code>.
+              This form uses <strong className="text-primary">EmailJS</strong> to send emails. Ensure your template uses variables like <code>to_name</code>, <code>subject</code>, etc.
             </>
           ) : (
             <>
-              <strong className="text-destructive-foreground">EmailJS is not configured correctly.</strong> Emails cannot be sent.
-              Please set <code>NEXT_PUBLIC_EMAILJS_SERVICE_ID</code>, <code>NEXT_PUBLIC_EMAILJS_TEMPLATE_ID</code>, and <code>NEXT_PUBLIC_EMAILJS_USER_ID</code> in your <code>.env.local</code> file and restart your development server.
+              <strong className="text-destructive-foreground">Email sending is disabled.</strong> Please follow the setup instructions in the project's `README.md` file.
             </>
           )}
         </AlertDescription>
@@ -226,7 +225,7 @@ export default function CommunicationPage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary" /> Select Recipients</CardTitle>
-              <CardDescription className="text-sm">Choose which members will receive this email.</CardDescription>
+              <CardDescription className="text-sm">Choose which approved members will receive this email.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingMembers ? (
@@ -295,7 +294,7 @@ export default function CommunicationPage() {
                   <FormMessage className="mt-2">{form.formState.errors.recipientUserIds?.message}</FormMessage>
                 </>
               ) : (
-                <p className="text-center text-muted-foreground py-4">No members found.</p>
+                <p className="text-center text-muted-foreground py-4">No approved members found.</p>
               )}
             </CardContent>
           </Card>

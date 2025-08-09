@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,48 +12,41 @@
         body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; font-family: 'PT Sans', Arial, sans-serif; }
 
         /* App-Consistent Colors (Hex codes for email compatibility) */
-        /* Primary Blue: #3B82F6 (from HSL 217 91% 60%) */
-        /* Background Light Gray: #F0F4F7 (from HSL 207 27% 95%) */
-        /* Card White: #FFFFFF */
-        /* Foreground Dark Gray: #333F4D (from HSL 210 10% 23%) */
-        /* Muted Foreground Medium Gray: #6A737D (from HSL 220 10% 45%) */
-        /* Border Cool Gray: #DDE1E6 (approximated from HSL 220 13% 88%) */
-
         .wrapper {
-            background-color: #F0F4F7; /* Light Gray Background */
+            background-color: #F9FAFB;
             width: 100%;
         }
         .container {
-            background-color: #FFFFFF; /* White Card */
+            background-color: #FFFFFF;
             border-radius: 8px;
             margin: 0 auto;
             max-width: 600px;
-            padding: 0; /* Padding will be on inner elements */
-            border: 1px solid #DDE1E6; /* Border */
+            padding: 0;
+            border: 1px solid #E5E7EB;
         }
         .header {
-            background-color: #3B82F6; /* Primary Blue */
+            background-color: #2563EB;
             padding: 25px 20px;
             text-align: center;
             border-top-left-radius: 8px;
             border-top-right-radius: 8px;
         }
         .logo {
-            max-width: 50px; /* Slightly smaller logo */
+            max-width: 50px;
             margin-bottom: 8px;
         }
         .portal-name {
-            color: #FFFFFF; /* White text on blue background */
+            color: #FFFFFF;
             font-size: 22px;
             font-weight: bold;
             font-family: 'PT Sans', Arial, sans-serif;
             margin: 0;
         }
         .content-padding {
-            padding: 25px 30px; /* More padding for content */
+            padding: 25px 30px;
         }
         .content {
-            color: #333F4D; /* Dark Gray Foreground */
+            color: #111827;
             font-size: 15px;
             line-height: 1.7;
             font-family: 'PT Sans', Arial, sans-serif;
@@ -70,28 +62,28 @@
             margin-bottom: 1em;
         }
         .footer {
-            color: #6A737D; /* Medium Gray Muted Foreground */
+            color: #6B7280;
             font-size: 12px;
             padding: 20px 30px;
             text-align: center;
             font-family: 'PT Sans', Arial, sans-serif;
-            border-top: 1px solid #E5E7EB; /* Light border before footer */
+            border-top: 1px solid #E5E7EB;
         }
     </style>
 </head>
-<body style="margin: 0 !important; padding: 0 !important; background-color: #F0F4F7;">
+<body style="margin: 0 !important; padding: 0 !important; background-color: #F9FAFB;">
     <!-- Visually Hidden Preheader Text -->
-    <div style="display: none; font-size: 1px; color: #f0f4f7; line-height: 1px; font-family: 'PT Sans', Arial, sans-serif; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
+    <div style="display: none; font-size: 1px; color: #f9fafb; line-height: 1px; font-family: 'PT Sans', Arial, sans-serif; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
         {{subject}}
     </div>
 
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" class="wrapper" style="background-color: #F0F4F7;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" class="wrapper" style="background-color: #F9FAFB;">
         <tr>
             <td align="center" valign="top" style="padding: 20px 10px;">
                 <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;" class="container">
                     <!-- HEADER -->
                     <tr>
-                        <td align="center" class="header" style="background-color: #3B82F6; padding: 25px 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px;">
+                        <td align="center" class="header" style="background-color: #2563EB; padding: 25px 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px;">
                             <img src="https://i.imgur.com/aRktweQ.png" alt="LEO Portal Logo" width="50" class="logo" style="max-width: 50px; margin-bottom: 8px; border:0;" data-ai-hint="club logo">
                             <h1 class="portal-name" style="color: #FFFFFF; font-size: 22px; font-weight: bold; font-family: 'PT Sans', Arial, sans-serif; margin: 0;">LEO Portal</h1>
                         </td>
@@ -99,9 +91,9 @@
                     <!-- CONTENT -->
                     <tr>
                         <td class="content-padding" style="padding: 25px 30px;">
-                            <div class="content" style="color: #333F4D; font-size: 15px; line-height: 1.7; font-family: 'PT Sans', Arial, sans-serif;">
+                            <div class="content" style="color: #111827; font-size: 15px; line-height: 1.7; font-family: 'PT Sans', Arial, sans-serif;">
                                 <p class="salutation" style="margin: 0 0 1em 0; font-weight: bold;">Dear {{to_name}},</p>
-                                <p style="margin: 0 0 1em 0;">{{body_content}}</p>
+                                <p style="margin: 0 0 1em 0;">{{{body_content}}}</p> <!-- Use triple braces for HTML content -->
                                 <p style="margin: 0 0 1em 0;">If you have any questions, please don't hesitate to contact us.</p>
                                 <p style="margin: 0 0 1em 0;">Sincerely,<br>The LEO Portal Team</p>
                             </div>
@@ -109,7 +101,7 @@
                     </tr>
                     <!-- FOOTER -->
                     <tr>
-                        <td class="footer" style="color: #6A737D; font-size: 12px; padding: 20px 30px; text-align: center; font-family: 'PT Sans', Arial, sans-serif; border-top: 1px solid #E5E7EB;">
+                        <td class="footer" style="color: #6B7280; font-size: 12px; padding: 20px 30px; text-align: center; font-family: 'PT Sans', Arial, sans-serif; border-top: 1px solid #E5E7EB;">
                             &copy; {{current_year}} LEO Portal. All rights reserved.<br>
                             This is an automated message. Please do not reply directly to this email.
                         </td>
