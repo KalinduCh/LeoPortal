@@ -1,11 +1,42 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
+import * as nodemailer from "nodemailer";
 
 admin.initializeApp();
 
 const db = admin.firestore();
 const messaging = admin.messaging();
+
+const GMAIL_EMAIL = "starmapila@gmail.com";
+const GMAIL_APP_PASSWORD = "zusl hbtn fiik nhyt";
+
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: GMAIL_EMAIL,
+        pass: GMAIL_APP_PASSWORD,
+    },
+});
+
+/**
+ * Sends a transactional email.
+ */
+const sendEmail = async (to: string, subject: string, html: string) => {
+    const mailOptions = {
+        from: `"LEO Portal" <${GMAIL_EMAIL}>`,
+        to,
+        subject,
+        html,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Email sent to ${to} with subject: ${subject}`);
+    } catch (error) {
+        console.error(`Failed to send email to ${to}:`, error);
+    }
+};
 
 /**
  * Sends push notifications to a list of user IDs.
@@ -73,16 +104,59 @@ export const onUserApproved = functions.firestore
   .onUpdate(async (change, context) => {
     const before = change.before.data();
     const after = change.after.data();
+
+    // Check if status changed from 'pending' to 'approved'
     if (before.status === "pending" && after.status === "approved") {
       const userId = context.params.userId;
+      const userEmail = after.email;
+      const userName = after.name || "Leo";
+
+      // Send Push Notification
       await sendPushToUsers(
         [userId],
         "Account Approved!",
-        `Welcome, ${after.name}! Your account has been approved. You can now log in.`,
+        `Welcome, ${userName}! Your account has been approved. You can now log in.`,
         "/dashboard",
       );
+
+      // Send Email
+      const subject = "Your LEO Portal Account has been Approved!";
+      const htmlBody = `
+        <p>Dear ${userName},</p>
+        <p>Congratulations! Your membership for the LEO Portal has been approved by an administrator.</p>
+        <p>You can now log in to your account to view upcoming events, track your participation, and connect with other members.</p>
+        <p>Welcome to the club!</p>
+        <p>Sincerely,<br>The LEO Portal Team</p>
+      `;
+      if (userEmail) {
+        await sendEmail(userEmail, subject, htmlBody);
+      }
     }
   });
+
+export const onUserRejected = functions.firestore
+    .document("users/{userId}")
+    .onDelete(async (snap, context) => {
+        const deletedUser = snap.data();
+        // Ensure this was a pending user being deleted (rejected)
+        if (deletedUser && deletedUser.status === "pending") {
+            const userEmail = deletedUser.email;
+            const userName = deletedUser.name || "Leo";
+            
+            const subject = "Update on Your LEO Portal Registration";
+            const htmlBody = `
+                <p>Dear ${userName},</p>
+                <p>Thank you for your interest in joining the LEO Portal.</p>
+                <p>After careful review, we regret to inform you that your registration could not be approved at this time. If you believe this is a mistake or wish to inquire further, please contact a club administrator.</p>
+                <p>We appreciate your understanding.</p>
+                <p>Sincerely,<br>The LEO Portal Team</p>
+            `;
+            if (userEmail) {
+                await sendEmail(userEmail, subject, htmlBody);
+            }
+        }
+    });
+
 
 export const onEventCreated = functions.firestore
   .document("events/{eventId}")
