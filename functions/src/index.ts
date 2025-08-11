@@ -24,7 +24,7 @@ const transporter = nodemailer.createTransport({
  */
 const sendEmail = async (to: string, subject: string, html: string) => {
     const mailOptions = {
-        from: `"LEO Portal" <${GMAIL_EMAIL}>`,
+        from: `"LEO CLUB OF ATHUGALPURA" <${GMAIL_EMAIL}>`,
         to,
         subject,
         html,
@@ -126,7 +126,7 @@ export const onUserApproved = functions.firestore
         <p>Congratulations! Your membership for the LEO Portal has been approved by an administrator.</p>
         <p>You can now log in to your account to view upcoming events, track your participation, and connect with other members.</p>
         <p>Welcome to the club!</p>
-        <p>Sincerely,<br>The LEO Portal Team</p>
+        <p>Sincerely,<br>Leo Club Of Athugalpura<br>LEO District 306 D9</p>
       `;
       if (userEmail) {
         await sendEmail(userEmail, subject, htmlBody);
@@ -149,7 +149,7 @@ export const onUserRejected = functions.firestore
                 <p>Thank you for your interest in joining the LEO Portal.</p>
                 <p>After careful review, we regret to inform you that your registration could not be approved at this time. If you believe this is a mistake or wish to inquire further, please contact a club administrator.</p>
                 <p>We appreciate your understanding.</p>
-                <p>Sincerely,<br>The LEO Portal Team</p>
+                <p>Sincerely,<br>Leo Club Of Athugalpura<br>LEO District 306 D9</p>
             `;
             if (userEmail) {
                 await sendEmail(userEmail, subject, htmlBody);
