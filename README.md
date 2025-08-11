@@ -119,19 +119,21 @@ You must store your credentials securely as Firebase Function secrets. **Do not 
 
 1.  Make sure you are logged into the Firebase CLI (`firebase login`).
 2.  Navigate to your project's root directory in your terminal.
-3.  Run the following commands, one by one, replacing the placeholder values with your actual Gmail email and the App Password you just generated:
+3.  Run the following command to set your email address secret:
 
     ```sh
     firebase functions:secrets:set GMAIL_EMAIL
     ```
-    You will be prompted to enter your full Gmail address (e.g., `your-email@gmail.com`).
+    You will be prompted to enter your full Gmail address (e.g., `your-email@gmail.com`). Press Enter.
+
+4.  Run the following command to set your App Password secret:
 
     ```sh
     firebase functions:secrets:set GMAIL_APP_PASSWORD
     ```
-    You will be prompted to paste the 16-character App Password you copied from Google.
+    You will be prompted to paste the 16-character App Password you generated in Step 1. Paste it and press Enter.
 
-4.  After setting the secrets, you need to grant your function access to them. Open `functions/src/index.ts` and ensure the `sendEmail` function definition includes the secrets:
+5.  After setting the secrets, you need to grant your function access to them. Open `functions/src/index.ts` and ensure the `sendEmail` function definition includes the secrets:
 
     ```typescript
     export const sendEmail = functions
@@ -142,7 +144,7 @@ You must store your credentials securely as Firebase Function secrets. **Do not 
     ```
     *Note: The provided code changes already do this, but it's good practice to verify.*
 
-5.  **Deploy your functions** for the secrets to take effect:
+6.  **Deploy your functions** for the secrets to take effect:
     ```sh
     firebase deploy --only functions
     ```
