@@ -1,7 +1,7 @@
 // src/app/(authenticated)/admin/communication/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { User } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
@@ -18,7 +18,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
-import { Mail, Users, Send, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { Mail, Users, Send, Loader2, AlertTriangle, Sparkles, Search } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { generateCommunication, type GenerateCommunicationInput } from '@/ai/flows/generate-communication-flow';
@@ -41,6 +41,7 @@ export default function CommunicationPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState("");
+  const [recipientSearchTerm, setRecipientSearchTerm] = useState("");
   
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailFormSchema),
@@ -67,7 +68,7 @@ export default function CommunicationPage() {
       querySnapshot.forEach((docSnap) => {
         fetchedMembers.push({ id: docSnap.id, ...docSnap.data() } as User);
       });
-      setMembers(fetchedMembers);
+      setMembers(fetchedMembers.sort((a,b) => (a.name || "").localeCompare(b.name || "")));
     } catch (error) {
       console.error("Error fetching members: ", error);
       toast({ title: "Error", description: "Could not load members for selection.", variant: "destructive" });
@@ -80,6 +81,13 @@ export default function CommunicationPage() {
       fetchMembers();
     }
   }, [user, fetchMembers]);
+
+  const filteredMembers = useMemo(() => {
+    return members.filter(member => 
+        (member.name?.toLowerCase() || '').includes(recipientSearchTerm.toLowerCase()) ||
+        (member.email?.toLowerCase() || '').includes(recipientSearchTerm.toLowerCase())
+    );
+  }, [members, recipientSearchTerm]);
 
   const handleGenerateContent = async () => {
     if (!aiTopic.trim()) {
@@ -150,9 +158,11 @@ export default function CommunicationPage() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      form.setValue("recipientUserIds", members.map(m => m.id));
+      form.setValue("recipientUserIds", filteredMembers.map(m => m.id));
     } else {
-      form.setValue("recipientUserIds", []);
+      const filteredIds = filteredMembers.map(m => m.id);
+      const currentSelection = form.getValues("recipientUserIds");
+      form.setValue("recipientUserIds", currentSelection.filter(id => !filteredIds.includes(id)));
     }
   };
   
@@ -176,14 +186,6 @@ export default function CommunicationPage() {
         <h1 className="text-2xl sm:text-3xl font-bold font-headline">Send Communication</h1>
       </div>
 
-      <Alert>
-        <Mail className="h-4 w-4" />
-        <AlertTitle>Email Sending via Backend</AlertTitle>
-        <AlertDescription>
-          This form uses a secure backend API route with Nodemailer to send emails. Ensure your Gmail credentials are set in the environment variables.
-        </AlertDescription>
-      </Alert>
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card className="shadow-lg">
@@ -196,64 +198,77 @@ export default function CommunicationPage() {
                 <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
               ) : members.length > 0 ? (
                 <>
+                  <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Search recipients by name or email..."
+                      value={recipientSearchTerm}
+                      onChange={(e) => setRecipientSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
                   <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-2 sm:space-y-0 mb-4 p-3 border rounded-md bg-muted/50">
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="select-all-members"
                         onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                        checked={watchedRecipients.length === members.length && members.length > 0}
-                        disabled={members.length === 0}
+                        checked={filteredMembers.length > 0 && filteredMembers.every(m => watchedRecipients.includes(m.id))}
+                        disabled={filteredMembers.length === 0}
                       />
                       <Label htmlFor="select-all-members" className="font-medium text-sm cursor-pointer">
-                        Select All Members
+                        Select All ({filteredMembers.length})
                       </Label>
                     </div>
                     <span className="text-xs text-muted-foreground sm:ml-auto">
-                      ({watchedRecipients.length} / {members.length} selected)
+                      (Total Selected: {watchedRecipients.length} / {members.length})
                     </span>
                   </div>
                   <ScrollArea className="h-60 border rounded-md p-2 sm:p-4">
-                    <FormField
-                      control={form.control}
-                      name="recipientUserIds"
-                      render={() => (
-                        <div className="space-y-2">
-                          {members.map((member) => (
-                            <FormField
-                              key={member.id}
-                              control={form.control}
-                              name="recipientUserIds"
-                              render={({ field }) => {
-                                return (
-                                  <FormItem
-                                    key={member.id}
-                                    className="flex flex-row items-center space-x-3 space-y-0 p-2 rounded hover:bg-muted/30"
-                                  >
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value?.includes(member.id)}
-                                        onCheckedChange={(checked) => {
-                                          return checked
-                                            ? field.onChange([...(field.value || []), member.id])
-                                            : field.onChange(
-                                                (field.value || []).filter(
-                                                  (value) => value !== member.id
+                    {filteredMembers.length > 0 ? (
+                       <FormField
+                        control={form.control}
+                        name="recipientUserIds"
+                        render={() => (
+                          <div className="space-y-2">
+                            {filteredMembers.map((member) => (
+                              <FormField
+                                key={member.id}
+                                control={form.control}
+                                name="recipientUserIds"
+                                render={({ field }) => {
+                                  return (
+                                    <FormItem
+                                      key={member.id}
+                                      className="flex flex-row items-center space-x-3 space-y-0 p-2 rounded hover:bg-muted/30"
+                                    >
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value?.includes(member.id)}
+                                          onCheckedChange={(checked) => {
+                                            return checked
+                                              ? field.onChange([...(field.value || []), member.id])
+                                              : field.onChange(
+                                                  (field.value || []).filter(
+                                                    (value) => value !== member.id
+                                                  )
                                                 )
-                                              )
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="font-normal text-sm cursor-pointer flex-1">
-                                      {member.name} <span className="text-xs text-muted-foreground">({member.email})</span>
-                                    </FormLabel>
-                                  </FormItem>
-                                )
-                              }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    />
+                                          }}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="font-normal text-sm cursor-pointer flex-1">
+                                        {member.name} <span className="text-xs text-muted-foreground">({member.email})</span>
+                                      </FormLabel>
+                                    </FormItem>
+                                  )
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      />
+                    ) : (
+                        <p className="text-center text-sm text-muted-foreground py-4">No members match your search.</p>
+                    )}
                   </ScrollArea>
                   <FormMessage className="mt-2">{form.formState.errors.recipientUserIds?.message}</FormMessage>
                 </>
@@ -328,7 +343,7 @@ export default function CommunicationPage() {
           </Card>
           
           <div className="flex justify-end">
-            <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers} size="lg">
+            <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers || watchedRecipients.length === 0} size="lg">
               {formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               {formSubmitting ? "Sending..." : `Send Email to ${watchedRecipients.length} Member(s)`}
             </Button>
