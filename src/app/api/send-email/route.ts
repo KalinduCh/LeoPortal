@@ -33,20 +33,9 @@ export async function POST(request: Request) {
       },
     });
 
-    // Enhanced HTML with header and footer
+    // Simplified HTML body
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-        <div style="text-align: center; padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
-          <img src="https://i.imgur.com/aRktweQ.png" alt="LEO Portal Logo" style="width: 60px; height: 60px; margin-bottom: 10px;" data-ai-hint="club logo">
-          <div style="margin-top: 10px;">
-            <a href="https://www.facebook.com/leoclubofathugalpura/" style="margin: 0 8px; text-decoration: none;">
-              <img src="https://i.imgur.com/3Y1aYxV.png" alt="Facebook" style="width: 24px; height: 24px;">
-            </a>
-            <a href="https://www.instagram.com/athugalpuraleos/" style="margin: 0 8px; text-decoration: none;">
-              <img src="https://i.imgur.com/aC3QJm8.png" alt="Instagram" style="width: 24px; height: 24px;">
-            </a>
-          </div>
-        </div>
         <div style="padding: 25px;">
           <p>Dear Member,</p>
           ${body.replace(/\n/g, '<br>')}
