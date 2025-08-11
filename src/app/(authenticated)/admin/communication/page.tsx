@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import emailjs from '@emailjs/browser';
 import type { User } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
@@ -43,11 +42,6 @@ export default function CommunicationPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState("");
   
-  const [isEmailJsReady, setIsEmailJsReady] = useState(false);
-  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
-  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
-  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
-
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailFormSchema),
     defaultValues: {
@@ -56,12 +50,6 @@ export default function CommunicationPage() {
       recipientUserIds: [],
     },
   });
-
-  useEffect(() => {
-    if (serviceId && templateId && publicKey) {
-        setIsEmailJsReady(true);
-    }
-  }, [serviceId, templateId, publicKey]);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== 'admin')) {
@@ -113,50 +101,49 @@ export default function CommunicationPage() {
   }
 
   const onSubmit = async (data: EmailFormValues) => {
-    if (!isEmailJsReady) {
-        toast({title: "EmailJS Not Configured", description: "Please add your EmailJS credentials to the environment file.", variant: "destructive"});
-        return;
-    }
     setFormSubmitting(true);
     
-    let emailsSent = 0;
-    let emailsFailed = 0;
-
     const recipients = data.recipientUserIds.map(userId => members.find(m => m.id === userId)).filter(Boolean) as User[];
+    
+    // Send one API call with all recipient emails
+    const recipientEmails = recipients.map(r => r.email).join(', ');
 
-    for (const recipient of recipients) {
-      const templateParams = {
-        to_name: recipient.name,
-        to_email: recipient.email,
-        from_name: user?.name || "LEO Portal Admin",
-        subject: data.subject,
-        body_content: data.body,
-        current_year: new Date().getFullYear().toString(),
-      };
-      
-      try {
-        await emailjs.send(serviceId!, templateId!, templateParams, publicKey);
-        emailsSent++;
-      } catch (error: any) {
-        console.error("Failed to send email to " + recipient.email + ":", error);
-        // This checks for the specific 'empty object' error from EmailJS
-        if (typeof error === 'object' && error !== null && Object.keys(error).length === 0) {
-          toast({ title: "EmailJS Send Error", description: `Failed for ${recipient.email}. This is often due to an incorrect Template ID or missing variables in your EmailJS template.`, variant: "destructive", duration: 15000});
-        } else {
-          const errorText = error?.text || String(error);
-          toast({ title: "EmailJS Send Error", description: `Failed for ${recipient.email}: ${errorText}`, variant: "destructive", duration: 10000});
-        }
-        emailsFailed++;
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: recipientEmails,
+          subject: data.subject,
+          body: data.body,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || `API request failed with status ${response.status}`);
       }
-    }
 
-    setFormSubmitting(false);
-
-    if (emailsSent > 0) {
-      toast({ title: "Emails Sent", description: `Successfully sent ${emailsSent} email(s). ${emailsFailed > 0 ? `${emailsFailed} failed.` : ''}`});
+      toast({
+        title: "Emails Sent",
+        description: `Successfully sent email to ${recipients.length} member(s).`
+      });
       form.reset();
       form.setValue("recipientUserIds", []);
       setAiTopic("");
+
+    } catch (error: any) {
+      console.error("Failed to send email batch:", error);
+      toast({
+        title: "Email Send Error",
+        description: `Failed to send emails: ${error.message}`,
+        variant: "destructive",
+        duration: 10000
+      });
+    } finally {
+      setFormSubmitting(false);
     }
   };
 
@@ -189,19 +176,11 @@ export default function CommunicationPage() {
         <h1 className="text-2xl sm:text-3xl font-bold font-headline">Send Communication</h1>
       </div>
 
-      <Alert variant={isEmailJsReady ? "default" : "destructive"}>
+      <Alert>
         <Mail className="h-4 w-4" />
-        <AlertTitle>{isEmailJsReady ? "Email Sending Ready" : "Email Service Not Configured"}</AlertTitle>
+        <AlertTitle>Email Sending via Backend</AlertTitle>
         <AlertDescription>
-          {isEmailJsReady ? (
-            <>
-              This form uses <strong className="text-primary">EmailJS</strong> to send emails directly from your browser.
-            </>
-          ) : (
-            <>
-              <strong className="text-destructive-foreground">Email sending is disabled.</strong> Please follow the setup instructions in the project's `README.md` file.
-            </>
-          )}
+          This form uses a secure backend API route with Nodemailer to send emails. Ensure your Gmail credentials are set in the environment variables.
         </AlertDescription>
       </Alert>
 
@@ -349,7 +328,7 @@ export default function CommunicationPage() {
           </Card>
           
           <div className="flex justify-end">
-            <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers || !isEmailJsReady} size="lg">
+            <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers} size="lg">
               {formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               {formSubmitting ? "Sending..." : `Send Email to ${watchedRecipients.length} Member(s)`}
             </Button>

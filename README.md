@@ -18,7 +18,7 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
     - Full **CRUD** (Create, Read, Update, Delete) capabilities for user profiles.
     - **Bulk Import**: Admins can import new members from a CSV file.
 - **AI-Powered Communication**: An AI assistant helps admins draft professional and engaging email communications for club members.
-- **Client-Side Email System**: The admin "Communication" page uses **EmailJS** to send emails directly from the browser, ideal for free-tier hosting plans.
+- **Backend Email System**: The admin "Communication" page uses a secure **Next.js API Route** and **Nodemailer** to send emails, keeping credentials safe on the server.
 - **Reporting & Data Export**:
     - Admins can view detailed **event summaries** with participant lists.
     - Reports on member participation and club growth.
@@ -39,7 +39,7 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
 - **UI**: [React](https://reactjs.org/), [Shadcn/UI](https://ui.shadcn.com/), [Tailwind CSS](https://tailwindcss.com/)
 - **Backend & Database**: [Firebase](https://firebase.google.com/) (Authentication, Firestore, Functions)
-- **Email**: [EmailJS](https://www.emailjs.com/) (Client-side sending)
+- **Email**: [Nodemailer](https://nodemailer.com/) (via Next.js API Route)
 - **AI Integration**: [Google AI & Genkit](https://firebase.google.com/docs/genkit)
 - **Forms**: [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/)
 - **Styling**: [Lucide React](https://lucide.dev/) for icons
@@ -52,7 +52,7 @@ To get a local copy up and running, follow these simple steps.
 
 - Node.js (v18 or later)
 - npm or yarn
-- An EmailJS account ([Sign up for free](https://www.emailjs.com/))
+- A Google Account (e.g., Gmail)
 
 ### Installation
 
@@ -74,8 +74,8 @@ To get a local copy up and running, follow these simple steps.
     cd ..
     ```
 
-4.  **Set up EmailJS Credentials:**
-    - Follow the instructions in the **Email Setup (EmailJS)** section below to configure your email service.
+4.  **Set up Email Credentials:**
+    - Follow the instructions in the **Email Setup (Nodemailer & Gmail)** section below to configure your email service.
 
 5.  **Set up Firebase Security Rules:**
     - Go to your Firebase project console.
@@ -96,39 +96,32 @@ To get a local copy up and running, follow these simple steps.
 
 ---
 
-## 📧 Email Setup (EmailJS)
+## 📧 Email Setup (Nodemailer & Gmail)
 
-This application uses **EmailJS** to send emails directly from the Admin Communication page in the browser. This method is free and does not require a paid Firebase plan.
+This application uses a secure backend API route with **Nodemailer** to send emails from the server. This method is more robust and secure than client-side sending.
 
-### Step 1: Get Your EmailJS Credentials
+### Step 1: Generate a Google App Password
 
-1.  Sign in to your [EmailJS account](https://www.emailjs.com/).
-2.  Add an email service (e.g., Gmail). EmailJS will guide you through the connection process.
-3.  Find your **Service ID** on the "Email Services" page.
-4.  Find your **Public Key** in your account settings under the "Account" section.
+To send emails securely through your Gmail account, you need to generate an **App Password**. This is a 16-digit code that gives an app permission to access your Google Account.
 
-### Step 2: Create the Email Template
+1.  Go to your **Google Account**: [myaccount.google.com](https://myaccount.google.com/).
+2.  Navigate to the **Security** tab.
+3.  Under "How you sign in to Google," click on **2-Step Verification**. You must have 2-Step Verification enabled to create App Passwords. If it's not enabled, follow the on-screen steps to set it up.
+4.  At the bottom of the 2-Step Verification page, click on **App passwords**.
+5.  When prompted, give the app a name (e.g., "LeoPortal Mailer") and click **Create**.
+6.  Google will generate a **16-character password**. Copy this password immediately. **This is your `GMAIL_APP_PASSWORD`**.
 
-1.  Go to the **Email Templates** section in your EmailJS dashboard.
-2.  Click **Create New Template**.
-3.  Set the **Subject** line to: `{{subject}}`
-4.  Switch to the "Code" editor view for the template body.
-5.  **Delete all existing content** and paste the **exact content** from the file located at: `src/lib/email-templates/default-notification.html` in this project.
-    - This template includes all the required dynamic variables like `{{to_name}}`, `{{body_content}}`, etc.
-6.  Save the template and copy its **Template ID**.
+### Step 2: Configure Environment Variables
 
-### Step 3: Configure Environment Variables
-
-1.  In the root of your project, open the `.env` file (or create it if it doesn't exist).
-2.  Add your EmailJS credentials like this, replacing the placeholder values with your own:
+1.  In the root of your project, open the `.env` file.
+2.  Add your Gmail email and the App Password you just generated, replacing the placeholder values with your own:
 
     ```env
-    EMAILJS_SERVICE_ID=YOUR_SERVICE_ID
-    EMAILJS_TEMPLATE_ID=YOUR_TEMPLATE_ID
-    EMAILJS_PUBLIC_KEY=YOUR_PUBLIC_KEY
+    GMAIL_EMAIL=your-email@gmail.com
+    GMAIL_APP_PASSWORD=your-16-character-app-password
     ```
 
-After restarting your development server (`npm run dev`), the Communication page will be fully configured to send emails.
+After restarting your development server (`npm run dev`), the Communication page will be fully configured to send emails using your Gmail account.
 
 ---
 
