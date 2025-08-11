@@ -1,8 +1,8 @@
-
 // src/app/(authenticated)/admin/communication/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import emailjs from '@emailjs/browser';
 import type { User } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
@@ -18,9 +18,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase/clientApp';
-import { httpsCallable } from 'firebase/functions';
-import { Mail, Users, Send, Loader2, AlertTriangle, Info, Sparkles } from "lucide-react";
+import { db } from '@/lib/firebase/clientApp';
+import { Mail, Users, Send, Loader2, AlertTriangle, Sparkles } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { generateCommunication, type GenerateCommunicationInput } from '@/ai/flows/generate-communication-flow';
@@ -43,7 +42,11 @@ export default function CommunicationPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState("");
-  const [isNodemailerReady, setIsNodemailerReady] = useState(false);
+  
+  const [isEmailJsReady, setIsEmailJsReady] = useState(false);
+  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
 
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailFormSchema),
@@ -55,18 +58,16 @@ export default function CommunicationPage() {
   });
 
   useEffect(() => {
+    if (serviceId && templateId && publicKey) {
+        setIsEmailJsReady(true);
+    }
+  }, [serviceId, templateId, publicKey]);
+
+  useEffect(() => {
     if (!authLoading && (!user || user.role !== 'admin')) {
       router.replace('/dashboard');
     }
   }, [user, authLoading, router]);
-
-  useEffect(() => {
-    // A simple check to see if the function might be configured.
-    // In a real app, you might have a dedicated health check endpoint.
-    if (functions) {
-        setIsNodemailerReady(true);
-    }
-  }, []);
 
   const fetchMembers = useCallback(async () => {
     setIsLoadingMembers(true);
@@ -112,43 +113,53 @@ export default function CommunicationPage() {
   }
 
   const onSubmit = async (data: EmailFormValues) => {
-    setFormSubmitting(true);
-    try {
-        const sendEmailFunction = httpsCallable(functions, 'sendEmail');
-        
-        const recipientDetails = data.recipientUserIds.map(userId => {
-            const member = members.find(m => m.id === userId);
-            return { email: member?.email, name: member?.name };
-        }).filter(detail => detail.email);
-
-        if (recipientDetails.length === 0) {
-            toast({ title: "Error", description: "No valid recipient emails found for selected users.", variant: "destructive" });
-            setFormSubmitting(false);
-            return;
-        }
-
-        const response = await sendEmailFunction({
-            recipients: recipientDetails,
-            subject: data.subject,
-            body: data.body,
-        });
-
-        const result = response.data as { success: boolean; message: string };
-
-        if (result.success) {
-            toast({ title: "Emails Sent", description: `Successfully queued ${recipientDetails.length} email(s) for delivery.` });
-            form.reset();
-            form.setValue("recipientUserIds", []);
-            setAiTopic("");
-        } else {
-            toast({ title: "Email Sending Failed", description: result.message || "An unknown error occurred on the server.", variant: "destructive" });
-        }
-    } catch (error: any) {
-        console.error("Error calling sendEmail function:", error);
-        toast({ title: "Function Call Error", description: `Could not send email. Error: ${error.message}`, variant: "destructive" });
+    if (!isEmailJsReady) {
+        toast({title: "EmailJS Not Configured", description: "Please add your EmailJS credentials to the environment file.", variant: "destructive"});
+        return;
     }
+    setFormSubmitting(true);
+    
+    let emailsSent = 0;
+    let emailsFailed = 0;
+
+    const recipients = data.recipientUserIds.map(userId => members.find(m => m.id === userId)).filter(Boolean) as User[];
+
+    for (const recipient of recipients) {
+      const templateParams = {
+        to_name: recipient.name,
+        to_email: recipient.email,
+        from_name: user?.name || "LEO Portal Admin",
+        subject: data.subject,
+        body_content: data.body,
+        current_year: new Date().getFullYear().toString(),
+      };
+      
+      try {
+        await emailjs.send(serviceId!, templateId!, templateParams, publicKey);
+        emailsSent++;
+      } catch (error: any) {
+        console.error("Failed to send email to " + recipient.email + ":", error);
+        // This checks for the specific 'empty object' error from EmailJS
+        if (typeof error === 'object' && error !== null && Object.keys(error).length === 0) {
+          toast({ title: "EmailJS Send Error", description: `Failed for ${recipient.email}. This is often due to an incorrect Template ID or missing variables in your EmailJS template.`, variant: "destructive", duration: 15000});
+        } else {
+          const errorText = error?.text || String(error);
+          toast({ title: "EmailJS Send Error", description: `Failed for ${recipient.email}: ${errorText}`, variant: "destructive", duration: 10000});
+        }
+        emailsFailed++;
+      }
+    }
+
     setFormSubmitting(false);
+
+    if (emailsSent > 0) {
+      toast({ title: "Emails Sent", description: `Successfully sent ${emailsSent} email(s). ${emailsFailed > 0 ? `${emailsFailed} failed.` : ''}`});
+      form.reset();
+      form.setValue("recipientUserIds", []);
+      setAiTopic("");
+    }
   };
+
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -178,17 +189,17 @@ export default function CommunicationPage() {
         <h1 className="text-2xl sm:text-3xl font-bold font-headline">Send Communication</h1>
       </div>
 
-      <Alert variant={isNodemailerReady ? "default" : "destructive"}>
+      <Alert variant={isEmailJsReady ? "default" : "destructive"}>
         <Mail className="h-4 w-4" />
-        <AlertTitle>{isNodemailerReady ? "Email Sending Ready" : "Email Service Not Configured"}</AlertTitle>
+        <AlertTitle>{isEmailJsReady ? "Email Sending Ready" : "Email Service Not Configured"}</AlertTitle>
         <AlertDescription>
-          {isNodemailerReady ? (
+          {isEmailJsReady ? (
             <>
-              This form uses a secure backend function with <strong className="text-primary">Nodemailer</strong> to send emails.
+              This form uses <strong className="text-primary">EmailJS</strong> to send emails directly from your browser.
             </>
           ) : (
             <>
-              <strong className="text-destructive-foreground">Email sending is disabled.</strong> Please follow the backend setup instructions in the project's `README.md` file.
+              <strong className="text-destructive-foreground">Email sending is disabled.</strong> Please follow the setup instructions in the project's `README.md` file.
             </>
           )}
         </AlertDescription>
@@ -338,7 +349,7 @@ export default function CommunicationPage() {
           </Card>
           
           <div className="flex justify-end">
-            <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers || !isNodemailerReady} size="lg">
+            <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers || !isEmailJsReady} size="lg">
               {formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               {formSubmitting ? "Sending..." : `Send Email to ${watchedRecipients.length} Member(s)`}
             </Button>

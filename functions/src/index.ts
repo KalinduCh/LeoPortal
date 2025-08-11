@@ -1,30 +1,11 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
-import axios from "axios";
-import * as nodemailer from "nodemailer";
-import * as cors from "cors";
-
-const corsHandler = cors({ origin: true });
 
 admin.initializeApp();
 
 const db = admin.firestore();
 const messaging = admin.messaging();
-
-// --- Nodemailer Transport ---
-// For this to work, you must create an "App Password" for your Gmail account.
-// See the updated README.md for instructions.
-// Store these as secrets in your Firebase project:
-// firebase functions:secrets:set GMAIL_EMAIL
-// firebase functions:secrets:set GMAIL_APP_PASSWORD
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_EMAIL,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
 
 /**
  * Sends push notifications to a list of user IDs.
@@ -86,51 +67,6 @@ const sendPushToUsers = async (
   }
 };
 
-// --- HTTP CALLABLE FUNCTIONS ---
-
-/**
- * Sends an email to a list of recipients using Nodemailer.
- */
-export const sendEmail = functions.https.onRequest((request, response) => {
-  corsHandler(request, response, async () => {
-    if (request.method !== "POST") {
-      response.status(405).send("Method Not Allowed");
-      return;
-    }
-
-    const { recipients, subject, body } = request.body;
-
-    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
-      response.status(400).send({ success: false, message: "No recipients specified." });
-      return;
-    }
-    if (!subject || !body) {
-      response.status(400).send({ success: false, message: "Subject and body are required." });
-      return;
-    }
-
-    const bcc = recipients.map((r: { email: string }) => r.email).join(", ");
-
-    const mailOptions = {
-      from: `LEO Portal Admin <${process.env.GMAIL_EMAIL}>`,
-      bcc: bcc, // Use BCC to protect recipient privacy
-      subject: subject,
-      html: `<p>Dear LEO Member,</p>${body}<p>Sincerely,<br/>The LEO Portal Team</p>`,
-    };
-
-    try {
-      await transporter.sendMail(mailOptions);
-      console.log(`Email sent successfully to ${recipients.length} recipients.`);
-      response.status(200).send({ success: true, message: "Emails sent successfully!" });
-    } catch (error: any) {
-      console.error("Error sending email with Nodemailer:", error);
-      response.status(500).send({ success: false, message: `Failed to send emails: ${error.message}` });
-    }
-  });
-});
-
-
-// --- TRIGGER FUNCTIONS ---
 
 export const onUserApproved = functions.firestore
   .document("users/{userId}")
@@ -268,75 +204,4 @@ export const onUserDocumentChanged = functions.firestore
         requestBody: { values: [values] },
       });
     }
-  });
-
-const EMAILJS_SERVICE_ID = process.env.EMAILJS_SERVICE_ID;
-const EMAILJS_BIRTHDAY_TEMPLATE_ID = process.env.EMAILJS_BIRTHDAY_TEMPLATE_ID;
-const EMAILJS_USER_ID = process.env.EMAILJS_USER_ID;
-
-export const dailyBirthdayCheck = functions.pubsub
-  .schedule("every day 08:00")
-  .timeZone("Asia/Colombo")
-  .onRun(async (context) => {
-    console.log("Running daily birthday check...");
-
-    if (!EMAILJS_SERVICE_ID || !EMAILJS_BIRTHDAY_TEMPLATE_ID || !EMAILJS_USER_ID) {
-      console.error("EmailJS credentials for birthday emails are not set. Exiting function.");
-      return null;
-    }
-
-    const today = new Date();
-    const currentDay = String(today.getDate()).padStart(2, "0");
-    const currentMonth = String(today.getMonth() + 1).padStart(2, "0");
-    const todayMMDD = `${currentMonth}-${currentDay}`;
-
-    const usersSnapshot = await db.collection("users")
-      .where("status", "==", "approved")
-      .get();
-
-    if (usersSnapshot.empty) {
-      console.log("No approved users found.");
-      return null;
-    }
-
-    const birthdayUsers = usersSnapshot.docs.filter((doc) => {
-      const user = doc.data();
-      if (user.dateOfBirth && typeof user.dateOfBirth === "string") {
-        // DOB is expected in "YYYY-MM-DD" format
-        const dobMMDD = user.dateOfBirth.substring(5);
-        return dobMMDD === todayMMDD;
-      }
-      return false;
-    });
-
-    if (birthdayUsers.length === 0) {
-      console.log("No members have birthdays today.");
-      return null;
-    }
-
-    console.log(`Found ${birthdayUsers.length} user(s) with birthdays today.`);
-
-    const emailPromises = birthdayUsers.map(async (doc) => {
-      const user = doc.data();
-      const emailParams = {
-        service_id: EMAILJS_SERVICE_ID,
-        template_id: EMAILJS_BIRTHDAY_TEMPLATE_ID,
-        user_id: EMAILJS_USER_ID,
-        template_params: {
-          to_name: user.name,
-          to_email: user.email,
-        },
-      };
-
-      try {
-        await axios.post("https://api.emailjs.com/api/v1.0/email/send", emailParams);
-        console.log(`Birthday email sent to ${user.email}`);
-      } catch (error: any) {
-        console.error(`Failed to send birthday email to ${user.email}:`, error.response ? error.response.data : error.message);
-      }
-    });
-
-    await Promise.all(emailPromises);
-    console.log("Finished sending all birthday emails.");
-    return null;
   });
