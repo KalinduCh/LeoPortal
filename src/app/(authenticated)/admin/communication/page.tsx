@@ -18,7 +18,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
-import { Mail, Users, Send, Loader2, AlertTriangle, Sparkles, Search } from "lucide-react";
+import { Mail, Users, Send, Loader2, AlertTriangle, Sparkles, Search, Info } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { generateCommunication, type GenerateCommunicationInput } from '@/ai/flows/generate-communication-flow';
@@ -62,7 +62,7 @@ export default function CommunicationPage() {
     setIsLoadingMembers(true);
     try {
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("role", "==", "member"), where("status", "==", "approved"));
+      const q = query(usersRef, where("role", "in", ["member", "admin"]), where("status", "==", "approved"));
       const querySnapshot = await getDocs(q);
       const fetchedMembers: User[] = [];
       querySnapshot.forEach((docSnap) => {
@@ -103,7 +103,7 @@ export default function CommunicationPage() {
         toast({ title: "Content Generated", description: "The email subject and body have been populated." });
     } catch (error) {
         console.error("Error generating AI content:", error);
-        toast({ title: "AI Generation Failed", description: "Could not generate content. Please try again.", variant: "destructive"});
+        toast({ title: "AI Generation Failed", description: "Could not generate content. Please try again or check your API key.", variant: "destructive"});
     }
     setIsGenerating(false);
   }
@@ -113,8 +113,12 @@ export default function CommunicationPage() {
     
     const recipients = data.recipientUserIds.map(userId => members.find(m => m.id === userId)).filter(Boolean) as User[];
     
-    // Send one API call with all recipient emails
-    const recipientEmails = recipients.map(r => r.email).join(', ');
+    const recipientEmails = recipients.map(r => r.email).filter(Boolean);
+    if(recipientEmails.length === 0) {
+        toast({ title: "No valid recipients", description: "Selected members do not have valid email addresses.", variant: "destructive"});
+        setFormSubmitting(false);
+        return;
+    }
 
     try {
       const response = await fetch('/api/send-email', {
@@ -123,7 +127,7 @@ export default function CommunicationPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: recipientEmails,
+          to: recipientEmails.join(','), // Send as comma-separated string
           subject: data.subject,
           body: data.body,
         }),
@@ -154,7 +158,6 @@ export default function CommunicationPage() {
       setFormSubmitting(false);
     }
   };
-
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -281,15 +284,25 @@ export default function CommunicationPage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center text-xl"><Sparkles className="mr-2 h-5 w-5 text-primary" /> AI Content Assistant</CardTitle>
-              <CardDescription className="text-sm">Provide a topic and let the AI generate a draft for your email.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+               <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>How to use the Topic field</AlertTitle>
+                  <AlertDescription className="text-xs leading-relaxed">
+                     <ol className="list-decimal list-inside space-y-1 mt-1">
+                       <li>Be specific. Instead of "meeting," try "Monthly meeting reminder for August".</li>
+                       <li>Include key details if you have them, like "charity drive on Saturday at the main hall".</li>
+                       <li>The AI will automatically write in a professional and friendly tone suitable for the club.</li>
+                     </ol>
+                  </AlertDescription>
+               </Alert>
                <div>
                   <Label htmlFor="ai-topic">Email Topic</Label>
                   <div className="flex items-center gap-2 mt-1">
                     <Input 
                       id="ai-topic"
-                      placeholder="e.g., Monthly meeting reminder for August"
+                      placeholder="e.g., Beach cleanup event this weekend"
                       value={aiTopic}
                       onChange={(e) => setAiTopic(e.target.value)}
                       disabled={isGenerating || formSubmitting}
