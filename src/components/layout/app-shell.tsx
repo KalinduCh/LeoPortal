@@ -38,8 +38,8 @@ export function AppShell({ children }: AppShellProps) {
   const { user } = useAuth();
   const logoUrl = "https://i.imgur.com/aRktweQ.png";
 
-  const president = { name: 'Alex Perera', email: 'president@leoclub.com', phone: '+94 77 123 4567' };
-  const support = { name: 'Chris Fernando', email: 'support@leoclub.com', phone: '+94 71 123 4567' };
+  const president = { name: 'Leo Lion Menuka Wickramasinghe', email: 'isanthamenuka@gmail.com', phone: '+9477 352 3893' };
+  const support = { name: 'Leo Kalindu Chamikara', email: 'chamikarakc@gmail.com', phone: '+9477 2137638' };
 
   return (
     <SidebarProvider defaultOpen={true}>
