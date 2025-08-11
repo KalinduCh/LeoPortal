@@ -17,7 +17,8 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
     - Admins can **approve or reject** pending member applications.
     - Full **CRUD** (Create, Read, Update, Delete) capabilities for user profiles.
     - **Bulk Import**: Admins can import new members from a CSV file.
-- **AI-Powered Communication**: An AI assistant helps admins draft professional and engaging email communications for club members, sent via **EmailJS**.
+- **AI-Powered Communication**: An AI assistant helps admins draft professional and engaging email communications for club members.
+- **Automated Email System**: Emails for announcements and birthday wishes are sent via a secure backend function using **Nodemailer**.
 - **Reporting & Data Export**:
     - Admins can view detailed **event summaries** with participant lists.
     - Reports on member participation and club growth.
@@ -30,6 +31,7 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
     - Light and Dark mode support.
     - Intuitive navigation and user-friendly forms.
 - **PWA & Push Notifications**: Installable app experience with push notifications for new events and approvals.
+- **Google Sheets Integration**: Automatically syncs member data to a Google Sheet for easy use with other tools like Google Apps Script.
 
 ## 🛠️ Tech Stack
 
@@ -37,7 +39,7 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
 - **UI**: [React](https://reactjs.org/), [Shadcn/UI](https://ui.shadcn.com/), [Tailwind CSS](https://tailwindcss.com/)
 - **Backend & Database**: [Firebase](https://firebase.google.com/) (Authentication, Firestore, Functions)
-- **Email**: [EmailJS](https://www.emailjs.com/)
+- **Email**: [Nodemailer](https://nodemailer.com/) (via Firebase Functions)
 - **AI Integration**: [Google AI & Genkit](https://firebase.google.com/docs/genkit)
 - **Forms**: [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/)
 - **Styling**: [Lucide React](https://lucide.dev/) for icons
@@ -50,7 +52,7 @@ To get a local copy up and running, follow these simple steps.
 
 - Node.js (v18 or later)
 - npm or yarn
-- An active [EmailJS](https://www.emailjs.com/) account.
+- A Google account (e.g., Gmail) to be used for sending emails.
 
 ### Installation
 
@@ -60,67 +62,92 @@ To get a local copy up and running, follow these simple steps.
     cd leoportal
     ```
 
-2.  **Install NPM packages:**
+2.  **Install Root NPM packages:**
     ```sh
     npm install
     ```
 
-3.  **Set up Environment Variables:**
-    - Create a file named `.env.local` in the root of your project.
-    - Add your EmailJS credentials to this file as shown in the **Email Setup** section below.
+3.  **Install Functions NPM packages:**
+    ```sh
+    cd functions
+    npm install
+    cd ..
+    ```
 
-4.  **Set up Firebase Security Rules:**
+4.  **Set up Backend Email Credentials:**
+    - Follow the instructions in the **Email Setup (Nodemailer)** section below to configure your backend email service.
+
+5.  **Set up Firebase Security Rules:**
     - Go to your Firebase project console.
     - Navigate to **Firestore Database** -> **Rules**.
     - Copy the contents of `firestore.rules` from this repository and paste them into the editor.
     - Click **Publish**.
 
-5.  **Deploy Firebase Functions (Required for Notifications):**
-    - Follow the instructions in `TESTING.md` to set up and deploy the backend functions necessary for sending notifications.
+6.  **Deploy Firebase Functions (Required for Email & Notifications):**
+    - Follow the instructions in `TESTING.md` to set up and deploy the backend functions.
 
-6.  **Run the development server:**
-    ```sh
-    npm run dev
-    ```
+7.  **Run the development server:**
+    - To run the full local environment (web app and functions), see `TESTING.md`.
+    - To just run the web app:
+      ```sh
+      npm run dev
+      ```
     Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 ---
 
-## 📧 Email Setup (Using EmailJS)
+## 📧 Email Setup (Nodemailer)
 
-This application uses EmailJS to send emails from the "Communication" page.
+This application uses a secure backend Firebase Function with **Nodemailer** to send emails. This is more secure and reliable than sending from the client.
 
-### Step 1: Get Your EmailJS Credentials
+### Step 1: Create a Gmail App Password
 
-1.  Log in to your [EmailJS Dashboard](https://dashboard.emailjs.com/).
-2.  **Add an Email Service**: Go to the "Email Services" tab and add a new service (e.g., Gmail). Follow the instructions to connect your email account. Note your **Service ID**.
-3.  **Find Your Public Key**: Go to the "Account" tab. Your **Public Key** (previously called User ID) is displayed here.
-4.  **Create an Email Template**:
-    *   Go to the "Email Templates" tab and click "Create New Template".
-    *   Note the **Template ID** from the settings.
-    *   On the "Content" tab, design your email. You **must** use the following dynamic variables (double curly braces):
-        *   `{{to_name}}`: The recipient's name.
-        *   `{{to_email}}`: The recipient's email address.
-        *   `{{subject}}`: The subject line you type on the Communication page.
-        *   `{{body_content}}`: The email body you write on the Communication page.
-        *   `{{current_year}}`: The current year for the footer.
-    *   You can use the provided HTML file `src/lib/email-templates/default-notification.html` as a starting point. Copy its content into the EmailJS template editor.
-    *   Save your template.
+Using a dedicated "App Password" is more secure than using your main Google account password.
 
-### Step 2: Configure Environment Variables
+1.  Go to your Google Account settings: [myaccount.google.com](https://myaccount.google.com/).
+2.  Navigate to the **Security** tab.
+3.  Make sure **2-Step Verification** is turned **ON**. You cannot create App Passwords without it.
+4.  In the "Signing in to Google" section, click on **App passwords**.
+5.  Under "Select app," choose **Mail**.
+6.  Under "Select device," choose **Other (Custom name)** and give it a name like "LeoPortal App".
+7.  Click **Generate**.
+8.  Google will display a **16-character password**. **Copy this password immediately.** This is your `GMAIL_APP_PASSWORD`. You won't see it again.
 
-Create a file named `.env.local` in the root of your project and add your credentials like this:
+### Step 2: Set Firebase Function Secrets
 
-```
-# .env.local
+You must store your credentials securely as Firebase Function secrets. **Do not put them in `.env` files.**
 
-# For the Admin "Communication" page (Client-Side)
-NEXT_PUBLIC_EMAILJS_SERVICE_ID=YOUR_SERVICE_ID
-NEXT_PUBLIC_EMAILJS_TEMPLATE_ID=YOUR_TEMPLATE_ID
-NEXT_PUBLIC_EMAILJS_USER_ID=YOUR_PUBLIC_KEY
-```
+1.  Make sure you are logged into the Firebase CLI (`firebase login`).
+2.  Navigate to your project's root directory in your terminal.
+3.  Run the following commands, one by one, replacing the placeholder values with your actual Gmail email and the App Password you just generated:
 
-Replace `YOUR_SERVICE_ID`, `YOUR_TEMPLATE_ID`, and `YOUR_PUBLIC_KEY` with the actual values from your EmailJS account.
+    ```sh
+    firebase functions:secrets:set GMAIL_EMAIL
+    ```
+    You will be prompted to enter your full Gmail address (e.g., `your-email@gmail.com`).
+
+    ```sh
+    firebase functions:secrets:set GMAIL_APP_PASSWORD
+    ```
+    You will be prompted to paste the 16-character App Password you copied from Google.
+
+4.  After setting the secrets, you need to grant your function access to them. Open `functions/src/index.ts` and ensure the `sendEmail` function definition includes the secrets:
+
+    ```typescript
+    export const sendEmail = functions
+      .runWith({ secrets: ["GMAIL_EMAIL", "GMAIL_APP_PASSWORD"] })
+      .https.onRequest((request, response) => {
+        // ... function code
+      });
+    ```
+    *Note: The provided code changes already do this, but it's good practice to verify.*
+
+5.  **Deploy your functions** for the secrets to take effect:
+    ```sh
+    firebase deploy --only functions
+    ```
+
+Your email system is now fully configured and secure.
 
 ---
 

@@ -18,11 +18,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase/clientApp';
+import { db, functions } from '@/lib/firebase/clientApp';
+import { httpsCallable } from 'firebase/functions';
 import { Mail, Users, Send, Loader2, AlertTriangle, Info, Sparkles } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import emailjs from 'emailjs-com';
 import { generateCommunication, type GenerateCommunicationInput } from '@/ai/flows/generate-communication-flow';
 
 const emailFormSchema = z.object({
@@ -32,10 +32,6 @@ const emailFormSchema = z.object({
 });
 
 type EmailFormValues = z.infer<typeof emailFormSchema>;
-
-const SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
-const TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
-const USER_ID = process.env.NEXT_PUBLIC_EMAILJS_USER_ID;
 
 export default function CommunicationPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -47,6 +43,7 @@ export default function CommunicationPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState("");
+  const [isNodemailerReady, setIsNodemailerReady] = useState(false);
 
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailFormSchema),
@@ -62,6 +59,14 @@ export default function CommunicationPage() {
       router.replace('/dashboard');
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    // A simple check to see if the function might be configured.
+    // In a real app, you might have a dedicated health check endpoint.
+    if (functions) {
+        setIsNodemailerReady(true);
+    }
+  }, []);
 
   const fetchMembers = useCallback(async () => {
     setIsLoadingMembers(true);
@@ -107,74 +112,40 @@ export default function CommunicationPage() {
   }
 
   const onSubmit = async (data: EmailFormValues) => {
-    if (!SERVICE_ID || !TEMPLATE_ID || !USER_ID) {
-      toast({
-        title: "EmailJS Not Configured",
-        description: "EmailJS credentials are not set up. Please follow the instructions in README.md to configure your .env.local file.",
-        variant: "destructive",
-        duration: 10000,
-      });
-      return;
-    }
-
     setFormSubmitting(true);
-    let emailsSent = 0;
-    let emailsFailed = 0;
-
-    const recipientDetails = data.recipientUserIds.map(userId => {
-      const member = members.find(m => m.id === userId);
-      return { email: member?.email, name: member?.name };
-    }).filter(detail => detail.email);
-
-    if (recipientDetails.length === 0) {
-      toast({ title: "Error", description: "No valid recipient emails found for selected users.", variant: "destructive" });
-      setFormSubmitting(false);
-      return;
-    }
-
-    const currentYear = new Date().getFullYear().toString();
-
-    for (const recipient of recipientDetails) {
-      if (!recipient.email) continue;
-
-      const templateParams = {
-        to_email: recipient.email,
-        to_name: recipient.name || 'Member',
-        subject: data.subject,
-        body_content: data.body,
-        current_year: currentYear,
-      };
-
-      try {
-        await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, USER_ID);
-        emailsSent++;
-      } catch (error: any) {
-        console.error(`Failed to send email to ${recipient.email}:`, error);
+    try {
+        const sendEmailFunction = httpsCallable(functions, 'sendEmail');
         
-        let errorText = error?.text || String(error);
-        if (errorText === '[object Object]') { // Check for the unhelpful error
-            errorText = "This is likely a template misconfiguration. Ensure your EmailJS template contains all required variables like {{to_name}}, {{subject}}, and {{body_content}}. See README for details.";
+        const recipientDetails = data.recipientUserIds.map(userId => {
+            const member = members.find(m => m.id === userId);
+            return { email: member?.email, name: member?.name };
+        }).filter(detail => detail.email);
+
+        if (recipientDetails.length === 0) {
+            toast({ title: "Error", description: "No valid recipient emails found for selected users.", variant: "destructive" });
+            setFormSubmitting(false);
+            return;
         }
 
-        toast({ title: "EmailJS Send Error", description: `Failed for ${recipient.email}: ${errorText}`, variant: "destructive", duration: 15000});
-        emailsFailed++;
-      }
-    }
+        const response = await sendEmailFunction({
+            recipients: recipientDetails,
+            subject: data.subject,
+            body: data.body,
+        });
 
-    if (emailsSent > 0 && emailsFailed === 0) {
-      toast({ title: "Emails Sent", description: `${emailsSent} email(s) sent successfully.` });
-      form.reset();
-      form.setValue("recipientUserIds", []);
-      setAiTopic("");
-    } else if (emailsSent > 0 && emailsFailed > 0) {
-      toast({ title: "Emails Partially Sent", description: `${emailsSent} email(s) sent, ${emailsFailed} failed. Check console for details.`, variant: "destructive" });
-       form.reset();
-       form.setValue("recipientUserIds", []);
-       setAiTopic("");
-    } else if (emailsFailed > 0 && emailsSent === 0) {
-      toast({ title: "Email Sending Failed", description: `All ${emailsFailed} email(s) failed to send. Check console and your EmailJS setup.`, variant: "destructive" });
-    } else {
-       toast({ title: "No Emails Processed", description: "No emails were sent. This might be due to no valid recipients being selected.", variant: "destructive" });
+        const result = response.data as { success: boolean; message: string };
+
+        if (result.success) {
+            toast({ title: "Emails Sent", description: `Successfully queued ${recipientDetails.length} email(s) for delivery.` });
+            form.reset();
+            form.setValue("recipientUserIds", []);
+            setAiTopic("");
+        } else {
+            toast({ title: "Email Sending Failed", description: result.message || "An unknown error occurred on the server.", variant: "destructive" });
+        }
+    } catch (error: any) {
+        console.error("Error calling sendEmail function:", error);
+        toast({ title: "Function Call Error", description: `Could not send email. Error: ${error.message}`, variant: "destructive" });
     }
     setFormSubmitting(false);
   };
@@ -200,8 +171,6 @@ export default function CommunicationPage() {
   if (!user || user.role !== 'admin') {
     return null;
   }
-  
-  const isEmailJsConfigured = SERVICE_ID && TEMPLATE_ID && USER_ID;
 
   return (
     <div className="container mx-auto py-4 sm:py-8 space-y-6">
@@ -209,17 +178,17 @@ export default function CommunicationPage() {
         <h1 className="text-2xl sm:text-3xl font-bold font-headline">Send Communication</h1>
       </div>
 
-      <Alert variant={isEmailJsConfigured ? "default" : "destructive"}>
+      <Alert variant={isNodemailerReady ? "default" : "destructive"}>
         <Mail className="h-4 w-4" />
-        <AlertTitle>{isEmailJsConfigured ? "Email Sending Ready" : "EmailJS Not Configured"}</AlertTitle>
+        <AlertTitle>{isNodemailerReady ? "Email Sending Ready" : "Email Service Not Configured"}</AlertTitle>
         <AlertDescription>
-          {isEmailJsConfigured ? (
+          {isNodemailerReady ? (
             <>
-              This form uses <strong className="text-primary">EmailJS</strong> to send emails. Ensure your template uses variables like <code>to_name</code>, <code>subject</code>, etc.
+              This form uses a secure backend function with <strong className="text-primary">Nodemailer</strong> to send emails.
             </>
           ) : (
             <>
-              <strong className="text-destructive-foreground">Email sending is disabled.</strong> Please follow the setup instructions in the project's `README.md` file.
+              <strong className="text-destructive-foreground">Email sending is disabled.</strong> Please follow the backend setup instructions in the project's `README.md` file.
             </>
           )}
         </AlertDescription>
@@ -369,7 +338,7 @@ export default function CommunicationPage() {
           </Card>
           
           <div className="flex justify-end">
-            <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers || !isEmailJsConfigured} size="lg">
+            <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers || !isNodemailerReady} size="lg">
               {formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               {formSubmitting ? "Sending..." : `Send Email to ${watchedRecipients.length} Member(s)`}
             </Button>

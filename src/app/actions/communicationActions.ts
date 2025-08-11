@@ -1,5 +1,5 @@
-// This file is no longer used as EmailJS logic is handled client-side
-// in src/app/(authenticated)/admin/communication/page.tsx.
+// This file is no longer used as the email logic has been moved to a 
+// secure, backend Firebase Function.
 // You can safely delete this file if it's not imported elsewhere,
 // or keep it empty. For now, I will empty its content.
 
