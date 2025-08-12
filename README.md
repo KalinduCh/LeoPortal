@@ -44,87 +44,88 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
 - **Forms**: [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/)
 - **Styling**: [Lucide React](https://lucide.dev/) for icons
 
-## 🚀 Getting Started
+---
 
-To get a local copy up and running, follow these simple steps.
+## 🚀 Getting Started (Local Development)
 
-### Prerequisites
+Follow these steps to get a local copy running.
 
-- Node.js (v18 or later)
-- npm or yarn
-- A Google Account (e.g., Gmail)
+### 1. Clone & Install
 
-### Installation
+```sh
+git clone https://github.com/your-username/leoportal.git
+cd leoportal
+npm install
+```
 
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/your-username/leoportal.git
-    cd leoportal
-    ```
+### 2. Set up Firebase
+- Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com/).
+- In your project, go to **Project Settings** -> **General**.
+- Click the **Web** icon (</>) to create a new Web App.
+- Copy the `firebaseConfig` object and paste it into `src/lib/firebase/clientApp.ts`.
+- Go to the **Rules** tab in the **Firestore Database** section, paste the contents of `firestore.rules`, and publish.
 
-2.  **Install Root NPM packages:**
-    ```sh
-    npm install
-    ```
+### 3. Set up Credentials (`.env` file)
+- Create a `.env` file in the root of your project.
+- Follow the **Email Setup** and **AI Setup** instructions below to get your credentials.
+- Add them to your `.env` file like this:
+  ```env
+  # For sending emails from the Communication page (via Next.js API route)
+  GMAIL_EMAIL=your-email@gmail.com
+  GMAIL_APP_PASSWORD=your-16-character-app-password
 
-3.  **Install Functions NPM packages:**
-    ```sh
-    cd functions
-    npm install
-    cd ..
-    ```
+  # For the AI Content Assistant on the Communication page
+  GEMINI_API_KEY=your-google-ai-studio-api-key
+  ```
 
-4.  **Set up Email Credentials:**
-    - Follow the instructions in the **Email Setup (Nodemailer & Gmail)** section below to configure your email service.
-
-5.  **Set up Firebase Security Rules:**
-    - Go to your Firebase project console.
-    - Navigate to **Firestore Database** -> **Rules**.
-    - Copy the contents of `firestore.rules` from this repository and paste them into the editor.
-    - Click **Publish**.
-
-6.  **Deploy Firebase Functions (Required for Notifications & DB Triggers):**
-    - Follow the instructions in `TESTING.md` to set up and deploy the backend functions.
-
-7.  **Run the development server:**
-    - To run the full local environment (web app and functions), see `TESTING.md`.
-    - To just run the web app:
-      ```sh
-      npm run dev
-      ```
-    Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 4. Run the Development Server
+```sh
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to see the result.
 
 ---
 
-## 📧 Email Setup (Nodemailer & Gmail)
+## 🌐 Deployment (Netlify, Vercel, etc.)
 
-This application uses a secure backend API route with **Nodemailer** to send emails from the server. This method is more robust and secure than client-side sending.
+**This is a critical step.** When you deploy your site to a service like Netlify, the `.env` file is **not** used. You must configure the environment variables directly in your hosting provider's dashboard.
 
-### Step 1: Generate a Google App Password
+### How to Add Environment Variables on Netlify:
+1.  Log in to your **Netlify account**.
+2.  Go to **Site settings** > **Build & deploy** > **Environment**.
+3.  Click **"Edit variables"** and add the following key-value pairs one by one:
 
-To send emails securely through your Gmail account, you need to generate an **App Password**. This is a 16-digit code that gives an app permission to access your Google Account.
+    -   **Key**: `GMAIL_EMAIL`
+        -   **Value**: `your-email@gmail.com`
+    -   **Key**: `GMAIL_APP_PASSWORD`
+        -   **Value**: `your-16-character-app-password`
+    -   **Key**: `GEMINI_API_KEY`
+        -   **Value**: `your-google-ai-studio-api-key`
 
-1.  Go to your **Google Account**: [myaccount.google.com](https://myaccount.google.com/).
-2.  Navigate to the **Security** tab.
-3.  Under "How you sign in to Google," click on **2-Step Verification**. You must have 2-Step Verification enabled to create App Passwords. If it's not enabled, follow the on-screen steps to set it up.
-4.  At the bottom of the 2-Step Verification page, click on **App passwords**.
-5.  When prompted, give the app a name (e.g., "LeoPortal Mailer") and click **Create**.
-6.  Google will generate a **16-character password**. Copy this password immediately. **This is your `GMAIL_APP_PASSWORD`**.
-
-### Step 2: Configure Environment Variables
-
-1.  In the root of your project, open the `.env` file.
-2.  Add your Gmail email and the App Password you just generated, replacing the placeholder values with your own:
-
-    ```env
-    GMAIL_EMAIL=your-email@gmail.com
-    GMAIL_APP_PASSWORD=your-16-character-app-password
-    ```
-
-After restarting your development server (`npm run dev`), the Communication page will be fully configured to send emails using your Gmail account.
+4.  **Redeploy your site** for the changes to take effect. This will make the variables available to your application, fixing the AI and email features.
 
 ---
 
-## 📄 License
+## 🔑 Credential Setup
 
-Distributed under the MIT License.
+### Email Setup (Nodemailer & Gmail)
+This application uses a secure backend API route with Nodemailer to send emails.
+
+1.  **Generate a Google App Password**:
+    - Go to your Google Account: [myaccount.google.com](https://myaccount.google.com/).
+    - Navigate to **Security** and enable **2-Step Verification**.
+    - At the bottom, click on **App passwords**.
+    - Give the app a name (e.g., "LeoPortal Mailer") and click **Create**.
+    - Copy the 16-character password. This is your `GMAIL_APP_PASSWORD`.
+
+2.  **Add to Environment**:
+    - For local development, add your Gmail and App Password to the `.env` file.
+    - For deployment, add them to your hosting provider's environment variables (see Deployment section).
+
+### AI Setup (Google AI & Genkit)
+The AI Content Assistant uses Google's Generative AI.
+
+1.  Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).
+2.  Click **"Create API key"** and copy the generated key.
+3.  This is your `GEMINI_API_KEY`. Add it to your `.env` file for local development or your hosting provider's settings for deployment.
+```
