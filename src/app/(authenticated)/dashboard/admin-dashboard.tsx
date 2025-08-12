@@ -12,7 +12,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, CalendarDays, Activity, PlusCircle, Eye, History, Award, Filter, Loader2, ExternalLink } from 'lucide-react';
+import { Users, CalendarDays, Activity, PlusCircle, Eye, Award, Filter, Loader2, ExternalLink, List } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -417,7 +417,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           <CardHeader>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <CardTitle className="font-headline flex items-center text-lg">
-                <History className="mr-2 h-5 w-5 text-accent" /> Event History
+                <List className="mr-2 h-5 w-5 text-accent" /> Event History
               </CardTitle>
               <Link href="/events" className="w-full sm:w-auto">
                 <Button variant="outline" size="sm" className="w-full sm:w-auto">
