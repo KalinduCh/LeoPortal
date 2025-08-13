@@ -1,3 +1,4 @@
+
 import type { ReactElement, ElementType } from 'react';
 
 export type UserRole = 'admin' | 'member';
@@ -62,24 +63,40 @@ export interface AttendanceRecord {
   markedLongitude?: number;
 }
 
+// This represents the full, detailed project proposal after AI generation and before saving to Firestore.
 export interface ProjectIdea {
     id: string; // Firestore Document ID
-    name: string;
+    projectName: string;
     goal: string;
     targetAudience: string;
     budget: string;
     timeline: string;
-    // Generated Fields
-    overview?: string;
-    objectives?: { title: string; description: string }[];
-    tasks?: { task: string; responsibility: string }[];
-    resources?: string[];
-    budgetBreakdown?: { item: string; cost: string }[];
-    timelineMilestones?: { milestone: string; date: string }[];
-    risks?: { risk: string; solution: string }[];
-    successMetrics?: string[];
+    specialConsiderations?: string;
+
+    // Generated Fields from the new template
+    projectIdea: string;
+    proposedActionPlan: {
+        objective: string;
+        preEventPlan: string[];
+        executionPlan: string[];
+        postEventPlan: string[];
+    };
+    implementationChallenges: string[];
+    challengeSolutions: string[];
+    communityInvolvement: string[];
+    prPlan: {
+        activity: string;
+        date: string;
+        time: string;
+    }[];
+    estimatedExpenses: {
+        item: string;
+        cost: string;
+    }[];
+    resourcePersonals: string[];
+
     // Metadata
-    status: 'draft' | 'pending_review' | 'needs_revision' | 'approved' | 'declined';
+    status: 'pending_review' | 'needs_revision' | 'approved' | 'declined';
     authorId: string;
     authorName: string;
     createdAt: string; // ISO string

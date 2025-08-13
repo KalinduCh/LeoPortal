@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/project-ideas/page.tsx
 "use client";
 
@@ -86,36 +87,38 @@ export default function AdminProjectIdeasPage() {
                     {isLoading ? (
                         <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
                     ) : ideas.length > 0 ? (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Project Name</TableHead>
-                                    <TableHead>Author</TableHead>
-                                    <TableHead>Submitted On</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {ideas.map((idea) => (
-                                    <TableRow key={idea.id}>
-                                        <TableCell className="font-medium">{idea.projectName}</TableCell>
-                                        <TableCell>{idea.authorName}</TableCell>
-                                        <TableCell>{format(parseISO(idea.createdAt), 'MMM dd, yyyy')}</TableCell>
-                                        <TableCell>
-                                            <Badge className={getStatusVariant(idea.status)}>
-                                                {idea.status.replace('_', ' ')}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="outline" size="sm">
-                                                Review <ExternalLink className="ml-2 h-3 w-3" />
-                                            </Button>
-                                        </TableCell>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Project Name</TableHead>
+                                        <TableHead>Author</TableHead>
+                                        <TableHead>Submitted On</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {ideas.map((idea) => (
+                                        <TableRow key={idea.id}>
+                                            <TableCell className="font-medium max-w-xs truncate">{idea.projectName}</TableCell>
+                                            <TableCell>{idea.authorName}</TableCell>
+                                            <TableCell>{format(parseISO(idea.createdAt), 'MMM dd, yyyy')}</TableCell>
+                                            <TableCell>
+                                                <Badge className={getStatusVariant(idea.status)}>
+                                                    {idea.status.replace(/_/g, ' ')}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="outline" size="sm">
+                                                    Review <ExternalLink className="ml-2 h-3 w-3" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     ) : (
                         <div className="text-center py-12 text-muted-foreground">
                             <p>No project ideas have been submitted yet.</p>

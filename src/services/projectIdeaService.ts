@@ -1,3 +1,4 @@
+
 // src/services/projectIdeaService.ts
 import {
   collection,
@@ -23,7 +24,7 @@ const docToProjectIdea = (docSnap: any): ProjectIdea => {
         id: docSnap.id,
         ...data,
         createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
-        updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
+        updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate().toISOString() : new Date().toISOString(),
     } as ProjectIdea;
 };
 

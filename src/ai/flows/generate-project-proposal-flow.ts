@@ -1,12 +1,12 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow for generating a detailed project proposal from a member's idea.
+ * @fileOverview A Genkit flow for generating a detailed project proposal from a member's idea, based on a specific club template.
  */
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-// Input from the member's form
+// Input from the member's form remains the same
 const GenerateProjectProposalInputSchema = z.object({
   projectName: z.string().describe('The name of the project.'),
   goal: z.string().describe('The main goal or impact of the project. What problem is it solving?'),
@@ -17,31 +17,35 @@ const GenerateProjectProposalInputSchema = z.object({
 });
 export type GenerateProjectProposalInput = z.infer<typeof GenerateProjectProposalInputSchema>;
 
-// The structured output we want from the AI
+// The structured output we want from the AI, based on the new template
 const GenerateProjectProposalOutputSchema = z.object({
-  overview: z.string().describe('A concise, compelling description of the project.'),
-  objectives: z.array(z.object({
-    title: z.string().describe("A short title for the objective."),
-    description: z.string().describe("A detailed description of the objective and its benefits."),
-  })).describe('A list of 2-3 key objectives and their benefits, explaining why the project matters.'),
-  tasks: z.array(z.object({
-    task: z.string().describe("A specific task to be completed."),
-    responsibility: z.string().describe("The role or group responsible for this task (e.g., Marketing Team, Project Lead)."),
-  })).describe('A detailed to-do list with assigned responsibilities.'),
-  resources: z.array(z.string()).describe('A list of necessary materials, manpower, or potential partners.'),
-  budgetBreakdown: z.array(z.object({
-    item: z.string().describe("The budget item."),
-    cost: z.string().describe("The estimated cost for the item."),
-  })).describe('An estimated cost breakdown per item or category.'),
-  timelineMilestones: z.array(z.object({
-    milestone: z.string().describe("A key milestone in the project timeline."),
-    date: z.string().describe("The target date or timeframe for this milestone."),
-  })).describe('A clear timeline with stages and progress milestones.'),
-  risks: z.array(z.object({
-    risk: z.string().describe("A potential risk or challenge."),
-    solution: z.string().describe("A proposed solution or mitigation for the risk."),
-  })).describe('A list of potential risks and proactive solutions.'),
-  successMetrics: z.array(z.string()).describe('A list of metrics to measure the project’s impact and success (e.g., number of beneficiaries, funds raised).'),
+    projectIdea: z.string().describe("A brief, compelling description of the project idea."),
+    
+    proposedActionPlan: z.object({
+        objective: z.string().describe("The main objective of the project."),
+        preEventPlan: z.array(z.string()).describe("A list of tasks to be done before the event."),
+        executionPlan: z.array(z.string()).describe("A list of tasks/schedule to be done during the event."),
+        postEventPlan: z.array(z.string()).describe("A list of tasks to be done after the event (e.g., cleanup, thank you notes).")
+    }).describe("The detailed action plan for the project."),
+
+    implementationChallenges: z.array(z.string()).describe("A list of identified challenges to implementing this project (e.g., monetary, resource personnel)."),
+    
+    challengeSolutions: z.array(z.string()).describe("A list of proposed solutions for how the project plan addresses the identified challenges."),
+
+    communityInvolvement: z.array(z.string()).describe("A list of ways the benefiting community will be involved in the project."),
+
+    prPlan: z.array(z.object({
+        activity: z.string().describe("The PR activity (e.g., Flyer Design, Social Media Teasers)."),
+        date: z.string().describe("The target date or timeframe for the activity."),
+        time: z.string().describe("The target time for the activity (e.g., Ongoing, 10 AM / 7 PM)."),
+    })).describe("The Public Relations plan for the project."),
+
+    estimatedExpenses: z.array(z.object({
+        item: z.string().describe("The budget item (e.g., Refreshments, Gift Packs)."),
+        cost: z.string().describe("The estimated cost for the item as a string (e.g., '15000.00')."),
+    })).describe("A breakdown of the estimated net expenses for the project."),
+
+    resourcePersonals: z.array(z.string()).describe("A list of any potential resource personnel who could be involved."),
 });
 export type GenerateProjectProposalOutput = z.infer<typeof GenerateProjectProposalOutputSchema>;
 
@@ -57,7 +61,8 @@ const prompt = ai.definePrompt({
   name: 'generateProjectProposalPrompt',
   input: {schema: GenerateProjectProposalInputSchema},
   output: {schema: GenerateProjectProposalOutputSchema},
-  prompt: `You are an expert project manager for a LEO Club, a youth community service organization. Your task is to take a member's raw idea and transform it into a professional, structured, and actionable project proposal. The tone should be formal but youth-friendly, encouraging, and clear.
+  prompt: `You are an expert project manager for a LEO Club, a youth community service organization. Your task is to take a member's raw idea and transform it into a professional, structured, and actionable project proposal based on the club's standard template.
+The tone should be formal but youth-friendly, encouraging, and clear.
 
 Use the following details provided by the member:
 - Project Name: {{{projectName}}}
@@ -69,9 +74,14 @@ Use the following details provided by the member:
 - Special Considerations: {{{specialConsiderations}}}
 {{/if}}
 
-Based on this, generate a comprehensive project proposal with the following sections. Be specific and create realistic, detailed examples for each section. If the budget is a range, create a sample breakdown that fits within that range. If the timeline is general, create specific milestones. Include potential partners in the resources list if applicable. The success metrics should clearly define how to measure the project's expected impact.
+Based on this, generate a comprehensive project proposal that fits the output schema precisely. Use the provided example structure for guidance.
+Create realistic and detailed examples for each section.
+For the "PR Plan", create a sample table of activities.
+For the "Estimated Net Expenses", create a sample budget breakdown that fits within the user's estimated budget range.
+If the member mentions potential partners in special considerations, list them in the "Resource Personals" section.
+The "Implementation Challenges" and "Challenge Solutions" should be thoughtful and relevant to a youth organization.
 
-Generate the full proposal and ensure the output matches the required JSON schema.
+Generate the full proposal and ensure the output matches the required JSON schema. Do not add any fields or sections that are meant for admin approval (e.g., "Approval granted", "President's Signature").
 `,
 });
 
