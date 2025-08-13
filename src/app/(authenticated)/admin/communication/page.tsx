@@ -13,12 +13,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
-import { Mail, Users, Send, Loader2, AlertTriangle, Sparkles, Search, Info } from "lucide-react";
+import { Mail, Users, Send, Loader2, AlertTriangle, Sparkles, Search, Info, Edit } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { generateCommunication, type GenerateCommunicationInput } from '@/ai/flows/generate-communication-flow';
@@ -30,6 +31,25 @@ const emailFormSchema = z.object({
 });
 
 type EmailFormValues = z.infer<typeof emailFormSchema>;
+
+const SIGNATURE_TEMPLATES = {
+    'none': {
+        label: "No Signature",
+        value: "\n\nSincerely,"
+    },
+    'president': {
+        label: "President's Signature",
+        value: "\n\nSincerely,\nLeo Menuka Wickramasinghe\nClub President\nLeo Club of Athugalpura"
+    },
+    'secretary': {
+        label: "Secretary's Signature",
+        value: "\n\nSincerely,\nLeo Kalindu Chamikara\nClub Secretary\nLeo Club of Athugalpura"
+    },
+    'general': {
+        label: "General Club Signature",
+        value: "\n\nSincerely,\nLeo Club of Athugalpura\nLEO District 306 D9"
+    }
+};
 
 export default function CommunicationPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -107,6 +127,19 @@ export default function CommunicationPage() {
     }
     setIsGenerating(false);
   }
+
+  const handleSignatureChange = (signatureKey: keyof typeof SIGNATURE_TEMPLATES) => {
+    const currentBody = form.getValues("body");
+    // Remove any existing signature to prevent duplicates
+    const bodyWithoutSignature = Object.values(SIGNATURE_TEMPLATES).reduce(
+      (body, sig) => body.replace(sig.value, ''),
+      currentBody
+    );
+    // Append the new signature
+    const newBody = bodyWithoutSignature.trim() + (SIGNATURE_TEMPLATES[signatureKey].value || "");
+    form.setValue("body", newBody, { shouldValidate: true });
+  };
+
 
   const onSubmit = async (data: EmailFormValues) => {
     setFormSubmitting(true);
@@ -352,6 +385,22 @@ export default function CommunicationPage() {
                   </FormItem>
                 )}
               />
+               <FormItem>
+                <FormLabel className="flex items-center"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Signature</FormLabel>
+                 <Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a signature template" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (
+                        <SelectItem key={key} value={key}>{template.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                 <FormDescription className="text-xs">Select a signature to append to your email body.</FormDescription>
+               </FormItem>
             </CardContent>
           </Card>
           
