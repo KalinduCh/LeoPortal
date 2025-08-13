@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, ArrowLeft, FileText, Target, CheckSquare, Users, DollarSign, Calendar, AlertTriangle, Shield, Flag, Send, Handshake, Bullhorn } from 'lucide-react';
+import { Loader2, ArrowLeft, FileText, Target, CheckSquare, Users, DollarSign, Calendar, AlertTriangle, Shield, Flag, Send, Handshake, Megaphone } from 'lucide-react';
 import type { GenerateProjectProposalOutput, GenerateProjectProposalInput } from '@/ai/flows/generate-project-proposal-flow';
 import type { ProjectIdea } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -200,7 +200,7 @@ export default function ViewProjectProposalPage() {
             </Card>
             
             <Card>
-                <CardHeader><CardTitle className="flex items-center"><Bullhorn className="mr-2 h-5 w-5 text-primary"/>PR Plan</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="flex items-center"><Megaphone className="mr-2 h-5 w-5 text-primary"/>PR Plan</CardTitle></CardHeader>
                 <CardContent>
                    <Table>
                         <TableHeader>
