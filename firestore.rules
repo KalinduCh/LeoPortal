@@ -3,54 +3,38 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if a user is an admin
-    function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Secure the users collection
+    // Users can read/update their own profile, admins can read/update any.
     match /users/{userId} {
-      // Admins can read/write any user profile
-      // Authenticated users can read/write their own profile
-      allow read, write: if isAdmin() || request.auth.uid == userId;
-      // Allow creation of a user profile only if authenticated (part of signup flow)
-      allow create: if request.auth != null;
+      allow read, update: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null; // New users can create their own profile on signup
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Secure the events collection
+    // Events can be read by any authenticated user, but only created/updated/deleted by admins.
     match /events/{eventId} {
-      // Admins can create, update, delete events
-      allow write: if isAdmin();
-      // Any authenticated user can read events
       allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Secure the attendance collection
+    // Attendance can be read by admins. Users can create their own attendance, and read their own.
     match /attendance/{attendanceId} {
-      // Admins can read all attendance records
-      allow read: if isAdmin();
-      // Any authenticated user can create an attendance record for themselves
-      allow create: if request.auth != null;
-      // Users should not be able to update or delete their attendance
-      allow update, delete: if false;
+      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null; // Any authenticated user (member or visitor) can mark attendance
     }
-    
-    // NEW: Secure the projectIdeas collection
-    match /projectIdeas/{ideaId} {
-      // Read:
-      // - Admins can read any proposal.
-      // - The author of the proposal can read it.
-      allow read: if isAdmin() || request.auth.uid == resource.data.authorId;
 
-      // Create:
-      // - An authenticated user can create a proposal if they are the author.
-      allow create: if request.auth.uid == request.resource.data.authorId;
+    // Project Ideas
+    match /projectIdeas/{ideaId} {
+      // Create: Any authenticated user can create a project idea.
+      allow create: if request.auth != null;
       
-      // Update, Delete:
-      // - Admins can update/delete any proposal (for status changes, etc.).
-      // - The author can update/delete their own proposal (e.g., saving drafts, deleting drafts).
-      allow update, delete: if isAdmin() || request.auth.uid == resource.data.authorId;
+      // Read: Users can read their own ideas. Admins can read any idea.
+      allow read: if request.auth != null && (resource.data.authorId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+
+      // Update: Users can update their own ideas. Admins can update any idea (e.g., to change status).
+      allow update: if request.auth != null && (resource.data.authorId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+
+      // Delete: Only admins should be able to delete proposals.
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
   }
 }
