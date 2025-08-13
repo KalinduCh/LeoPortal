@@ -43,7 +43,7 @@ const SIGNATURE_TEMPLATES = {
     },
     'secretary': {
         label: "Secretary's Signature",
-        value: "\n\nSincerely,\nLeo Kalindu Chamikara\nClub Secretary\nLeo Club of Athugalpura"
+        value: "\n\nSincerely,\nLeo Kavindya Gimhani\nClub Secretary\nLeo Club of Athugalpura"
     },
     'general': {
         label: "General Club Signature",
