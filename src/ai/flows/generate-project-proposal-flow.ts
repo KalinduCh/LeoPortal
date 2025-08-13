@@ -77,7 +77,7 @@ Use the following details provided by the member:
 Based on this, generate a comprehensive project proposal that fits the output schema precisely. Use the provided example structure for guidance.
 Create realistic and detailed examples for each section.
 For the "PR Plan", create a sample table of activities.
-For the "Estimated Net Expenses", create a sample budget breakdown that fits within the user's estimated budget range.
+For the "Estimated Net Expenses", create a sample budget breakdown that fits within the user's estimated budget range. The currency for all costs MUST be LKR. For example: "cost": "15000.00".
 If the member mentions potential partners in special considerations, list them in the "Resource Personals" section.
 The "Implementation Challenges" and "Challenge Solutions" should be thoughtful and relevant to a youth organization.
 
@@ -92,13 +92,12 @@ const generateProjectProposalFlow = ai.defineFlow(
     outputSchema: GenerateProjectProposalOutputSchema,
   },
   async input => {
-    // Ensure optional fields are handled correctly if they are empty strings
-    const sanitizedInput = { ...input };
-    if (!sanitizedInput.specialConsiderations) {
+    const sanitizedInput: Partial<GenerateProjectProposalInput> = { ...input };
+    if (!sanitizedInput.specialConsiderations?.trim()) {
       delete sanitizedInput.specialConsiderations;
     }
 
-    const {output} = await prompt(sanitizedInput);
+    const {output} = await prompt(sanitizedInput as GenerateProjectProposalInput);
     return output!;
   }
 );
