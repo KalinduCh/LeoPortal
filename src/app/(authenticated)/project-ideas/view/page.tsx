@@ -2,7 +2,7 @@
 // src/app/(authenticated)/project-ideas/view/page.tsx
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -28,6 +28,9 @@ export default function ViewProjectProposalPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    
+    // Store a backup of the proposal when editing starts
+    const [proposalBackup, setProposalBackup] = useState<GenerateProjectProposalOutput | null>(null);
 
     useEffect(() => {
         const storedProposal = sessionStorage.getItem('generatedProposal');
@@ -35,17 +38,37 @@ export default function ViewProjectProposalPage() {
 
         if (storedProposal && storedIdea) {
             try {
-                setProposal(JSON.parse(storedProposal));
+                const parsedProposal = JSON.parse(storedProposal);
+                setProposal(parsedProposal);
                 setOriginalIdea(JSON.parse(storedIdea));
             } catch (e) {
                 console.error("Failed to parse proposal from sessionStorage", e);
                 router.replace('/project-ideas/new');
             }
         } else {
+            // If viewing an existing idea, this logic would fetch from Firestore
+            // For now, it redirects if no session data is found.
             router.replace('/project-ideas/new');
         }
         setIsLoading(false);
     }, [router]);
+
+    const handleEdit = () => {
+        setProposalBackup(JSON.parse(JSON.stringify(proposal))); // Deep copy for backup
+        setIsEditing(true);
+    };
+
+    const handleCancelEdit = () => {
+        setProposal(proposalBackup); // Restore from backup
+        setIsEditing(false);
+        setProposalBackup(null);
+    };
+    
+    const handleSave = () => {
+        setIsEditing(false);
+        setProposalBackup(null); // Clear backup
+        toast({ title: "Changes Saved", description: "Your edits have been saved locally. You can now submit for review." });
+    };
     
     const handleFieldChange = (section: keyof GenerateProjectProposalOutput, value: any, index?: number, field?: string) => {
         setProposal(prev => {
@@ -135,7 +158,6 @@ export default function ViewProjectProposalPage() {
         });
     };
 
-
     const handleSubmitForReview = async () => {
         if (!proposal || !originalIdea || !user) {
             toast({ title: "Error", description: "Missing data required for submission.", variant: "destructive" });
@@ -152,6 +174,7 @@ export default function ViewProjectProposalPage() {
                 targetAudience: originalIdea.targetAudience,
                 budget: originalIdea.budget,
                 timeline: originalIdea.timeline,
+                specialConsiderations: originalIdea.specialConsiderations,
                 ...proposal,
                 status: 'pending_review',
                 authorId: user.id,
@@ -226,21 +249,26 @@ export default function ViewProjectProposalPage() {
                  <div>
                     <Button variant="outline" size="sm" onClick={() => router.push('/project-ideas/new')}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        Generate a Different Idea
+                        Back to Idea Form
                     </Button>
                     <h1 className="text-3xl font-bold font-headline mt-2 text-primary">{originalIdea.projectName}</h1>
                     <p className="text-muted-foreground">AI-Generated Project Proposal</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                     {isEditing ? (
-                        <Button onClick={() => setIsEditing(false)} variant="outline" size="lg"><XCircle className="mr-2 h-4 w-4" />Cancel</Button>
+                        <>
+                           <Button onClick={handleCancelEdit} variant="outline" size="lg" className="w-full sm:w-auto"><XCircle className="mr-2 h-4 w-4" />Cancel</Button>
+                           <Button onClick={handleSave} size="lg" className="w-full sm:w-auto"><Save className="mr-2 h-4 w-4" />Save Changes</Button>
+                        </>
                     ) : (
-                        <Button onClick={() => setIsEditing(true)} variant="outline" size="lg"><Edit className="mr-2 h-4 w-4" />Edit Proposal</Button>
+                        <>
+                            <Button onClick={handleEdit} variant="outline" size="lg" className="w-full sm:w-auto"><Edit className="mr-2 h-4 w-4" />Edit</Button>
+                            <Button onClick={handleSubmitForReview} size="lg" className="w-full sm:w-auto" disabled={isSubmitting}>
+                                {isSubmitting ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" /> ) : ( <Send className="mr-2 h-4 w-4" /> )}
+                                {isSubmitting ? "Submitting..." : "Submit for Review"}
+                            </Button>
+                        </>
                     )}
-                    <Button onClick={handleSubmitForReview} size="lg" disabled={isSubmitting || isEditing}>
-                        {isSubmitting ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" /> ) : ( <Send className="mr-2 h-4 w-4" /> )}
-                        {isSubmitting ? "Submitting..." : "Submit for Review"}
-                    </Button>
                 </div>
             </div>
             
@@ -272,7 +300,7 @@ export default function ViewProjectProposalPage() {
                     </div>
                     {(['preEventPlan', 'executionPlan', 'postEventPlan'] as const).map(planType => (
                          <div key={planType}>
-                            <h4 className="font-semibold text-md mb-2 capitalize">{planType.replace('Plan', ' Plan')}</h4>
+                            <h4 className="font-semibold text-md mb-2 capitalize">{planType.replace(/([A-Z])/g, ' $1').trim()}</h4>
                              {isEditing ? (
                                 <EditableList section={planType} items={proposal.proposedActionPlan[planType]} planSection />
                              ) : (
@@ -287,7 +315,7 @@ export default function ViewProjectProposalPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
-                    <CardHeader><CardTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive/80"/>Identified Challenges</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive/80"/>Implementation Challenges</CardTitle></CardHeader>
                     <CardContent>
                        {isEditing ? (
                            <EditableList section="implementationChallenges" items={proposal.implementationChallenges} />
