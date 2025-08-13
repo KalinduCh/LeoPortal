@@ -35,19 +35,19 @@ type EmailFormValues = z.infer<typeof emailFormSchema>;
 const SIGNATURE_TEMPLATES = {
     'none': {
         label: "No Signature",
-        value: "\n\nSincerely,"
+        value: "\n\nBest Regards,"
     },
     'president': {
         label: "President's Signature",
-        value: "\n\nSincerely,\nLeo Menuka Wickramasinghe\nClub President\nLeo Club of Athugalpura"
+        value: "\n\nBest Regards,\nLeo Menuka Wickramasinghe\nClub President\nLeo Club of Athugalpura"
     },
     'secretary': {
         label: "Secretary's Signature",
-        value: "\n\nSincerely,\nLeo Kavindya Gimhani\nClub Secretary\nLeo Club of Athugalpura"
+        value: "\n\nBest Regards,\nLeo Kavindya Gimhani\nClub Secretary\nLeo Club of Athugalpura"
     },
     'general': {
         label: "General Club Signature",
-        value: "\n\nSincerely,\nLeo Club of Athugalpura\nLEO District 306 D9"
+        value: "\n\nBest Regards,\nLeo Club of Athugalpura\nLEO District 306 D9"
     }
 };
 
