@@ -9,92 +9,67 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin';
     }
 
-    // Helper function to check if a user is an approved member or admin
-    function isApprovedUser(userId) {
-        return exists(/databases/$(database)/documents/users/$(userId)) &&
-               get(/databases/$(database)/documents/users/$(userId)).data.status == 'approved';
-    }
-
-    // --- Users Collection ---
     // Rules for the 'users' collection
     match /users/{userId} {
-      // ANY authenticated user can CREATE their own profile during signup.
+      // ANYONE can create their own user profile (on signup)
       allow create: if request.auth != null;
 
-      // Logged-in users can READ their own profile.
-      // Admins can read ANY user profile.
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin(request.auth.uid));
-      
-      // Logged-in users can UPDATE their own profile.
-      // Admins can update ANY user profile.
-      // Important: Users cannot change their own role or status.
+      // ANY authenticated user can read their OWN profile
+      // ONLY an ADMIN can read other users' profiles
+      allow read: if request.auth != null && 
+                  (request.auth.uid == userId || isAdmin(request.auth.uid));
+                  
+      // ONLY authenticated users can update their OWN profile
+      // OR an ADMIN can update ANY user's profile
       allow update: if request.auth != null && 
-                      (request.auth.uid == userId && request.resource.data.role == resource.data.role && request.resource.data.status == resource.data.status) || 
-                      isAdmin(request.auth.uid);
+                    (request.auth.uid == userId || isAdmin(request.auth.uid));
 
-      // Admins can DELETE any user profile.
-      // Users can delete their OWN profile.
-      allow delete: if request.auth != null && (isAdmin(request.auth.uid) || request.auth.uid == userId);
+      // ONLY an ADMIN can delete a user profile
+      allow delete: if request.auth != null && isAdmin(request.auth.uid);
     }
     
-    // --- Events Collection ---
     // Rules for the 'events' collection
     match /events/{eventId} {
-        // Admins can create, update, delete events.
-        allow write: if request.auth != null && isAdmin(request.auth.uid);
-        
-        // Any approved member or admin can read events.
-        allow read: if request.auth != null && isApprovedUser(request.auth.uid);
+      // ONLY an ADMIN can create, update, or delete events
+      allow create, update, delete: if request.auth != null && isAdmin(request.auth.uid);
+      
+      // ANY authenticated user can read events
+      allow read: if request.auth != null;
     }
-    
-    // --- Attendance Collection ---
+
+    // Rules for the 'attendance' collection
     match /attendance/{attendanceId} {
-        // Any approved member can mark their own attendance (create a record)
-        // Public/visitors can create records (request.auth is null for them)
-        allow create: if (request.auth != null && isApprovedUser(request.auth.uid)) || request.auth == null;
+        // ANYONE (including unauthenticated visitors) can create an attendance record
+        allow create: if true;
+
+        // ONLY an ADMIN can read the full attendance log
+        // Authenticated members can read their OWN attendance records
+        allow read: if request.auth != null && 
+                    (isAdmin(request.auth.uid) || resource.data.userId == request.auth.uid);
         
-        // Admins can read all attendance records.
-        // Members can read their own attendance records.
-        allow read: if request.auth != null && (isAdmin(request.auth.uid) || resource.data.userId == request.auth.uid);
-        
-        // No one should be able to update/delete attendance records from the client.
+        // No one can update or delete attendance records to maintain data integrity
         allow update, delete: if false;
     }
-
-    // --- Project Ideas Collection ---
+    
+    // Rules for project ideas
     match /projectIdeas/{ideaId} {
-      // An approved user can create a project idea, but must be the author.
-      allow create: if request.auth != null && 
-                     isApprovedUser(request.auth.uid) &&
-                     request.resource.data.authorId == request.auth.uid;
-      
-      // An admin can read any idea. A member can read their own ideas.
-      allow read: if request.auth != null &&
-                   (isAdmin(request.auth.uid) || resource.data.authorId == request.auth.uid);
-                   
-      // An admin can update any field.
-      // The author can update their own idea only if it's a draft or needs revision.
-      // The author cannot change the status field.
-      allow update: if request.auth != null && 
-                     (isAdmin(request.auth.uid) || 
-                       (resource.data.authorId == request.auth.uid && 
-                        (resource.data.status == 'draft' || resource.data.status == 'needs_revision') &&
-                        request.resource.data.status == resource.data.status
-                       )
-                     );
-                     
-      // An admin can delete any idea. The author can delete their own DRAFT idea.
-      allow delete: if request.auth != null &&
-                     (isAdmin(request.auth.uid) ||
-                       (resource.data.authorId == request.auth.uid && resource.data.status == 'draft')
-                     );
+        // Any authenticated user can create a project idea
+        allow create: if request.auth != null;
+
+        // The author of the idea can read and update it
+        // An admin can read, update, and delete any idea
+        allow read, update: if request.auth != null && 
+                          (resource.data.authorId == request.auth.uid || isAdmin(request.auth.uid));
+        
+        // The author or an admin can delete it
+        allow delete: if request.auth != null && 
+                     (resource.data.authorId == request.auth.uid || isAdmin(request.auth.uid));
     }
     
-    // --- Communication Groups Collection ---
+    // Rules for communication groups
     match /communicationGroups/{groupId} {
-        // Only admins can create, read, update, or delete communication groups.
+        // Only admins can create, update, read, or delete groups
         allow read, write: if request.auth != null && isAdmin(request.auth.uid);
     }
-
   }
 }
