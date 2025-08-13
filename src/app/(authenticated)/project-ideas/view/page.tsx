@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/project-ideas/view/page.tsx
 "use client";
 
@@ -40,8 +39,12 @@ export default function ViewProjectProposalPage() {
             setIsLoading(true);
             let ideaToLoad: ProjectIdea | null = null;
             
+            // First, try to load from sessionStorage if it's there. This is for a new, unsaved proposal.
+            const storedIdeaStr = sessionStorage.getItem('generatedProposal');
+            const originalIdeaStr = sessionStorage.getItem('originalIdea');
+            
             if (ideaId) {
-                // Fetching an existing idea from Firestore
+                // If there's an ID, we are viewing an *existing* idea. Fetch it from Firestore.
                 const fetchedIdea = await getProjectIdea(ideaId);
                 if (fetchedIdea) {
                     ideaToLoad = fetchedIdea;
@@ -50,26 +53,26 @@ export default function ViewProjectProposalPage() {
                      router.replace('/project-ideas');
                      return;
                 }
+            } else if (storedIdeaStr && originalIdeaStr) {
+                // If no ID, but there's sessionStorage data, we're viewing a *newly generated* proposal.
+                 try {
+                    const parsedProposal = JSON.parse(storedIdeaStr);
+                    const parsedOriginal = JSON.parse(originalIdeaStr);
+                     ideaToLoad = {
+                        ...parsedProposal,
+                        ...parsedOriginal,
+                        status: 'draft',
+                     } as ProjectIdea;
+                 } catch (e) {
+                     toast({ title: "Error", description: "Could not load generated proposal data.", variant: "destructive" });
+                     router.replace('/project-ideas');
+                     return;
+                 }
             } else {
-                // Loading a new idea from sessionStorage
-                const storedIdeaStr = sessionStorage.getItem('generatedProposal');
-                const originalIdeaStr = sessionStorage.getItem('originalIdea');
-                if (storedIdeaStr && originalIdeaStr) {
-                    try {
-                        ideaToLoad = {
-                            ...JSON.parse(storedIdeaStr),
-                            ...JSON.parse(originalIdeaStr),
-                            status: 'draft',
-                        } as ProjectIdea;
-                    } catch (e) {
-                         toast({ title: "Error", description: "Could not load generated proposal.", variant: "destructive" });
-                         router.replace('/project-ideas');
-                         return;
-                    }
-                } else {
-                    router.replace('/project-ideas/new');
-                    return;
-                }
+                // If no ID and no sessionStorage, there's nothing to show.
+                toast({ title: "No Proposal Found", description: "Please start by creating a new idea.", variant: "destructive" });
+                router.replace('/project-ideas/new');
+                return;
             }
 
             if (ideaToLoad) {
@@ -92,6 +95,11 @@ export default function ViewProjectProposalPage() {
                     timeline: ideaToLoad.timeline,
                     specialConsiderations: ideaToLoad.specialConsiderations,
                 });
+                
+                // If the idea is new (from session storage), start in edit mode automatically.
+                if (!ideaId) {
+                    setIsEditing(true);
+                }
             }
             setIsLoading(false);
         };
@@ -259,7 +267,7 @@ export default function ViewProjectProposalPage() {
         return <div className="container mx-auto py-8 text-center"><Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Error Loading Proposal</AlertTitle><AlertDescription>Could not load proposal data.</AlertDescription></Alert><Button onClick={() => router.push('/project-ideas')} className="mt-4"><ArrowLeft className="mr-2 h-4 w-4" />Back to Idea Hub</Button></div>;
     }
     const totalBudget = proposal.estimatedExpenses.reduce((acc, item) => acc + (parseFloat(item.cost) || 0), 0);
-    const isOwner = user?.id === existingIdea?.authorId;
+    const isOwner = !existingIdea || user?.id === existingIdea?.authorId;
     const isReviewMode = searchParams.get('mode') === 'review' && user?.role === 'admin';
     const isDraft = !existingIdea || existingIdea.status === 'draft';
     
@@ -284,23 +292,21 @@ export default function ViewProjectProposalPage() {
                     <p className="text-muted-foreground">{isReviewMode ? `Submitted by: ${existingIdea?.authorName}` : "AI-Generated Project Proposal"}</p>
                 </div>
                  {(isDraft && isOwner) && (
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
                         {isEditing ? (
                             <>
                                 <Button onClick={handleCancelEdit} variant="outline" className="w-full sm:w-auto"><XCircle className="mr-2 h-4 w-4" />Cancel</Button>
                                 <Button onClick={handleSaveEdits} className="w-full sm:w-auto"><Save className="mr-2 h-4 w-4" />Save Changes</Button>
                             </>
                         ) : (
-                            <>
-                                <Button onClick={handleEdit} variant="outline" className="w-full sm:w-auto" disabled={isSubmitting}><Edit className="mr-2 h-4 w-4" />Edit</Button>
-                                <Button onClick={handleSaveDraft} variant="secondary" className="w-full sm:w-auto" disabled={isSubmitting}>
-                                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SaveIcon className="mr-2 h-4 w-4" />} Save Draft
-                                </Button>
-                                <Button onClick={handleSubmitForReview} className="w-full sm:w-auto" disabled={isSubmitting}>
-                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Submit for Review
-                                </Button>
-                            </>
+                            <Button onClick={handleEdit} variant="outline" className="w-full sm:w-auto" disabled={isSubmitting}><Edit className="mr-2 h-4 w-4" />Edit Proposal</Button>
                         )}
+                         <Button onClick={handleSaveDraft} variant="secondary" className="w-full sm:w-auto" disabled={isSubmitting}>
+                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SaveIcon className="mr-2 h-4 w-4" />} Save as Draft
+                        </Button>
+                        <Button onClick={handleSubmitForReview} className="w-full sm:w-auto" disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Submit for Review
+                        </Button>
                     </div>
                 )}
             </div>
