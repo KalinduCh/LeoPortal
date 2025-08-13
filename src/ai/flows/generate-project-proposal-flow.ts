@@ -27,7 +27,7 @@ const GenerateProjectProposalOutputSchema = z.object({
     task: z.string().describe("A specific task to be completed."),
     responsibility: z.string().describe("The role or group responsible for this task (e.g., Marketing Team, Project Lead)."),
   })).describe('A detailed to-do list with assigned responsibilities.'),
-  resources: z.array(z.string()).describe('A list of necessary materials, manpower, or partnerships.'),
+  resources: z.array(z.string()).describe('A list of necessary materials, manpower, or potential partners.'),
   budgetBreakdown: z.array(z.object({
     item: z.string().describe("The budget item."),
     cost: z.string().describe("The estimated cost for the item."),
@@ -40,7 +40,7 @@ const GenerateProjectProposalOutputSchema = z.object({
     risk: z.string().describe("A potential risk or challenge."),
     solution: z.string().describe("A proposed solution or mitigation for the risk."),
   })).describe('A list of potential risks and proactive solutions.'),
-  successMetrics: z.array(z.string()).describe('A list of metrics to measure the project’s impact and success.'),
+  successMetrics: z.array(z.string()).describe('A list of metrics to measure the project’s impact and success (e.g., number of beneficiaries, funds raised).'),
 });
 export type GenerateProjectProposalOutput = z.infer<typeof GenerateProjectProposalOutputSchema>;
 
@@ -56,7 +56,7 @@ const prompt = ai.definePrompt({
   name: 'generateProjectProposalPrompt',
   input: {schema: GenerateProjectProposalInputSchema},
   output: {schema: GenerateProjectProposalOutputSchema},
-  prompt: `You are an expert project manager for a LEO Club, a youth community service organization. Your task is to take a member's raw idea and transform it into a professional, structured, and actionable project proposal. The tone should be encouraging, clear, and professional.
+  prompt: `You are an expert project manager for a LEO Club, a youth community service organization. Your task is to take a member's raw idea and transform it into a professional, structured, and actionable project proposal. The tone should be formal but youth-friendly, encouraging, and clear.
 
 Use the following details provided by the member:
 - Project Name: {{{projectName}}}
@@ -68,7 +68,7 @@ Use the following details provided by the member:
 - Special Considerations: {{{specialConsiderations}}}
 {{/if}}
 
-Based on this, generate a comprehensive project proposal with the following sections. Be specific and create realistic, detailed examples for each section. If the budget is a range, create a sample breakdown that fits within that range. If the timeline is general, create specific milestones.
+Based on this, generate a comprehensive project proposal with the following sections. Be specific and create realistic, detailed examples for each section. If the budget is a range, create a sample breakdown that fits within that range. If the timeline is general, create specific milestones. Include potential partners in the resources list if applicable. The success metrics should clearly define how to measure the project's expected impact.
 
 Generate the full proposal and ensure the output matches the required JSON schema.
 `,
