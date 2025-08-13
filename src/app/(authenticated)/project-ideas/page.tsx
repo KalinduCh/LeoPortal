@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Lightbulb, PlusCircle, History, Loader2, FileEdit, ChevronRight } from 'lucide-react';
+import { Lightbulb, PlusCircle, History, Loader2, FileText, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getProjectIdeasForUser } from '@/services/projectIdeaService';
 import type { ProjectIdea } from '@/types';
@@ -82,7 +82,7 @@ export default function ProjectIdeasPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center">
-                        <History className="mr-2 h-5 w-5 text-primary" />
+                        <FileText className="mr-2 h-5 w-5 text-primary" />
                         My Submitted Ideas
                     </CardTitle>
                     <CardDescription>

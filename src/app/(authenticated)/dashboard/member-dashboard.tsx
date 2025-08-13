@@ -162,7 +162,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle className="flex items-center font-headline">
-            <History className="mr-2 h-6 w-6 text-primary" />
+            <CheckSquare className="mr-2 h-6 w-6 text-primary" />
             My Attendance History
           </CardTitle>
         </CardHeader>
