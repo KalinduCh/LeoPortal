@@ -416,7 +416,7 @@ export default function MemberManagementPage() {
   return (
     <div className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h1 className="text-2xl sm:text-3xl font-bold font-headline">User Management</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Member Management</h1>
       </div>
       
       {pendingMembers.length > 0 && (
