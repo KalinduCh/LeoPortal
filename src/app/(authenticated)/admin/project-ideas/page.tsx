@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/project-ideas/page.tsx
 "use client";
 
@@ -49,6 +48,26 @@ export default function AdminProjectIdeasPage() {
 
         fetchIdeas();
     }, [user, toast]);
+
+    const handleReviewIdea = (ideaId: string) => {
+        // For now, this just navigates. In the future, this will go to a detailed review page.
+        // Let's make it go to the view page for now, but it would need to be adapted for admin actions.
+        const idea = ideas.find(i => i.id === ideaId);
+        if (idea) {
+             sessionStorage.setItem('generatedProposal', JSON.stringify(idea));
+             sessionStorage.setItem('originalIdea', JSON.stringify({
+                projectName: idea.projectName,
+                goal: idea.goal,
+                targetAudience: idea.targetAudience,
+                budget: idea.budget,
+                timeline: idea.timeline,
+                specialConsiderations: idea.specialConsiderations,
+             }));
+             router.push('/project-ideas/view');
+        } else {
+            toast({title: "Error", description: "Could not find idea details.", variant: "destructive"});
+        }
+    };
 
     const getStatusVariant = (status: ProjectIdea['status']) => {
         switch (status) {
@@ -110,7 +129,7 @@ export default function AdminProjectIdeasPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="outline" size="sm">
+                                                <Button variant="outline" size="sm" onClick={() => handleReviewIdea(idea.id)}>
                                                     Review <ExternalLink className="ml-2 h-3 w-3" />
                                                 </Button>
                                             </TableCell>
