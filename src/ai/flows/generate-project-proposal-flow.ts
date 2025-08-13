@@ -94,7 +94,7 @@ const generateProjectProposalFlow = ai.defineFlow(
   async input => {
     // Ensure optional fields are handled correctly if they are empty strings
     const sanitizedInput = { ...input };
-    if (sanitizedInput.specialConsiderations === '') {
+    if (!sanitizedInput.specialConsiderations) {
       delete sanitizedInput.specialConsiderations;
     }
 
