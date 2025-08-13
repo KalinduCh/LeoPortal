@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow for generating a detailed project proposal from a member's idea.
@@ -81,7 +82,13 @@ const generateProjectProposalFlow = ai.defineFlow(
     outputSchema: GenerateProjectProposalOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    // Ensure optional fields are handled correctly if they are empty strings
+    const sanitizedInput = { ...input };
+    if (sanitizedInput.specialConsiderations === '') {
+      delete sanitizedInput.specialConsiderations;
+    }
+
+    const {output} = await prompt(sanitizedInput);
     return output!;
   }
 );

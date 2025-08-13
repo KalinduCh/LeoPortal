@@ -23,12 +23,13 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   role?: "admin" | "member" | "all";
-  children?: NavItem[];
+  adminOnly?: boolean; // Hide from admins if they have a replacement
+  memberOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, role: "all" },
-  { href: "/project-ideas", label: "Project Ideas", icon: Lightbulb, role: "all" },
+  { href: "/project-ideas", label: "Project Ideas", icon: Lightbulb, role: "all", adminOnly: false }, // Visible to members, hidden for admins
   { href: "/events", label: "Event Management", icon: CalendarDays, role: "admin" },
   { href: "/members", label: "Member Management", icon: Users, role: "admin" },
   { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, role: "admin" },
@@ -39,62 +40,37 @@ const navItems: NavItem[] = [
 export function SidebarNav() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const [openSubMenus, setOpenSubMenus] = React.useState<Record<string, boolean>>({});
-
-  const toggleSubMenu = (label: string) => {
-    setOpenSubMenus(prev => ({ ...prev, [label]: !prev[label] }));
-  };
 
   if (!user) return null;
 
-  const filteredNavItems = navItems.filter(item => item.role === "all" || item.role === user.role);
+  const filteredNavItems = navItems.filter(item => {
+    if (user.role === 'admin') {
+      // Show 'admin' and 'all' roles, but respect the adminOnly flag
+      return item.role === 'admin' || (item.role === 'all' && item.adminOnly !== false);
+    }
+    if (user.role === 'member') {
+      // Show 'member' and 'all' roles
+      return item.role === 'member' || item.role === 'all';
+    }
+    return false;
+  });
 
   return (
     <SidebarMenu>
       {filteredNavItems.map((item) => (
         <SidebarMenuItem key={item.href}>
-          {item.children ? (
-            <>
-              <SidebarMenuButton
-                onClick={() => toggleSubMenu(item.label)}
-                className="justify-between"
-                isActive={item.children.some(child => pathname.startsWith(child.href))}
-                aria-expanded={openSubMenus[item.label]}
-              >
-                <div className="flex items-center gap-2">
-                  <item.icon />
-                  <span>{item.label}</span>
-                </div>
-                {openSubMenus[item.label] ? <ChevronUp /> : <ChevronDown />}
-              </SidebarMenuButton>
-              {openSubMenus[item.label] && (
-                <SidebarMenuSub>
-                  {item.children.map(child => (
-                    <SidebarMenuSubItem key={child.href}>
-                       <Link href={child.href}>
-                        <SidebarMenuSubButton
-                          isActive={pathname === child.href || pathname.startsWith(child.href + "/")}
-                        >
-                          <child.icon />
-                          <span>{child.label}</span>
-                        </SidebarMenuSubButton>
-                      </Link>
-                    </SidebarMenuSubItem>
-                  ))}
-                </SidebarMenuSub>
-              )}
-            </>
-          ) : (
-            <Link href={item.href} asChild>
-              <SidebarMenuButton
-                isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))}
-                tooltip={{ children: item.label, className: "font-sans" }}
-              >
+          <Link href={item.href} passHref>
+            <SidebarMenuButton
+              isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))}
+              tooltip={{ children: item.label, className: "font-sans" }}
+              asChild
+            >
+              <a>
                 <item.icon />
                 <span>{item.label}</span>
-              </SidebarMenuButton>
-            </Link>
-          )}
+              </a>
+            </SidebarMenuButton>
+          </Link>
         </SidebarMenuItem>
       ))}
     </SidebarMenu>
