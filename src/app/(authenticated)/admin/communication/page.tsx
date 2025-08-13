@@ -290,45 +290,73 @@ export default function CommunicationPage() {
                   <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary" /> Select Recipients</CardTitle>
                   <CardDescription className="text-sm">Choose who will receive this email.</CardDescription>
                 </div>
-                 <Dialog open={isGroupFormOpen} onOpenChange={setIsGroupFormOpen}>
-                    <DialogTrigger asChild><Button type="button" variant="outline"><Settings className="mr-2 h-4 w-4"/>Manage Groups</Button></DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl">
-                      <DialogHeader><DialogTitle>{selectedGroupForEdit?.id ? 'Edit Group' : 'Create New Group'}</DialogTitle></DialogHeader>
-                      {selectedGroupForEdit && (
-                        <div className="space-y-4 py-4">
-                            <div><Label htmlFor="group-name">Group Name</Label><Input id="group-name" value={selectedGroupForEdit.name} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, name: e.target.value})} placeholder="e.g., Executive Committee"/></div>
-                             <div><Label>Members</Label><div className="relative mt-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search members..." value={groupMemberSearchTerm} onChange={(e) => setGroupMemberSearchTerm(e.target.value)} className="pl-10"/></div>
-                                <ScrollArea className="h-60 border rounded-md p-2 mt-2">
-                                  {filteredGroupMembers.length > 0 ? (
-                                    <div className="space-y-2">{filteredGroupMembers.map(member => (<div key={member.id} className="flex items-center space-x-3 p-2 rounded hover:bg-muted/30"><Checkbox id={`member-${member.id}`} checked={selectedGroupForEdit.memberIds.includes(member.id)} onCheckedChange={(checked) => { const newMemberIds = checked ? [...selectedGroupForEdit.memberIds, member.id] : selectedGroupForEdit.memberIds.filter(id => id !== member.id); setSelectedGroupForEdit({...selectedGroupForEdit, memberIds: newMemberIds});}}/><Avatar className="h-8 w-8"><AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold text-xs">{getInitials(member.name)}</AvatarFallback></Avatar><label htmlFor={`member-${member.id}`} className="text-sm font-medium leading-none cursor-pointer">{member.name}<p className="text-xs text-muted-foreground">{member.email}</p></label></div>))}</div>
-                                  ) : (<p className="text-center text-sm text-muted-foreground py-4">No members found.</p>)}
-                                </ScrollArea><Badge variant="secondary" className="mt-2">Selected: {selectedGroupForEdit.memberIds.length}</Badge>
-                            </div>
-                        </div>
-                      )}
-                      <DialogFooter><DialogClose asChild><Button type="button" variant="outline" disabled={isGroupSubmitting}>Cancel</Button></DialogClose><Button type="button" onClick={handleGroupFormSubmit} disabled={isGroupSubmitting || !selectedGroupForEdit?.name.trim()}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (selectedGroupForEdit?.id ? 'Save Changes' : 'Create Group')}</Button></DialogFooter>
-                    </DialogContent>
-                </Dialog>
               </div>
             </CardHeader>
             <CardContent>
               {isLoadingData ? (<Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />) : members.length > 0 ? (
                 <>
-                  {groups.length > 0 && (
-                    <div className="mb-4">
-                        <Label>Select by Group</Label>
-                        <div className="flex flex-wrap gap-2 pt-2">
-                          {groups.map(group => (
-                            <div key={group.id} className="flex items-center">
-                              <Button type="button" size="sm" variant="secondary" onClick={() => handleSelectGroup(group.memberIds)} className="bg-secondary/20 text-secondary-foreground hover:bg-secondary/30">{group.name} ({group.memberIds.length})</Button>
-                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenGroupForm(group)}><Edit className="h-4 w-4"/></Button>
-                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => {setGroupToDelete(group); setIsDeleteAlertOpen(true);}}><Trash2 className="h-4 w-4"/></Button>
-                            </div>
-                          ))}
-                           <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => handleOpenGroupForm()}> <PlusCircle className="mr-2 h-4 w-4"/>New Group</Button>
-                        </div>
-                    </div>
-                  )}
+                  <div className="mb-4">
+                      <Label>Select by Group</Label>
+                      <div className="flex flex-wrap items-center gap-2 pt-2">
+                        {groups.map(group => (
+                          <Button key={group.id} type="button" size="sm" variant="secondary" onClick={() => handleSelectGroup(group.memberIds)} className="bg-secondary/20 text-secondary-foreground hover:bg-secondary/30">{group.name} ({group.memberIds.length})</Button>
+                        ))}
+                        <Dialog open={isGroupFormOpen} onOpenChange={setIsGroupFormOpen}>
+                          <DialogTrigger asChild>
+                             <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => handleOpenGroupForm()}> <PlusCircle className="mr-2 h-4 w-4"/>New Group</Button>
+                          </DialogTrigger>
+                           <DialogContent className="sm:max-w-3xl">
+                             <DialogHeader><DialogTitle>Manage Communication Groups</DialogTitle></DialogHeader>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                                <div className="space-y-4">
+                                  <h3 className="font-semibold">My Groups</h3>
+                                  <ScrollArea className="h-72 border rounded-md p-2">
+                                    {groups.length > 0 ? (
+                                        <div className="space-y-2">
+                                          {groups.map(group => (
+                                            <div key={group.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30">
+                                              <div>
+                                                <p className="font-medium">{group.name}</p>
+                                                <p className="text-xs text-muted-foreground">{group.memberIds.length} member(s)</p>
+                                              </div>
+                                              <div className="flex items-center">
+                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenGroupForm(group)}><Edit className="h-4 w-4"/></Button>
+                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => {setGroupToDelete(group); setIsDeleteAlertOpen(true);}}><Trash2 className="h-4 w-4"/></Button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                    ) : (<p className="text-center text-sm text-muted-foreground py-4">No groups created yet.</p>)}
+                                  </ScrollArea>
+                                </div>
+                                <div className="space-y-4">
+                                  <h3 className="font-semibold">{selectedGroupForEdit?.id ? `Editing: ${selectedGroupForEdit.name}` : 'Create New Group'}</h3>
+                                  {selectedGroupForEdit && (
+                                    <div className="space-y-4">
+                                      <div><Label htmlFor="group-name">Group Name</Label><Input id="group-name" value={selectedGroupForEdit.name} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, name: e.target.value})} placeholder="e.g., Executive Committee"/></div>
+                                       <div><Label>Members</Label><div className="relative mt-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search members..." value={groupMemberSearchTerm} onChange={(e) => setGroupMemberSearchTerm(e.target.value)} className="pl-10"/></div>
+                                          <ScrollArea className="h-48 border rounded-md p-2 mt-2">
+                                            {filteredGroupMembers.length > 0 ? (
+                                              <div className="space-y-2">{filteredGroupMembers.map(member => (<div key={member.id} className="flex items-center space-x-3 p-2 rounded hover:bg-muted/30"><Checkbox id={`member-${member.id}`} checked={selectedGroupForEdit.memberIds.includes(member.id)} onCheckedChange={(checked) => { const newMemberIds = checked ? [...selectedGroupForEdit.memberIds, member.id] : selectedGroupForEdit.memberIds.filter(id => id !== member.id); setSelectedGroupForEdit({...selectedGroupForEdit, memberIds: newMemberIds});}}/><Avatar className="h-8 w-8"><AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold text-xs">{getInitials(member.name)}</AvatarFallback></Avatar><label htmlFor={`member-${member.id}`} className="text-sm font-medium leading-none cursor-pointer">{member.name}<p className="text-xs text-muted-foreground">{member.email}</p></label></div>))}</div>
+                                            ) : (<p className="text-center text-sm text-muted-foreground py-4">No members found.</p>)}
+                                          </ScrollArea><Badge variant="secondary" className="mt-2">Selected: {selectedGroupForEdit.memberIds.length}</Badge>
+                                      </div>
+                                      <div className="flex justify-end gap-2">
+                                        <Button type="button" variant="outline" onClick={() => setSelectedGroupForEdit({ name: '', memberIds: [] })}>Clear</Button>
+                                        <Button type="button" onClick={handleGroupFormSubmit} disabled={isGroupSubmitting || !selectedGroupForEdit?.name.trim()}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (selectedGroupForEdit?.id ? 'Save Changes' : 'Create Group')}</Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <DialogClose asChild><Button type="button" variant="outline" disabled={isGroupSubmitting}>Close</Button></DialogClose>
+                              </DialogFooter>
+                           </DialogContent>
+                        </Dialog>
+                      </div>
+                  </div>
+                  
 
                   <div className="relative mb-4"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search recipients by name or email..." value={recipientSearchTerm} onChange={(e) => setRecipientSearchTerm(e.target.value)} className="pl-10"/></div>
                   <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-2 sm:space-y-0 mb-4 p-3 border rounded-md bg-muted/50">
