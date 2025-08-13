@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/project-ideas/page.tsx
 "use client";
 
@@ -12,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Loader2, Lightbulb, ExternalLink, MoreHorizontal, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Loader2, Lightbulb, ExternalLink, MoreHorizontal, CheckCircle, XCircle, Clock, User, Calendar } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -95,9 +94,9 @@ export default function AdminProjectIdeasPage() {
             <h1 className="text-3xl font-bold font-headline mb-2">Project Idea Review</h1>
             <p className="text-muted-foreground mb-8">Review, approve, or request revisions for member-submitted project ideas.</p>
 
-            <Card>
+            <Card className="shadow-lg">
                 <CardHeader>
-                    <CardTitle className="flex items-center">
+                    <CardTitle className="flex items-center text-xl">
                         <Lightbulb className="mr-2 h-5 w-5 text-primary"/>
                         Submitted Proposals
                     </CardTitle>
@@ -109,7 +108,9 @@ export default function AdminProjectIdeasPage() {
                     {isLoading ? (
                         <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
                     ) : ideas.length > 0 ? (
-                        <div className="overflow-x-auto">
+                        <>
+                         {/* Desktop Table View */}
+                        <div className="hidden md:block">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -161,6 +162,56 @@ export default function AdminProjectIdeasPage() {
                                 </TableBody>
                             </Table>
                         </div>
+                        {/* Mobile Card View */}
+                        <div className="block md:hidden space-y-3">
+                            {ideas.map(idea => (
+                                <Card key={idea.id} className="shadow-sm">
+                                    <CardHeader className="pb-3">
+                                        <div className="flex justify-between items-start">
+                                            <CardTitle className="text-base font-semibold text-primary">{idea.projectName}</CardTitle>
+                                             <Badge className={getStatusVariant(idea.status)}>
+                                                {idea.status.replace(/_/g, ' ')}
+                                            </Badge>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-1 text-sm pb-4">
+                                        <div className="flex items-center text-muted-foreground">
+                                            <User className="mr-2 h-4 w-4" />
+                                            <span>{idea.authorName}</span>
+                                        </div>
+                                        <div className="flex items-center text-muted-foreground">
+                                            <Calendar className="mr-2 h-4 w-4" />
+                                            <span>{format(parseISO(idea.createdAt), 'MMM dd, yyyy')}</span>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter className="flex justify-end gap-2 border-t pt-3">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="sm">
+                                                    Actions <MoreHorizontal className="ml-2 h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem onClick={() => handleUpdateStatus(idea.id, 'approved')}>
+                                                    <CheckCircle className="mr-2 h-4 w-4 text-green-500" /> Approve
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleUpdateStatus(idea.id, 'declined')}>
+                                                    <XCircle className="mr-2 h-4 w-4 text-red-500" /> Decline
+                                                </DropdownMenuItem>
+                                                 <DropdownMenuItem onClick={() => handleUpdateStatus(idea.id, 'needs_revision')}>
+                                                    <Clock className="mr-2 h-4 w-4 text-blue-500" /> Needs Revision
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        <Button variant="outline" size="sm" onClick={() => handleReviewIdea(idea.id)}>
+                                            Review <ExternalLink className="ml-2 h-3 w-3" />
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            ))}
+                        </div>
+                        </>
                     ) : (
                         <div className="text-center py-12 text-muted-foreground">
                             <p>No project ideas have been submitted for review yet.</p>
