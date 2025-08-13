@@ -96,7 +96,7 @@ export interface ProjectIdea {
     resourcePersonals: string[];
 
     // Metadata
-    status: 'pending_review' | 'needs_revision' | 'approved' | 'declined';
+    status: 'draft' | 'pending_review' | 'needs_revision' | 'approved' | 'declined';
     authorId: string;
     authorName: string;
     createdAt: string; // ISO string
