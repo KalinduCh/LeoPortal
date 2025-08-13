@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { User } from '@/types';
+import type { User, CommunicationGroup } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase/clientApp';
-import { Mail, Users, Send, Loader2, AlertTriangle, Sparkles, Search, Info, Edit } from "lucide-react";
+import { Mail, Users, Send, Loader2, Sparkles, Search, Info, Edit, PlusCircle, Settings, Trash2 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { generateCommunication, type GenerateCommunicationInput } from '@/ai/flows/generate-communication-flow';
+import { getGroups, createGroup, updateGroup, deleteGroup } from '@/services/groupService';
+import { getAllUsers } from '@/services/userService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
 
 const emailFormSchema = z.object({
   subject: z.string().min(3, { message: "Subject must be at least 3 characters." }),
@@ -31,24 +46,13 @@ const emailFormSchema = z.object({
 });
 
 type EmailFormValues = z.infer<typeof emailFormSchema>;
+type GroupFormState = { id?: string; name: string; memberIds: string[]; };
 
 const SIGNATURE_TEMPLATES = {
-    'none': {
-        label: "No Signature",
-        value: "\n\nBest Regards,"
-    },
-    'president': {
-        label: "President's Signature",
-        value: "\n\nBest Regards,\nLeo Menuka Wickramasinghe\nClub President\nLeo Club of Athugalpura"
-    },
-    'secretary': {
-        label: "Secretary's Signature",
-        value: "\n\nBest Regards,\nLeo Kavindya Gimhani\nClub Secretary\nLeo Club of Athugalpura"
-    },
-    'general': {
-        label: "General Club Signature",
-        value: "\n\nBest Regards,\nLeo Club of Athugalpura\nLEO District 306 D9"
-    }
+    'none': { label: "No Signature", value: "\n\nBest Regards," },
+    'president': { label: "President's Signature", value: "\n\nBest Regards,\nLeo Menuka Wickramasinghe\nClub President\nLeo Club of Athugalpura" },
+    'secretary': { label: "Secretary's Signature", value: "\n\nBest Regards,\nLeo Kavindya Gimhani\nClub Secretary\nLeo Club of Athugalpura" },
+    'general': { label: "General Club Signature", value: "\n\nBest Regards,\nLeo Club of Athugalpura\nLEO District 306 D9" }
 };
 
 export default function CommunicationPage() {
@@ -56,20 +60,31 @@ export default function CommunicationPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  // State for main form
   const [members, setMembers] = useState<User[]>([]);
-  const [isLoadingMembers, setIsLoadingMembers] = useState(true);
+  const [groups, setGroups] = useState<CommunicationGroup[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
+  
+  // State for AI generation
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState("");
+  
+  // State for recipient selection
   const [recipientSearchTerm, setRecipientSearchTerm] = useState("");
   
+  // State for group management dialog
+  const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
+  const [isGroupSubmitting, setIsGroupSubmitting] = useState(false);
+  const [selectedGroupForEdit, setSelectedGroupForEdit] = useState<GroupFormState | null>(null);
+  const [groupMemberSearchTerm, setGroupMemberSearchTerm] = useState('');
+  const [groupToDelete, setGroupToDelete] = useState<CommunicationGroup | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+
+
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailFormSchema),
-    defaultValues: {
-      subject: "",
-      body: "",
-      recipientUserIds: [],
-    },
+    defaultValues: { subject: "", body: "", recipientUserIds: [] },
   });
 
   useEffect(() => {
@@ -78,29 +93,28 @@ export default function CommunicationPage() {
     }
   }, [user, authLoading, router]);
 
-  const fetchMembers = useCallback(async () => {
-    setIsLoadingMembers(true);
+  const fetchData = useCallback(async () => {
+    setIsLoadingData(true);
     try {
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("role", "in", ["member", "admin"]), where("status", "==", "approved"));
-      const querySnapshot = await getDocs(q);
-      const fetchedMembers: User[] = [];
-      querySnapshot.forEach((docSnap) => {
-        fetchedMembers.push({ id: docSnap.id, ...docSnap.data() } as User);
-      });
-      setMembers(fetchedMembers.sort((a,b) => (a.name || "").localeCompare(b.name || "")));
+        const [fetchedGroups, fetchedUsers] = await Promise.all([
+            getGroups(),
+            getAllUsers(),
+        ]);
+        setGroups(fetchedGroups);
+        const approvedMembers = fetchedUsers.filter(u => u.status === 'approved' && ['admin', 'member'].includes(u.role)).sort((a,b) => (a.name || "").localeCompare(b.name || ""));
+        setMembers(approvedMembers);
     } catch (error) {
-      console.error("Error fetching members: ", error);
-      toast({ title: "Error", description: "Could not load members for selection.", variant: "destructive" });
+        console.error("Failed to fetch data:", error);
+        toast({ title: "Error", description: "Could not load members or groups.", variant: "destructive"});
     }
-    setIsLoadingMembers(false);
+    setIsLoadingData(false);
   }, [toast]);
-
+  
   useEffect(() => {
     if (user && user.role === 'admin') {
-      fetchMembers();
+      fetchData();
     }
-  }, [user, fetchMembers]);
+  }, [user, fetchData]);
 
   const filteredMembers = useMemo(() => {
     return members.filter(member => 
@@ -108,6 +122,13 @@ export default function CommunicationPage() {
         (member.email?.toLowerCase() || '').includes(recipientSearchTerm.toLowerCase())
     );
   }, [members, recipientSearchTerm]);
+  
+  const getInitials = (name?: string) => {
+    if (!name) return "??";
+    const names = name.split(' ');
+    if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+  };
 
   const handleGenerateContent = async () => {
     if (!aiTopic.trim()) {
@@ -130,12 +151,10 @@ export default function CommunicationPage() {
 
   const handleSignatureChange = (signatureKey: keyof typeof SIGNATURE_TEMPLATES) => {
     const currentBody = form.getValues("body");
-    // Remove any existing signature to prevent duplicates
     const bodyWithoutSignature = Object.values(SIGNATURE_TEMPLATES).reduce(
       (body, sig) => body.replace(sig.value, ''),
       currentBody
     );
-    // Append the new signature
     const newBody = bodyWithoutSignature.trim() + (SIGNATURE_TEMPLATES[signatureKey].value || "");
     form.setValue("body", newBody, { shouldValidate: true });
   };
@@ -145,7 +164,6 @@ export default function CommunicationPage() {
     setFormSubmitting(true);
     
     const recipients = data.recipientUserIds.map(userId => members.find(m => m.id === userId)).filter(Boolean) as User[];
-    
     const recipientEmails = recipients.map(r => r.email).filter(Boolean);
     if(recipientEmails.length === 0) {
         toast({ title: "No valid recipients", description: "Selected members do not have valid email addresses.", variant: "destructive"});
@@ -156,14 +174,8 @@ export default function CommunicationPage() {
     try {
       const response = await fetch('/api/send-email', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: recipientEmails.join(','), // Send as comma-separated string
-          subject: data.subject,
-          body: data.body,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: recipientEmails.join(','), subject: data.subject, body: data.body }),
       });
 
       if (!response.ok) {
@@ -171,247 +183,180 @@ export default function CommunicationPage() {
         throw new Error(errorData.details || `API request failed with status ${response.status}`);
       }
 
-      toast({
-        title: "Emails Sent",
-        description: `Successfully sent email to ${recipients.length} member(s).`
-      });
+      toast({ title: "Emails Sent", description: `Successfully sent email to ${recipients.length} member(s).` });
       form.reset();
       form.setValue("recipientUserIds", []);
       setAiTopic("");
 
     } catch (error: any) {
       console.error("Failed to send email batch:", error);
-      toast({
-        title: "Email Send Error",
-        description: `Failed to send emails: ${error.message}`,
-        variant: "destructive",
-        duration: 10000
-      });
+      toast({ title: "Email Send Error", description: `Failed to send emails: ${error.message}`, variant: "destructive", duration: 10000 });
     } finally {
       setFormSubmitting(false);
     }
   };
 
   const handleSelectAll = (checked: boolean) => {
+    const currentSelection = new Set(form.getValues("recipientUserIds"));
+    const filteredIds = new Set(filteredMembers.map(m => m.id));
+
     if (checked) {
-      form.setValue("recipientUserIds", filteredMembers.map(m => m.id));
+        filteredIds.forEach(id => currentSelection.add(id));
     } else {
-      const filteredIds = filteredMembers.map(m => m.id);
-      const currentSelection = form.getValues("recipientUserIds");
-      form.setValue("recipientUserIds", currentSelection.filter(id => !filteredIds.includes(id)));
+        filteredIds.forEach(id => currentSelection.delete(id));
     }
+    form.setValue("recipientUserIds", Array.from(currentSelection));
+  };
+  
+  const handleSelectGroup = (memberIds: string[]) => {
+    const currentSelection = new Set(form.getValues("recipientUserIds"));
+    memberIds.forEach(id => currentSelection.add(id));
+    form.setValue("recipientUserIds", Array.from(currentSelection), { shouldValidate: true });
+    toast({ title: "Group Selected", description: `${memberIds.length} members added to recipients.` });
   };
   
   const watchedRecipients = form.watch("recipientUserIds");
 
-  if (authLoading || (isLoadingMembers && members.length === 0 && !user)) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
+  // Group Management Functions
+  const handleOpenGroupForm = (group?: CommunicationGroup) => {
+    if (group) {
+        setSelectedGroupForEdit({ id: group.id, name: group.name, memberIds: group.memberIds });
+    } else {
+        setSelectedGroupForEdit({ name: '', memberIds: [] });
+    }
+    setGroupMemberSearchTerm('');
+    setIsGroupFormOpen(true);
+  };
+  
+  const handleGroupFormSubmit = async () => {
+    if (!selectedGroupForEdit || !selectedGroupForEdit.name.trim()) {
+        toast({ title: "Group name is required.", variant: "destructive" });
+        return;
+    }
+    setIsGroupSubmitting(true);
+    try {
+        if (selectedGroupForEdit.id) {
+            await updateGroup(selectedGroupForEdit.id, { name: selectedGroupForEdit.name, memberIds: selectedGroupForEdit.memberIds });
+            toast({ title: "Group Updated" });
+        } else {
+            await createGroup(selectedGroupForEdit.name, selectedGroupForEdit.memberIds);
+            toast({ title: "Group Created" });
+        }
+        fetchData();
+        setIsGroupFormOpen(false);
+        setSelectedGroupForEdit(null);
+    } catch (error: any) {
+        toast({ title: "Error", description: `Could not save group: ${error.message}`, variant: "destructive"});
+    }
+    setIsGroupSubmitting(false);
+  };
 
-  if (!user || user.role !== 'admin') {
-    return null;
+  const handleDeleteGroup = async () => {
+    if (!groupToDelete) return;
+    setIsGroupSubmitting(true);
+    try {
+        await deleteGroup(groupToDelete.id);
+        toast({ title: "Group Deleted" });
+        fetchData();
+    } catch (error: any) {
+         toast({ title: "Error", description: `Could not delete group: ${error.message}`, variant: "destructive"});
+    }
+    setIsGroupSubmitting(false);
+    setIsDeleteAlertOpen(false);
+    setGroupToDelete(null);
+  };
+  
+  const filteredGroupMembers = useMemo(() => {
+    return members.filter(member => 
+        (member.name?.toLowerCase() || '').includes(groupMemberSearchTerm.toLowerCase()) ||
+        (member.email?.toLowerCase() || '').includes(groupMemberSearchTerm.toLowerCase())
+    );
+  }, [members, groupMemberSearchTerm]);
+
+  if (authLoading || (isLoadingData && members.length === 0)) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
+  if (!user || user.role !== 'admin') { return null; }
 
   return (
     <div className="container mx-auto py-4 sm:py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Send Communication</h1>
-      </div>
-
+      <div className="flex items-center justify-between"><h1 className="text-2xl sm:text-3xl font-bold font-headline">Send Communication</h1></div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary" /> Select Recipients</CardTitle>
-              <CardDescription className="text-sm">Choose which approved members will receive this email.</CardDescription>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary" /> Select Recipients</CardTitle>
+                  <CardDescription className="text-sm">Choose who will receive this email.</CardDescription>
+                </div>
+                 <Dialog open={isGroupFormOpen} onOpenChange={setIsGroupFormOpen}>
+                    <DialogTrigger asChild><Button type="button" variant="outline"><Settings className="mr-2 h-4 w-4"/>Manage Groups</Button></DialogTrigger>
+                    <DialogContent className="sm:max-w-2xl">
+                      <DialogHeader><DialogTitle>{selectedGroupForEdit?.id ? 'Edit Group' : 'Create New Group'}</DialogTitle></DialogHeader>
+                      {selectedGroupForEdit && (
+                        <div className="space-y-4 py-4">
+                            <div><Label htmlFor="group-name">Group Name</Label><Input id="group-name" value={selectedGroupForEdit.name} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, name: e.target.value})} placeholder="e.g., Executive Committee"/></div>
+                             <div><Label>Members</Label><div className="relative mt-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search members..." value={groupMemberSearchTerm} onChange={(e) => setGroupMemberSearchTerm(e.target.value)} className="pl-10"/></div>
+                                <ScrollArea className="h-60 border rounded-md p-2 mt-2">
+                                  {filteredGroupMembers.length > 0 ? (
+                                    <div className="space-y-2">{filteredGroupMembers.map(member => (<div key={member.id} className="flex items-center space-x-3 p-2 rounded hover:bg-muted/30"><Checkbox id={`member-${member.id}`} checked={selectedGroupForEdit.memberIds.includes(member.id)} onCheckedChange={(checked) => { const newMemberIds = checked ? [...selectedGroupForEdit.memberIds, member.id] : selectedGroupForEdit.memberIds.filter(id => id !== member.id); setSelectedGroupForEdit({...selectedGroupForEdit, memberIds: newMemberIds});}}/><Avatar className="h-8 w-8"><AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold text-xs">{getInitials(member.name)}</AvatarFallback></Avatar><label htmlFor={`member-${member.id}`} className="text-sm font-medium leading-none cursor-pointer">{member.name}<p className="text-xs text-muted-foreground">{member.email}</p></label></div>))}</div>
+                                  ) : (<p className="text-center text-sm text-muted-foreground py-4">No members found.</p>)}
+                                </ScrollArea><Badge variant="secondary" className="mt-2">Selected: {selectedGroupForEdit.memberIds.length}</Badge>
+                            </div>
+                        </div>
+                      )}
+                      <DialogFooter><DialogClose asChild><Button type="button" variant="outline" disabled={isGroupSubmitting}>Cancel</Button></DialogClose><Button type="button" onClick={handleGroupFormSubmit} disabled={isGroupSubmitting || !selectedGroupForEdit?.name.trim()}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (selectedGroupForEdit?.id ? 'Save Changes' : 'Create Group')}</Button></DialogFooter>
+                    </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
-              {isLoadingMembers ? (
-                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-              ) : members.length > 0 ? (
+              {isLoadingData ? (<Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />) : members.length > 0 ? (
                 <>
-                  <div className="relative mb-4">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Search recipients by name or email..."
-                      value={recipientSearchTerm}
-                      onChange={(e) => setRecipientSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-2 sm:space-y-0 mb-4 p-3 border rounded-md bg-muted/50">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="select-all-members"
-                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                        checked={filteredMembers.length > 0 && filteredMembers.every(m => watchedRecipients.includes(m.id))}
-                        disabled={filteredMembers.length === 0}
-                      />
-                      <Label htmlFor="select-all-members" className="font-medium text-sm cursor-pointer">
-                        Select All ({filteredMembers.length})
-                      </Label>
+                  {groups.length > 0 && (
+                    <div className="mb-4">
+                        <Label>Select by Group</Label>
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {groups.map(group => (
+                            <div key={group.id} className="flex items-center">
+                              <Button type="button" size="sm" variant="secondary" onClick={() => handleSelectGroup(group.memberIds)} className="bg-secondary/20 text-secondary-foreground hover:bg-secondary/30">{group.name} ({group.memberIds.length})</Button>
+                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenGroupForm(group)}><Edit className="h-4 w-4"/></Button>
+                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => {setGroupToDelete(group); setIsDeleteAlertOpen(true);}}><Trash2 className="h-4 w-4"/></Button>
+                            </div>
+                          ))}
+                           <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => handleOpenGroupForm()}> <PlusCircle className="mr-2 h-4 w-4"/>New Group</Button>
+                        </div>
                     </div>
-                    <span className="text-xs text-muted-foreground sm:ml-auto">
-                      (Total Selected: {watchedRecipients.length} / {members.length})
-                    </span>
+                  )}
+
+                  <div className="relative mb-4"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search recipients by name or email..." value={recipientSearchTerm} onChange={(e) => setRecipientSearchTerm(e.target.value)} className="pl-10"/></div>
+                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-2 sm:space-y-0 mb-4 p-3 border rounded-md bg-muted/50">
+                    <div className="flex items-center space-x-2"><Checkbox id="select-all-members" onCheckedChange={(checked) => handleSelectAll(checked as boolean)} checked={filteredMembers.length > 0 && filteredMembers.every(m => watchedRecipients.includes(m.id))} disabled={filteredMembers.length === 0}/><Label htmlFor="select-all-members" className="font-medium text-sm cursor-pointer">Select All ({filteredMembers.length})</Label></div>
+                    <span className="text-xs text-muted-foreground sm:ml-auto">(Total Selected: {watchedRecipients.length} / {members.length})</span>
                   </div>
                   <ScrollArea className="h-60 border rounded-md p-2 sm:p-4">
-                    {filteredMembers.length > 0 ? (
-                       <FormField
-                        control={form.control}
-                        name="recipientUserIds"
-                        render={() => (
-                          <div className="space-y-2">
-                            {filteredMembers.map((member) => (
-                              <FormField
-                                key={member.id}
-                                control={form.control}
-                                name="recipientUserIds"
-                                render={({ field }) => {
-                                  return (
-                                    <FormItem
-                                      key={member.id}
-                                      className="flex flex-row items-center space-x-3 space-y-0 p-2 rounded hover:bg-muted/30"
-                                    >
-                                      <FormControl>
-                                        <Checkbox
-                                          checked={field.value?.includes(member.id)}
-                                          onCheckedChange={(checked) => {
-                                            return checked
-                                              ? field.onChange([...(field.value || []), member.id])
-                                              : field.onChange(
-                                                  (field.value || []).filter(
-                                                    (value) => value !== member.id
-                                                  )
-                                                )
-                                          }}
-                                        />
-                                      </FormControl>
-                                      <FormLabel className="font-normal text-sm cursor-pointer flex-1">
-                                        {member.name} <span className="text-xs text-muted-foreground">({member.email})</span>
-                                      </FormLabel>
-                                    </FormItem>
-                                  )
-                                }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      />
-                    ) : (
-                        <p className="text-center text-sm text-muted-foreground py-4">No members match your search.</p>
-                    )}
-                  </ScrollArea>
-                  <FormMessage className="mt-2">{form.formState.errors.recipientUserIds?.message}</FormMessage>
+                    {filteredMembers.length > 0 ? (<FormField control={form.control} name="recipientUserIds" render={() => (<div className="space-y-2">{filteredMembers.map((member) => (<FormField key={member.id} control={form.control} name="recipientUserIds" render={({ field }) => (<FormItem key={member.id} className="flex flex-row items-center space-x-3 space-y-0 p-2 rounded hover:bg-muted/30"><FormControl><Checkbox checked={field.value?.includes(member.id)} onCheckedChange={(checked) => { return checked ? field.onChange([...(field.value || []), member.id]) : field.onChange((field.value || []).filter((value) => value !== member.id)) }}/></FormControl><FormLabel className="font-normal text-sm cursor-pointer flex-1">{member.name} <span className="text-xs text-muted-foreground">({member.email})</span></FormLabel></FormItem>)}/>))}</div>)}/>
+                    ) : (<p className="text-center text-sm text-muted-foreground py-4">No members match your search.</p>)}
+                  </ScrollArea><FormMessage className="mt-2">{form.formState.errors.recipientUserIds?.message}</FormMessage>
                 </>
-              ) : (
-                <p className="text-center text-muted-foreground py-4">No approved members found.</p>
-              )}
+              ) : (<p className="text-center text-muted-foreground py-4">No approved members found.</p>)}
             </CardContent>
           </Card>
           
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center text-xl"><Sparkles className="mr-2 h-5 w-5 text-primary" /> AI Content Assistant</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-               <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>How to use the Topic field</AlertTitle>
-                  <AlertDescription className="text-xs leading-relaxed">
-                     <ol className="list-decimal list-inside space-y-1 mt-1">
-                       <li>Be specific. Instead of "meeting," try "Monthly meeting reminder for August".</li>
-                       <li>Include key details if you have them, like "charity drive on Saturday at the main hall".</li>
-                       <li>The AI will automatically write in a professional and friendly tone suitable for the club.</li>
-                     </ol>
-                  </AlertDescription>
-               </Alert>
-               <div>
-                  <Label htmlFor="ai-topic">Email Topic</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Input 
-                      id="ai-topic"
-                      placeholder="e.g., Beach cleanup event this weekend"
-                      value={aiTopic}
-                      onChange={(e) => setAiTopic(e.target.value)}
-                      disabled={isGenerating || formSubmitting}
-                    />
-                    <Button type="button" onClick={handleGenerateContent} disabled={isGenerating || formSubmitting}>
-                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        Generate
-                    </Button>
-                  </div>
-               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle>
-              <CardDescription className="text-sm">Write or edit the subject and body of your email.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="subject"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Subject</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Important Update: Upcoming Event" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="body"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Body</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Dear members, ..."
-                        className="resize-y min-h-[150px] sm:min-h-[200px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormItem>
-                <FormLabel className="flex items-center"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Signature</FormLabel>
-                 <Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a signature template" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (
-                        <SelectItem key={key} value={key}>{template.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                 <FormDescription className="text-xs">Select a signature to append to your email body.</FormDescription>
-               </FormItem>
+          <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Sparkles className="mr-2 h-5 w-5 text-primary" /> AI Content Assistant</CardTitle></CardHeader><CardContent className="space-y-3"><Alert><Info className="h-4 w-4" /><AlertTitle>How to use the Topic field</AlertTitle><AlertDescription className="text-xs leading-relaxed"><ol className="list-decimal list-inside space-y-1 mt-1"><li>Be specific. Instead of "meeting," try "Monthly meeting reminder for August".</li><li>Include key details if you have them, like "charity drive on Saturday at the main hall".</li><li>The AI will automatically write in a professional and friendly tone suitable for the club.</li></ol></AlertDescription></Alert><div><Label htmlFor="ai-topic">Email Topic</Label><div className="flex items-center gap-2 mt-1"><Input id="ai-topic" placeholder="e.g., Beach cleanup event this weekend" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} disabled={isGenerating || formSubmitting}/><Button type="button" onClick={handleGenerateContent} disabled={isGenerating || formSubmitting}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Generate</Button></div></div></CardContent></Card>
+          <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle><CardDescription className="text-sm">Write or edit the subject and body of your email.</CardDescription></CardHeader><CardContent className="space-y-4"><FormField control={form.control} name="subject" render={({ field }) => (<FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="Important Update: Upcoming Event" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+              <FormField control={form.control} name="body" render={({ field }) => (<FormItem><FormLabel>Body</FormLabel><FormControl><Textarea placeholder="Dear members, ..." className="resize-y min-h-[150px] sm:min-h-[200px]" {...field}/></FormControl><FormMessage /></FormItem>)}/>
+               <FormItem><FormLabel className="flex items-center"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Signature</FormLabel><Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}><FormControl><SelectTrigger><SelectValue placeholder="Select a signature template" /></SelectTrigger></FormControl><SelectContent>{Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (<SelectItem key={key} value={key}>{template.label}</SelectItem>))}</SelectContent></Select><FormDescription className="text-xs">Select a signature to append to your email body.</FormDescription></FormItem>
             </CardContent>
           </Card>
           
-          <div className="flex justify-end">
-            <Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingMembers || watchedRecipients.length === 0} size="lg">
-              {formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              {formSubmitting ? "Sending..." : `Send Email to ${watchedRecipients.length} Member(s)`}
-            </Button>
-          </div>
+          <div className="flex justify-end"><Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingData || watchedRecipients.length === 0} size="lg">{formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}{formSubmitting ? "Sending..." : `Send Email to ${watchedRecipients.length} Member(s)`}</Button></div>
         </form>
       </Form>
+       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the "{groupToDelete?.name}" group. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteGroup} className={cn(buttonVariants({ variant: "destructive" }))}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Delete'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
