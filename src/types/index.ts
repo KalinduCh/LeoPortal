@@ -135,3 +135,10 @@ export interface ContactSettings {
     president: ContactInfo;
     support: ContactInfo;
 }
+
+export interface CommunicationGroup {
+  id: string;
+  name: string;
+  memberIds: string[];
+  createdAt: string; // ISO string
+}
