@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/project-ideas/view/page.tsx
 "use client";
 
@@ -8,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, ArrowLeft, FileText, Target, CheckSquare, Users, DollarSign, Calendar, AlertTriangle, Shield, Flag, Send } from 'lucide-react';
+import { Loader2, ArrowLeft, FileText, Target, CheckSquare, Users, DollarSign, Calendar, AlertTriangle, Shield, Flag, Send, Handshake, Bullhorn } from 'lucide-react';
 import type { GenerateProjectProposalOutput, GenerateProjectProposalInput } from '@/ai/flows/generate-project-proposal-flow';
 import type { ProjectIdea } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -40,7 +41,6 @@ export default function ViewProjectProposalPage() {
                 router.replace('/project-ideas/new');
             }
         } else {
-            // If no data, redirect back to create a new one
             router.replace('/project-ideas/new');
         }
         setIsLoading(false);
@@ -56,15 +56,19 @@ export default function ViewProjectProposalPage() {
         toast({ title: "Submitting Proposal...", description: "Please wait."});
         
         try {
-            const newIdea: Omit<ProjectIdea, 'id' | 'createdAt' | 'updatedAt'> = {
-                ...originalIdea,
+             const newIdeaData: Omit<ProjectIdea, 'id' | 'createdAt' | 'updatedAt'> = {
+                projectName: originalIdea.projectName,
+                goal: originalIdea.goal,
+                targetAudience: originalIdea.targetAudience,
+                budget: originalIdea.budget,
+                timeline: originalIdea.timeline,
                 ...proposal,
                 status: 'pending_review',
                 authorId: user.id,
                 authorName: user.name,
             };
 
-            await createProjectIdea(newIdea);
+            await createProjectIdea(newIdeaData);
 
             toast({ title: "Submission Successful!", description: "Your project idea has been sent for admin review." });
             sessionStorage.removeItem('generatedProposal');
@@ -105,6 +109,8 @@ export default function ViewProjectProposalPage() {
         );
     }
 
+    const totalBudget = proposal.estimatedExpenses.reduce((acc, item) => acc + (parseFloat(item.cost) || 0), 0);
+
     return (
         <div className="container mx-auto py-8 max-w-4xl space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -117,81 +123,91 @@ export default function ViewProjectProposalPage() {
                     <p className="text-muted-foreground">AI-Generated Project Proposal</p>
                 </div>
                 <Button onClick={handleSubmitForReview} size="lg" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Send className="mr-2 h-4 w-4" />
-                    )}
+                    {isSubmitting ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" /> ) : ( <Send className="mr-2 h-4 w-4" /> )}
                     {isSubmitting ? "Submitting..." : "Submit for Review"}
                 </Button>
             </div>
             
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Project Overview</CardTitle>
+                    <CardTitle className="flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Project Idea</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">{proposal.overview}</p>
+                    <p className="text-muted-foreground">{proposal.projectIdea}</p>
                 </CardContent>
             </Card>
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center"><Target className="mr-2 h-5 w-5 text-primary"/>Objectives & Benefits</CardTitle>
+                    <CardTitle className="flex items-center"><Target className="mr-2 h-5 w-5 text-primary"/>Proposed Action Plan</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {proposal.objectives.map((obj, index) => (
-                        <div key={index} className="p-3 bg-muted/50 rounded-lg">
-                            <h4 className="font-semibold">{obj.title}</h4>
-                            <p className="text-sm text-muted-foreground">{obj.description}</p>
-                        </div>
-                    ))}
+                     <div>
+                        <h4 className="font-semibold text-md mb-2">Objective</h4>
+                        <p className="text-sm text-muted-foreground pl-4 border-l-2 border-primary">{proposal.proposedActionPlan.objective}</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-md mb-2">Pre-Event Plan</h4>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                            {proposal.proposedActionPlan.preEventPlan.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-md mb-2">Execution Plan</h4>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                            {proposal.proposedActionPlan.executionPlan.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                    </div>
+                     <div>
+                        <h4 className="font-semibold text-md mb-2">Post-Event Plan</h4>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                            {proposal.proposedActionPlan.postEventPlan.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                    </div>
                 </CardContent>
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Resources</CardTitle>
+                        <CardTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive/80"/>Identified Challenges</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                            {proposal.resources.map((item, index) => <li key={index}>{item}</li>)}
+                        <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
+                            {proposal.implementationChallenges.map((item, index) => <li key={index}>{item}</li>)}
                         </ul>
                     </CardContent>
                 </Card>
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center"><Flag className="mr-2 h-5 w-5 text-primary"/>Success Metrics</CardTitle>
+                        <CardTitle className="flex items-center"><Shield className="mr-2 h-5 w-5 text-green-600"/>Challenge Solutions</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                            {proposal.successMetrics.map((item, index) => <li key={index}>{item}</li>)}
+                        <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
+                            {proposal.challengeSolutions.map((item, index) => <li key={index}>{item}</li>)}
                         </ul>
                     </CardContent>
                 </Card>
             </div>
 
-
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center"><CheckSquare className="mr-2 h-5 w-5 text-primary"/>Task Breakdown</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="flex items-center"><Handshake className="mr-2 h-5 w-5 text-primary"/>Community Involvement</CardTitle></CardHeader>
+                <CardContent>
+                    <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
+                        {proposal.communityInvolvement.map((item, index) => <li key={index}>{item}</li>)}
+                    </ul>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader><CardTitle className="flex items-center"><Bullhorn className="mr-2 h-5 w-5 text-primary"/>PR Plan</CardTitle></CardHeader>
                 <CardContent>
                    <Table>
                         <TableHeader>
-                            <TableRow>
-                                <TableHead>Task</TableHead>
-                                <TableHead>Responsibility</TableHead>
-                            </TableRow>
+                            <TableRow><TableHead>Activity</TableHead><TableHead>Date</TableHead><TableHead>Time</TableHead></TableRow>
                         </TableHeader>
                         <TableBody>
-                            {proposal.tasks.map((item, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>{item.task}</TableCell>
-                                    <TableCell><Badge variant="secondary">{item.responsibility}</Badge></TableCell>
-                                </TableRow>
-                            ))}
+                            {proposal.prPlan.map((item, index) => (<TableRow key={index}><TableCell>{item.activity}</TableCell><TableCell>{item.date}</TableCell><TableCell>{item.time}</TableCell></TableRow>))}
                         </TableBody>
                    </Table>
                 </CardContent>
@@ -199,75 +215,32 @@ export default function ViewProjectProposalPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/>Budget Breakdown</CardTitle>
-                     <CardDescription>Based on your estimate of: {originalIdea.budget}</CardDescription>
+                    <CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/>Estimated Net Expenses</CardTitle>
+                    <CardDescription>Based on your estimate of: {originalIdea.budget}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Item</TableHead>
-                                <TableHead className="text-right">Estimated Cost</TableHead>
-                            </TableRow>
-                        </TableHeader>
+                        <TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Estimated Cost</TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {proposal.budgetBreakdown.map((item, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>{item.item}</TableCell>
-                                    <TableCell className="text-right font-mono">{item.cost}</TableCell>
-                                </TableRow>
+                            {proposal.estimatedExpenses.map((item, index) => (
+                                <TableRow key={index}><TableCell>{item.item}</TableCell><TableCell className="text-right font-mono">{item.cost}</TableCell></TableRow>
                             ))}
+                            <TableRow className="font-bold border-t-2"><TableCell>Total Estimated Cost</TableCell><TableCell className="text-right font-mono">{totalBudget.toFixed(2)}</TableCell></TableRow>
                         </TableBody>
                    </Table>
                 </CardContent>
             </Card>
 
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center"><Calendar className="mr-2 h-5 w-5 text-primary"/>Timeline & Milestones</CardTitle>
-                    <CardDescription>Based on your estimate of: {originalIdea.timeline}</CardDescription>
-                </CardHeader>
+                <CardHeader><CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Resource Personals</CardTitle></CardHeader>
                 <CardContent>
-                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Milestone</TableHead>
-                                <TableHead>Target Date / Timeframe</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {proposal.timelineMilestones.map((item, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>{item.milestone}</TableCell>
-                                    <TableCell>{item.date}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                   </Table>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center"><Shield className="mr-2 h-5 w-5 text-primary"/>Potential Risks & Solutions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Risk</TableHead>
-                                <TableHead>Proposed Solution</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {proposal.risks.map((item, index) => (
-                                <TableRow key={index}>
-                                    <TableCell className="font-medium text-destructive/80">{item.risk}</TableCell>
-                                    <TableCell className="text-muted-foreground">{item.solution}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                   </Table>
+                    {proposal.resourcePersonals.length > 0 ? (
+                        <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
+                            {proposal.resourcePersonals.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground italic">No specific resource personnel listed.</p>
+                    )}
                 </CardContent>
             </Card>
 
