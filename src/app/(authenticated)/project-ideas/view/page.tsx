@@ -10,14 +10,22 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, ArrowLeft, FileText, Target, CheckSquare, Users, DollarSign, Calendar, AlertTriangle, Shield, Flag, Send } from 'lucide-react';
 import type { GenerateProjectProposalOutput, GenerateProjectProposalInput } from '@/ai/flows/generate-project-proposal-flow';
+import type { ProjectIdea } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAuth } from '@/hooks/use-auth';
+import { createProjectIdea } from '@/services/projectIdeaService';
+import { useToast } from '@/hooks/use-toast';
 
 
 export default function ViewProjectProposalPage() {
     const router = useRouter();
+    const { user } = useAuth();
+    const { toast } = useToast();
+
     const [proposal, setProposal] = useState<GenerateProjectProposalOutput | null>(null);
     const [originalIdea, setOriginalIdea] = useState<GenerateProjectProposalInput | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const storedProposal = sessionStorage.getItem('generatedProposal');
@@ -37,6 +45,39 @@ export default function ViewProjectProposalPage() {
         }
         setIsLoading(false);
     }, [router]);
+
+    const handleSubmitForReview = async () => {
+        if (!proposal || !originalIdea || !user) {
+            toast({ title: "Error", description: "Missing data required for submission.", variant: "destructive" });
+            return;
+        }
+
+        setIsSubmitting(true);
+        toast({ title: "Submitting Proposal...", description: "Please wait."});
+        
+        try {
+            const newIdea: Omit<ProjectIdea, 'id' | 'createdAt' | 'updatedAt'> = {
+                ...originalIdea,
+                ...proposal,
+                status: 'pending_review',
+                authorId: user.id,
+                authorName: user.name,
+            };
+
+            await createProjectIdea(newIdea);
+
+            toast({ title: "Submission Successful!", description: "Your project idea has been sent for admin review." });
+            sessionStorage.removeItem('generatedProposal');
+            sessionStorage.removeItem('originalIdea');
+            router.push('/project-ideas');
+
+        } catch (error) {
+            console.error("Failed to submit project idea:", error);
+            toast({ title: "Submission Failed", description: "Could not submit your proposal. Please try again.", variant: "destructive"});
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -64,15 +105,6 @@ export default function ViewProjectProposalPage() {
         );
     }
 
-    const handleSubmitForReview = () => {
-        // In a real app, this would save `proposal` and `originalIdea` to Firestore
-        // and set its status to 'pending_review', then notify admins.
-        console.log("Submitting for review...", { originalIdea, proposal });
-        // For now, just show a toast and redirect.
-        alert("This proposal would now be submitted for admin review!");
-        router.push('/project-ideas');
-    };
-
     return (
         <div className="container mx-auto py-8 max-w-4xl space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -84,9 +116,13 @@ export default function ViewProjectProposalPage() {
                     <h1 className="text-3xl font-bold font-headline mt-2 text-primary">{originalIdea.projectName}</h1>
                     <p className="text-muted-foreground">AI-Generated Project Proposal</p>
                 </div>
-                <Button onClick={handleSubmitForReview} size="lg">
-                    <Send className="mr-2 h-4 w-4" />
-                    Submit for Review
+                <Button onClick={handleSubmitForReview} size="lg" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <Send className="mr-2 h-4 w-4" />
+                    )}
+                    {isSubmitting ? "Submitting..." : "Submit for Review"}
                 </Button>
             </div>
             

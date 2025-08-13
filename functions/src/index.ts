@@ -174,6 +174,41 @@ export const onEventCreated = functions.firestore
     );
   });
 
+export const onProjectIdeaSubmitted = functions.firestore
+  .document("projectIdeas/{ideaId}")
+  .onCreate(async (snap, context) => {
+    const idea = snap.data();
+    
+    // Get all admin users
+    const adminsSnapshot = await db.collection("users")
+      .where("role", "==", "admin").get();
+      
+    const adminEmails = adminsSnapshot.docs
+      .map(doc => doc.data().email)
+      .filter(Boolean); // Filter out any admins without an email
+
+    if (adminEmails.length === 0) {
+      console.log("No admin emails found to send notification to.");
+      return;
+    }
+    
+    const subject = `New Project Idea Submitted: ${idea.projectName}`;
+    const htmlBody = `
+      <p>Hello Admin,</p>
+      <p>A new project idea has been submitted by <strong>${idea.authorName}</strong> and is ready for your review.</p>
+      <ul>
+        <li><strong>Project:</strong> ${idea.projectName}</li>
+        <li><strong>Goal:</strong> ${idea.goal}</li>
+      </ul>
+      <p>Please log in to the Admin Dashboard to review the full proposal.</p>
+      <p>Thank you,<br>LEO Portal Bot</p>
+    `;
+    
+    // Send email to all admins
+    await sendEmail(adminEmails.join(','), subject, htmlBody);
+  });
+
+
 export const onUserDocumentChanged = functions.firestore
   .document("users/{userId}")
   .onWrite(async (change, context) => {
