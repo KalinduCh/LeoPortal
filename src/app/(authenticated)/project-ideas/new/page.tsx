@@ -59,24 +59,16 @@ export default function NewProjectIdeaPage() {
             };
             const result = await generateProjectProposal(input);
 
-            // In a real app, we would now save this 'result' to Firestore
-            // and then redirect to the new proposal's page.
-            // For now, we will log it and show a success message.
-            console.log("AI Generated Proposal:", result);
-            
-            // For now, we redirect to a placeholder page. Later this will be the proposal viewer.
-            // We can pass the generated data via state or query params if needed, but saving to DB first is better.
-            // For this step, we'll just show success and redirect to the hub.
+            // Store the result in sessionStorage to pass to the next page
+            sessionStorage.setItem('generatedProposal', JSON.stringify(result));
+            sessionStorage.setItem('originalIdea', JSON.stringify(values));
+
             toast({
                 title: "Proposal Generated!",
-                description: "Your detailed project proposal has been created.",
+                description: "Redirecting you to the proposal view.",
             });
-            // Fake saving to DB then redirect
-            // const newIdeaId = await saveProjectIdea(user.id, values, result);
-            // router.push(`/project-ideas/${newIdeaId}`);
             
-            // Placeholder redirect
-            router.push('/project-ideas');
+            router.push('/project-ideas/view');
 
 
         } catch (error) {
@@ -95,7 +87,7 @@ export default function NewProjectIdeaPage() {
         <div className="container mx-auto py-8 max-w-3xl">
             <Button variant="outline" size="sm" className="mb-4" onClick={() => router.back()}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                Back to Idea Hub
             </Button>
             <Card className="shadow-lg">
                 <CardHeader>
