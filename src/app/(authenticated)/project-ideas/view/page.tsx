@@ -7,16 +7,16 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, ArrowLeft, FileText, Target, CheckSquare, Users, DollarSign, Calendar, AlertTriangle, Shield, Flag, Send, Handshake, Megaphone } from 'lucide-react';
+import { Loader2, ArrowLeft, FileText, Target, Users, DollarSign, Calendar, AlertTriangle, Shield, Handshake, Megaphone, Send, Edit, Save, XCircle } from 'lucide-react';
 import type { GenerateProjectProposalOutput, GenerateProjectProposalInput } from '@/ai/flows/generate-project-proposal-flow';
 import type { ProjectIdea } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from '@/hooks/use-auth';
 import { createProjectIdea } from '@/services/projectIdeaService';
 import { useToast } from '@/hooks/use-toast';
-
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function ViewProjectProposalPage() {
     const router = useRouter();
@@ -27,6 +27,7 @@ export default function ViewProjectProposalPage() {
     const [originalIdea, setOriginalIdea] = useState<GenerateProjectProposalInput | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     useEffect(() => {
         const storedProposal = sessionStorage.getItem('generatedProposal');
@@ -45,6 +46,45 @@ export default function ViewProjectProposalPage() {
         }
         setIsLoading(false);
     }, [router]);
+    
+    const handleFieldChange = (section: keyof GenerateProjectProposalOutput, value: any, index?: number, field?: string) => {
+        setProposal(prev => {
+            if (!prev) return null;
+            const newProposal = { ...prev };
+
+            if (index !== undefined && field) {
+                if (Array.isArray((newProposal as any)[section])) {
+                    (newProposal as any)[section][index][field] = value;
+                }
+            } else if (index !== undefined) {
+                 if (Array.isArray((newProposal as any)[section])) {
+                    (newProposal as any)[section][index] = value;
+                }
+            } else {
+                (newProposal as any)[section] = value;
+            }
+            return newProposal;
+        });
+    };
+
+    const handleActionPlanChange = (field: keyof GenerateProjectProposalOutput['proposedActionPlan'], value: any, index?: number) => {
+        setProposal(prev => {
+            if (!prev) return null;
+            const newProposal = { 
+                ...prev, 
+                proposedActionPlan: { ...prev.proposedActionPlan }
+            };
+
+            if (index !== undefined) {
+                (newProposal.proposedActionPlan as any)[field][index] = value;
+            } else {
+                (newProposal.proposedActionPlan as any)[field] = value;
+            }
+
+            return newProposal;
+        });
+    };
+
 
     const handleSubmitForReview = async () => {
         if (!proposal || !originalIdea || !user) {
@@ -82,7 +122,7 @@ export default function ViewProjectProposalPage() {
             setIsSubmitting(false);
         }
     };
-
+    
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-[calc(100vh-10rem)]">
@@ -122,10 +162,17 @@ export default function ViewProjectProposalPage() {
                     <h1 className="text-3xl font-bold font-headline mt-2 text-primary">{originalIdea.projectName}</h1>
                     <p className="text-muted-foreground">AI-Generated Project Proposal</p>
                 </div>
-                <Button onClick={handleSubmitForReview} size="lg" disabled={isSubmitting}>
-                    {isSubmitting ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" /> ) : ( <Send className="mr-2 h-4 w-4" /> )}
-                    {isSubmitting ? "Submitting..." : "Submit for Review"}
-                </Button>
+                <div className="flex items-center gap-2">
+                    {isEditing ? (
+                        <Button onClick={() => setIsEditing(false)} variant="outline" size="lg"><XCircle className="mr-2 h-4 w-4" />Cancel</Button>
+                    ) : (
+                        <Button onClick={() => setIsEditing(true)} variant="outline" size="lg"><Edit className="mr-2 h-4 w-4" />Edit Proposal</Button>
+                    )}
+                    <Button onClick={handleSubmitForReview} size="lg" disabled={isSubmitting || isEditing}>
+                        {isSubmitting ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" /> ) : ( <Send className="mr-2 h-4 w-4" /> )}
+                        {isSubmitting ? "Submitting..." : "Submit for Review"}
+                    </Button>
+                </div>
             </div>
             
             <Card>
@@ -133,7 +180,11 @@ export default function ViewProjectProposalPage() {
                     <CardTitle className="flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Project Idea</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">{proposal.projectIdea}</p>
+                    {isEditing ? (
+                       <Textarea value={proposal.projectIdea} onChange={(e) => handleFieldChange('projectIdea', e.target.value)} className="min-h-[100px]" />
+                    ) : (
+                       <p className="text-muted-foreground whitespace-pre-wrap">{proposal.projectIdea}</p>
+                    )}
                 </CardContent>
             </Card>
 
@@ -144,48 +195,62 @@ export default function ViewProjectProposalPage() {
                 <CardContent className="space-y-4">
                      <div>
                         <h4 className="font-semibold text-md mb-2">Objective</h4>
-                        <p className="text-sm text-muted-foreground pl-4 border-l-2 border-primary">{proposal.proposedActionPlan.objective}</p>
+                        {isEditing ? (
+                            <Textarea value={proposal.proposedActionPlan.objective} onChange={(e) => handleActionPlanChange('objective', e.target.value)} />
+                        ) : (
+                            <p className="text-sm text-muted-foreground pl-4 border-l-2 border-primary whitespace-pre-wrap">{proposal.proposedActionPlan.objective}</p>
+                        )}
                     </div>
-                    <div>
-                        <h4 className="font-semibold text-md mb-2">Pre-Event Plan</h4>
-                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                            {proposal.proposedActionPlan.preEventPlan.map((item, index) => <li key={index}>{item}</li>)}
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold text-md mb-2">Execution Plan</h4>
-                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                            {proposal.proposedActionPlan.executionPlan.map((item, index) => <li key={index}>{item}</li>)}
-                        </ul>
-                    </div>
-                     <div>
-                        <h4 className="font-semibold text-md mb-2">Post-Event Plan</h4>
-                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                            {proposal.proposedActionPlan.postEventPlan.map((item, index) => <li key={index}>{item}</li>)}
-                        </ul>
-                    </div>
+                    {['preEventPlan', 'executionPlan', 'postEventPlan'].map(planType => (
+                         <div key={planType}>
+                            <h4 className="font-semibold text-md mb-2 capitalize">{planType.replace('Plan', ' Plan')}</h4>
+                             {isEditing ? (
+                                <Textarea 
+                                    value={(proposal.proposedActionPlan as any)[planType].join('\n')} 
+                                    onChange={(e) => handleActionPlanChange(planType as any, e.target.value.split('\n'))}
+                                    className="min-h-[120px]"
+                                />
+                             ) : (
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                    {(proposal.proposedActionPlan as any)[planType].map((item: string, index: number) => <li key={index}>{item}</li>)}
+                                </ul>
+                             )}
+                        </div>
+                    ))}
                 </CardContent>
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive/80"/>Identified Challenges</CardTitle>
-                    </CardHeader>
+                    <CardHeader><CardTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive/80"/>Identified Challenges</CardTitle></CardHeader>
                     <CardContent>
-                        <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
-                            {proposal.implementationChallenges.map((item, index) => <li key={index}>{item}</li>)}
-                        </ul>
+                       {isEditing ? (
+                           <Textarea 
+                                value={proposal.implementationChallenges.join('\n')} 
+                                onChange={(e) => handleFieldChange('implementationChallenges', e.target.value.split('\n'))}
+                                className="min-h-[100px]"
+                            />
+                       ) : (
+                           <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
+                                {proposal.implementationChallenges.map((item, index) => <li key={index}>{item}</li>)}
+                           </ul>
+                       )}
                     </CardContent>
                 </Card>
                  <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center"><Shield className="mr-2 h-5 w-5 text-green-600"/>Challenge Solutions</CardTitle>
-                    </CardHeader>
+                    <CardHeader><CardTitle className="flex items-center"><Shield className="mr-2 h-5 w-5 text-green-600"/>Challenge Solutions</CardTitle></CardHeader>
                     <CardContent>
-                        <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
-                            {proposal.challengeSolutions.map((item, index) => <li key={index}>{item}</li>)}
-                        </ul>
+                        {isEditing ? (
+                           <Textarea 
+                                value={proposal.challengeSolutions.join('\n')} 
+                                onChange={(e) => handleFieldChange('challengeSolutions', e.target.value.split('\n'))}
+                                className="min-h-[100px]"
+                            />
+                       ) : (
+                            <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
+                                {proposal.challengeSolutions.map((item, index) => <li key={index}>{item}</li>)}
+                            </ul>
+                       )}
                     </CardContent>
                 </Card>
             </div>
@@ -193,9 +258,17 @@ export default function ViewProjectProposalPage() {
             <Card>
                 <CardHeader><CardTitle className="flex items-center"><Handshake className="mr-2 h-5 w-5 text-primary"/>Community Involvement</CardTitle></CardHeader>
                 <CardContent>
-                    <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
-                        {proposal.communityInvolvement.map((item, index) => <li key={index}>{item}</li>)}
-                    </ul>
+                    {isEditing ? (
+                           <Textarea 
+                                value={proposal.communityInvolvement.join('\n')} 
+                                onChange={(e) => handleFieldChange('communityInvolvement', e.target.value.split('\n'))}
+                                className="min-h-[100px]"
+                            />
+                       ) : (
+                        <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
+                            {proposal.communityInvolvement.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                    )}
                 </CardContent>
             </Card>
             
@@ -207,7 +280,11 @@ export default function ViewProjectProposalPage() {
                             <TableRow><TableHead>Activity</TableHead><TableHead>Date</TableHead><TableHead>Time</TableHead></TableRow>
                         </TableHeader>
                         <TableBody>
-                            {proposal.prPlan.map((item, index) => (<TableRow key={index}><TableCell>{item.activity}</TableCell><TableCell>{item.date}</TableCell><TableCell>{item.time}</TableCell></TableRow>))}
+                            {proposal.prPlan.map((item, index) => (<TableRow key={index}>
+                                <TableCell>{isEditing ? <Input value={item.activity} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'activity')} /> : item.activity}</TableCell>
+                                <TableCell>{isEditing ? <Input value={item.date} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'date')} /> : item.date}</TableCell>
+                                <TableCell>{isEditing ? <Input value={item.time} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'time')} /> : item.time}</TableCell>
+                            </TableRow>))}
                         </TableBody>
                    </Table>
                 </CardContent>
@@ -215,7 +292,7 @@ export default function ViewProjectProposalPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/>Estimated Net Expenses</CardTitle>
+                    <CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/>Estimated Net Expenses (LKR)</CardTitle>
                     <CardDescription>Based on your estimate of: {originalIdea.budget}</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -223,7 +300,10 @@ export default function ViewProjectProposalPage() {
                         <TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Estimated Cost</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {proposal.estimatedExpenses.map((item, index) => (
-                                <TableRow key={index}><TableCell>{item.item}</TableCell><TableCell className="text-right font-mono">{item.cost}</TableCell></TableRow>
+                                <TableRow key={index}>
+                                    <TableCell>{isEditing ? <Input value={item.item} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'item')} /> : item.item}</TableCell>
+                                    <TableCell className="text-right font-mono">{isEditing ? <Input className="text-right" value={item.cost} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'cost')} /> : item.cost}</TableCell>
+                                </TableRow>
                             ))}
                             <TableRow className="font-bold border-t-2"><TableCell>Total Estimated Cost</TableCell><TableCell className="text-right font-mono">{totalBudget.toFixed(2)}</TableCell></TableRow>
                         </TableBody>
@@ -234,7 +314,13 @@ export default function ViewProjectProposalPage() {
             <Card>
                 <CardHeader><CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Resource Personals</CardTitle></CardHeader>
                 <CardContent>
-                    {proposal.resourcePersonals.length > 0 ? (
+                    {isEditing ? (
+                        <Textarea 
+                            value={proposal.resourcePersonals.join('\n')}
+                            onChange={(e) => handleFieldChange('resourcePersonals', e.target.value.split('\n'))}
+                            className="min-h-[80px]"
+                        />
+                    ) : proposal.resourcePersonals.length > 0 ? (
                         <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
                             {proposal.resourcePersonals.map((item, index) => <li key={index}>{item}</li>)}
                         </ul>
