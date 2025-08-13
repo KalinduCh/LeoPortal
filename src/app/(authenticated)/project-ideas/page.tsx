@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/project-ideas/page.tsx
 "use client";
 
@@ -38,13 +37,14 @@ export default function ProjectIdeasPage() {
             }
         };
         
-        if (!authLoading) {
+        if (!authLoading && user) {
             fetchMyIdeas();
+        } else if (!authLoading && !user) {
+            setIsLoading(false);
         }
     }, [user, authLoading, toast]);
     
     const handleViewIdea = (idea: ProjectIdea) => {
-        sessionStorage.setItem('selectedProjectIdea', JSON.stringify(idea));
         router.push(`/project-ideas/view?id=${idea.id}`);
     };
     

@@ -1,4 +1,3 @@
-
 import type { ReactElement, ElementType } from 'react';
 
 export type UserRole = 'admin' | 'member';

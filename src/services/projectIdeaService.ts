@@ -1,4 +1,3 @@
-
 // src/services/projectIdeaService.ts
 import {
   collection,
@@ -52,7 +51,7 @@ export async function getProjectIdeasForUser(userId: string): Promise<ProjectIde
     const q = query(
         projectIdeasCollection, 
         where('authorId', '==', userId), 
-        orderBy('createdAt', 'desc')
+        orderBy('updatedAt', 'desc')
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(docToProjectIdea);
@@ -71,7 +70,7 @@ export async function getProjectIdea(id: string): Promise<ProjectIdea | null> {
 }
 
 // Update a project idea (e.g., to change its status or content)
-export async function updateProjectIdea(id: string, updates: Partial<Omit<ProjectIdea, 'id'>>): Promise<void> {
+export async function updateProjectIdea(id: string, updates: Partial<Omit<ProjectIdea, 'id' | 'createdAt'>>): Promise<void> {
   const docRef = doc(db, 'projectIdeas', id);
   await updateDoc(docRef, {
     ...updates,
