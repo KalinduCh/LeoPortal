@@ -356,21 +356,84 @@ export default function ViewProjectProposalPage() {
             <Card>
                 <CardHeader><CardTitle className="flex items-center"><Megaphone className="mr-2 h-5 w-5 text-primary"/>PR Plan</CardTitle></CardHeader>
                 <CardContent>
-                   <Table><TableHeader><TableRow><TableHead>Activity</TableHead><TableHead>Date</TableHead><TableHead>Time</TableHead>{isEditing && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
-                        <TableBody>{proposal.prPlan.map((item, index) => (<TableRow key={index}><TableCell>{isEditing ? <Input value={item.activity} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'activity')} /> : item.activity}</TableCell><TableCell>{isEditing ? <Input value={item.date} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'date')} /> : item.date}</TableCell><TableCell>{isEditing ? <Input value={item.time} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'time')} /> : item.time}</TableCell>{isEditing && <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemoveItem('prPlan', index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>}</TableRow>))}</TableBody>
-                   </Table>
+                    {/* Desktop Table */}
+                    <div className="hidden sm:block">
+                        <Table><TableHeader><TableRow><TableHead>Activity</TableHead><TableHead>Date</TableHead><TableHead>Time</TableHead>{isEditing && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
+                            <TableBody>{proposal.prPlan.map((item, index) => (<TableRow key={index}><TableCell>{isEditing ? <Input value={item.activity} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'activity')} /> : item.activity}</TableCell><TableCell>{isEditing ? <Input value={item.date} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'date')} /> : item.date}</TableCell><TableCell>{isEditing ? <Input value={item.time} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'time')} /> : item.time}</TableCell>{isEditing && <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemoveItem('prPlan', index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>}</TableRow>))}</TableBody>
+                        </Table>
+                    </div>
+                    {/* Mobile Cards */}
+                    <div className="block sm:hidden space-y-3">
+                        {proposal.prPlan.map((item, index) => (
+                             <Card key={index} className="bg-muted/50">
+                                <CardContent className="p-3 space-y-2">
+                                    {isEditing ? (
+                                        <>
+                                            <Input value={item.activity} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'activity')} placeholder="Activity"/>
+                                            <div className="flex gap-2">
+                                                <Input value={item.date} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'date')} placeholder="Date"/>
+                                                <Input value={item.time} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'time')} placeholder="Time"/>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="font-semibold">{item.activity}</p>
+                                            <p className="text-sm text-muted-foreground">{item.date} at {item.time}</p>
+                                        </>
+                                    )}
+                                </CardContent>
+                                {isEditing && (
+                                    <CardFooter className="p-2 border-t justify-end">
+                                        <Button variant="ghost" size="sm" onClick={() => handleRemoveItem('prPlan', index)}><Trash2 className="mr-2 h-4 w-4 text-destructive"/>Remove</Button>
+                                    </CardFooter>
+                                )}
+                            </Card>
+                        ))}
+                    </div>
                    {isEditing && (<Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddItem('prPlan')}><PlusCircle className="mr-2 h-4 w-4"/>Add PR Activity</Button>)}
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader><CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/>Estimated Net Expenses (LKR)</CardTitle><CardDescription>Based on your estimate of: {originalIdea.budget}</CardDescription></CardHeader>
                 <CardContent>
-                    <Table><TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Estimated Cost</TableHead>{isEditing && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
-                        <TableBody>
-                            {proposal.estimatedExpenses.map((item, index) => (<TableRow key={index}><TableCell>{isEditing ? <Input value={item.item} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'item')} /> : item.item}</TableCell><TableCell className="text-right font-mono">{isEditing ? <Input className="text-right" value={item.cost} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'cost')} /> : item.cost}</TableCell>{isEditing && <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemoveItem('estimatedExpenses', index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>}</TableRow>))}
-                            <TableRow className="font-bold border-t-2"><TableCell>Total Estimated Cost</TableCell><TableCell className="text-right font-mono">{totalBudget.toFixed(2)}</TableCell>{isEditing && <TableCell></TableCell>}</TableRow>
-                        </TableBody>
-                   </Table>
+                    {/* Desktop Table */}
+                    <div className="hidden sm:block">
+                        <Table><TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Estimated Cost</TableHead>{isEditing && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
+                            <TableBody>
+                                {proposal.estimatedExpenses.map((item, index) => (<TableRow key={index}><TableCell>{isEditing ? <Input value={item.item} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'item')} /> : item.item}</TableCell><TableCell className="text-right font-mono">{isEditing ? <Input className="text-right" value={item.cost} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'cost')} /> : item.cost}</TableCell>{isEditing && <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemoveItem('estimatedExpenses', index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>}</TableRow>))}
+                                <TableRow className="font-bold border-t-2"><TableCell>Total Estimated Cost</TableCell><TableCell className="text-right font-mono">{totalBudget.toFixed(2)}</TableCell>{isEditing && <TableCell></TableCell>}</TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
+                    {/* Mobile Cards */}
+                    <div className="block sm:hidden space-y-3">
+                         {proposal.estimatedExpenses.map((item, index) => (
+                             <Card key={index} className="bg-muted/50">
+                                <CardContent className="p-3 space-y-2">
+                                     {isEditing ? (
+                                        <div className="flex gap-2">
+                                            <Input value={item.item} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'item')} placeholder="Item"/>
+                                            <Input value={item.cost} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'cost')} placeholder="Cost" className="text-right"/>
+                                        </div>
+                                    ) : (
+                                        <div className="flex justify-between items-center">
+                                            <p className="font-semibold">{item.item}</p>
+                                            <p className="text-sm text-muted-foreground font-mono">{item.cost}</p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                                {isEditing && (
+                                    <CardFooter className="p-2 border-t justify-end">
+                                        <Button variant="ghost" size="sm" onClick={() => handleRemoveItem('estimatedExpenses', index)}><Trash2 className="mr-2 h-4 w-4 text-destructive"/>Remove</Button>
+                                    </CardFooter>
+                                )}
+                            </Card>
+                        ))}
+                        <div className="flex justify-between items-center pt-3 border-t font-bold">
+                            <p>Total Estimated Cost</p>
+                            <p className="font-mono">{totalBudget.toFixed(2)}</p>
+                        </div>
+                    </div>
                     {isEditing && (<Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddItem('estimatedExpenses')}><PlusCircle className="mr-2 h-4 w-4"/>Add Budget Item</Button>)}
                 </CardContent>
             </Card>
@@ -395,7 +458,7 @@ export default function ViewProjectProposalPage() {
                             disabled={isSubmitting}
                         />
                     </CardContent>
-                    <CardFooter className="justify-end gap-2">
+                    <CardFooter className="justify-end gap-2 flex-wrap">
                         <Button variant="destructive" onClick={() => handleAdminAction('declined')} disabled={isSubmitting}>
                             <XCircle className="mr-2 h-4 w-4" /> Decline
                         </Button>
