@@ -1,4 +1,3 @@
-
 import type { ReactElement, ElementType } from 'react';
 
 export type UserRole = 'admin' | 'member';
@@ -62,6 +61,31 @@ export interface AttendanceRecord {
   markedLatitude?: number;
   markedLongitude?: number;
 }
+
+export interface ProjectIdea {
+    id: string; // Firestore Document ID
+    name: string;
+    goal: string;
+    targetAudience: string;
+    budget: string;
+    timeline: string;
+    // Generated Fields
+    overview?: string;
+    objectives?: { title: string; description: string }[];
+    tasks?: { task: string; responsibility: string }[];
+    resources?: string[];
+    budgetBreakdown?: { item: string; cost: string }[];
+    timelineMilestones?: { milestone: string; date: string }[];
+    risks?: { risk: string; solution: string }[];
+    successMetrics?: string[];
+    // Metadata
+    status: 'draft' | 'pending_review' | 'needs_revision' | 'approved' | 'declined';
+    authorId: string;
+    authorName: string;
+    createdAt: string; // ISO string
+    updatedAt: string; // ISO string
+}
+
 
 // This summary type is used for displaying participants on the admin event summary page.
 export interface EventParticipantSummary {

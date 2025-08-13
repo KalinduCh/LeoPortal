@@ -26,3 +26,4 @@ configDotenv({ path: path.resolve(process.cwd(), '.env') });
 
 
 import '@/ai/flows/generate-communication-flow.ts';
+import '@/ai/flows/generate-project-proposal-flow.ts';
