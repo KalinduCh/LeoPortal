@@ -46,7 +46,7 @@ const emailFormSchema = z.object({
 });
 
 type EmailFormValues = z.infer<typeof emailFormSchema>;
-type GroupFormState = { id?: string; name: string; memberIds: string[]; };
+type GroupFormState = { id?: string; name: string; memberIds: string[]; color?: string; };
 
 const SIGNATURE_TEMPLATES = {
     'none': { label: "No Signature", value: "\n\nBest Regards," },
@@ -128,6 +128,15 @@ export default function CommunicationPage() {
     const names = name.split(' ');
     if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
     return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+  };
+
+  const getTextColorForBackground = (hexColor: string): 'black' | 'white' => {
+    if (!hexColor) return 'black';
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 128) ? 'black' : 'white';
   };
 
   const handleGenerateContent = async () => {
@@ -220,9 +229,9 @@ export default function CommunicationPage() {
   // Group Management Functions
   const handleOpenGroupForm = (group?: CommunicationGroup) => {
     if (group) {
-        setSelectedGroupForEdit({ id: group.id, name: group.name, memberIds: group.memberIds });
+        setSelectedGroupForEdit({ id: group.id, name: group.name, memberIds: group.memberIds, color: group.color || '#cccccc' });
     } else {
-        setSelectedGroupForEdit({ name: '', memberIds: [] });
+        setSelectedGroupForEdit({ name: '', memberIds: [], color: '#cccccc' });
     }
     setGroupMemberSearchTerm('');
     setIsGroupFormOpen(true);
@@ -236,10 +245,10 @@ export default function CommunicationPage() {
     setIsGroupSubmitting(true);
     try {
         if (selectedGroupForEdit.id) {
-            await updateGroup(selectedGroupForEdit.id, { name: selectedGroupForEdit.name, memberIds: selectedGroupForEdit.memberIds });
+            await updateGroup(selectedGroupForEdit.id, { name: selectedGroupForEdit.name, memberIds: selectedGroupForEdit.memberIds, color: selectedGroupForEdit.color });
             toast({ title: "Group Updated" });
         } else {
-            await createGroup(selectedGroupForEdit.name, selectedGroupForEdit.memberIds);
+            await createGroup(selectedGroupForEdit.name, selectedGroupForEdit.memberIds, selectedGroupForEdit.color);
             toast({ title: "Group Created" });
         }
         fetchData();
@@ -299,11 +308,25 @@ export default function CommunicationPage() {
                       <Label>Select by Group</Label>
                       <div className="flex flex-wrap items-center gap-2 pt-2">
                         {groups.map(group => (
-                          <Button key={group.id} type="button" size="sm" variant="secondary" onClick={() => handleSelectGroup(group.memberIds)} className="bg-secondary/20 text-secondary-foreground hover:bg-secondary/30">{group.name} ({group.memberIds.length})</Button>
+                           <Button 
+                              key={group.id} 
+                              type="button" 
+                              size="sm" 
+                              variant="secondary" 
+                              onClick={() => handleSelectGroup(group.memberIds)}
+                              style={{ 
+                                  backgroundColor: group.color || 'hsl(var(--secondary))',
+                                  color: getTextColorForBackground(group.color || '#ffffff'),
+                                  borderColor: getTextColorForBackground(group.color || '#ffffff')
+                              }}
+                              className="bg-secondary/20 text-secondary-foreground hover:opacity-80"
+                            >
+                              {group.name} ({group.memberIds.length})
+                            </Button>
                         ))}
                         <Dialog open={isGroupFormOpen} onOpenChange={setIsGroupFormOpen}>
                           <DialogTrigger asChild>
-                             <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => handleOpenGroupForm()}> <PlusCircle className="mr-2 h-4 w-4"/>New Group</Button>
+                             <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => handleOpenGroupForm()}> <Settings className="mr-2 h-4 w-4"/>Manage Groups</Button>
                           </DialogTrigger>
                            <DialogContent className="sm:max-w-3xl">
                              <DialogHeader><DialogTitle>Manage Communication Groups</DialogTitle></DialogHeader>
@@ -315,9 +338,12 @@ export default function CommunicationPage() {
                                         <div className="space-y-2">
                                           {groups.map(group => (
                                             <div key={group.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30">
-                                              <div>
-                                                <p className="font-medium">{group.name}</p>
-                                                <p className="text-xs text-muted-foreground">{group.memberIds.length} member(s)</p>
+                                              <div className="flex items-center gap-2">
+                                                <div className="h-4 w-4 rounded-full" style={{backgroundColor: group.color || '#ccc'}}></div>
+                                                <div>
+                                                  <p className="font-medium">{group.name}</p>
+                                                  <p className="text-xs text-muted-foreground">{group.memberIds.length} member(s)</p>
+                                                </div>
                                               </div>
                                               <div className="flex items-center">
                                                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenGroupForm(group)}><Edit className="h-4 w-4"/></Button>
@@ -333,8 +359,11 @@ export default function CommunicationPage() {
                                   <h3 className="font-semibold">{selectedGroupForEdit?.id ? `Editing: ${selectedGroupForEdit.name}` : 'Create New Group'}</h3>
                                   {selectedGroupForEdit && (
                                     <div className="space-y-4">
-                                      <div><Label htmlFor="group-name">Group Name</Label><Input id="group-name" value={selectedGroupForEdit.name} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, name: e.target.value})} placeholder="e.g., Executive Committee"/></div>
-                                       <div><Label>Members</Label><div className="relative mt-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search members..." value={groupMemberSearchTerm} onChange={(e) => setGroupMemberSearchTerm(e.target.value)} className="pl-10"/></div>
+                                      <div className="flex items-end gap-2">
+                                        <div className="flex-grow"><Label htmlFor="group-name">Group Name</Label><Input id="group-name" value={selectedGroupForEdit.name} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, name: e.target.value})} placeholder="e.g., Executive Committee"/></div>
+                                        <div><Label htmlFor="group-color">Color</Label><Input id="group-color" type="color" value={selectedGroupForEdit.color} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, color: e.target.value})} className="h-10 p-1"/></div>
+                                      </div>
+                                      <div><Label>Members</Label><div className="relative mt-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search members..." value={groupMemberSearchTerm} onChange={(e) => setGroupMemberSearchTerm(e.target.value)} className="pl-10"/></div>
                                           <ScrollArea className="h-48 border rounded-md p-2 mt-2">
                                             {filteredGroupMembers.length > 0 ? (
                                               <div className="space-y-2">{filteredGroupMembers.map(member => (<div key={member.id} className="flex items-center space-x-3 p-2 rounded hover:bg-muted/30"><Checkbox id={`member-${member.id}`} checked={selectedGroupForEdit.memberIds.includes(member.id)} onCheckedChange={(checked) => { const newMemberIds = checked ? [...selectedGroupForEdit.memberIds, member.id] : selectedGroupForEdit.memberIds.filter(id => id !== member.id); setSelectedGroupForEdit({...selectedGroupForEdit, memberIds: newMemberIds});}}/><Avatar className="h-8 w-8"><AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold text-xs">{getInitials(member.name)}</AvatarFallback></Avatar><label htmlFor={`member-${member.id}`} className="text-sm font-medium leading-none cursor-pointer">{member.name}<p className="text-xs text-muted-foreground">{member.email}</p></label></div>))}</div>
@@ -342,7 +371,7 @@ export default function CommunicationPage() {
                                           </ScrollArea><Badge variant="secondary" className="mt-2">Selected: {selectedGroupForEdit.memberIds.length}</Badge>
                                       </div>
                                       <div className="flex justify-end gap-2">
-                                        <Button type="button" variant="outline" onClick={() => setSelectedGroupForEdit({ name: '', memberIds: [] })}>Clear</Button>
+                                        <Button type="button" variant="outline" onClick={() => setSelectedGroupForEdit({ name: '', memberIds: [], color: '#cccccc' })}>Clear</Button>
                                         <Button type="button" onClick={handleGroupFormSubmit} disabled={isGroupSubmitting || !selectedGroupForEdit?.name.trim()}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (selectedGroupForEdit?.id ? 'Save Changes' : 'Create Group')}</Button>
                                       </div>
                                     </div>
