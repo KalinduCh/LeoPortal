@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, ArrowLeft, FileText, Target, Users, DollarSign, Calendar, AlertTriangle, Shield, Handshake, Megaphone, Send, Edit, Save, XCircle, Trash2, PlusCircle, SaveIcon, MessageSquare, CheckCircle, Clock } from 'lucide-react';
+import { Loader2, ArrowLeft, FileText, Target, Users, DollarSign, Calendar, AlertTriangle, Shield, Handshake, Megaphone, Send, Edit, Save, XCircle, Trash2, PlusCircle, SaveIcon, MessageSquare, CheckCircle, Clock, Download } from 'lucide-react';
 import type { GenerateProjectProposalOutput, GenerateProjectProposalInput } from '@/ai/flows/generate-project-proposal-flow';
 import type { ProjectIdea } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function ViewProjectProposalPage() {
     const router = useRouter();
@@ -33,6 +35,7 @@ export default function ViewProjectProposalPage() {
     
     const [proposalBackup, setProposalBackup] = useState<GenerateProjectProposalOutput | null>(null);
     const [adminFeedback, setAdminFeedback] = useState('');
+    const proposalContentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const ideaId = searchParams.get('id');
@@ -110,6 +113,48 @@ export default function ViewProjectProposalPage() {
             sessionStorage.removeItem('selectedProjectIdea');
         }
     }, [searchParams, router, toast]);
+
+    const handleDownloadPdf = () => {
+        const input = proposalContentRef.current;
+        if (!input || !originalIdea) {
+            toast({
+                title: "Error",
+                description: "Could not find proposal content to download.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        toast({ title: "Generating PDF...", description: "Please wait a moment." });
+
+        html2canvas(input, { scale: 2, useCORS: true, logging: false }).then((canvas) => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+            const imgWidth = pdfWidth - 20;
+            const imgHeight = imgWidth / ratio;
+            let heightLeft = imgHeight;
+            let position = 10;
+
+            pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+            heightLeft -= (pdf.internal.pageSize.getHeight() - 20);
+
+            while (heightLeft > 0) {
+                position = -heightLeft + 10;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                heightLeft -= (pdf.internal.pageSize.getHeight() - 20);
+            }
+            pdf.save(`Project-Proposal-${originalIdea.projectName.replace(/ /g, '_')}.pdf`);
+             toast({ title: "PDF Generated", description: "Your proposal is downloading." });
+        }).catch(err => {
+             console.error("Failed to generate PDF:", err);
+             toast({ title: "PDF Generation Failed", description: "An error occurred while creating the PDF.", variant: "destructive" });
+        });
+    };
 
     const handleEdit = () => {
         setProposalBackup(JSON.parse(JSON.stringify(proposal))); // Deep copy for backup
@@ -310,24 +355,29 @@ export default function ViewProjectProposalPage() {
                     <h1 className="text-3xl font-bold font-headline mt-2 text-primary">{originalIdea.projectName}</h1>
                     {isReviewMode && <Badge variant="secondary" className="mt-1">Submitted by: {existingIdea?.authorName}</Badge>}
                 </div>
-                 {canMemberEdit && (
-                    <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
-                        {isEditing ? (
-                            <>
-                                <Button onClick={handleCancelEdit} variant="outline" className="w-full sm:w-auto"><XCircle className="mr-2 h-4 w-4" />Cancel</Button>
-                                <Button onClick={handleSaveEdits} className="w-full sm:w-auto"><Save className="mr-2 h-4 w-4" />Save Changes</Button>
-                            </>
-                        ) : (
-                            <Button onClick={handleEdit} variant="outline" className="w-full sm:w-auto" disabled={isSubmitting}><Edit className="mr-2 h-4 w-4" />Edit Proposal</Button>
-                        )}
-                         <Button onClick={handleSaveDraft} variant="secondary" className="w-full sm:w-auto" disabled={isSubmitting || isEditing}>
-                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SaveIcon className="mr-2 h-4 w-4" />} Save as Draft
-                        </Button>
-                        <Button onClick={handleSubmitForReview} className="w-full sm:w-auto" disabled={isSubmitting || isEditing}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Submit for Review
-                        </Button>
-                    </div>
-                )}
+                 <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
+                    <Button onClick={handleDownloadPdf} variant="outline" className="w-full sm:w-auto" disabled={isSubmitting || isEditing}>
+                        <Download className="mr-2 h-4 w-4" /> Download PDF
+                    </Button>
+                     {canMemberEdit && (
+                        <>
+                            {isEditing ? (
+                                <>
+                                    <Button onClick={handleCancelEdit} variant="outline" className="w-full sm:w-auto"><XCircle className="mr-2 h-4 w-4" />Cancel</Button>
+                                    <Button onClick={handleSaveEdits} className="w-full sm:w-auto"><Save className="mr-2 h-4 w-4" />Save Changes</Button>
+                                </>
+                            ) : (
+                                <Button onClick={handleEdit} variant="outline" className="w-full sm:w-auto" disabled={isSubmitting}><Edit className="mr-2 h-4 w-4" />Edit Proposal</Button>
+                            )}
+                             <Button onClick={handleSaveDraft} variant="secondary" className="w-full sm:w-auto" disabled={isSubmitting || isEditing}>
+                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SaveIcon className="mr-2 h-4 w-4" />} Save as Draft
+                            </Button>
+                            <Button onClick={handleSubmitForReview} className="w-full sm:w-auto" disabled={isSubmitting || isEditing}>
+                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Submit for Review
+                            </Button>
+                        </>
+                    )}
+                 </div>
             </div>
             
             {(existingIdea?.status === 'needs_revision' && adminFeedback) && (
@@ -340,108 +390,117 @@ export default function ViewProjectProposalPage() {
                     </CardContent>
                 </Card>
             )}
+            
+            <div ref={proposalContentRef} className="space-y-6 p-4 sm:p-6 border rounded-lg bg-card">
+                {/* Adding a title inside the downloadable area for context */}
+                <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold font-headline text-primary">{originalIdea.projectName}</h2>
+                    <p className="text-muted-foreground">Project Proposal</p>
+                    <Separator className="my-4"/>
+                </div>
 
-            <Card><CardHeader><CardTitle className="flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Project Idea</CardTitle></CardHeader><CardContent>{isEditing ? (<Textarea value={proposal.projectIdea} onChange={(e) => handleFieldChange('projectIdea', e.target.value)} className="min-h-[100px]" />) : (<p className="text-muted-foreground whitespace-pre-wrap">{proposal.projectIdea}</p>)}</CardContent></Card>
-            <Card><CardHeader><CardTitle className="flex items-center"><Target className="mr-2 h-5 w-5 text-primary"/>Proposed Action Plan</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                     <div><h4 className="font-semibold text-md mb-2">Objective</h4>{isEditing ? (<Textarea value={proposal.proposedActionPlan.objective} onChange={(e) => handleActionPlanObjectiveChange(e.target.value)} />) : (<p className="text-sm text-muted-foreground pl-4 border-l-2 border-primary whitespace-pre-wrap">{proposal.proposedActionPlan.objective}</p>)}</div>
-                    {(['preEventPlan', 'executionPlan', 'postEventPlan'] as const).map(planType => (<div key={planType}><h4 className="font-semibold text-md mb-2 capitalize">{planType.replace(/([A-Z])/g, ' $1').trim()}</h4>{isEditing ? (<EditableList section={planType} items={proposal.proposedActionPlan[planType]} planSection />) : (<ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">{(proposal.proposedActionPlan as any)[planType].map((item: string, index: number) => <li key={index}>{item}</li>)}</ul>)}</div>))}
-                </CardContent>
-            </Card>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card><CardHeader><CardTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive/80"/>Implementation Challenges</CardTitle></CardHeader><CardContent>{isEditing ? (<EditableList section="implementationChallenges" items={proposal.implementationChallenges} />) : (<ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">{proposal.implementationChallenges.map((item, index) => <li key={index}>{item}</li>)}</ul>)}</CardContent></Card>
-                <Card><CardHeader><CardTitle className="flex items-center"><Shield className="mr-2 h-5 w-5 text-green-600"/>Challenge Solutions</CardTitle></CardHeader><CardContent>{isEditing ? (<EditableList section="challengeSolutions" items={proposal.challengeSolutions} />) : (<ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">{proposal.challengeSolutions.map((item, index) => <li key={index}>{item}</li>)}</ul>)}</CardContent></Card>
-            </div>
-            <Card><CardHeader><CardTitle className="flex items-center"><Handshake className="mr-2 h-5 w-5 text-primary"/>Community Involvement</CardTitle></CardHeader><CardContent>{isEditing ? (<EditableList section="communityInvolvement" items={proposal.communityInvolvement} />) : (<ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">{proposal.communityInvolvement.map((item, index) => <li key={index}>{item}</li>)}</ul>)}</CardContent></Card>
-            <Card>
-                <CardHeader><CardTitle className="flex items-center"><Megaphone className="mr-2 h-5 w-5 text-primary"/>PR Plan</CardTitle></CardHeader>
-                <CardContent>
-                    {/* Desktop Table */}
-                    <div className="hidden sm:block">
-                        <Table><TableHeader><TableRow><TableHead>Activity</TableHead><TableHead>Date</TableHead><TableHead>Time</TableHead>{isEditing && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
-                            <TableBody>{proposal.prPlan.map((item, index) => (<TableRow key={index}><TableCell>{isEditing ? <Input value={item.activity} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'activity')} /> : item.activity}</TableCell><TableCell>{isEditing ? <Input value={item.date} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'date')} /> : item.date}</TableCell><TableCell>{isEditing ? <Input value={item.time} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'time')} /> : item.time}</TableCell>{isEditing && <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemoveItem('prPlan', index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>}</TableRow>))}</TableBody>
-                        </Table>
-                    </div>
-                    {/* Mobile Cards */}
-                    <div className="block sm:hidden space-y-3">
-                        {proposal.prPlan.map((item, index) => (
-                             <Card key={index} className="bg-muted/50">
-                                <CardContent className="p-3 space-y-2">
-                                    {isEditing ? (
-                                        <>
-                                            <Input value={item.activity} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'activity')} placeholder="Activity"/>
-                                            <div className="flex gap-2">
-                                                <Input value={item.date} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'date')} placeholder="Date"/>
-                                                <Input value={item.time} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'time')} placeholder="Time"/>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <p className="font-semibold">{item.activity}</p>
-                                            <p className="text-sm text-muted-foreground">{item.date} at {item.time}</p>
-                                        </>
-                                    )}
-                                </CardContent>
-                                {isEditing && (
-                                    <CardFooter className="p-2 border-t justify-end">
-                                        <Button variant="ghost" size="sm" onClick={() => handleRemoveItem('prPlan', index)}><Trash2 className="mr-2 h-4 w-4 text-destructive"/>Remove</Button>
-                                    </CardFooter>
-                                )}
-                            </Card>
-                        ))}
-                    </div>
-                   {isEditing && (<Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddItem('prPlan')}><PlusCircle className="mr-2 h-4 w-4"/>Add PR Activity</Button>)}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader><CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/>Estimated Net Expenses (LKR)</CardTitle><CardDescription>Based on your estimate of: {originalIdea.budget}</CardDescription></CardHeader>
-                <CardContent>
-                    {/* Desktop Table */}
-                    <div className="hidden sm:block">
-                        <Table><TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Estimated Cost</TableHead>{isEditing && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
-                            <TableBody>
-                                {proposal.estimatedExpenses.map((item, index) => (<TableRow key={index}><TableCell>{isEditing ? <Input value={item.item} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'item')} /> : item.item}</TableCell><TableCell className="text-right font-mono">{isEditing ? <Input className="text-right" value={item.cost} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'cost')} /> : item.cost}</TableCell>{isEditing && <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemoveItem('estimatedExpenses', index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>}</TableRow>))}
-                                <TableRow className="font-bold border-t-2"><TableCell>Total Estimated Cost</TableCell><TableCell className="text-right font-mono">{totalBudget.toFixed(2)}</TableCell>{isEditing && <TableCell></TableCell>}</TableRow>
-                            </TableBody>
-                        </Table>
-                    </div>
-                    {/* Mobile Cards */}
-                    <div className="block sm:hidden space-y-3">
-                         {proposal.estimatedExpenses.map((item, index) => (
-                             <Card key={index} className="bg-muted/50">
-                                <CardContent className="p-3 space-y-2">
-                                     {isEditing ? (
-                                        <div className="flex gap-2">
-                                            <Input value={item.item} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'item')} placeholder="Item"/>
-                                            <Input value={item.cost} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'cost')} placeholder="Cost" className="text-right"/>
-                                        </div>
-                                    ) : (
-                                        <div className="flex justify-between items-center">
-                                            <p className="font-semibold">{item.item}</p>
-                                            <p className="text-sm text-muted-foreground font-mono">{item.cost}</p>
-                                        </div>
-                                    )}
-                                </CardContent>
-                                {isEditing && (
-                                    <CardFooter className="p-2 border-t justify-end">
-                                        <Button variant="ghost" size="sm" onClick={() => handleRemoveItem('estimatedExpenses', index)}><Trash2 className="mr-2 h-4 w-4 text-destructive"/>Remove</Button>
-                                    </CardFooter>
-                                )}
-                            </Card>
-                        ))}
-                        <div className="flex justify-between items-center pt-3 border-t font-bold">
-                            <p>Total Estimated Cost</p>
-                            <p className="font-mono">{totalBudget.toFixed(2)}</p>
+                <Card><CardHeader><CardTitle className="flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Project Idea</CardTitle></CardHeader><CardContent>{isEditing ? (<Textarea value={proposal.projectIdea} onChange={(e) => handleFieldChange('projectIdea', e.target.value)} className="min-h-[100px]" />) : (<p className="text-muted-foreground whitespace-pre-wrap">{proposal.projectIdea}</p>)}</CardContent></Card>
+                <Card><CardHeader><CardTitle className="flex items-center"><Target className="mr-2 h-5 w-5 text-primary"/>Proposed Action Plan</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                         <div><h4 className="font-semibold text-md mb-2">Objective</h4>{isEditing ? (<Textarea value={proposal.proposedActionPlan.objective} onChange={(e) => handleActionPlanObjectiveChange(e.target.value)} />) : (<p className="text-sm text-muted-foreground pl-4 border-l-2 border-primary whitespace-pre-wrap">{proposal.proposedActionPlan.objective}</p>)}</div>
+                        {(['preEventPlan', 'executionPlan', 'postEventPlan'] as const).map(planType => (<div key={planType}><h4 className="font-semibold text-md mb-2 capitalize">{planType.replace(/([A-Z])/g, ' $1').trim()}</h4>{isEditing ? (<EditableList section={planType} items={proposal.proposedActionPlan[planType]} planSection />) : (<ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">{(proposal.proposedActionPlan as any)[planType].map((item: string, index: number) => <li key={index}>{item}</li>)}</ul>)}</div>))}
+                    </CardContent>
+                </Card>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card><CardHeader><CardTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive/80"/>Implementation Challenges</CardTitle></CardHeader><CardContent>{isEditing ? (<EditableList section="implementationChallenges" items={proposal.implementationChallenges} />) : (<ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">{proposal.implementationChallenges.map((item, index) => <li key={index}>{item}</li>)}</ul>)}</CardContent></Card>
+                    <Card><CardHeader><CardTitle className="flex items-center"><Shield className="mr-2 h-5 w-5 text-green-600"/>Challenge Solutions</CardTitle></CardHeader><CardContent>{isEditing ? (<EditableList section="challengeSolutions" items={proposal.challengeSolutions} />) : (<ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">{proposal.challengeSolutions.map((item, index) => <li key={index}>{item}</li>)}</ul>)}</CardContent></Card>
+                </div>
+                <Card><CardHeader><CardTitle className="flex items-center"><Handshake className="mr-2 h-5 w-5 text-primary"/>Community Involvement</CardTitle></CardHeader><CardContent>{isEditing ? (<EditableList section="communityInvolvement" items={proposal.communityInvolvement} />) : (<ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">{proposal.communityInvolvement.map((item, index) => <li key={index}>{item}</li>)}</ul>)}</CardContent></Card>
+                <Card>
+                    <CardHeader><CardTitle className="flex items-center"><Megaphone className="mr-2 h-5 w-5 text-primary"/>PR Plan</CardTitle></CardHeader>
+                    <CardContent>
+                        {/* Desktop Table */}
+                        <div className="hidden sm:block">
+                            <Table><TableHeader><TableRow><TableHead>Activity</TableHead><TableHead>Date</TableHead><TableHead>Time</TableHead>{isEditing && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
+                                <TableBody>{proposal.prPlan.map((item, index) => (<TableRow key={index}><TableCell>{isEditing ? <Input value={item.activity} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'activity')} /> : item.activity}</TableCell><TableCell>{isEditing ? <Input value={item.date} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'date')} /> : item.date}</TableCell><TableCell>{isEditing ? <Input value={item.time} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'time')} /> : item.time}</TableCell>{isEditing && <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemoveItem('prPlan', index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>}</TableRow>))}</TableBody>
+                            </Table>
                         </div>
-                    </div>
-                    {isEditing && (<Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddItem('estimatedExpenses')}><PlusCircle className="mr-2 h-4 w-4"/>Add Budget Item</Button>)}
-                </CardContent>
-            </Card>
-            <Card><CardHeader><CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Resource Personals</CardTitle></CardHeader>
-                <CardContent>
-                    {isEditing ? (<EditableList section="resourcePersonals" items={proposal.resourcePersonals} />) : proposal.resourcePersonals.length > 0 ? (<ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">{proposal.resourcePersonals.map((item, index) => <li key={index}>{item}</li>)}</ul>) : (<p className="text-sm text-muted-foreground italic">No specific resource personnel listed.</p>)}
-                </CardContent>
-            </Card>
+                        {/* Mobile Cards */}
+                        <div className="block sm:hidden space-y-3">
+                            {proposal.prPlan.map((item, index) => (
+                                 <Card key={index} className="bg-muted/50">
+                                    <CardContent className="p-3 space-y-2">
+                                        {isEditing ? (
+                                            <>
+                                                <Input value={item.activity} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'activity')} placeholder="Activity"/>
+                                                <div className="flex gap-2">
+                                                    <Input value={item.date} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'date')} placeholder="Date"/>
+                                                    <Input value={item.time} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'time')} placeholder="Time"/>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="font-semibold">{item.activity}</p>
+                                                <p className="text-sm text-muted-foreground">{item.date} at {item.time}</p>
+                                            </>
+                                        )}
+                                    </CardContent>
+                                    {isEditing && (
+                                        <CardFooter className="p-2 border-t justify-end">
+                                            <Button variant="ghost" size="sm" onClick={() => handleRemoveItem('prPlan', index)}><Trash2 className="mr-2 h-4 w-4 text-destructive"/>Remove</Button>
+                                        </CardFooter>
+                                    )}
+                                </Card>
+                            ))}
+                        </div>
+                       {isEditing && (<Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddItem('prPlan')}><PlusCircle className="mr-2 h-4 w-4"/>Add PR Activity</Button>)}
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/>Estimated Net Expenses (LKR)</CardTitle><CardDescription>Based on your estimate of: {originalIdea.budget}</CardDescription></CardHeader>
+                    <CardContent>
+                        {/* Desktop Table */}
+                        <div className="hidden sm:block">
+                            <Table><TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Estimated Cost</TableHead>{isEditing && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
+                                <TableBody>
+                                    {proposal.estimatedExpenses.map((item, index) => (<TableRow key={index}><TableCell>{isEditing ? <Input value={item.item} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'item')} /> : item.item}</TableCell><TableCell className="text-right font-mono">{isEditing ? <Input className="text-right" value={item.cost} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'cost')} /> : item.cost}</TableCell>{isEditing && <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemoveItem('estimatedExpenses', index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>}</TableRow>))}
+                                    <TableRow className="font-bold border-t-2"><TableCell>Total Estimated Cost</TableCell><TableCell className="text-right font-mono">{totalBudget.toFixed(2)}</TableCell>{isEditing && <TableCell></TableCell>}</TableRow>
+                                </TableBody>
+                            </Table>
+                        </div>
+                        {/* Mobile Cards */}
+                        <div className="block sm:hidden space-y-3">
+                             {proposal.estimatedExpenses.map((item, index) => (
+                                 <Card key={index} className="bg-muted/50">
+                                    <CardContent className="p-3 space-y-2">
+                                         {isEditing ? (
+                                            <div className="flex gap-2">
+                                                <Input value={item.item} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'item')} placeholder="Item"/>
+                                                <Input value={item.cost} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'cost')} placeholder="Cost" className="text-right"/>
+                                            </div>
+                                        ) : (
+                                            <div className="flex justify-between items-center">
+                                                <p className="font-semibold">{item.item}</p>
+                                                <p className="text-sm text-muted-foreground font-mono">{item.cost}</p>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                    {isEditing && (
+                                        <CardFooter className="p-2 border-t justify-end">
+                                            <Button variant="ghost" size="sm" onClick={() => handleRemoveItem('estimatedExpenses', index)}><Trash2 className="mr-2 h-4 w-4 text-destructive"/>Remove</Button>
+                                        </CardFooter>
+                                    )}
+                                </Card>
+                            ))}
+                            <div className="flex justify-between items-center pt-3 border-t font-bold">
+                                <p>Total Estimated Cost</p>
+                                <p className="font-mono">{totalBudget.toFixed(2)}</p>
+                            </div>
+                        </div>
+                        {isEditing && (<Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddItem('estimatedExpenses')}><PlusCircle className="mr-2 h-4 w-4"/>Add Budget Item</Button>)}
+                    </CardContent>
+                </Card>
+                <Card><CardHeader><CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Resource Personals</CardTitle></CardHeader>
+                    <CardContent>
+                        {isEditing ? (<EditableList section="resourcePersonals" items={proposal.resourcePersonals} />) : proposal.resourcePersonals.length > 0 ? (<ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">{proposal.resourcePersonals.map((item, index) => <li key={index}>{item}</li>)}</ul>) : (<p className="text-sm text-muted-foreground italic">No specific resource personnel listed.</p>)}
+                    </CardContent>
+                </Card>
+            </div>
 
             {isReviewMode && (
                 <Card>
