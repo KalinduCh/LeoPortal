@@ -84,6 +84,17 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) to see the result.
 
+### 5. Create Your First Admin User
+**Important**: There are no default users. You must create the first user account.
+1. Go to the **Signup Page** (`/signup`).
+2. Create your first user. This user will have the "member" role and will be in a "pending" state.
+3. Go to your **Firebase Console**.
+4. Navigate to **Firestore Database**.
+5. Find the **"users"** collection and open the document for the user you just created.
+6. Change the **`role`** field to **`admin`**.
+7. Change the **`status`** field to **`approved`**.
+8. You can now log in with this user's credentials to access the admin dashboard and manage the application.
+
 ---
 
 ## 🌐 Deployment (Netlify, Vercel, etc.)
