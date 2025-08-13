@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/members/page.tsx
 "use client";
 
@@ -27,7 +26,7 @@ import {
 import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; 
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { createUserProfile, updateUserProfile, approveUser as approveUserService, deleteUserProfile } from '@/services/userService';
+import { createUserProfile, updateUserProfile, approveUser as approveUserService, rejectUser as rejectUserService, deleteUserProfile } from '@/services/userService';
 import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -74,19 +73,21 @@ export default function MemberManagementPage() {
       const fetchedMembers: User[] = [];
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        fetchedMembers.push({
-            id: docSnap.id, 
-            name: data.name,
-            email: data.email,
-            photoUrl: data.photoUrl,
-            role: data.role,
-            status: data.status || 'approved',
-            designation: data.designation,
-            nic: data.nic,
-            dateOfBirth: data.dateOfBirth,
-            gender: data.gender,
-            mobileNumber: data.mobileNumber,
-        } as User);
+        if(data.status !== 'rejected') { // Exclude rejected users from the list
+            fetchedMembers.push({
+                id: docSnap.id, 
+                name: data.name,
+                email: data.email,
+                photoUrl: data.photoUrl,
+                role: data.role,
+                status: data.status || 'approved',
+                designation: data.designation,
+                nic: data.nic,
+                dateOfBirth: data.dateOfBirth,
+                gender: data.gender,
+                mobileNumber: data.mobileNumber,
+            } as User);
+        }
       });
       setMembers(fetchedMembers.sort((a, b) => (a.name || "").localeCompare(b.name || "")));
     } catch (error) {
@@ -188,14 +189,14 @@ export default function MemberManagementPage() {
 
   const handleReject = async (memberId: string, memberEmail?: string) => {
     if (!memberId) return;
-    if (confirm(`Are you sure you want to reject and delete the profile for ${memberEmail || 'this user'}? This action cannot be undone.`)) {
+    if (confirm(`Are you sure you want to reject the application for ${memberEmail || 'this user'}? This will send a rejection email and remove their application.`)) {
         setIsSubmitting(true);
         try {
-            await deleteUserProfile(memberId);
-            toast({ title: "User Rejected", description: "The user's pending application has been deleted."});
-            fetchMembers();
+            await rejectUserService(memberId);
+            toast({ title: "User Rejected", description: "The user's application has been rejected and will be removed."});
+            fetchMembers(); // Re-fetches list, rejected user will be gone.
         } catch (error: any) {
-            toast({ title: "Rejection Failed", description: `Could not delete user profile: ${error.message}`, variant: "destructive" });
+            toast({ title: "Rejection Failed", description: `Could not reject user: ${error.message}`, variant: "destructive" });
         }
         setIsSubmitting(false);
     }

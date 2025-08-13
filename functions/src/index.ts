@@ -1,4 +1,3 @@
-
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
@@ -100,15 +99,15 @@ const sendPushToUsers = async (
 };
 
 
-export const onUserApproved = functions.firestore
+export const onUserStatusChange = functions.firestore
   .document("users/{userId}")
   .onUpdate(async (change, context) => {
     const before = change.before.data();
     const after = change.after.data();
+    const userId = context.params.userId;
 
     // Check if status changed from 'pending' to 'approved'
     if (before.status === "pending" && after.status === "approved") {
-      const userId = context.params.userId;
       const userEmail = after.email;
       const userName = after.name || "Leo";
 
@@ -133,30 +132,29 @@ export const onUserApproved = functions.firestore
         await sendEmail(userEmail, subject, htmlBody);
       }
     }
-  });
-
-export const onUserRejected = functions.firestore
-    .document("users/{userId}")
-    .onDelete(async (snap, context) => {
-        const deletedUser = snap.data();
-        // Ensure this was a pending user being deleted (rejected)
-        if (deletedUser && deletedUser.status === "pending") {
-            const userEmail = deletedUser.email;
-            const userName = deletedUser.name || "Leo";
-            
-            const subject = "Update on Your LEO Portal Registration";
-            const htmlBody = `
-                <p>Dear ${userName},</p>
-                <p>Thank you for your interest in joining the LEO Portal.</p>
-                <p>After careful review, we regret to inform you that your registration could not be approved at this time. If you believe this is a mistake or wish to inquire further, please contact a club administrator.</p>
-                <p>We appreciate your understanding.</p>
-                <p>Sincerely,<br>Leo Club Of Athugalpura<br>LEO District 306 D9</p>
-            `;
-            if (userEmail) {
-                await sendEmail(userEmail, subject, htmlBody);
-            }
+    
+    // Check if status changed from 'pending' to 'rejected'
+    if (before.status === "pending" && after.status === "rejected") {
+        const userEmail = after.email;
+        const userName = after.name || "Leo";
+        
+        const subject = "Update on Your LEO Portal Registration";
+        const htmlBody = `
+            <p>Dear ${userName},</p>
+            <p>Thank you for your interest in joining the LEO Portal.</p>
+            <p>After careful review, we regret to inform you that your registration could not be approved at this time. If you believe this is a mistake or wish to inquire further, please contact a club administrator.</p>
+            <p>We appreciate your understanding.</p>
+            <p>Sincerely,<br>Leo Club Of Athugalpura<br>LEO District 306 D9</p>
+        `;
+        if (userEmail) {
+            await sendEmail(userEmail, subject, htmlBody);
         }
-    });
+
+        // After sending email, delete the user document
+        await db.collection("users").doc(userId).delete();
+        console.log(`Rejected user ${userId} document deleted after sending email.`);
+    }
+  });
 
 
 export const onEventCreated = functions.firestore

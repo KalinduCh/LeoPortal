@@ -76,9 +76,9 @@ export function useAuth(): AuthState {
         setFirebaseUser(fbUser);
         const userProfile = await getUserProfile(fbUser.uid);
         if (userProfile) {
-          if (userProfile.status === 'pending') {
+          if (userProfile.status === 'pending' || userProfile.status === 'rejected') {
              setUser(null);
-             // This sign out is important for pending users trying to log in
+             // This sign out is important for pending/rejected users trying to log in
              if (auth.currentUser) await firebaseSignOut(auth);
           } else {
             setUser(userProfile);
@@ -127,7 +127,7 @@ export function useAuth(): AuthState {
         return { user: null, success: false, reason: 'not_found' };
       }
 
-      if (userProfile.status === 'pending') {
+      if (userProfile.status === 'pending' || userProfile.status === 'rejected') {
         await firebaseSignOut(auth);
         return { user: null, success: false, reason: 'pending' };
       }

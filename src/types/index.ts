@@ -17,7 +17,7 @@ export interface User {
   email: string;
   photoUrl?: string;
   role: UserRole;
-  status: 'pending' | 'approved';
+  status: 'pending' | 'approved' | 'rejected';
   createdAt?: string; // ISO string of when user was created
   designation?: string;
   nic?: string;

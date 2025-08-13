@@ -8,7 +8,7 @@ export async function createUserProfile(
   email: string, 
   name: string, 
   role: UserRole = 'member',
-  status: 'pending' | 'approved' = 'pending',
+  status: 'pending' | 'approved' | 'rejected' = 'pending',
   photoUrl?: string,
   nic?: string,
   dateOfBirth?: string,
@@ -120,6 +120,11 @@ export async function updateUserProfile(uid: string, data: Partial<User>): Promi
 
 export async function approveUser(uid: string): Promise<void> {
     await updateUserProfile(uid, { status: 'approved' });
+}
+
+// New function to explicitly reject a user by changing their status
+export async function rejectUser(uid: string): Promise<void> {
+    await updateUserProfile(uid, { status: 'rejected' });
 }
 
 export async function deleteUserProfile(uid: string): Promise<void> {
