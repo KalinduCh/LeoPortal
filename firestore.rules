@@ -1,55 +1,56 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isUser(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-
+  
+    // Helper function to check if the requesting user is an admin
     function isAdmin() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'admin';
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if the user is the owner of a document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
-    // Users Collection
+    // Rules for the 'users' collection
     match /users/{userId} {
-      allow read: if isUser(userId) || isAdmin();
-      allow create: if isUser(userId) || isAdmin(); // User creates own profile, admin can create too
-      allow update: if isUser(userId) || isAdmin(); // User updates own, admin can update any
-      allow delete: if isAdmin();
+      // Admins can read/write any user profile
+      // Users can read/update their own profile
+      allow read, update: if isAdmin() || isOwner(userId);
+      // Only admins can create or delete user profiles directly
+      allow create, delete: if isAdmin();
     }
-
-    // Events Collection
+    
+    // Rules for the 'events' collection
     match /events/{eventId} {
-      allow read: if true; // Everyone can read events (for visiting Leos page)
-      allow create, update, delete: if isAdmin();
+      // Anyone can read events (e.g., for visitor page)
+      allow read: if true;
+      // Only admins can create, update, or delete events
+      allow write: if isAdmin();
+    }
+    
+    // Rules for the 'attendance' collection
+    match /attendance/{attendanceId} {
+       // Anyone can create an attendance record (for members and visitors)
+       allow create: if true;
+       // Only admins or the user who created the record can read it
+       allow read: if isAdmin() || isOwner(resource.data.userId);
+       // Writing (update/delete) is restricted to admins
+       allow write: if isAdmin();
     }
 
-    // Attendance Collection
-    match /attendance/{attendanceId} {
-      allow read: if (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid && resource.data.attendanceType == 'member'));
-      allow create: if (
-        // Visitors can mark their attendance
-        (request.resource.data.attendanceType == 'visitor' &&
-         request.resource.data.keys().hasAll(['eventId', 'status', 'visitorName', 'visitorDesignation', 'visitorClub', 'timestamp']) &&
-         !request.resource.data.keys().hasAny(['userId'])) || // Visitors should not have userId
-        // Authenticated members can mark their own attendance
-        (isSignedIn() &&
-         request.resource.data.attendanceType == 'member' &&
-         request.resource.data.userId == request.auth.uid &&
-         request.resource.data.keys().hasAll(['eventId', 'status', 'userId', 'timestamp']))
-      );
-      allow update, delete: if isAdmin();
+    // Rules for the 'projectIdeas' collection
+    match /projectIdeas/{ideaId} {
+        // A user can create a project idea if the authorId matches their own UID.
+        allow create: if request.auth != null && request.resource.data.authorId == request.auth.uid;
+        
+        // Admins can read/update any idea.
+        // The user who created the idea can also read it.
+        allow read, update: if isAdmin() || isOwner(resource.data.authorId);
+        
+        // Only admins can delete ideas.
+        allow delete: if isAdmin();
     }
   }
 }
