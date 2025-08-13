@@ -100,6 +100,7 @@ export interface ProjectIdea {
     authorName: string;
     createdAt: string; // ISO string
     updatedAt: string; // ISO string
+    adminFeedback?: string; // New field for admin comments
 }
 
 

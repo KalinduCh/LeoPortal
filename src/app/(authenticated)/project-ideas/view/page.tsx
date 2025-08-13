@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, ArrowLeft, FileText, Target, Users, DollarSign, Calendar, AlertTriangle, Shield, Handshake, Megaphone, Send, Edit, Save, XCircle, Trash2, PlusCircle, SaveIcon } from 'lucide-react';
+import { Loader2, ArrowLeft, FileText, Target, Users, DollarSign, Calendar, AlertTriangle, Shield, Handshake, Megaphone, Send, Edit, Save, XCircle, Trash2, PlusCircle, SaveIcon, MessageSquare, CheckCircle, Clock } from 'lucide-react';
 import type { GenerateProjectProposalOutput, GenerateProjectProposalInput } from '@/ai/flows/generate-project-proposal-flow';
 import type { ProjectIdea } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,6 +16,7 @@ import { createProjectIdea, updateProjectIdea, getProjectIdea } from '@/services
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 
 export default function ViewProjectProposalPage() {
     const router = useRouter();
@@ -31,6 +32,7 @@ export default function ViewProjectProposalPage() {
     const [isEditing, setIsEditing] = useState(false);
     
     const [proposalBackup, setProposalBackup] = useState<GenerateProjectProposalOutput | null>(null);
+    const [adminFeedback, setAdminFeedback] = useState('');
 
     useEffect(() => {
         const ideaId = searchParams.get('id');
@@ -39,22 +41,22 @@ export default function ViewProjectProposalPage() {
             setIsLoading(true);
             let ideaToLoad: ProjectIdea | null = null;
             
-            // First, try to load from sessionStorage if it's there. This is for a new, unsaved proposal.
             const storedIdeaStr = sessionStorage.getItem('generatedProposal');
             const originalIdeaStr = sessionStorage.getItem('originalIdea');
+            const selectedIdeaStr = sessionStorage.getItem('selectedProjectIdea');
             
             if (ideaId) {
-                // If there's an ID, we are viewing an *existing* idea. Fetch it from Firestore.
                 const fetchedIdea = await getProjectIdea(ideaId);
                 if (fetchedIdea) {
                     ideaToLoad = fetchedIdea;
+                } else if(selectedIdeaStr) {
+                    ideaToLoad = JSON.parse(selectedIdeaStr);
                 } else {
                      toast({ title: "Error", description: "Could not find the specified project idea.", variant: "destructive" });
                      router.replace('/project-ideas');
                      return;
                 }
             } else if (storedIdeaStr && originalIdeaStr) {
-                // If no ID, but there's sessionStorage data, we're viewing a *newly generated* proposal.
                  try {
                     const parsedProposal = JSON.parse(storedIdeaStr);
                     const parsedOriginal = JSON.parse(originalIdeaStr);
@@ -69,7 +71,6 @@ export default function ViewProjectProposalPage() {
                      return;
                  }
             } else {
-                // If no ID and no sessionStorage, there's nothing to show.
                 toast({ title: "No Proposal Found", description: "Please start by creating a new idea.", variant: "destructive" });
                 router.replace('/project-ideas/new');
                 return;
@@ -95,8 +96,8 @@ export default function ViewProjectProposalPage() {
                     timeline: ideaToLoad.timeline,
                     specialConsiderations: ideaToLoad.specialConsiderations,
                 });
+                setAdminFeedback(ideaToLoad.adminFeedback || '');
                 
-                // If the idea is new (from session storage), start in edit mode automatically.
                 if (!ideaId) {
                     setIsEditing(true);
                 }
@@ -105,6 +106,9 @@ export default function ViewProjectProposalPage() {
         };
         
         loadData();
+        return () => {
+            sessionStorage.removeItem('selectedProjectIdea');
+        }
     }, [searchParams, router, toast]);
 
     const handleEdit = () => {
@@ -132,11 +136,11 @@ export default function ViewProjectProposalPage() {
         const ideaData = { ...originalIdea, ...proposal, authorId: user.id, authorName: user.name };
         
         try {
-            if (existingIdea?.id) { // Updating an existing draft
+            if (existingIdea?.id) { 
                 await updateProjectIdea(existingIdea.id, { ...ideaData, status: 'draft' });
                 toast({ title: "Draft Updated!", description: "Your changes have been saved." });
                 router.push('/project-ideas');
-            } else { // Creating a new draft
+            } else {
                 const newIdeaId = await createProjectIdea({ ...ideaData, status: 'draft' });
                 toast({ title: "Draft Saved!", description: "You can find and edit it later from the Idea Hub." });
                 sessionStorage.removeItem('generatedProposal');
@@ -156,7 +160,7 @@ export default function ViewProjectProposalPage() {
         setIsSubmitting(true);
         toast({ title: "Submitting Proposal...", description: "Please wait."});
         
-        const ideaData = { ...originalIdea, ...proposal, authorId: user.id, authorName: user.name };
+        const ideaData = { ...originalIdea, ...proposal, authorId: user.id, authorName: user.name, adminFeedback: '' };
 
         try {
             if (existingIdea?.id) {
@@ -175,6 +179,20 @@ export default function ViewProjectProposalPage() {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleAdminAction = async (newStatus: 'approved' | 'needs_revision' | 'declined') => {
+        if (!existingIdea?.id) return;
+        setIsSubmitting(true);
+        try {
+            await updateProjectIdea(existingIdea.id, { status: newStatus, adminFeedback });
+            toast({ title: "Action Complete", description: `Project has been marked as "${newStatus.replace('_', ' ')}".`});
+            router.push('/admin/project-ideas');
+        } catch (error) {
+            console.error("Failed to update project status:", error);
+            toast({ title: "Update Failed", description: "Could not update the project status.", variant: "destructive" });
+        }
+        setIsSubmitting(false);
     };
     
     const handleFieldChange = (section: keyof GenerateProjectProposalOutput, value: any, index?: number, field?: string) => {
@@ -270,6 +288,7 @@ export default function ViewProjectProposalPage() {
     const isOwner = !existingIdea || user?.id === existingIdea?.authorId;
     const isReviewMode = searchParams.get('mode') === 'review' && user?.role === 'admin';
     const isDraft = !existingIdea || existingIdea.status === 'draft';
+    const canMemberEdit = isOwner && (isDraft || existingIdea?.status === 'needs_revision');
     
     const EditableList = ({ section, items, planSection }: { section: any, items: string[], planSection?: boolean }) => (
         <div className="space-y-2">
@@ -287,11 +306,11 @@ export default function ViewProjectProposalPage() {
         <div className="container mx-auto py-8 max-w-4xl space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                  <div>
-                    <Button variant="outline" size="sm" onClick={() => router.push(user?.role === 'admin' && isReviewMode ? '/admin/project-ideas' : '/project-ideas')}><ArrowLeft className="mr-2 h-4 w-4" />Back to Hub</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push(isReviewMode ? '/admin/project-ideas' : '/project-ideas')}><ArrowLeft className="mr-2 h-4 w-4" />Back to Hub</Button>
                     <h1 className="text-3xl font-bold font-headline mt-2 text-primary">{originalIdea.projectName}</h1>
-                    <p className="text-muted-foreground">{isReviewMode ? `Submitted by: ${existingIdea?.authorName}` : "AI-Generated Project Proposal"}</p>
+                    {isReviewMode && <Badge variant="secondary" className="mt-1">Submitted by: {existingIdea?.authorName}</Badge>}
                 </div>
-                 {(isDraft && isOwner) && (
+                 {canMemberEdit && (
                     <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
                         {isEditing ? (
                             <>
@@ -301,16 +320,27 @@ export default function ViewProjectProposalPage() {
                         ) : (
                             <Button onClick={handleEdit} variant="outline" className="w-full sm:w-auto" disabled={isSubmitting}><Edit className="mr-2 h-4 w-4" />Edit Proposal</Button>
                         )}
-                         <Button onClick={handleSaveDraft} variant="secondary" className="w-full sm:w-auto" disabled={isSubmitting}>
+                         <Button onClick={handleSaveDraft} variant="secondary" className="w-full sm:w-auto" disabled={isSubmitting || isEditing}>
                                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SaveIcon className="mr-2 h-4 w-4" />} Save as Draft
                         </Button>
-                        <Button onClick={handleSubmitForReview} className="w-full sm:w-auto" disabled={isSubmitting}>
+                        <Button onClick={handleSubmitForReview} className="w-full sm:w-auto" disabled={isSubmitting || isEditing}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Submit for Review
                         </Button>
                     </div>
                 )}
             </div>
             
+            {(existingIdea?.status === 'needs_revision' && adminFeedback) && (
+                <Card className="border-yellow-500/50">
+                    <CardHeader>
+                        <CardTitle className="flex items-center text-yellow-600"><MessageSquare className="mr-2 h-5 w-5"/>Admin Feedback for Revision</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground whitespace-pre-wrap">{adminFeedback}</p>
+                    </CardContent>
+                </Card>
+            )}
+
             <Card><CardHeader><CardTitle className="flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Project Idea</CardTitle></CardHeader><CardContent>{isEditing ? (<Textarea value={proposal.projectIdea} onChange={(e) => handleFieldChange('projectIdea', e.target.value)} className="min-h-[100px]" />) : (<p className="text-muted-foreground whitespace-pre-wrap">{proposal.projectIdea}</p>)}</CardContent></Card>
             <Card><CardHeader><CardTitle className="flex items-center"><Target className="mr-2 h-5 w-5 text-primary"/>Proposed Action Plan</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -349,6 +379,35 @@ export default function ViewProjectProposalPage() {
                     {isEditing ? (<EditableList section="resourcePersonals" items={proposal.resourcePersonals} />) : proposal.resourcePersonals.length > 0 ? (<ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">{proposal.resourcePersonals.map((item, index) => <li key={index}>{item}</li>)}</ul>) : (<p className="text-sm text-muted-foreground italic">No specific resource personnel listed.</p>)}
                 </CardContent>
             </Card>
+
+            {isReviewMode && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center"><MessageSquare className="mr-2 h-5 w-5 text-primary"/>Admin Feedback</CardTitle>
+                        <CardDescription>Provide comments for the member or approve the project.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Textarea 
+                            placeholder="e.g., 'Great idea! Please provide more details on the budget for refreshments.'..."
+                            value={adminFeedback}
+                            onChange={(e) => setAdminFeedback(e.target.value)}
+                            className="min-h-[120px]"
+                            disabled={isSubmitting}
+                        />
+                    </CardContent>
+                    <CardFooter className="justify-end gap-2">
+                        <Button variant="destructive" onClick={() => handleAdminAction('declined')} disabled={isSubmitting}>
+                            <XCircle className="mr-2 h-4 w-4" /> Decline
+                        </Button>
+                        <Button variant="outline" onClick={() => handleAdminAction('needs_revision')} disabled={isSubmitting || !adminFeedback}>
+                            <Clock className="mr-2 h-4 w-4" /> Request Revision
+                        </Button>
+                        <Button onClick={() => handleAdminAction('approved')} disabled={isSubmitting}>
+                            <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                        </Button>
+                    </CardFooter>
+                </Card>
+            )}
         </div>
     );
 }
