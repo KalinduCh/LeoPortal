@@ -141,4 +141,5 @@ export interface CommunicationGroup {
   name: string;
   memberIds: string[];
   createdAt: string; // ISO string
+  color?: string; // Optional: hex color code for the group button
 }

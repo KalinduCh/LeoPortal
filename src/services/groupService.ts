@@ -25,15 +25,20 @@ const docToGroup = (docSnap: any): CommunicationGroup => {
         name: data.name,
         memberIds: data.memberIds || [],
         createdAt: data.createdAt?.toDate().toISOString() || new Date().toISOString(),
+        color: data.color,
     };
 };
 
-export async function createGroup(name: string, memberIds: string[]): Promise<string> {
-  const docRef = await addDoc(groupsCollectionRef, {
+export async function createGroup(name: string, memberIds: string[], color?: string): Promise<string> {
+  const groupData: any = {
     name,
     memberIds,
     createdAt: serverTimestamp(),
-  });
+  };
+  if (color) {
+    groupData.color = color;
+  }
+  const docRef = await addDoc(groupsCollectionRef, groupData);
   return docRef.id;
 }
 
@@ -52,7 +57,7 @@ export async function getGroup(groupId: string): Promise<CommunicationGroup | nu
     return null;
 }
 
-export async function updateGroup(groupId: string, updates: Partial<{ name: string; memberIds: string[] }>): Promise<void> {
+export async function updateGroup(groupId: string, updates: Partial<{ name: string; memberIds: string[]; color: string }>): Promise<void> {
   const docRef = doc(db, 'communicationGroups', groupId);
   await updateDoc(docRef, updates);
 }
