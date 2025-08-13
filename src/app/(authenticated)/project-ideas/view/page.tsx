@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, ArrowLeft, FileText, Target, Users, DollarSign, Calendar, AlertTriangle, Shield, Handshake, Megaphone, Send, Edit, Save, XCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, FileText, Target, Users, DollarSign, Calendar, AlertTriangle, Shield, Handshake, Megaphone, Send, Edit, Save, XCircle, Trash2, PlusCircle } from 'lucide-react';
 import type { GenerateProjectProposalOutput, GenerateProjectProposalInput } from '@/ai/flows/generate-project-proposal-flow';
 import type { ProjectIdea } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -52,35 +52,85 @@ export default function ViewProjectProposalPage() {
             if (!prev) return null;
             const newProposal = { ...prev };
 
-            if (index !== undefined && field) {
+            if (index !== undefined && field) { // For tables with objects
                 if (Array.isArray((newProposal as any)[section])) {
-                    (newProposal as any)[section][index][field] = value;
+                    const newArray = [...(newProposal as any)[section]];
+                    newArray[index] = { ...newArray[index], [field]: value };
+                    (newProposal as any)[section] = newArray;
                 }
-            } else if (index !== undefined) {
+            } else if (index !== undefined) { // For simple arrays
                  if (Array.isArray((newProposal as any)[section])) {
-                    (newProposal as any)[section][index] = value;
+                    const newArray = [...(newProposal as any)[section]];
+                    newArray[index] = value;
+                    (newProposal as any)[section] = newArray;
                 }
-            } else {
+            } else { // For top-level fields
                 (newProposal as any)[section] = value;
             }
             return newProposal;
         });
     };
-
-    const handleActionPlanChange = (field: keyof GenerateProjectProposalOutput['proposedActionPlan'], value: any, index?: number) => {
+    
+    const handleActionPlanListChange = (field: keyof GenerateProjectProposalOutput['proposedActionPlan'], value: any, index: number) => {
         setProposal(prev => {
             if (!prev) return null;
-            const newProposal = { 
-                ...prev, 
-                proposedActionPlan: { ...prev.proposedActionPlan }
-            };
+            const newActionPlan = { ...prev.proposedActionPlan };
+            const newArray = [...(newActionPlan as any)[field]];
+            newArray[index] = value;
+            (newActionPlan as any)[field] = newArray;
+            return { ...prev, proposedActionPlan: newActionPlan };
+        });
+    };
 
-            if (index !== undefined) {
-                (newProposal.proposedActionPlan as any)[field][index] = value;
-            } else {
-                (newProposal.proposedActionPlan as any)[field] = value;
+    const handleActionPlanObjectiveChange = (value: string) => {
+        setProposal(prev => {
+            if (!prev) return null;
+            return { ...prev, proposedActionPlan: { ...prev.proposedActionPlan, objective: value }};
+        });
+    };
+
+    const handleAddItem = (section: keyof GenerateProjectProposalOutput | `proposedActionPlan.${keyof GenerateProjectProposalOutput['proposedActionPlan']}`) => {
+        setProposal(prev => {
+            if (!prev) return null;
+            const newProposal = { ...prev };
+
+            if (typeof section === 'string' && section.startsWith('proposedActionPlan.')) {
+                const subField = section.split('.')[1] as keyof GenerateProjectProposalOutput['proposedActionPlan'];
+                const newActionPlan = { ...newProposal.proposedActionPlan };
+                (newActionPlan as any)[subField] = [...(newActionPlan as any)[subField], ''];
+                return { ...prev, proposedActionPlan: newActionPlan };
+            }
+            
+            const targetArray = (newProposal as any)[section];
+            if (Array.isArray(targetArray)) {
+                const isObjectArray = targetArray.length > 0 && typeof targetArray[0] === 'object' && targetArray[0] !== null;
+                const newItem = isObjectArray ? { ...Object.keys(targetArray[0]).reduce((acc, key) => ({ ...acc, [key]: '' }), {}) } : '';
+                (newProposal as any)[section] = [...targetArray, newItem];
+            }
+            return newProposal;
+        });
+    };
+
+    const handleRemoveItem = (section: keyof GenerateProjectProposalOutput | `proposedActionPlan.${keyof GenerateProjectProposalOutput['proposedActionPlan']}`, index: number) => {
+         setProposal(prev => {
+            if (!prev) return null;
+            const newProposal = { ...prev };
+
+            if (typeof section === 'string' && section.startsWith('proposedActionPlan.')) {
+                const subField = section.split('.')[1] as keyof GenerateProjectProposalOutput['proposedActionPlan'];
+                const newActionPlan = { ...newProposal.proposedActionPlan };
+                const newArray = [...(newActionPlan as any)[subField]];
+                newArray.splice(index, 1);
+                (newActionPlan as any)[subField] = newArray;
+                return { ...prev, proposedActionPlan: newActionPlan };
             }
 
+            const targetArray = (newProposal as any)[section];
+            if (Array.isArray(targetArray)) {
+                const newArray = [...targetArray];
+                newArray.splice(index, 1);
+                (newProposal as any)[section] = newArray;
+            }
             return newProposal;
         });
     };
@@ -150,6 +200,25 @@ export default function ViewProjectProposalPage() {
     }
 
     const totalBudget = proposal.estimatedExpenses.reduce((acc, item) => acc + (parseFloat(item.cost) || 0), 0);
+    
+    const EditableList = ({ section, items, planSection }: { section: any, items: string[], planSection?: boolean }) => (
+        <div className="space-y-2">
+            {items.map((item, index) => (
+                <div key={index} className="flex items-center gap-2">
+                    <Input 
+                        value={item} 
+                        onChange={(e) => planSection ? handleActionPlanListChange(section, e.target.value, index) : handleFieldChange(section, e.target.value, index)} 
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(planSection ? `proposedActionPlan.${section}` : section, index)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={() => handleAddItem(planSection ? `proposedActionPlan.${section}` : section)}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+            </Button>
+        </div>
+    );
 
     return (
         <div className="container mx-auto py-8 max-w-4xl space-y-6">
@@ -196,20 +265,16 @@ export default function ViewProjectProposalPage() {
                      <div>
                         <h4 className="font-semibold text-md mb-2">Objective</h4>
                         {isEditing ? (
-                            <Textarea value={proposal.proposedActionPlan.objective} onChange={(e) => handleActionPlanChange('objective', e.target.value)} />
+                            <Textarea value={proposal.proposedActionPlan.objective} onChange={(e) => handleActionPlanObjectiveChange(e.target.value)} />
                         ) : (
                             <p className="text-sm text-muted-foreground pl-4 border-l-2 border-primary whitespace-pre-wrap">{proposal.proposedActionPlan.objective}</p>
                         )}
                     </div>
-                    {['preEventPlan', 'executionPlan', 'postEventPlan'].map(planType => (
+                    {(['preEventPlan', 'executionPlan', 'postEventPlan'] as const).map(planType => (
                          <div key={planType}>
                             <h4 className="font-semibold text-md mb-2 capitalize">{planType.replace('Plan', ' Plan')}</h4>
                              {isEditing ? (
-                                <Textarea 
-                                    value={(proposal.proposedActionPlan as any)[planType].join('\n')} 
-                                    onChange={(e) => handleActionPlanChange(planType as any, e.target.value.split('\n'))}
-                                    className="min-h-[120px]"
-                                />
+                                <EditableList section={planType} items={proposal.proposedActionPlan[planType]} planSection />
                              ) : (
                                 <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
                                     {(proposal.proposedActionPlan as any)[planType].map((item: string, index: number) => <li key={index}>{item}</li>)}
@@ -225,11 +290,7 @@ export default function ViewProjectProposalPage() {
                     <CardHeader><CardTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive/80"/>Identified Challenges</CardTitle></CardHeader>
                     <CardContent>
                        {isEditing ? (
-                           <Textarea 
-                                value={proposal.implementationChallenges.join('\n')} 
-                                onChange={(e) => handleFieldChange('implementationChallenges', e.target.value.split('\n'))}
-                                className="min-h-[100px]"
-                            />
+                           <EditableList section="implementationChallenges" items={proposal.implementationChallenges} />
                        ) : (
                            <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
                                 {proposal.implementationChallenges.map((item, index) => <li key={index}>{item}</li>)}
@@ -241,11 +302,7 @@ export default function ViewProjectProposalPage() {
                     <CardHeader><CardTitle className="flex items-center"><Shield className="mr-2 h-5 w-5 text-green-600"/>Challenge Solutions</CardTitle></CardHeader>
                     <CardContent>
                         {isEditing ? (
-                           <Textarea 
-                                value={proposal.challengeSolutions.join('\n')} 
-                                onChange={(e) => handleFieldChange('challengeSolutions', e.target.value.split('\n'))}
-                                className="min-h-[100px]"
-                            />
+                           <EditableList section="challengeSolutions" items={proposal.challengeSolutions} />
                        ) : (
                             <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
                                 {proposal.challengeSolutions.map((item, index) => <li key={index}>{item}</li>)}
@@ -259,11 +316,7 @@ export default function ViewProjectProposalPage() {
                 <CardHeader><CardTitle className="flex items-center"><Handshake className="mr-2 h-5 w-5 text-primary"/>Community Involvement</CardTitle></CardHeader>
                 <CardContent>
                     {isEditing ? (
-                           <Textarea 
-                                value={proposal.communityInvolvement.join('\n')} 
-                                onChange={(e) => handleFieldChange('communityInvolvement', e.target.value.split('\n'))}
-                                className="min-h-[100px]"
-                            />
+                           <EditableList section="communityInvolvement" items={proposal.communityInvolvement} />
                        ) : (
                         <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
                             {proposal.communityInvolvement.map((item, index) => <li key={index}>{item}</li>)}
@@ -277,16 +330,20 @@ export default function ViewProjectProposalPage() {
                 <CardContent>
                    <Table>
                         <TableHeader>
-                            <TableRow><TableHead>Activity</TableHead><TableHead>Date</TableHead><TableHead>Time</TableHead></TableRow>
+                            <TableRow><TableHead>Activity</TableHead><TableHead>Date</TableHead><TableHead>Time</TableHead>{isEditing && <TableHead className="w-12"></TableHead>}</TableRow>
                         </TableHeader>
                         <TableBody>
                             {proposal.prPlan.map((item, index) => (<TableRow key={index}>
                                 <TableCell>{isEditing ? <Input value={item.activity} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'activity')} /> : item.activity}</TableCell>
                                 <TableCell>{isEditing ? <Input value={item.date} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'date')} /> : item.date}</TableCell>
                                 <TableCell>{isEditing ? <Input value={item.time} onChange={e => handleFieldChange('prPlan', e.target.value, index, 'time')} /> : item.time}</TableCell>
+                                {isEditing && <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemoveItem('prPlan', index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>}
                             </TableRow>))}
                         </TableBody>
                    </Table>
+                   {isEditing && (
+                       <Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddItem('prPlan')}><PlusCircle className="mr-2 h-4 w-4"/>Add PR Activity</Button>
+                   )}
                 </CardContent>
             </Card>
 
@@ -297,17 +354,21 @@ export default function ViewProjectProposalPage() {
                 </CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Estimated Cost</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Estimated Cost</TableHead>{isEditing && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
                         <TableBody>
                             {proposal.estimatedExpenses.map((item, index) => (
                                 <TableRow key={index}>
                                     <TableCell>{isEditing ? <Input value={item.item} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'item')} /> : item.item}</TableCell>
                                     <TableCell className="text-right font-mono">{isEditing ? <Input className="text-right" value={item.cost} onChange={e => handleFieldChange('estimatedExpenses', e.target.value, index, 'cost')} /> : item.cost}</TableCell>
+                                    {isEditing && <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemoveItem('estimatedExpenses', index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>}
                                 </TableRow>
                             ))}
-                            <TableRow className="font-bold border-t-2"><TableCell>Total Estimated Cost</TableCell><TableCell className="text-right font-mono">{totalBudget.toFixed(2)}</TableCell></TableRow>
+                            <TableRow className="font-bold border-t-2"><TableCell>Total Estimated Cost</TableCell><TableCell className="text-right font-mono">{totalBudget.toFixed(2)}</TableCell>{isEditing && <TableCell></TableCell>}</TableRow>
                         </TableBody>
                    </Table>
+                    {isEditing && (
+                       <Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddItem('estimatedExpenses')}><PlusCircle className="mr-2 h-4 w-4"/>Add Budget Item</Button>
+                   )}
                 </CardContent>
             </Card>
 
@@ -315,11 +376,7 @@ export default function ViewProjectProposalPage() {
                 <CardHeader><CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Resource Personals</CardTitle></CardHeader>
                 <CardContent>
                     {isEditing ? (
-                        <Textarea 
-                            value={proposal.resourcePersonals.join('\n')}
-                            onChange={(e) => handleFieldChange('resourcePersonals', e.target.value.split('\n'))}
-                            className="min-h-[80px]"
-                        />
+                        <EditableList section="resourcePersonals" items={proposal.resourcePersonals} />
                     ) : proposal.resourcePersonals.length > 0 ? (
                         <ul className="list-disc list-inside text-muted-foreground space-y-1 text-sm">
                             {proposal.resourcePersonals.map((item, index) => <li key={index}>{item}</li>)}
