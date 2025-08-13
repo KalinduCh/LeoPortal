@@ -35,7 +35,6 @@ const navItems: NavItem[] = [
   { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, role: "admin" },
   { href: "/admin/reports", label: "Reports", icon: FileText, role: "admin" },
   { href: "/admin/communication", label: "Communication", icon: Mail, role: "admin" },
-  { href: "/admin/groups", label: "Groups", icon: UserPlus, role: "admin" },
 ];
 
 export function SidebarNav() {
