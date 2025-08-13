@@ -1,16 +1,18 @@
+
 // src/app/(authenticated)/admin/project-ideas/page.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { getProjectIdeas } from '@/services/projectIdeaService';
+import { getProjectIdeasForAdmin, updateProjectIdea } from '@/services/projectIdeaService';
 import type { ProjectIdea } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Lightbulb, ExternalLink } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Loader2, Lightbulb, ExternalLink, MoreHorizontal, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -27,45 +29,46 @@ export default function AdminProjectIdeasPage() {
         }
     }, [user, authLoading, router]);
 
-    useEffect(() => {
-        const fetchIdeas = async () => {
-            if (user?.role === 'admin') {
-                setIsLoading(true);
-                try {
-                    const projectIdeas = await getProjectIdeas();
-                    setIdeas(projectIdeas);
-                } catch (error) {
-                    console.error("Failed to fetch project ideas:", error);
-                    toast({
-                        title: "Error Loading Ideas",
-                        description: "Could not fetch project submissions.",
-                        variant: "destructive"
-                    });
-                }
-                setIsLoading(false);
+    const fetchIdeas = async () => {
+        if (user?.role === 'admin') {
+            setIsLoading(true);
+            try {
+                const projectIdeas = await getProjectIdeasForAdmin();
+                setIdeas(projectIdeas);
+            } catch (error) {
+                console.error("Failed to fetch project ideas:", error);
+                toast({
+                    title: "Error Loading Ideas",
+                    description: "Could not fetch project submissions.",
+                    variant: "destructive"
+                });
             }
-        };
+            setIsLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchIdeas();
     }, [user, toast]);
 
     const handleReviewIdea = (ideaId: string) => {
-        // For now, this just navigates. In the future, this will go to a detailed review page.
-        // Let's make it go to the view page for now, but it would need to be adapted for admin actions.
         const idea = ideas.find(i => i.id === ideaId);
         if (idea) {
-             sessionStorage.setItem('generatedProposal', JSON.stringify(idea));
-             sessionStorage.setItem('originalIdea', JSON.stringify({
-                projectName: idea.projectName,
-                goal: idea.goal,
-                targetAudience: idea.targetAudience,
-                budget: idea.budget,
-                timeline: idea.timeline,
-                specialConsiderations: idea.specialConsiderations,
-             }));
-             router.push('/project-ideas/view');
+             sessionStorage.setItem('selectedProjectIdea', JSON.stringify(idea));
+             router.push(`/project-ideas/view?id=${idea.id}&mode=review`);
         } else {
             toast({title: "Error", description: "Could not find idea details.", variant: "destructive"});
+        }
+    };
+    
+    const handleUpdateStatus = async (ideaId: string, status: ProjectIdea['status']) => {
+        try {
+            await updateProjectIdea(ideaId, { status });
+            toast({ title: "Status Updated", description: `Project status changed to "${status.replace(/_/g, ' ')}".`});
+            fetchIdeas(); // Re-fetch to show updated status
+        } catch (error) {
+            console.error("Failed to update status:", error);
+            toast({ title: "Error", description: "Could not update project status.", variant: "destructive" });
         }
     };
 
@@ -99,7 +102,7 @@ export default function AdminProjectIdeasPage() {
                         Submitted Proposals
                     </CardTitle>
                     <CardDescription>
-                        Showing all project ideas submitted by members, sorted by most recent.
+                        Showing all non-draft project ideas submitted by members, sorted by status and creation date.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -128,10 +131,30 @@ export default function AdminProjectIdeasPage() {
                                                     {idea.status.replace(/_/g, ' ')}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="text-right flex justify-end items-center gap-2">
                                                 <Button variant="outline" size="sm" onClick={() => handleReviewIdea(idea.id)}>
                                                     Review <ExternalLink className="ml-2 h-3 w-3" />
                                                 </Button>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                                            <span className="sr-only">Open menu</span>
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
+                                                        <DropdownMenuItem onClick={() => handleUpdateStatus(idea.id, 'approved')}>
+                                                            <CheckCircle className="mr-2 h-4 w-4 text-green-500" /> Approve
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleUpdateStatus(idea.id, 'declined')}>
+                                                            <XCircle className="mr-2 h-4 w-4 text-red-500" /> Decline
+                                                        </DropdownMenuItem>
+                                                         <DropdownMenuItem onClick={() => handleUpdateStatus(idea.id, 'needs_revision')}>
+                                                            <Clock className="mr-2 h-4 w-4 text-blue-500" /> Needs Revision
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -140,7 +163,7 @@ export default function AdminProjectIdeasPage() {
                         </div>
                     ) : (
                         <div className="text-center py-12 text-muted-foreground">
-                            <p>No project ideas have been submitted yet.</p>
+                            <p>No project ideas have been submitted for review yet.</p>
                         </div>
                     )}
                 </CardContent>

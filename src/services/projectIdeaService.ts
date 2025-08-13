@@ -10,7 +10,8 @@ import {
   Timestamp,
   doc,
   updateDoc,
-  getDoc
+  getDoc,
+  where
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import type { ProjectIdea } from '@/types';
@@ -28,7 +29,7 @@ const docToProjectIdea = (docSnap: any): ProjectIdea => {
     } as ProjectIdea;
 };
 
-// Create a new project idea
+// Create a new project idea (can be a draft or submitted directly)
 export async function createProjectIdea(ideaData: Omit<ProjectIdea, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
   const docRef = await addDoc(projectIdeasCollection, {
     ...ideaData,
@@ -38,12 +39,25 @@ export async function createProjectIdea(ideaData: Omit<ProjectIdea, 'id' | 'crea
   return docRef.id;
 }
 
-// Get all project ideas, sorted by most recent
-export async function getProjectIdeas(): Promise<ProjectIdea[]> {
-  const q = query(projectIdeasCollection, orderBy('createdAt', 'desc'));
+// Get all project ideas for admin review (not drafts)
+export async function getProjectIdeasForAdmin(): Promise<ProjectIdea[]> {
+  const q = query(projectIdeasCollection, where('status', '!=', 'draft'), orderBy('status'), orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(docToProjectIdea);
 }
+
+
+// Get all of a specific user's project ideas (drafts and submitted)
+export async function getProjectIdeasForUser(userId: string): Promise<ProjectIdea[]> {
+    const q = query(
+        projectIdeasCollection, 
+        where('authorId', '==', userId), 
+        orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docToProjectIdea);
+}
+
 
 // Get a single project idea by ID
 export async function getProjectIdea(id: string): Promise<ProjectIdea | null> {
@@ -56,7 +70,7 @@ export async function getProjectIdea(id: string): Promise<ProjectIdea | null> {
     return null;
 }
 
-// Update a project idea (e.g., to change its status)
+// Update a project idea (e.g., to change its status or content)
 export async function updateProjectIdea(id: string, updates: Partial<Omit<ProjectIdea, 'id'>>): Promise<void> {
   const docRef = doc(db, 'projectIdeas', id);
   await updateDoc(docRef, {
