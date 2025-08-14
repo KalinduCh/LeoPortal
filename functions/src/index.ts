@@ -19,15 +19,59 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+const createEmailHtml = (bodyContent: string) => {
+    return `
+      <div style="font-family: 'PT Sans', Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="padding: 25px; background-color: #f9fafb;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
+              <div style="padding: 25px;">
+                ${bodyContent}
+              </div>
+              <div style="border-top: 1px solid #e5e7eb; padding: 20px 25px; background-color: #f9fafb;">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td valign="top">
+                      <p style="margin: 0; font-weight: bold; font-size: 15px; color: #1e3a8a;">LEO CLUB OF ATHUGALPURA</p>
+                      <p style="margin: 5px 0 0 0; font-size: 12px; color: #555555;">Leo District 306 D9 | Sri Lanka</p>
+                      <p style="margin: 5px 0 0 0; font-size: 11px; color: #777777;">Leostic Year 2025/26</p>
+                      <p style="margin-top: 15px;">
+                          <a href="https://www.facebook.com/leoclubofathugalpura/" target="_blank" style="text-decoration: none; margin-right: 12px;">
+                              <img src="https://i.imgur.com/J1yVxxH.png" alt="Facebook" width="24" height="24">
+                          </a>
+                          <a href="https://www.instagram.com/athugalpuraleos/" target="_blank" style="text-decoration: none; margin-right: 12px;">
+                              <img src="https://i.imgur.com/x4p4kU7.png" alt="Instagram" width="24" height="24">
+                          </a>
+                          <a href="https://www.youtube.com/channel/UCe23x0ATwC2rIqA5RKWuF6w" target="_blank" style="text-decoration: none; margin-right: 12px;">
+                              <img src="https://i.imgur.com/3YQd8M2.png" alt="YouTube" width="24" height="24">
+                          </a>
+                          <a href="https://www.tiktok.com/@athugalpuraleos" target="_blank" style="text-decoration: none;">
+                              <img src="https://i.imgur.com/DUEsV4Q.png" alt="TikTok" width="24" height="24">
+                          </a>
+                      </p>
+                    </td>
+                    <td align="right" valign="top" style="width: 70px;">
+                      <img src="https://i.imgur.com/MP1YFNf.png" alt="Leo Club Logo" width="60" style="width: 60px; height: auto;" data-ai-hint="club logo">
+                    </td>
+                  </tr>
+                </table>
+              </div>
+          </div>
+        </div>
+      </div>
+    `;
+};
+
+
 /**
  * Sends a transactional email.
  */
-const sendEmail = async (to: string, subject: string, html: string) => {
+const sendEmail = async (to: string, subject: string, htmlBody: string) => {
+    const fullHtml = createEmailHtml(htmlBody);
     const mailOptions = {
         from: `"LEO CLUB OF ATHUGALPURA" <${GMAIL_EMAIL}>`,
         to,
         subject,
-        html,
+        html: fullHtml,
     };
 
     try {
@@ -126,7 +170,7 @@ export const onUserStatusChange = functions.firestore
         <p>Congratulations! Your membership for the LEO Portal has been approved by an administrator.</p>
         <p>You can now log in to your account to view upcoming events, track your participation, and connect with other members.</p>
         <p>Welcome to the club!</p>
-        <p>Sincerely,<br>Leo Club Of Athugalpura<br>LEO District 306 D9</p>
+        <p>Best Regards,<br>Leo Club Of Athugalpura</p>
       `;
       if (userEmail) {
         await sendEmail(userEmail, subject, htmlBody);
@@ -144,7 +188,7 @@ export const onUserStatusChange = functions.firestore
             <p>Thank you for your interest in joining the LEO Portal.</p>
             <p>After careful review, we regret to inform you that your registration could not be approved at this time. If you believe this is a mistake or wish to inquire further, please contact a club administrator.</p>
             <p>We appreciate your understanding.</p>
-            <p>Sincerely,<br>Leo Club Of Athugalpura<br>LEO District 306 D9</p>
+            <p>Best Regards,<br>Leo Club Of Athugalpura</p>
         `;
         if (userEmail) {
             await sendEmail(userEmail, subject, htmlBody);
