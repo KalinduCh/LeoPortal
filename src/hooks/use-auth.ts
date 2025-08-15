@@ -14,6 +14,7 @@ import { auth } from '@/lib/firebase/clientApp';
 import { createUserProfile, getUserProfile, updateFcmToken } from '@/services/userService';
 import type { User, UserRole } from '@/types';
 import { useToast } from './use-toast';
+import { useRouter } from 'next/navigation'; // Import useRouter
 
 export type AdminViewMode = 'admin_view' | 'member_view';
 const SUPER_ADMIN_EMAIL = "check22@gmail.com";
@@ -47,6 +48,7 @@ export function useAuth(): AuthState {
   const [adminViewMode, setAdminViewMode] = useState<AdminViewMode>('admin_view');
   const { toast } = useToast();
   const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const router = useRouter(); // Initialize router
 
   useEffect(() => {
     const storedViewMode = localStorage.getItem('adminViewMode') as AdminViewMode;
@@ -58,6 +60,7 @@ export function useAuth(): AuthState {
   const handleSetAdminViewMode = (mode: AdminViewMode) => {
     setAdminViewMode(mode);
     localStorage.setItem('adminViewMode', mode);
+    router.push('/dashboard'); // Navigate to dashboard to force re-render of layout
   };
 
   const logoutDueToInactivity = useCallback(() => {
