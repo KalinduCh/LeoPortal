@@ -1,18 +1,32 @@
+
 // src/app/(authenticated)/admin/settings/page.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import type { User } from '@/types';
-import { getAllUsers } from '@/services/userService';
+import type { User, AdminPermission } from '@/types';
+import { getAllUsers, updateUserProfile } from '@/services/userService';
 import { useToast } from '@/hooks/use-toast';
+import { produce } from 'immer';
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Shield, Users, Bell } from 'lucide-react';
+import { Loader2, Shield, Users, Bell, Save } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+
+const PERMISSION_CONFIG: { id: AdminPermission; label: string }[] = [
+    { id: 'members', label: 'Members' },
+    { id: 'events', label: 'Events' },
+    { id: 'finance', label: 'Finance' },
+    { id: 'communication', label: 'Communication' },
+    { id: 'project_ideas', label: 'Idea Review' },
+    { id: 'reports', label: 'Reports' },
+];
 
 export default function SettingsPage() {
     const { user, isLoading: authLoading } = useAuth();
@@ -21,6 +35,7 @@ export default function SettingsPage() {
     
     const [admins, setAdmins] = useState<User[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
 
     const isSuperAdmin = user?.role === 'super_admin';
 
@@ -31,21 +46,24 @@ export default function SettingsPage() {
         }
     }, [user, authLoading, router, isSuperAdmin, toast]);
 
+    const fetchAdmins = async () => {
+        setIsLoadingData(true);
+        try {
+            const allUsers = await getAllUsers();
+            const adminUsers = allUsers.filter(u => u.role === 'admin' || u.role === 'super_admin');
+            setAdmins(adminUsers);
+        } catch (err) {
+            console.error("Failed to fetch users for settings:", err);
+            toast({ title: "Error", description: "Could not load user data." });
+        }
+        setIsLoadingData(false);
+    };
+
     useEffect(() => {
         if (isSuperAdmin) {
-            setIsLoadingData(true);
-            getAllUsers()
-                .then(allUsers => {
-                    const adminUsers = allUsers.filter(u => u.role === 'admin' || u.role === 'super_admin');
-                    setAdmins(adminUsers);
-                })
-                .catch(err => {
-                    console.error("Failed to fetch users for settings:", err);
-                    toast({ title: "Error", description: "Could not load user data." });
-                })
-                .finally(() => setIsLoadingData(false));
+            fetchAdmins();
         }
-    }, [isSuperAdmin, toast]);
+    }, [isSuperAdmin]);
     
     const getInitials = (name?: string) => {
         if (!name) return "??";
@@ -54,17 +72,45 @@ export default function SettingsPage() {
         return (names[0][0] + names[names.length - 1][0]).toUpperCase();
     };
 
+    const handlePermissionChange = (adminId: string, permission: AdminPermission, value: boolean) => {
+        setAdmins(
+            produce(draft => {
+                const admin = draft.find(a => a.id === adminId);
+                if (admin) {
+                    if (!admin.permissions) {
+                        admin.permissions = {};
+                    }
+                    admin.permissions[permission] = value;
+                }
+            })
+        );
+    };
+    
+    const handleSaveChanges = async (admin: User) => {
+        if (!admin.permissions) return;
+        setIsSubmitting(admin.id);
+        try {
+            await updateUserProfile(admin.id, { permissions: admin.permissions });
+            toast({ title: "Permissions Updated", description: `Successfully updated permissions for ${admin.name}.`});
+        } catch(error: any) {
+            toast({ title: "Update Failed", description: `Could not save permissions: ${error.message}`, variant: "destructive"});
+            // Re-fetch to revert optimistic UI on failure
+            fetchAdmins();
+        } finally {
+            setIsSubmitting(null);
+        }
+    };
 
-    if (authLoading || isLoadingData || !isSuperAdmin) {
+    if (authLoading || isLoadingData) {
         return (
             <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
         );
     }
-
+    
     return (
-        <div className="container mx-auto py-8 space-y-8 max-w-4xl">
+        <div className="container mx-auto py-8 space-y-8 max-w-6xl">
             <div>
                 <h1 className="text-3xl font-bold font-headline">Portal Settings</h1>
                 <p className="text-muted-foreground">Manage roles, permissions, and system configurations.</p>
@@ -73,21 +119,22 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center text-xl"><Shield className="mr-2 h-5 w-5 text-primary"/>Admin Permissions</CardTitle>
-                    <CardDescription>Assign granular permissions to administrators for accessing different sections of the portal. Coming soon.</CardDescription>
+                    <CardDescription>Assign granular permissions to administrators for accessing different sections of the portal.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="border rounded-lg">
+                    <div className="border rounded-lg overflow-x-auto">
                          <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Administrator</TableHead>
-                                    <TableHead>Permissions</TableHead>
+                                    {PERMISSION_CONFIG.map(p => <TableHead key={p.id}>{p.label}</TableHead>)}
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {admins.map(admin => (
                                     <TableRow key={admin.id}>
-                                        <TableCell className="font-medium flex items-center gap-3">
+                                        <TableCell className="font-medium flex items-center gap-3 min-w-[200px]">
                                             <Avatar className="h-9 w-9">
                                                 <AvatarImage src={admin.photoUrl} alt={admin.name} data-ai-hint="profile avatar" />
                                                 <AvatarFallback>{getInitials(admin.name)}</AvatarFallback>
@@ -97,8 +144,36 @@ export default function SettingsPage() {
                                                 <p className="text-xs text-muted-foreground">{admin.email}</p>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-muted-foreground italic">
-                                            {admin.role === 'super_admin' ? 'Full Access' : 'Permission toggles coming soon...'}
+                                        
+                                        {PERMISSION_CONFIG.map(p => (
+                                            <TableCell key={p.id}>
+                                                {admin.role === 'super_admin' ? (
+                                                     <Switch checked={true} disabled={true} />
+                                                ) : (
+                                                    <Switch
+                                                        checked={admin.permissions?.[p.id] ?? false}
+                                                        onCheckedChange={(value) => handlePermissionChange(admin.id, p.id, value)}
+                                                        disabled={isSubmitting === admin.id}
+                                                    />
+                                                )}
+                                            </TableCell>
+                                        ))}
+                                        
+                                        <TableCell className="text-right">
+                                           {admin.role !== 'super_admin' && (
+                                                <Button 
+                                                    size="sm" 
+                                                    onClick={() => handleSaveChanges(admin)} 
+                                                    disabled={isSubmitting === admin.id}
+                                                >
+                                                    {isSubmitting === admin.id ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                                                    ) : (
+                                                        <Save className="mr-2 h-4 w-4"/>
+                                                    )}
+                                                    Save
+                                                </Button>
+                                           )}
                                         </TableCell>
                                     </TableRow>
                                 ))}

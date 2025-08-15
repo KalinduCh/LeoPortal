@@ -12,6 +12,8 @@ export interface Badge {
   icon: ElementType;
 }
 
+export type AdminPermission = 'members' | 'events' | 'finance' | 'communication' | 'project_ideas' | 'reports';
+
 export interface User {
   id: string; // This will be the Firebase Auth UID
   name: string;
@@ -29,6 +31,7 @@ export interface User {
   fcmToken?: string; // For Push Notifications
   membershipFeeStatus?: 'paid' | 'pending' | 'partial';
   membershipFeeAmountPaid?: number;
+  permissions?: Partial<Record<AdminPermission, boolean>>;
 }
 
 export interface Event {

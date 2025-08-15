@@ -1,3 +1,4 @@
+
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -11,11 +12,13 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, HandCoins, Settings } from "lucide-react"; 
+import type { AdminPermission } from "@/types";
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
+  permission?: AdminPermission; // Add permission key
 }
 
 const memberNavItems: NavItem[] = [
@@ -25,15 +28,16 @@ const memberNavItems: NavItem[] = [
 
 const adminNavItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/members", label: "Members", icon: Users },
-  { href: "/events", label: "Events", icon: CalendarDays },
-  { href: "/admin/finance", label: "Finance", icon: HandCoins },
-  { href: "/admin/communication", label: "Communication", icon: Mail },
-  { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb },
-  { href: "/admin/reports", label: "Reports", icon: FileText },
+  { href: "/members", label: "Members", icon: Users, permission: 'members' },
+  { href: "/events", label: "Events", icon: CalendarDays, permission: 'events' },
+  { href: "/admin/finance", label: "Finance", icon: HandCoins, permission: 'finance' },
+  { href: "/admin/communication", label: "Communication", icon: Mail, permission: 'communication' },
+  { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, permission: 'project_ideas' },
+  { href: "/admin/reports", label: "Reports", icon: FileText, permission: 'reports' },
 ];
 
 const superAdminNavItems: NavItem[] = [
+    // super admin has all admin items plus settings
     ...adminNavItems,
     { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
@@ -45,12 +49,20 @@ export function SidebarNav() {
   
   if (!user) return null;
 
-  let itemsToShow = memberNavItems;
-  
+  let itemsToShow: NavItem[];
+
   if (user.role === 'super_admin') {
       itemsToShow = superAdminNavItems;
   } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
-      itemsToShow = adminNavItems;
+      // Filter admin items based on user's permissions
+      itemsToShow = adminNavItems.filter(item => {
+          // If an item doesn't require a specific permission, always show it (like Dashboard)
+          if (!item.permission) return true;
+          // Otherwise, check if the user has that permission
+          return user.permissions?.[item.permission] === true;
+      });
+  } else {
+      itemsToShow = memberNavItems;
   }
 
   return (

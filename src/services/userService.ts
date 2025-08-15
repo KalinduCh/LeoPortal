@@ -30,6 +30,14 @@ export async function createUserProfile(
     photoUrl: photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
     membershipFeeStatus: 'pending',
     membershipFeeAmountPaid: 0,
+    permissions: role === 'admin' ? { // Default permissions for new admins
+        members: true,
+        events: true,
+        finance: true,
+        communication: true,
+        project_ideas: true,
+        reports: true,
+    } : {}
   };
 
   if (nic) profileData.nic = nic;
@@ -65,6 +73,7 @@ export async function getUserProfile(uid: string): Promise<User | null> {
         fcmToken: data.fcmToken, // Add fcmToken
         membershipFeeStatus: data.membershipFeeStatus || 'pending',
         membershipFeeAmountPaid: data.membershipFeeAmountPaid || 0,
+        permissions: data.permissions || {},
      };
 
      if (data.createdAt && typeof data.createdAt.toDate === 'function') {
@@ -98,6 +107,7 @@ export async function getAllUsers(): Promise<User[]> {
             fcmToken: data.fcmToken,
             membershipFeeStatus: data.membershipFeeStatus || 'pending',
             membershipFeeAmountPaid: data.membershipFeeAmountPaid || 0,
+            permissions: data.permissions || {},
         };
         if (data.createdAt && typeof data.createdAt.toDate === 'function') {
             userProfile.createdAt = (data.createdAt as Timestamp).toDate().toISOString();
