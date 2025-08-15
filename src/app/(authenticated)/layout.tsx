@@ -25,7 +25,7 @@ export default function AuthenticatedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading, isAuthOperationInProgress } = useAuth();
+  const { user, isLoading, isAuthOperationInProgress, adminViewMode } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { requestPermission, notificationPermissionStatus } = useFcm(user);
@@ -47,6 +47,21 @@ export default function AuthenticatedLayout({
       router.replace("/login");
     }
   }, [user, isLoading, isAuthOperationInProgress, router]);
+  
+  // Security check for admin pages
+  React.useEffect(() => {
+    const isAdminPage = pathname.startsWith('/admin/');
+    if (!isLoading && user && isAdminPage && user.role !== 'admin' && user.role !== 'super_admin') {
+        router.replace('/dashboard');
+    }
+    // Also check when view mode is 'member_view'
+    const isSuperOrAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+    if (!isLoading && isSuperOrAdmin && adminViewMode === 'member_view' && isAdminPage) {
+        router.replace('/dashboard');
+    }
+
+  }, [user, isLoading, pathname, router, adminViewMode]);
+
 
   if (isLoading || (!user && isAuthOperationInProgress && !pathname.startsWith('/login'))) {
     return (

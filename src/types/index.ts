@@ -1,7 +1,7 @@
 
 import type { ReactElement, ElementType } from 'react';
 
-export type UserRole = 'admin' | 'member';
+export type UserRole = 'super_admin' | 'admin' | 'member';
 
 export type BadgeId = 'club_leader' | 'top_volunteer' | 'active_leo';
 

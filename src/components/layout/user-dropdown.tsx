@@ -1,3 +1,4 @@
+
 // src/components/layout/user-dropdown.tsx
 "use client";
 
@@ -20,10 +21,12 @@ import {
   DropdownMenuPortal
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
-import { CreditCard, LogOut, User as UserIcon, Settings, LifeBuoy, Moon, Sun, Laptop } from "lucide-react";
+import { CreditCard, LogOut, User as UserIcon, Settings, LifeBuoy, Moon, Sun, Laptop, Shield, Eye } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export function UserDropdown() {
-  const { user, logout } = useAuth();
+  const { user, logout, adminViewMode, setAdminViewMode } = useAuth();
   const router = useRouter();
   const { setTheme } = useTheme();
 
@@ -39,6 +42,8 @@ export function UserDropdown() {
     if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
     return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   }
+  
+  const isSuperOrAdmin = user.role === 'super_admin' || user.role === 'admin';
 
   return (
     <DropdownMenu>
@@ -52,16 +57,40 @@ export function UserDropdown() {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-64" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none font-headline">{user.name}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>
+             <p className="text-xs leading-none text-primary font-semibold capitalize pt-1">
+              {user.role.replace('_', ' ')}
+            </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        
+        {isSuperOrAdmin && (
+          <>
+            <div 
+              className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors"
+              onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              <Label htmlFor="admin-view-switch" className="flex-grow">
+                Admin View
+              </Label>
+              <Switch
+                id="admin-view-switch"
+                checked={adminViewMode === 'admin_view'}
+                onCheckedChange={(checked) => setAdminViewMode(checked ? 'admin_view' : 'member_view')}
+              />
+            </div>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={() => router.push('/profile')}>
             <UserIcon className="mr-2 h-4 w-4" />

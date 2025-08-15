@@ -23,14 +23,16 @@ export default function AdminProjectIdeasPage() {
     const [ideas, setIdeas] = useState<ProjectIdea[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
+
     useEffect(() => {
-        if (!authLoading && (!user || user.role !== 'admin')) {
+        if (!authLoading && !isSuperOrAdmin) {
             router.replace('/dashboard');
         }
-    }, [user, authLoading, router]);
+    }, [user, authLoading, router, isSuperOrAdmin]);
 
     const fetchIdeas = async () => {
-        if (user?.role === 'admin') {
+        if (isSuperOrAdmin) {
             setIsLoading(true);
             try {
                 const projectIdeas = await getProjectIdeasForAdmin();
@@ -48,10 +50,10 @@ export default function AdminProjectIdeasPage() {
     };
 
     useEffect(() => {
-        if(user?.role === 'admin') {
+        if(isSuperOrAdmin) {
             fetchIdeas();
         }
-    }, [user]);
+    }, [isSuperOrAdmin]);
 
     const handleReviewIdea = (ideaId: string) => {
         const idea = ideas.find(i => i.id === ideaId);
@@ -84,7 +86,7 @@ export default function AdminProjectIdeasPage() {
         }
     };
 
-    if (isLoading || authLoading || !user || user.role !== 'admin') {
+    if (isLoading || authLoading || !user || !isSuperOrAdmin) {
         return (
             <div className="flex justify-center items-center h-[calc(100vh-10rem)]">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -225,5 +227,3 @@ export default function AdminProjectIdeasPage() {
         </div>
     );
 }
-
-    

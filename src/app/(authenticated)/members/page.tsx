@@ -33,7 +33,7 @@ import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/fire
 import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; 
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { createUserProfile, updateUserProfile, approveUser as approveUserService, rejectUser as rejectUserService, deleteUserProfile } from '@/services/userService';
-import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX, CreditCard } from "lucide-react";
+import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX, CreditCard, HandCoins } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { MemberEditForm, type MemberEditFormValues } from '@/components/members/member-edit-form';
@@ -72,7 +72,7 @@ export default function MemberManagementPage() {
   const rowsPerPage = 10;
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'admin')) {
+    if (!authLoading && (!user || (user.role !== 'admin' && user.role !== 'super_admin'))) {
       router.replace('/dashboard');
     }
   }, [user, authLoading, router]);
@@ -87,12 +87,16 @@ export default function MemberManagementPage() {
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
         if(data.status !== 'rejected') { // Exclude rejected users from the list
+            let role = data.role;
+            if (data.email === 'check22@gmail.com') {
+                role = 'super_admin';
+            }
             fetchedMembers.push({
                 id: docSnap.id, 
                 name: data.name,
                 email: data.email,
                 photoUrl: data.photoUrl,
-                role: data.role,
+                role: role,
                 status: data.status || 'approved',
                 designation: data.designation,
                 nic: data.nic,
@@ -113,7 +117,7 @@ export default function MemberManagementPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (user && user.role === 'admin') { 
+    if (user && (user.role === 'admin' || user.role === 'super_admin')) { 
       fetchMembers();
     }
   }, [user, fetchMembers]);
@@ -454,7 +458,6 @@ export default function MemberManagementPage() {
             membershipFeeAmountPaid: feeStatus !== 'pending' ? amountToRecord : 0,
         });
         
-        // If paid or partial, add a transaction to the finance module
         if ((feeStatus === 'paid' || feeStatus === 'partial')) {
             await addTransaction({
                 type: 'income',
@@ -482,7 +485,7 @@ export default function MemberManagementPage() {
   if (authLoading || (isLoading && !isImporting && !members.length)) { 
     return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
-  if (!user || user.role !== 'admin') { return null; }
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) { return null; }
   
   return (
     <div className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8">
@@ -558,7 +561,7 @@ export default function MemberManagementPage() {
                            {memberItem.name}
                         </TableCell>
                         <TableCell>{memberItem.email}</TableCell><TableCell className="capitalize">{memberItem.designation || 'N/A'}</TableCell>
-                        <TableCell><Badge variant={memberItem.role === 'admin' ? 'default' : 'secondary'} className={memberItem.role === 'admin' ? 'bg-primary/80' : ''}>{memberItem.role}</Badge></TableCell>
+                        <TableCell><Badge variant={memberItem.role === 'admin' || memberItem.role === 'super_admin' ? 'default' : 'secondary'} className={memberItem.role === 'admin' || memberItem.role === 'super_admin' ? 'bg-primary/80' : ''}>{memberItem.role.replace('_', ' ')}</Badge></TableCell>
                         <TableCell>
                             <Badge variant="outline" className={cn("capitalize", getFeeStatusVariant(memberItem.membershipFeeStatus))}>
                                 {memberItem.membershipFeeStatus || 'pending'}
@@ -586,7 +589,7 @@ export default function MemberManagementPage() {
                                 <p className="text-xs text-muted-foreground truncate flex items-center"><Mail className="h-3 w-3 mr-1"/> {memberItem.email}</p>
                                 <div className="mt-2 flex items-center gap-2 flex-wrap">
                                     <Badge variant="outline" className="text-xs capitalize"><Briefcase className="mr-1 h-3 w-3" /> {memberItem.designation || 'Not Set'}</Badge>
-                                    <Badge variant={memberItem.role === 'admin' ? 'default' : 'secondary'} className={`text-xs ${memberItem.role === 'admin' ? 'bg-primary/80' : ''}`}>{memberItem.role}</Badge>
+                                    <Badge variant={memberItem.role === 'admin' || memberItem.role === 'super_admin' ? 'default' : 'secondary'} className={`text-xs ${memberItem.role === 'admin' || memberItem.role === 'super_admin' ? 'bg-primary/80' : ''}`}>{memberItem.role.replace('_', ' ')}</Badge>
                                     <Badge variant="outline" className={cn("capitalize text-xs", getFeeStatusVariant(memberItem.membershipFeeStatus))}>{memberItem.membershipFeeStatus || 'pending'}</Badge>
                                 </div>
                             </div>
@@ -626,7 +629,6 @@ export default function MemberManagementPage() {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Fee Status Update Modal */}
       <Dialog open={isFeeModalOpen} onOpenChange={setIsFeeModalOpen}>
         <DialogContent>
             <DialogHeader>

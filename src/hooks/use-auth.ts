@@ -1,3 +1,4 @@
+
 // src/hooks/use-auth.ts
 "use client";
 
@@ -11,8 +12,11 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/clientApp';
 import { createUserProfile, getUserProfile, updateFcmToken } from '@/services/userService';
-import type { User } from '@/types';
+import type { User, UserRole } from '@/types';
 import { useToast } from './use-toast';
+
+export type AdminViewMode = 'admin_view' | 'member_view';
+const SUPER_ADMIN_EMAIL = "check22@gmail.com";
 
 export interface LoginResult {
   user: User | null;
@@ -25,8 +29,10 @@ interface AuthState {
   firebaseUser: FirebaseUser | null;
   isLoading: boolean;
   isAuthOperationInProgress: boolean;
+  adminViewMode: AdminViewMode;
+  setAdminViewMode: (mode: AdminViewMode) => void;
   login: (email: string, pass: string) => Promise<LoginResult>;
-  signup: (name: string, email: string, pass: string) => Promise<User | null>; // Return User or null
+  signup: (name: string, email: string, pass: string) => Promise<User | null>;
   logout: () => Promise<void>;
   performAdminAuthOperation: (asyncTask: () => Promise<void>) => Promise<void>;
   setAuthOperationInProgress: (inProgress: boolean) => void;
@@ -37,9 +43,22 @@ export function useAuth(): AuthState {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthOperationInProgress, setIsAuthOperationInProgress] = useState(false);
-  const [isSigningUp, setIsSigningUp] = useState(false); // New state to manage signup flow
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [adminViewMode, setAdminViewMode] = useState<AdminViewMode>('admin_view');
   const { toast } = useToast();
   const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const storedViewMode = localStorage.getItem('adminViewMode') as AdminViewMode;
+    if (storedViewMode) {
+      setAdminViewMode(storedViewMode);
+    }
+  }, []);
+
+  const handleSetAdminViewMode = (mode: AdminViewMode) => {
+    setAdminViewMode(mode);
+    localStorage.setItem('adminViewMode', mode);
+  };
 
   const logoutDueToInactivity = useCallback(() => {
     firebaseSignOut(auth);
@@ -57,7 +76,7 @@ export function useAuth(): AuthState {
     }
     
     if (user) {
-        const timeoutDuration = user.role === 'admin'
+        const timeoutDuration = user.role === 'admin' || user.role === 'super_admin'
             ? 30 * 60 * 1000 // 30 minutes for admins
             : 20 * 60 * 1000; // 20 minutes for members
 
@@ -67,25 +86,25 @@ export function useAuth(): AuthState {
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      // Guard clause: If a signup is in progress, don't run the listener logic.
-      // The signup function will handle the state changes, including signing out.
       if (isSigningUp) return;
 
       setIsLoading(true);
       if (fbUser) {
         setFirebaseUser(fbUser);
-        const userProfile = await getUserProfile(fbUser.uid);
+        let userProfile = await getUserProfile(fbUser.uid);
         if (userProfile) {
+          // SUPER_ADMIN logic override
+          if (userProfile.email === SUPER_ADMIN_EMAIL && userProfile.role !== 'super_admin') {
+            userProfile.role = 'super_admin';
+          }
+
           if (userProfile.status === 'pending' || userProfile.status === 'rejected') {
              setUser(null);
-             // This sign out is important for pending/rejected users trying to log in
              if (auth.currentUser) await firebaseSignOut(auth);
           } else {
             setUser(userProfile);
           }
         } else {
-           // If a user exists in Auth but not in Firestore (e.g., race condition, or deleted profile)
-           // sign them out to prevent a broken state.
            setUser(null);
            if (auth.currentUser) await firebaseSignOut(auth);
         }
@@ -98,7 +117,7 @@ export function useAuth(): AuthState {
     });
 
     return () => unsubscribe();
-  }, [isSigningUp]); // Add isSigningUp to dependency array
+  }, [isSigningUp]);
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -120,11 +139,16 @@ export function useAuth(): AuthState {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const fbUser = userCredential.user;
-      const userProfile = await getUserProfile(fbUser.uid);
+      let userProfile = await getUserProfile(fbUser.uid);
 
       if (!userProfile) {
         await firebaseSignOut(auth);
         return { user: null, success: false, reason: 'not_found' };
+      }
+      
+      // SUPER_ADMIN logic override
+      if (userProfile.email === SUPER_ADMIN_EMAIL && userProfile.role !== 'super_admin') {
+        userProfile.role = 'super_admin';
       }
 
       if (userProfile.status === 'pending' || userProfile.status === 'rejected') {
@@ -144,32 +168,26 @@ export function useAuth(): AuthState {
   }, []);
 
   const signup = useCallback(async (name: string, email: string, pass: string): Promise<User | null> => {
-    setIsSigningUp(true); // Start of the signup critical section
+    setIsSigningUp(true);
     try {
-      // Step 1: Create the user in Firebase Auth. This auto-signs them in,
-      // which is why we need the `isSigningUp` flag to pause the listener.
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       const fbUser = userCredential.user;
       
-      // Step 2: Create the user profile in Firestore with 'pending' status
       await createUserProfile(fbUser.uid, email, name, 'member', 'pending');
       const newUserProfile = await getUserProfile(fbUser.uid);
 
-      // Step 3: Immediately sign the user out to enforce the pending status.
       await firebaseSignOut(auth);
       
-      // Step 4: Return the newly created profile for the success message.
       return newUserProfile;
 
     } catch (error: any) {
       console.error("Firebase signup error:", error.message);
-      // Ensure user is signed out even if profile creation fails.
       if (auth.currentUser) {
           await firebaseSignOut(auth);
       }
       return null;
     } finally {
-        setIsSigningUp(false); // End of the signup critical section
+        setIsSigningUp(false);
     }
   }, []);
 
@@ -209,5 +227,5 @@ export function useAuth(): AuthState {
     }
   }, []);
 
-  return { user, firebaseUser, isLoading, isAuthOperationInProgress, login, signup, logout, performAdminAuthOperation, setAuthOperationInProgress: setIsAuthOperationInProgress };
+  return { user, firebaseUser, isLoading, isAuthOperationInProgress, login, signup, logout, performAdminAuthOperation, setAuthOperationInProgress: setIsAuthOperationInProgress, adminViewMode, setAdminViewMode: handleSetAdminViewMode };
 }

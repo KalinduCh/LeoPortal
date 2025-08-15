@@ -1,3 +1,4 @@
+
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -16,38 +17,36 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  role?: "admin" | "member" | "all";
-  adminOnly?: boolean; // Hide from admins if they have a replacement
 }
 
-
-const mainNavItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, role: "all" },
-  { href: "/project-ideas", label: "Project Ideas", icon: Lightbulb, role: "all" },
+const memberNavItems: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/project-ideas", label: "Project Ideas", icon: Lightbulb },
 ];
 
 const adminNavItems: NavItem[] = [
-  { href: "/members", label: "Member Management", icon: Users, role: "admin" },
-  { href: "/events", label: "Event Management", icon: CalendarDays, role: "admin" },
-  { href: "/admin/finance", label: "Finance", icon: HandCoins, role: "admin" },
-  { href: "/admin/communication", label: "Communication", icon: Mail, role: "admin" },
-  { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, role: "admin" },
-  { href: "/admin/reports", label: "Reports", icon: FileText, role: "admin" },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/members", label: "Members", icon: Users },
+  { href: "/events", label: "Events", icon: CalendarDays },
+  { href: "/admin/finance", label: "Finance", icon: HandCoins },
+  { href: "/admin/communication", label: "Communication", icon: Mail },
+  { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb },
+  { href: "/admin/reports", label: "Reports", icon: FileText },
 ];
 
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, adminViewMode } = useAuth();
   
   if (!user) return null;
 
-  const renderNavItems = (items: NavItem[]) => {
-      return items.filter(item => {
-          if(user.role === 'admin') return true; // Admins see all admin items
-          if(user.role === 'member' && item.role !== 'admin') return true;
-          return false;
-      }).map((item) => (
+  const isSuperOrAdmin = user.role === 'super_admin' || user.role === 'admin';
+  const itemsToShow = isSuperOrAdmin && adminViewMode === 'admin_view' ? adminNavItems : memberNavItems;
+
+  return (
+    <SidebarMenu>
+      {itemsToShow.map((item) => (
         <SidebarMenuItem key={item.href}>
           <SidebarMenuButton
             asChild
@@ -60,13 +59,7 @@ export function SidebarNav() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-      ));
-  }
-
-  return (
-    <SidebarMenu>
-      {renderNavItems(mainNavItems.filter(item => user.role === 'member' || (user.role === 'admin' && item.href !== '/project-ideas')))}
-      {user.role === 'admin' && renderNavItems(adminNavItems)}
+      ))}
     </SidebarMenu>
   );
 }

@@ -25,12 +25,13 @@ import {
 } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
 import type { UserRole } from '@/types';
+import { useAuth } from '@/hooks/use-auth';
 
 const memberAddFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-  role: z.enum(['member', 'admin'], { required_error: "Role is required." }),
+  role: z.enum(['member', 'admin', 'super_admin'], { required_error: "Role is required." }),
   designation: z.string().min(2, { message: "Designation is required." }),
 });
 
@@ -43,6 +44,7 @@ interface MemberAddFormProps {
 }
 
 export function MemberAddForm({ onSubmit, onCancel, isLoading }: MemberAddFormProps) {
+  const { user } = useAuth();
   const form = useForm<MemberAddFormValues>({
     resolver: zodResolver(memberAddFormSchema),
     defaultValues: {
@@ -57,6 +59,8 @@ export function MemberAddForm({ onSubmit, onCancel, isLoading }: MemberAddFormPr
   const handleFormSubmit = async (values: MemberAddFormValues) => {
     await onSubmit(values);
   };
+  
+  const isSuperAdmin = user?.role === 'super_admin';
 
   return (
     <Form {...form}>
@@ -123,7 +127,7 @@ export function MemberAddForm({ onSubmit, onCancel, isLoading }: MemberAddFormPr
           render={({ field }) => (
             <FormItem>
               <FormLabel>Role</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isSuperAdmin}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a role" />
@@ -134,6 +138,7 @@ export function MemberAddForm({ onSubmit, onCancel, isLoading }: MemberAddFormPr
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
+               {!isSuperAdmin && <FormMessage>Only a Super Admin can change roles.</FormMessage>}
               <FormMessage />
             </FormItem>
           )}
