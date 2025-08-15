@@ -20,7 +20,7 @@ import {
   DropdownMenuPortal
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
-import { CreditCard, LogOut, User as UserIcon, Settings, LifeBuoy, Moon, Sun, Laptop, DollarSign } from "lucide-react";
+import { CreditCard, LogOut, User as UserIcon, Settings, LifeBuoy, Moon, Sun, Laptop } from "lucide-react";
 
 export function UserDropdown() {
   const { user, logout } = useAuth();
@@ -67,22 +67,6 @@ export function UserDropdown() {
             <UserIcon className="mr-2 h-4 w-4" />
             <span>Profile</span>
           </DropdownMenuItem>
-          {user.role === 'admin' && (
-             <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                </DropdownMenuSubTrigger>
-                 <DropdownMenuPortal>
-                    <DropdownMenuSubContent>
-                        <DropdownMenuItem onClick={() => router.push('/admin/finance')}>
-                            <DollarSign className="mr-2 h-4 w-4" />
-                            <span>Finance</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                 </DropdownMenuPortal>
-             </DropdownMenuSub>
-          )}
            <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Sun className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
