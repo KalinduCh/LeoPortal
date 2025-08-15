@@ -9,13 +9,8 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, Settings, DollarSign, ChevronDown } from "lucide-react"; 
+import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, DollarSign } from "lucide-react"; 
 
 interface NavItem {
   href: string;
@@ -25,12 +20,6 @@ interface NavItem {
   adminOnly?: boolean; // Hide from admins if they have a replacement
 }
 
-interface NavGroup {
-    label: string;
-    icon: React.ElementType;
-    role: "admin" | "member";
-    items: NavItem[];
-}
 
 const mainNavItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, role: "all" },
@@ -43,31 +32,14 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, role: "admin" },
   { href: "/admin/reports", label: "Reports", icon: FileText, role: "admin" },
   { href: "/admin/communication", label: "Communication", icon: Mail, role: "admin" },
+  { href: "/admin/finance", label: "Finance", icon: DollarSign, role: "admin" },
 ];
-
-const settingsGroup: NavGroup = {
-    label: "Settings",
-    icon: Settings,
-    role: "admin",
-    items: [
-        { href: "/admin/finance", label: "Finance", icon: DollarSign, role: "admin" },
-    ]
-}
 
 
 export function SidebarNav() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   
-  React.useEffect(() => {
-    // Open the settings group if the current path is inside it
-    if (settingsGroup.items.some(item => pathname.startsWith(item.href))) {
-      setIsSettingsOpen(true);
-    }
-  }, [pathname]);
-
-
   if (!user) return null;
 
   const renderNavItems = (items: NavItem[]) => {
@@ -91,44 +63,10 @@ export function SidebarNav() {
       ));
   }
 
-  const renderGroup = (group: NavGroup) => {
-    const isGroupActive = group.items.some(item => pathname.startsWith(item.href));
-    return (
-        <SidebarMenuItem>
-            <SidebarMenuButton
-                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                isActive={isGroupActive}
-                className="justify-between"
-            >
-                <div className="flex items-center gap-2">
-                    <group.icon />
-                    <span>{group.label}</span>
-                </div>
-                <ChevronDown className={`transition-transform duration-200 ${isSettingsOpen ? 'rotate-180' : ''}`} />
-            </SidebarMenuButton>
-            {isSettingsOpen && (
-                <SidebarMenuSub>
-                    {group.items.map(item => (
-                        <SidebarMenuSubItem key={item.href}>
-                            <SidebarMenuSubButton asChild isActive={pathname.startsWith(item.href)}>
-                                <Link href={item.href}>
-                                    <item.icon />
-                                    <span>{item.label}</span>
-                                </Link>
-                            </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                    ))}
-                </SidebarMenuSub>
-            )}
-        </SidebarMenuItem>
-    );
-  }
-
   return (
     <SidebarMenu>
       {renderNavItems(mainNavItems.filter(item => user.role === 'member' || (user.role === 'admin' && item.href !== '/project-ideas')))}
       {user.role === 'admin' && renderNavItems(adminNavItems)}
-      {user.role === 'admin' && renderGroup(settingsGroup)}
     </SidebarMenu>
   );
 }
