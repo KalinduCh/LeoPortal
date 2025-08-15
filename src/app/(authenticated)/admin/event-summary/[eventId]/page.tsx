@@ -4,15 +4,15 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { Event, User, AttendanceRecord, EventParticipantSummary } from '@/types';
-import { getEvent } from '@/services/eventService';
+import type { Event, User, AttendanceRecord, EventParticipantSummary, BudgetItem } from '@/types';
+import { getEvent, updateEvent } from '@/services/eventService';
 import { getAttendanceRecordsForEvent } from '@/services/attendanceService';
 import { getUserProfile } from '@/services/userService'; 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, Info, Users, Download, ArrowLeft, Mail, Star, MessageSquare, ClipboardCopy } from 'lucide-react';
+import { Loader2, CalendarDays, MapPin, Info, Users, Download, ArrowLeft, Mail, Star, MessageSquare, ClipboardCopy, DollarSign, PlusCircle, Trash2 } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -22,6 +22,65 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+
+const BudgetTable = ({ title, items, onAddItem, onRemoveItem, onUpdateItem, isEditable }: { title: string, items: BudgetItem[], onAddItem?: () => void, onRemoveItem?: (index: number) => void, onUpdateItem?: (index: number, field: 'item' | 'amount', value: any) => void, isEditable?: boolean }) => {
+    const total = items.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+    return (
+        <div>
+            <h4 className="font-semibold mb-2">{title}</h4>
+            <div className="border rounded-md">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Item</TableHead>
+                            <TableHead className="text-right">Amount (LKR)</TableHead>
+                            {isEditable && <TableHead className="w-12"></TableHead>}
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {items.map((item, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    {isEditable ? (
+                                        <Input value={item.item} onChange={(e) => onUpdateItem?.(index, 'item', e.target.value)} />
+                                    ) : (
+                                        item.item
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    {isEditable ? (
+                                        <Input type="number" value={item.amount} className="text-right" onChange={(e) => onUpdateItem?.(index, 'amount', e.target.value)} />
+                                    ) : (
+                                        Number(item.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                    )}
+                                </TableCell>
+                                 {isEditable && (
+                                    <TableCell>
+                                        <Button variant="ghost" size="icon" onClick={() => onRemoveItem?.(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                    </TableCell>
+                                )}
+                            </TableRow>
+                        ))}
+                         {items.length === 0 && !isEditable && (
+                            <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No items budgeted.</TableCell></TableRow>
+                        )}
+                    </TableBody>
+                    <TableFooter>
+                        <TableRow className="bg-muted/50 font-bold">
+                            <TableCell>Total</TableCell>
+                            <TableCell className="text-right">{total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            {isEditable && <TableCell></TableCell>}
+                        </TableRow>
+                    </TableFooter>
+                </Table>
+            </div>
+            {isEditable && <Button size="sm" variant="outline" className="mt-2" onClick={onAddItem}><PlusCircle className="mr-2 h-4 w-4" /> Add Item</Button>}
+        </div>
+    );
+};
+
 
 export default function EventSummaryPage() {
   const params = useParams();
@@ -33,6 +92,10 @@ export default function EventSummaryPage() {
   const [participantsSummary, setParticipantsSummary] = useState<EventParticipantSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [budgetState, setBudgetState] = useState(event?.budget);
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
+
 
   const componentRef = useRef<HTMLDivElement>(null);
 
@@ -45,7 +108,6 @@ export default function EventSummaryPage() {
     const input = componentRef.current;
     const pdfFileName = `Event-Summary-${event.name.replace(/ /g, '_')}.pdf`;
 
-    // --- Style manipulation for consistent PDF output ---
     const elementsToHide = Array.from(input.querySelectorAll('.print-hide')) as HTMLElement[];
     const scrollArea = input.querySelector('.print-scroll') as HTMLElement;
     const mobileView = input.querySelector('.participant-mobile-view') as HTMLElement;
@@ -65,7 +127,6 @@ export default function EventSummaryPage() {
         }
     };
     
-    // Apply styles for PDF generation: always show desktop table, hide mobile cards
     elementsToHide.forEach(el => saveAndSetStyle(el, 'none'));
     saveAndSetStyle(mobileView, 'none');
     saveAndSetStyle(desktopView, 'block');
@@ -106,7 +167,6 @@ export default function EventSummaryPage() {
       toast({ title: "PDF Generation Failed", variant: "destructive" });
     })
     .finally(() => {
-        // Restore all original styles
         originalStyles.forEach(s => s.el.style.display = s.display);
         if (scrollArea) {
           scrollArea.style.maxHeight = originalScrollStyles.maxHeight || '';
@@ -181,6 +241,7 @@ export default function EventSummaryPage() {
         return;
       }
       setEvent(fetchedEvent);
+      setBudgetState(fetchedEvent.budget);
 
       const attendanceRecords: AttendanceRecord[] = await getAttendanceRecordsForEvent(eventId);
       const summaries: EventParticipantSummary[] = [];
@@ -265,6 +326,56 @@ export default function EventSummaryPage() {
       toast({ title: "Copy Failed", description: "Could not copy to clipboard. Check browser permissions.", variant: "destructive" });
     });
   };
+
+  const handleUpdateBudgetItem = (type: 'actualIncome' | 'actualExpenses', index: number, field: 'item' | 'amount', value: any) => {
+    setBudgetState(prev => {
+        if (!prev) return prev;
+        const newBudget = { ...prev };
+        const newItems = [...(newBudget[type] || [])];
+        newItems[index] = { ...newItems[index], [field]: value };
+        newBudget[type] = newItems;
+        return newBudget;
+    });
+  };
+
+  const handleAddBudgetItem = (type: 'actualIncome' | 'actualExpenses') => {
+      setBudgetState(prev => {
+          const newBudget = prev ? { ...prev } : { estimatedIncome: [], estimatedExpenses: [], actualIncome: [], actualExpenses: [] };
+          const newItems = [...(newBudget[type] || [])];
+          newItems.push({ item: '', amount: 0 });
+          newBudget[type] = newItems;
+          return newBudget;
+      });
+  };
+
+  const handleRemoveBudgetItem = (type: 'actualIncome' | 'actualExpenses', index: number) => {
+      setBudgetState(prev => {
+          if (!prev) return prev;
+          const newBudget = { ...prev };
+          const newItems = [...(newBudget[type] || [])];
+          newItems.splice(index, 1);
+          newBudget[type] = newItems;
+          return newBudget;
+      });
+  };
+
+  const handleSaveBudget = async () => {
+      if (!event || !budgetState) return;
+      setIsSavingBudget(true);
+      try {
+          const updatedEventData = { ...event, budget: budgetState };
+          // This service call needs to be created or adapted
+          await updateEvent(event.id, updatedEventData as any); // Casting because updateEvent expects form values
+          setEvent(updatedEventData);
+          setIsEditingBudget(false);
+          toast({ title: 'Budget Updated', description: 'Actual income and expenses have been saved.' });
+      } catch (error: any) {
+          toast({ title: 'Save Failed', description: `Could not save budget: ${error.message}`, variant: 'destructive' });
+      } finally {
+          setIsSavingBudget(false);
+      }
+  };
+
 
   if (isLoading) {
     return (
@@ -359,6 +470,50 @@ export default function EventSummaryPage() {
             </div>
           </CardContent>
         </Card>
+
+        {event.budget && (
+           <Card className="shadow-none border-0 sm:border sm:shadow-sm">
+              <CardHeader>
+                <div className="flex justify-between items-center print-hide">
+                    <CardTitle className="text-lg sm:text-xl font-semibold text-primary flex items-center">
+                        <DollarSign className="mr-2 h-5 w-5" /> Event Budget & Financials
+                    </CardTitle>
+                    {isEditingBudget ? (
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => { setIsEditingBudget(false); setBudgetState(event.budget); }}>Cancel</Button>
+                            <Button size="sm" onClick={handleSaveBudget} disabled={isSavingBudget}>
+                                {isSavingBudget && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Save Actuals
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button variant="outline" size="sm" onClick={() => setIsEditingBudget(true)}>Edit Actuals</Button>
+                    )}
+                </div>
+                 <div className="hidden print-show text-lg sm:text-xl font-semibold text-primary">Event Budget & Financials</div>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
+                 <BudgetTable title="Estimated Income" items={event.budget.estimatedIncome || []} />
+                 <BudgetTable title="Estimated Expenses" items={event.budget.estimatedExpenses || []} />
+                 <BudgetTable 
+                    title="Actual Income" 
+                    items={budgetState?.actualIncome || []}
+                    isEditable={isEditingBudget}
+                    onAddItem={() => handleAddBudgetItem('actualIncome')}
+                    onRemoveItem={(index) => handleRemoveBudgetItem('actualIncome', index)}
+                    onUpdateItem={(index, field, value) => handleUpdateBudgetItem('actualIncome', index, field, value)}
+                 />
+                 <BudgetTable
+                    title="Actual Expenses"
+                    items={budgetState?.actualExpenses || []}
+                    isEditable={isEditingBudget}
+                    onAddItem={() => handleAddBudgetItem('actualExpenses')}
+                    onRemoveItem={(index) => handleRemoveBudgetItem('actualExpenses', index)}
+                    onUpdateItem={(index, field, value) => handleUpdateBudgetItem('actualExpenses', index, field, value)}
+                 />
+              </CardContent>
+            </Card>
+        )}
 
         <Card className="shadow-none border-0 sm:border sm:shadow-sm">
           <CardHeader>

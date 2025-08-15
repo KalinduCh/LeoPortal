@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -22,9 +22,15 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO, isValid } from 'date-fns';
-import { CalendarIcon, Loader2, MapPin } from 'lucide-react';
+import { CalendarIcon, Loader2, MapPin, DollarSign, PlusCircle, Trash2 } from 'lucide-react';
 import type { Event } from '@/types';
 import { cn } from '@/lib/utils';
+import { Separator } from '../ui/separator';
+
+const budgetItemSchema = z.object({
+  item: z.string().min(1, 'Item name is required.'),
+  amount: z.coerce.number().min(0, 'Amount cannot be negative.'),
+});
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: "Event name must be at least 3 characters." }),
@@ -35,6 +41,10 @@ const eventFormSchema = z.object({
   enableGeoRestriction: z.boolean().optional(),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
+  budget: z.object({
+    estimatedIncome: z.array(budgetItemSchema).optional(),
+    estimatedExpenses: z.array(budgetItemSchema).optional(),
+  }).optional(),
 }).refine(data => {
   if (data.endDate) {
     return data.endDate > data.startDate;
@@ -127,6 +137,43 @@ const DateTimePicker = ({ field, label }: { field: any, label: string }) => {
     );
 };
 
+const BudgetSection = ({ control, name, label }: { control: any, name: "budget.estimatedIncome" | "budget.estimatedExpenses", label: string }) => {
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name,
+    });
+
+    const total = fields.reduce((acc, field) => acc + (field.amount || 0), 0);
+
+    return (
+        <div className="space-y-3 rounded-md border p-4">
+            <h4 className="font-medium">{label}</h4>
+            {fields.map((field, index) => (
+                <div key={field.id} className="flex items-center gap-2">
+                    <FormField
+                        control={control}
+                        name={`${name}.${index}.item`}
+                        render={({ field }) => <Input placeholder="Item Name" {...field} />}
+                    />
+                    <FormField
+                        control={control}
+                        name={`${name}.${index}.amount`}
+                        render={({ field }) => <Input type="number" placeholder="Amount (LKR)" {...field} />}
+                    />
+                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => append({ item: '', amount: 0 })}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+            </Button>
+            <Separator />
+            <div className="flex justify-end font-semibold">
+                Total: LKR {total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+        </div>
+    );
+};
+
 
 export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormProps) {
   const form = useForm<EventFormValues>({
@@ -140,6 +187,10 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
       enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
       latitude: event?.latitude,
       longitude: event?.longitude,
+      budget: {
+          estimatedIncome: event?.budget?.estimatedIncome || [],
+          estimatedExpenses: event?.budget?.estimatedExpenses || [],
+      }
     },
   });
 
@@ -153,6 +204,10 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
         enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
         latitude: event?.latitude,
         longitude: event?.longitude,
+        budget: {
+          estimatedIncome: event?.budget?.estimatedIncome || [],
+          estimatedExpenses: event?.budget?.estimatedExpenses || [],
+        }
     });
   }, [event, form]);
 
@@ -288,6 +343,15 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
             </FormItem>
           )}
         />
+
+        <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center"><DollarSign className="mr-2 h-5 w-5"/>Event Budget Planning</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <BudgetSection control={form.control} name="budget.estimatedIncome" label="Estimated Income" />
+                <BudgetSection control={form.control} name="budget.estimatedExpenses" label="Estimated Expenses" />
+            </div>
+        </div>
+
 
         <div className="flex justify-end space-x-3 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>

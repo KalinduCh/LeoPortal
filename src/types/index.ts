@@ -30,6 +30,11 @@ export interface User {
   membershipFeeAmountPaid?: number;
 }
 
+export interface BudgetItem {
+    item: string;
+    amount: number;
+}
+
 export interface Event {
   id: string; // Firestore document ID
   name: string;
@@ -40,6 +45,13 @@ export interface Event {
   latitude?: number;  // For geolocation
   longitude?: number; // For geolocation
   reminderSent?: boolean; // To track if a reminder has been sent
+  // New Event Budgeting Fields
+  budget?: {
+      estimatedIncome: BudgetItem[];
+      estimatedExpenses: BudgetItem[];
+      actualIncome: BudgetItem[];
+      actualExpenses: BudgetItem[];
+  };
 }
 
 export interface AttendanceRecord {
