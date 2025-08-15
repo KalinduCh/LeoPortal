@@ -64,7 +64,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="container mx-auto py-8 space-y-8">
+        <div className="container mx-auto py-8 space-y-8 max-w-4xl">
             <div>
                 <h1 className="text-3xl font-bold font-headline">Portal Settings</h1>
                 <p className="text-muted-foreground">Manage roles, permissions, and system configurations.</p>
@@ -110,28 +110,25 @@ export default function SettingsPage() {
 
             <Separator />
             
-            <div className="grid md:grid-cols-2 gap-8">
-                <Card className="opacity-50">
-                     <CardHeader>
-                        <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary"/>Member Settings</CardTitle>
-                        <CardDescription>Configure global settings related to members. Feature coming soon.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground italic">e.g., Set annual membership fee amount...</p>
-                    </CardContent>
-                </Card>
-                
-                <Card className="opacity-50">
-                    <CardHeader>
-                        <CardTitle className="flex items-center text-xl"><Bell className="mr-2 h-5 w-5 text-primary"/>Notification Settings</CardTitle>
-                        <CardDescription>Manage automated notifications for events and approvals. Feature coming soon.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground italic">e.g., Toggle welcome emails, event reminders...</p>
-                    </CardContent>
-                </Card>
-            </div>
-
+            <Card className="opacity-50">
+                 <CardHeader>
+                    <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary"/>Member Settings</CardTitle>
+                    <CardDescription>Configure global settings related to members. Feature coming soon.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground italic">e.g., Set annual membership fee amount...</p>
+                </CardContent>
+            </Card>
+            
+            <Card className="opacity-50">
+                <CardHeader>
+                    <CardTitle className="flex items-center text-xl"><Bell className="mr-2 h-5 w-5 text-primary"/>Notification Settings</CardTitle>
+                    <CardDescription>Manage automated notifications for events and approvals. Feature coming soon.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground italic">e.g., Toggle welcome emails, event reminders...</p>
+                </CardContent>
+            </Card>
         </div>
     );
 }
