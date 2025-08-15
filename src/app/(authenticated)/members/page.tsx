@@ -13,6 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,11 +30,13 @@ import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/fire
 import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; 
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { createUserProfile, updateUserProfile, approveUser as approveUserService, rejectUser as rejectUserService, deleteUserProfile } from '@/services/userService';
-import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX } from "lucide-react";
+import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX, DollarSign } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { MemberEditForm, type MemberEditFormValues } from '@/components/members/member-edit-form';
 import { MemberAddForm, type MemberAddFormValues } from '@/components/members/member-add-form';
+
+type FeeStatus = 'paid' | 'pending' | 'partial';
 
 export default function MemberManagementPage() {
   const { user, isLoading: authLoading, performAdminAuthOperation, setAuthOperationInProgress } = useAuth();
@@ -49,6 +54,11 @@ export default function MemberManagementPage() {
   const [selectedMemberForEdit, setSelectedMemberForEdit] = useState<User | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+  
+  const [memberToUpdateFee, setMemberToUpdateFee] = useState<User | null>(null);
+  const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
+  const [feeStatus, setFeeStatus] = useState<FeeStatus>('pending');
+  const [feeAmount, setFeeAmount] = useState<number | string>('');
   
   const [memberToDelete, setMemberToDelete] = useState<User | null>(null);
   const [isSingleDeleteAlertOpen, setIsSingleDeleteAlertOpen] = useState(false);
@@ -86,6 +96,8 @@ export default function MemberManagementPage() {
                 dateOfBirth: data.dateOfBirth,
                 gender: data.gender,
                 mobileNumber: data.mobileNumber,
+                membershipFeeStatus: data.membershipFeeStatus || 'pending',
+                membershipFeeAmountPaid: data.membershipFeeAmountPaid || 0,
             } as User);
         }
       });
@@ -408,6 +420,41 @@ export default function MemberManagementPage() {
     return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   }
 
+  const getFeeStatusVariant = (status?: FeeStatus) => {
+    switch (status) {
+        case 'paid': return 'bg-green-100 text-green-800 border-green-200';
+        case 'partial': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'pending':
+        default:
+            return 'bg-red-100 text-red-800 border-red-200';
+    }
+  };
+
+  const handleOpenFeeModal = (member: User) => {
+    setMemberToUpdateFee(member);
+    setFeeStatus(member.membershipFeeStatus || 'pending');
+    setFeeAmount(member.membershipFeeAmountPaid || '');
+    setIsFeeModalOpen(true);
+  };
+  
+  const handleUpdateFeeStatus = async () => {
+    if (!memberToUpdateFee) return;
+    setIsSubmitting(true);
+    try {
+        await updateUserProfile(memberToUpdateFee.id, {
+            membershipFeeStatus: feeStatus,
+            membershipFeeAmountPaid: feeStatus === 'partial' ? Number(feeAmount) : undefined
+        });
+        toast({ title: "Fee Status Updated", description: `Payment status for ${memberToUpdateFee.name} has been updated.`});
+        fetchMembers();
+        setIsFeeModalOpen(false);
+        setMemberToUpdateFee(null);
+    } catch(error: any) {
+        toast({ title: "Error", description: `Could not update fee status: ${error.message}`, variant: "destructive"});
+    }
+    setIsSubmitting(false);
+  };
+
   if (authLoading || (isLoading && !isImporting && !members.length)) { 
     return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
@@ -475,17 +522,26 @@ export default function MemberManagementPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12"><Checkbox onCheckedChange={(checked) => handleSelectAll(checked as boolean)} checked={paginatedMembers.length > 0 && selectedRows.length === paginatedMembers.length} aria-label="Select all current page" /></TableHead>
-                      <TableHead>Avatar</TableHead><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Designation</TableHead><TableHead>Role</TableHead><TableHead className="text-right">Actions</TableHead>
+                      <TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Designation</TableHead><TableHead>Role</TableHead><TableHead>Fee Status</TableHead><TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedMembers.map((memberItem) => (
                       <TableRow key={memberItem.id} data-state={selectedRows.includes(memberItem.id) && "selected"}>
                         <TableCell><Checkbox onCheckedChange={(checked) => handleSelectRow(memberItem.id, checked as boolean)} checked={selectedRows.includes(memberItem.id)} aria-label="Select row" /></TableCell>
-                        <TableCell><Avatar className="h-9 w-9 sm:h-10 sm:w-10"><AvatarImage src={memberItem.photoUrl} alt={memberItem.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold">{getInitials(memberItem.name)}</AvatarFallback></Avatar></TableCell>
-                        <TableCell className="font-medium">{memberItem.name}</TableCell><TableCell>{memberItem.email}</TableCell><TableCell className="capitalize">{memberItem.designation || 'N/A'}</TableCell>
+                        <TableCell className="font-medium flex items-center gap-3">
+                           <Avatar className="h-9 w-9 sm:h-10 sm:w-10"><AvatarImage src={memberItem.photoUrl} alt={memberItem.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold">{getInitials(memberItem.name)}</AvatarFallback></Avatar>
+                           {memberItem.name}
+                        </TableCell>
+                        <TableCell>{memberItem.email}</TableCell><TableCell className="capitalize">{memberItem.designation || 'N/A'}</TableCell>
                         <TableCell><Badge variant={memberItem.role === 'admin' ? 'default' : 'secondary'} className={memberItem.role === 'admin' ? 'bg-primary/80' : ''}>{memberItem.role}</Badge></TableCell>
+                        <TableCell>
+                            <Badge variant="outline" className={cn("capitalize", getFeeStatusVariant(memberItem.membershipFeeStatus))}>
+                                {memberItem.membershipFeeStatus || 'pending'}
+                            </Badge>
+                        </TableCell>
                         <TableCell className="text-right space-x-1 sm:space-x-2">
+                          <Button variant="outline" size="icon" onClick={() => handleOpenFeeModal(memberItem)} aria-label="Update Fee Status" disabled={isImporting || isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9"><DollarSign className="h-4 w-4" /></Button>
                           <Button variant="outline" size="icon" onClick={() => handleOpenEditForm(memberItem)} aria-label="Edit Member" disabled={isImporting || isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9"><Edit className="h-4 w-4" /></Button>
                           <Button variant="destructive" size="icon" onClick={() => handleSingleDelete(memberItem)} aria-label="Delete Member" disabled={isImporting || isSubmitting || memberItem.id === user?.id} className="h-8 w-8 sm:h-9 sm:w-9"><Trash2 className="h-4 w-4" /></Button>
                         </TableCell>
@@ -504,11 +560,16 @@ export default function MemberManagementPage() {
                             <div className="flex-grow min-w-0">
                                 <p className="font-semibold text-primary truncate">{memberItem.name}</p>
                                 <p className="text-xs text-muted-foreground truncate flex items-center"><Mail className="h-3 w-3 mr-1"/> {memberItem.email}</p>
-                                <div className="mt-1 flex items-center gap-2 flex-wrap"><Badge variant="outline" className="text-xs capitalize"><Briefcase className="mr-1 h-3 w-3" /> {memberItem.designation || 'Not Set'}</Badge><Badge variant={memberItem.role === 'admin' ? 'default' : 'secondary'} className={`text-xs ${memberItem.role === 'admin' ? 'bg-primary/80' : ''}`}>{memberItem.role}</Badge></div>
+                                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                    <Badge variant="outline" className="text-xs capitalize"><Briefcase className="mr-1 h-3 w-3" /> {memberItem.designation || 'Not Set'}</Badge>
+                                    <Badge variant={memberItem.role === 'admin' ? 'default' : 'secondary'} className={`text-xs ${memberItem.role === 'admin' ? 'bg-primary/80' : ''}`}>{memberItem.role}</Badge>
+                                    <Badge variant="outline" className={cn("capitalize text-xs", getFeeStatusVariant(memberItem.membershipFeeStatus))}>{memberItem.membershipFeeStatus || 'pending'}</Badge>
+                                </div>
                             </div>
                         </div>
                       </CardContent>
                       <CardFooter className="flex justify-end space-x-2 pt-2 pb-3 px-3 border-t">
+                          <Button variant="outline" size="sm" onClick={() => handleOpenFeeModal(memberItem)} disabled={isImporting || isSubmitting}><DollarSign className="mr-1 h-3.5 w-3.5" /> Update Fee</Button>
                           <Button variant="outline" size="sm" onClick={() => handleOpenEditForm(memberItem)} disabled={isImporting || isSubmitting}><Edit className="mr-1 h-3.5 w-3.5" /> Edit</Button>
                           <Button variant="destructive" size="sm" onClick={() => handleSingleDelete(memberItem)} disabled={isImporting || isSubmitting || memberItem.id === user?.id}><Trash2 className="mr-1 h-3.5 w-3.5" /> Delete</Button>
                       </CardFooter>
@@ -536,10 +597,50 @@ export default function MemberManagementPage() {
 
       <AlertDialog open={isBulkDeleteAlertOpen} onOpenChange={setIsBulkDeleteAlertOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete Multiple Users?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the profiles for the <strong>{selectedRows.length} selected users</strong>. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Delete Multiple Users?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the profiles for the <strong>{selectedRows.length} selected users}</strong>. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmBulkDelete} className="bg-destructive hover:bg-destructive/90">Yes, delete selected</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Fee Status Update Modal */}
+      <Dialog open={isFeeModalOpen} onOpenChange={setIsFeeModalOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Update Fee Status for {memberToUpdateFee?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="fee-status">Status</Label>
+                    <Select onValueChange={(value: FeeStatus) => setFeeStatus(value)} defaultValue={feeStatus}>
+                        <SelectTrigger id="fee-status"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="partial">Partial</SelectItem>
+                            <SelectItem value="paid">Paid</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                {feeStatus === 'partial' && (
+                    <div className="space-y-2">
+                        <Label htmlFor="fee-amount">Amount Paid (LKR)</Label>
+                        <Input 
+                            id="fee-amount" 
+                            type="number" 
+                            value={feeAmount} 
+                            onChange={(e) => setFeeAmount(e.target.value)} 
+                            placeholder="e.g., 500" 
+                        />
+                    </div>
+                )}
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsFeeModalOpen(false)}>Cancel</Button>
+                    <Button onClick={handleUpdateFeeStatus} disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save Status'}
+                    </Button>
+                </div>
+            </div>
+        </DialogContent>
+      </Dialog>
 
       {selectedMemberForEdit && (
         <Dialog open={isEditFormOpen} onOpenChange={(open) => {if (!open) setSelectedMemberForEdit(null); setIsEditFormOpen(open);}}>

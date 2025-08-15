@@ -27,6 +27,8 @@ export async function createUserProfile(
     status,
     createdAt: serverTimestamp(),
     photoUrl: photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
+    membershipFeeStatus: 'pending',
+    membershipFeeAmountPaid: 0,
   };
 
   if (nic) profileData.nic = nic;
@@ -60,6 +62,8 @@ export async function getUserProfile(uid: string): Promise<User | null> {
         gender: data.gender,
         mobileNumber: data.mobileNumber,
         fcmToken: data.fcmToken, // Add fcmToken
+        membershipFeeStatus: data.membershipFeeStatus || 'pending',
+        membershipFeeAmountPaid: data.membershipFeeAmountPaid || 0,
      };
 
      if (data.createdAt && typeof data.createdAt.toDate === 'function') {
@@ -91,6 +95,8 @@ export async function getAllUsers(): Promise<User[]> {
             gender: data.gender,
             mobileNumber: data.mobileNumber,
             fcmToken: data.fcmToken,
+            membershipFeeStatus: data.membershipFeeStatus || 'pending',
+            membershipFeeAmountPaid: data.membershipFeeAmountPaid || 0,
         };
         if (data.createdAt && typeof data.createdAt.toDate === 'function') {
             userProfile.createdAt = (data.createdAt as Timestamp).toDate().toISOString();
