@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/project-ideas/page.tsx
 "use client";
 
@@ -23,7 +24,7 @@ export default function AdminProjectIdeasPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!authLoading && user?.role !== 'admin') {
+        if (!authLoading && (!user || user.role !== 'admin')) {
             router.replace('/dashboard');
         }
     }, [user, authLoading, router]);
@@ -47,8 +48,10 @@ export default function AdminProjectIdeasPage() {
     };
 
     useEffect(() => {
-        fetchIdeas();
-    }, [user, toast]);
+        if(user?.role === 'admin') {
+            fetchIdeas();
+        }
+    }, [user]);
 
     const handleReviewIdea = (ideaId: string) => {
         const idea = ideas.find(i => i.id === ideaId);
@@ -81,7 +84,7 @@ export default function AdminProjectIdeasPage() {
         }
     };
 
-    if (isLoading || authLoading) {
+    if (isLoading || authLoading || !user || user.role !== 'admin') {
         return (
             <div className="flex justify-center items-center h-[calc(100vh-10rem)]">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -222,3 +225,5 @@ export default function AdminProjectIdeasPage() {
         </div>
     );
 }
+
+    

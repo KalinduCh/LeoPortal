@@ -206,13 +206,10 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (authLoading) {
+  if (authLoading || isLoadingData || !user || user.role !== 'admin') {
     return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
-  if (!user || user.role !== 'admin') {
-    return null;
-  }
-
+  
   return (
     <div className="container mx-auto py-4 sm:py-8">
       <div className="mb-6 sm:mb-8">
@@ -463,3 +460,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+    

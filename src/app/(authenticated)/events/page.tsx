@@ -116,18 +116,14 @@ export default function EventManagementPage() {
     router.push(`/admin/event-summary/${eventId}`);
   };
 
-  if (authLoading || (isLoading && events.length === 0)) { 
+  if (authLoading || isLoading || !user || user.role !== 'admin') {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
-
-  if (!user || user.role !== 'admin') {
-    return null;
-  }
-
+  
   return (
     <div className="container mx-auto py-4 sm:py-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
@@ -146,7 +142,7 @@ export default function EventManagementPage() {
               <DialogTitle>{selectedEvent ? "Edit Event" : "Create New Event"}</DialogTitle>
             </DialogHeader>
             <EventForm
-                event={selectedEvent} // EventForm expects `event.date` for the form, maps to `startDate` internally for service
+                event={selectedEvent}
                 onSubmit={handleFormSubmit}
                 onCancel={() => {
                     setIsFormOpen(false);
@@ -300,5 +296,7 @@ export default function EventManagementPage() {
     </div>
   );
 }
+
+    
 
     
