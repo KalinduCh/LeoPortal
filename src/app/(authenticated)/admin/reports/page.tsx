@@ -44,11 +44,13 @@ export default function ReportsPage() {
   const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
+  const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
+
   React.useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'admin')) {
+    if (!authLoading && !isSuperOrAdmin) {
       router.replace('/dashboard');
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, isSuperOrAdmin]);
 
   const fetchData = useCallback(async () => {
     setIsLoadingData(true);
@@ -69,10 +71,10 @@ export default function ReportsPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (user && isSuperOrAdmin) {
       fetchData();
     }
-  }, [user, fetchData]);
+  }, [user, fetchData, isSuperOrAdmin]);
 
   const getInitials = (name?: string) => {
     if (!name) return "??";
@@ -206,7 +208,7 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (authLoading || isLoadingData || !user || user.role !== 'admin') {
+  if (authLoading || isLoadingData || !user || !isSuperOrAdmin) {
     return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
   
@@ -460,5 +462,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    

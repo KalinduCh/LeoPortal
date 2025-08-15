@@ -28,11 +28,13 @@ export default function EventManagementPage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
+  const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
+
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'admin')) {
+    if (!authLoading && !isSuperOrAdmin) {
       router.replace('/dashboard');
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, isSuperOrAdmin]);
 
   const fetchEvents = useCallback(async () => {
     setIsLoading(true);
@@ -52,10 +54,10 @@ export default function EventManagementPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (user && isSuperOrAdmin) {
       fetchEvents();
     }
-  }, [user, fetchEvents]);
+  }, [user, fetchEvents, isSuperOrAdmin]);
 
   const handleCreateNew = () => {
     setSelectedEvent(null);
@@ -116,7 +118,7 @@ export default function EventManagementPage() {
     router.push(`/admin/event-summary/${eventId}`);
   };
 
-  if (authLoading || isLoading || !user || user.role !== 'admin') {
+  if (authLoading || isLoading || !user || !isSuperOrAdmin) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -296,7 +298,3 @@ export default function EventManagementPage() {
     </div>
   );
 }
-
-    
-
-    

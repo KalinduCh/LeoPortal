@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/dashboard/page.tsx
 "use client";
 
@@ -10,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, adminViewMode } = useAuth();
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -28,7 +29,11 @@ export default function DashboardPage() {
     );
   }
 
-  return user.role === 'admin' ? <AdminDashboard user={user} /> : <MemberDashboard user={user} />;
+  const isSuperOrAdmin = user.role === 'super_admin' || user.role === 'admin';
+
+  return isSuperOrAdmin && adminViewMode === 'admin_view' 
+    ? <AdminDashboard user={user} /> 
+    : <MemberDashboard user={user} />;
 }
 
 const DashboardSkeleton = () => (

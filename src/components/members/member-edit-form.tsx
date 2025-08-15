@@ -25,23 +25,26 @@ import {
 } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
 import type { User, UserRole } from '@/types';
+import { useAuth } from '@/hooks/use-auth';
 
 const memberEditFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  role: z.enum(['member', 'admin'], { required_error: "Role is required." }),
+  role: z.enum(['member', 'admin', 'super_admin'], { required_error: "Role is required." }),
   designation: z.string().min(2, { message: "Designation is required." }),
 });
 
 export type MemberEditFormValues = z.infer<typeof memberEditFormSchema>;
 
 interface MemberEditFormProps {
-  member: User; // Current member data to pre-fill
+  member: User;
   onSubmit: (data: MemberEditFormValues) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
 }
 
 export function MemberEditForm({ member, onSubmit, onCancel, isLoading }: MemberEditFormProps) {
+  const { user: currentUser } = useAuth();
+  
   const form = useForm<MemberEditFormValues>({
     resolver: zodResolver(memberEditFormSchema),
     defaultValues: {
@@ -62,6 +65,8 @@ export function MemberEditForm({ member, onSubmit, onCancel, isLoading }: Member
   const handleFormSubmit = async (values: MemberEditFormValues) => {
     await onSubmit(values);
   };
+
+  const isSuperAdmin = currentUser?.role === 'super_admin';
 
   return (
     <Form {...form}>
@@ -100,7 +105,7 @@ export function MemberEditForm({ member, onSubmit, onCancel, isLoading }: Member
           render={({ field }) => (
             <FormItem>
               <FormLabel>Role</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isSuperAdmin}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a role" />
@@ -109,20 +114,14 @@ export function MemberEditForm({ member, onSubmit, onCancel, isLoading }: Member
                 <SelectContent>
                   <SelectItem value="member">Member</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  {isSuperAdmin && <SelectItem value="super_admin">Super Admin</SelectItem>}
                 </SelectContent>
               </Select>
-              <FormMessage />
+              {!isSuperAdmin && <FormMessage>Only a Super Admin can change roles.</FormMessage>}
             </FormItem>
           )}
         />
         
-        {/* Email is typically not editable directly this way */}
-        {/* <FormItem>
-            <FormLabel>Email (Cannot be changed)</FormLabel>
-            <Input value={member.email} disabled />
-        </FormItem> */}
-
-
         <div className="flex justify-end space-x-3 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
             Cancel

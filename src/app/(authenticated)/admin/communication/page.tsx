@@ -35,8 +35,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { cn } from '@/lib/utils';
 
 
@@ -88,11 +88,13 @@ export default function CommunicationPage() {
     defaultValues: { subject: "", body: "", recipientUserIds: [] },
   });
 
+  const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
+
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'admin')) {
+    if (!authLoading && !isSuperOrAdmin) {
       router.replace('/dashboard');
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, isSuperOrAdmin]);
 
   const fetchData = useCallback(async () => {
     setIsLoadingData(true);
@@ -102,7 +104,7 @@ export default function CommunicationPage() {
             getAllUsers(),
         ]);
         setGroups(fetchedGroups);
-        const approvedMembers = fetchedUsers.filter(u => u.status === 'approved' && ['admin', 'member'].includes(u.role)).sort((a,b) => (a.name || "").localeCompare(b.name || ""));
+        const approvedMembers = fetchedUsers.filter(u => u.status === 'approved' && ['admin', 'member', 'super_admin'].includes(u.role)).sort((a,b) => (a.name || "").localeCompare(b.name || ""));
         setMembers(approvedMembers);
     } catch (error) {
         console.error("Failed to fetch data:", error);
@@ -112,10 +114,10 @@ export default function CommunicationPage() {
   }, [toast]);
   
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (user && isSuperOrAdmin) {
       fetchData();
     }
-  }, [user, fetchData]);
+  }, [user, fetchData, isSuperOrAdmin]);
 
   const filteredMembers = useMemo(() => {
     return members.filter(member => 
@@ -283,7 +285,7 @@ export default function CommunicationPage() {
     );
   }, [members, groupMemberSearchTerm]);
 
-  if (authLoading || isLoadingData || !user || user.role !== 'admin') {
+  if (authLoading || isLoadingData || !user || !isSuperOrAdmin) {
     return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
   
@@ -417,5 +419,3 @@ export default function CommunicationPage() {
     </div>
   );
 }
-
-    
