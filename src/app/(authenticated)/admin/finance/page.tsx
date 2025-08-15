@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/finance/page.tsx
 "use client";
 
@@ -11,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, ExternalLink, Calendar, Filter } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, ExternalLink, Calendar, Filter, HandCoins } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { FinanceForm, type FinanceFormValues } from '@/components/finance/finance-form';
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/financeService';
@@ -163,7 +164,7 @@ export default function FinancePage() {
   }, [transactions]);
 
 
-  if (authLoading || isLoading) {
+  if (authLoading || isLoading || !user || user.role !== 'admin') {
     return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
   
@@ -335,3 +336,5 @@ export default function FinancePage() {
     </div>
   );
 }
+
+    

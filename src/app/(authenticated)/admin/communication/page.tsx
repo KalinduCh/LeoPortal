@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/communication/page.tsx
 "use client";
 
@@ -282,11 +283,10 @@ export default function CommunicationPage() {
     );
   }, [members, groupMemberSearchTerm]);
 
-  if (authLoading || (isLoadingData && members.length === 0)) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+  if (authLoading || isLoadingData || !user || user.role !== 'admin') {
+    return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
-  if (!user || user.role !== 'admin') { return null; }
-
+  
   return (
     <div className="container mx-auto py-4 sm:py-8 space-y-6">
       <div className="flex items-center justify-between"><h1 className="text-2xl sm:text-3xl font-bold font-headline">Send Communication</h1></div>
@@ -417,3 +417,5 @@ export default function CommunicationPage() {
     </div>
   );
 }
+
+    
