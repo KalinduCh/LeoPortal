@@ -8,8 +8,8 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-const GMAIL_EMAIL = "starmapila@gmail.com";
-const GMAIL_APP_PASSWORD = "zusl hbtn fiik nhyt";
+const GMAIL_EMAIL = "athugalpuraleoclub306d9@gmail.com";
+const GMAIL_APP_PASSWORD = "osng xjdz lhwu movh";
 
 const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -322,3 +322,4 @@ export const onUserDocumentChanged = functions.firestore
       });
     }
   });
+    
