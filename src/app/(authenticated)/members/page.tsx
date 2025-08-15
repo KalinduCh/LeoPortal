@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/members/page.tsx
 "use client";
 
@@ -32,7 +33,7 @@ import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/fire
 import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; 
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { createUserProfile, updateUserProfile, approveUser as approveUserService, rejectUser as rejectUserService, deleteUserProfile } from '@/services/userService';
-import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX, DollarSign } from "lucide-react";
+import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX, CreditCard } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { MemberEditForm, type MemberEditFormValues } from '@/components/members/member-edit-form';
@@ -393,8 +394,6 @@ export default function MemberManagementPage() {
       if (skippedCount > 0) toastDescription += ` ${skippedCount} skipped.`;
       if (errorCount > 0) toastDescription += ` ${errorCount} failed. Check console for details.`;
       
-      if (skippedCount > 0 || errorCount > 0) console.warn("--- Import Summary ---\n" + importMessages.join("\n") + "\n--- End of Summary ---");
-      
       const showSessionNotice = originalAuthUserUID && (!firebaseAuth.currentUser || firebaseAuth.currentUser.uid !== originalAuthUserUID);
       if (showSessionNotice) {
         toast({ title: "Session Notice (Import Related)", description: "Your admin session may have been affected. Please log out and log back in if issues arise.", variant: "destructive", duration: 15000 });
@@ -566,7 +565,7 @@ export default function MemberManagementPage() {
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right space-x-1 sm:space-x-2">
-                          <Button variant="outline" size="icon" onClick={() => handleOpenFeeModal(memberItem)} aria-label="Update Fee Status" disabled={isImporting || isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9"><DollarSign className="h-4 w-4" /></Button>
+                          <Button variant="outline" size="icon" onClick={() => handleOpenFeeModal(memberItem)} aria-label="Update Fee Status" disabled={isImporting || isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9"><CreditCard className="h-4 w-4" /></Button>
                           <Button variant="outline" size="icon" onClick={() => handleOpenEditForm(memberItem)} aria-label="Edit Member" disabled={isImporting || isSubmitting} className="h-8 w-8 sm:h-9 sm:w-9"><Edit className="h-4 w-4" /></Button>
                           <Button variant="destructive" size="icon" onClick={() => handleSingleDelete(memberItem)} aria-label="Delete Member" disabled={isImporting || isSubmitting || memberItem.id === user?.id} className="h-8 w-8 sm:h-9 sm:w-9"><Trash2 className="h-4 w-4" /></Button>
                         </TableCell>
@@ -594,7 +593,7 @@ export default function MemberManagementPage() {
                         </div>
                       </CardContent>
                       <CardFooter className="flex justify-end space-x-2 pt-2 pb-3 px-3 border-t">
-                          <Button variant="outline" size="sm" onClick={() => handleOpenFeeModal(memberItem)} disabled={isImporting || isSubmitting}><DollarSign className="mr-1 h-3.5 w-3.5" /> Update Fee</Button>
+                          <Button variant="outline" size="sm" onClick={() => handleOpenFeeModal(memberItem)} disabled={isImporting || isSubmitting}><CreditCard className="mr-1 h-3.5 w-3.5" /> Update Fee</Button>
                           <Button variant="outline" size="sm" onClick={() => handleOpenEditForm(memberItem)} disabled={isImporting || isSubmitting}><Edit className="mr-1 h-3.5 w-3.5" /> Edit</Button>
                           <Button variant="destructive" size="sm" onClick={() => handleSingleDelete(memberItem)} disabled={isImporting || isSubmitting || memberItem.id === user?.id}><Trash2 className="mr-1 h-3.5 w-3.5" /> Delete</Button>
                       </CardFooter>
