@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/dashboard/page.tsx
 "use client";
 
@@ -29,11 +28,21 @@ export default function DashboardPage() {
     );
   }
 
-  const isSuperOrAdmin = user.role === 'super_admin' || user.role === 'admin';
-
-  return isSuperOrAdmin && adminViewMode === 'admin_view' 
-    ? <AdminDashboard user={user} /> 
-    : <MemberDashboard user={user} />;
+  const isSuperAdmin = user.role === 'super_admin';
+  const isAdmin = user.role === 'admin';
+  
+  // Super Admin always sees admin dashboard.
+  if (isSuperAdmin) {
+    return <AdminDashboard user={user} />;
+  }
+  
+  // Admin view depends on the toggle state.
+  if (isAdmin) {
+    return adminViewMode === 'admin_view' ? <AdminDashboard user={user} /> : <MemberDashboard user={user} />;
+  }
+  
+  // Default to member dashboard for members.
+  return <MemberDashboard user={user} />;
 }
 
 const DashboardSkeleton = () => (

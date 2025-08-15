@@ -1,4 +1,3 @@
-
 // src/components/layout/user-dropdown.tsx
 "use client";
 
@@ -43,7 +42,7 @@ export function UserDropdown() {
     return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   }
   
-  const isSuperOrAdmin = user.role === 'super_admin' || user.role === 'admin';
+  const isAdmin = user.role === 'admin';
 
   return (
     <DropdownMenu>
@@ -71,7 +70,7 @@ export function UserDropdown() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        {isSuperOrAdmin && (
+        {isAdmin && (
           <>
             <div 
               className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors"

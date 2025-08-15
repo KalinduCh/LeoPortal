@@ -51,12 +51,14 @@ export default function AuthenticatedLayout({
   // Security check for admin pages
   React.useEffect(() => {
     const isAdminPage = pathname.startsWith('/admin/');
-    if (!isLoading && user && isAdminPage && user.role !== 'admin' && user.role !== 'super_admin') {
+    if (isLoading || !user) return;
+
+    if (user.role === 'member' && isAdminPage) {
         router.replace('/dashboard');
     }
-    // Also check when view mode is 'member_view'
-    const isSuperOrAdmin = user?.role === 'admin' || user?.role === 'super_admin';
-    if (!isLoading && isSuperOrAdmin && adminViewMode === 'member_view' && isAdminPage) {
+    
+    // If a regular admin is in member view, block them from admin pages
+    if (user.role === 'admin' && adminViewMode === 'member_view' && isAdminPage) {
         router.replace('/dashboard');
     }
 
