@@ -10,7 +10,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, HandCoins } from "lucide-react"; 
+import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, HandCoins, Settings } from "lucide-react"; 
 
 interface NavItem {
   href: string;
@@ -33,6 +33,11 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/reports", label: "Reports", icon: FileText },
 ];
 
+const superAdminNavItems: NavItem[] = [
+    ...adminNavItems,
+    { href: "/admin/settings", label: "Settings", icon: Settings },
+];
+
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -43,7 +48,7 @@ export function SidebarNav() {
   let itemsToShow = memberNavItems;
   
   if (user.role === 'super_admin') {
-      itemsToShow = adminNavItems;
+      itemsToShow = superAdminNavItems;
   } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
       itemsToShow = adminNavItems;
   }
