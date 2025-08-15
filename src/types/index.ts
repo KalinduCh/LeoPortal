@@ -26,6 +26,8 @@ export interface User {
   mobileNumber?: string;
   badges?: BadgeId[];
   fcmToken?: string; // For Push Notifications
+  membershipFeeStatus?: 'paid' | 'pending' | 'partial';
+  membershipFeeAmountPaid?: number;
 }
 
 export interface Event {
@@ -142,4 +144,20 @@ export interface CommunicationGroup {
   memberIds: string[];
   createdAt: string; // ISO string
   color?: string; // Optional: hex color code for the group button
+}
+
+export interface Transaction {
+    id: string;
+    type: 'income' | 'expense';
+    date: string; // ISO string
+    amount: number;
+    category: string;
+    source: string; // e.g., 'Membership Dues', 'Venue Rental'
+    notes?: string;
+    createdAt: string; // ISO string
+}
+
+export interface FinancialCategory {
+    id: string;
+    name: string;
 }
