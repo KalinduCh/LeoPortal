@@ -150,14 +150,14 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         if (!stats[record.userId]) {
           stats[record.userId] = { count: 0, user: allUsers.find(u => u.id === record.userId) };
         }
-        if (stats[record.userId].user && stats[record.userId].user?.role === 'member' && stats[record.userId].user?.status === 'approved') { 
+        if (stats[record.userId].user && ['member', 'admin'].includes(stats[record.userId].user?.role) && stats[record.userId].user?.status === 'approved') { 
             stats[record.userId].count += 1;
         }
       }
     });
     
     const calculatedStats: MemberStat[] = Object.entries(stats)
-      .filter(([userId, data]) => data.user?.role === 'member' && data.user?.status === 'approved' && data.count > 0) 
+      .filter(([userId, data]) => data.user && ['member', 'admin'].includes(data.user.role) && data.user.status === 'approved' && data.count > 0) 
       .map(([userId, data]) => ({
         userId,
         name: data.user!.name || 'Unknown User', 
