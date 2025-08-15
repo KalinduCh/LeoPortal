@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/members/page.tsx
 "use client";
 
@@ -15,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 import {
   AlertDialog,
@@ -644,7 +646,7 @@ export default function MemberManagementPage() {
 
       {selectedMemberForEdit && (
         <Dialog open={isEditFormOpen} onOpenChange={(open) => {if (!open) setSelectedMemberForEdit(null); setIsEditFormOpen(open);}}>
-          <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Edit User: {selectedMemberForEdit.name}</DialogTitle></DialogHeader><MemberEditForm member={selectedMemberForEdit} onSubmit={handleEditFormSubmit} onCancel={() => {setIsEditFormOpen(false); setSelectedMemberForEdit(null);}} isLoading={isSubmitting} /></DialogContent>
+          <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Edit User: {selectedMemberForEdit.name}</DialogTitle></DialogHeader><MemberEditForm member={selectedMemberFor_edit} onSubmit={handleEditFormSubmit} onCancel={() => {setIsEditFormOpen(false); setSelectedMemberForEdit(null);}} isLoading={isSubmitting} /></DialogContent>
         </Dialog>
       )}
     </div>
