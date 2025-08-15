@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Shield, Users, Bell, Save } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -148,11 +148,11 @@ export default function SettingsPage() {
                                         {PERMISSION_CONFIG.map(p => (
                                             <TableCell key={p.id}>
                                                 {admin.role === 'super_admin' ? (
-                                                     <Switch checked={true} disabled={true} />
+                                                     <Checkbox checked={true} disabled={true} />
                                                 ) : (
-                                                    <Switch
+                                                    <Checkbox
                                                         checked={admin.permissions?.[p.id] ?? false}
-                                                        onCheckedChange={(value) => handlePermissionChange(admin.id, p.id, value)}
+                                                        onCheckedChange={(value) => handlePermissionChange(admin.id, p.id, value as boolean)}
                                                         disabled={isSubmitting === admin.id}
                                                     />
                                                 )}
