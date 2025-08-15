@@ -15,12 +15,6 @@ export async function createEvent(data: EventFormValues): Promise<string> {
     startDate: Timestamp.fromDate(data.startDate),
     location: data.location,
     description: data.description,
-    budget: {
-        estimatedIncome: data.budget?.estimatedIncome || [],
-        estimatedExpenses: data.budget?.estimatedExpenses || [],
-        actualIncome: [],
-        actualExpenses: []
-    }
   };
 
   if (data.endDate) {
@@ -66,7 +60,6 @@ export async function getEvents(): Promise<Event[]> {
         description: data.description,
         latitude: data.latitude,
         longitude: data.longitude,
-        budget: data.budget,
       };
       if (data.endDate && typeof data.endDate.toDate === 'function') {
         event.endDate = (data.endDate as Timestamp).toDate().toISOString();
@@ -100,7 +93,6 @@ export async function getEvent(eventId: string): Promise<Event | null> {
       description: data.description,
       latitude: data.latitude,
       longitude: data.longitude,
-      budget: data.budget,
     };
     if (data.endDate && typeof data.endDate.toDate === 'function') {
       event.endDate = (data.endDate as Timestamp).toDate().toISOString();
@@ -117,21 +109,7 @@ export async function updateEvent(eventId: string, data: EventFormValues): Promi
     startDate: Timestamp.fromDate(data.startDate),
     location: data.location,
     description: data.description,
-    budget: {
-        estimatedIncome: data.budget?.estimatedIncome || [],
-        estimatedExpenses: data.budget?.estimatedExpenses || [],
-    }
   };
-
-  // Keep existing actuals if they exist
-  const currentEvent = await getEvent(eventId);
-  if (currentEvent?.budget?.actualIncome) {
-      updatePayload.budget.actualIncome = currentEvent.budget.actualIncome;
-  }
-   if (currentEvent?.budget?.actualExpenses) {
-      updatePayload.budget.actualExpenses = currentEvent.budget.actualExpenses;
-  }
-
 
   if (data.endDate) {
     updatePayload.endDate = Timestamp.fromDate(data.endDate);

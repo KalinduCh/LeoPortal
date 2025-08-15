@@ -599,7 +599,7 @@ export default function MemberManagementPage() {
 
       <AlertDialog open={isBulkDeleteAlertOpen} onOpenChange={setIsBulkDeleteAlertOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete Multiple Users?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the profiles for the <strong>{selectedRows.length} selected users}</strong>. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Delete Multiple Users?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the profiles for the <strong>{selectedRows.length} selected users</strong>. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmBulkDelete} className="bg-destructive hover:bg-destructive/90">Yes, delete selected</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -646,7 +646,7 @@ export default function MemberManagementPage() {
 
       {selectedMemberForEdit && (
         <Dialog open={isEditFormOpen} onOpenChange={(open) => {if (!open) setSelectedMemberForEdit(null); setIsEditFormOpen(open);}}>
-          <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Edit User: {selectedMemberForEdit.name}</DialogTitle></DialogHeader><MemberEditForm member={selectedMemberFor_edit} onSubmit={handleEditFormSubmit} onCancel={() => {setIsEditFormOpen(false); setSelectedMemberForEdit(null);}} isLoading={isSubmitting} /></DialogContent>
+          <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Edit User: {selectedMemberForEdit.name}</DialogTitle></DialogHeader><MemberEditForm member={selectedMemberForEdit} onSubmit={handleEditFormSubmit} onCancel={() => {setIsEditFormOpen(false); setSelectedMemberForEdit(null);}} isLoading={isSubmitting} /></DialogContent>
         </Dialog>
       )}
     </div>
