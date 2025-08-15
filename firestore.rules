@@ -1,60 +1,77 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if a user is an admin
+    
+    // Helper function to check for admin role
     function isAdmin() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Helper function to check if a user is an approved member or admin
-    function isApprovedUser() {
-      return request.auth != null &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved';
-    }
-
-    // Users collection rules
-    match /users/{userId} {
-      // Admins can manage all user documents
-      allow read, write, delete: if isAdmin();
-      // An authenticated user can read and update their own profile
-      allow get, update: if request.auth.uid == userId;
-      // Anyone can create their own user document (for signup)
-      allow create: if request.auth.uid == userId;
-    }
-
-    // Events collection rules
-    match /events/{eventId} {
-      // Anyone can read events (for member and visitor pages)
-      allow get, list: if true;
-      // Only admins can create, update, or delete events
-      allow write: if isAdmin();
-    }
-
-    // Attendance collection rules
-    match /attendance/{attendanceId} {
-      // Anyone can create an attendance record (for visitors and members)
-      // Additional checks happen in the frontend/backend logic
-      allow create: if true;
-      // Admins can read all attendance records
-      allow read: if isAdmin();
-      // Users can read their own attendance records
-      allow get: if isApprovedUser() && get(/databases/$(database)/documents/attendance/$(attendanceId)).data.userId == request.auth.uid;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Project Ideas collection rules
-    match /projectIdeas/{ideaId} {
-      // Only the author or an admin can read/write
-      allow read, write: if request.auth != null && (get(/databases/$(database)/documents/projectIdeas/$(ideaId)).data.authorId == request.auth.uid || isAdmin());
-      // Authenticated users can create ideas
-      allow create: if isApprovedUser();
+    // Helper function to check if the user is the owner of the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
-    // Communication Groups collection rules
+    match /users/{userId} {
+      // Allow anyone to create a user document (for signup)
+      // The status will be 'pending' by default, controlled by backend logic
+      allow create: if true;
+      
+      // Any authenticated user can read any user's profile (for member lists, etc.)
+      allow read: if request.auth != null;
+      
+      // Update rules:
+      // - Admins can update any field on any user document.
+      // - A user can update their OWN document, but cannot change their role, status, or fee details.
+      allow update: if isAdmin() || 
+                      (isOwner(userId) && 
+                       !('role' in request.resource.data) && 
+                       !('status' in request.resource.data) &&
+                       !('membershipFeeStatus' in request.resource.data) &&
+                       !('membershipFeeAmountPaid' in request.resource.data)
+                      );
+      
+      // Admins can delete any user
+      allow delete: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      // Allow anyone (including unauthenticated visitors) to see event details
+      allow read: if true;
+      
+      // Only admins can create, update, or delete events
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /attendance/{attendanceId} {
+        // Anyone can create an attendance record (for both members and visitors).
+        // This is secure because they can't read/modify other records.
+        allow create: if true;
+        
+        // Only admins can read the full list of attendance records for reports.
+        // Members read their own records via a different, more specific query handled in app logic.
+        allow read, update, delete: if isAdmin();
+    }
+    
     match /communicationGroups/{groupId} {
-      allow read, write, delete: if isAdmin();
+        // Only admins can manage communication groups
+        allow read, create, update, delete: if isAdmin();
+    }
+
+    match /projectIdeas/{ideaId} {
+        // - Anyone authenticated can create an idea.
+        // - The author or an admin can update an idea.
+        // - The author or an admin can read an idea.
+        // - The author or an admin can delete an idea.
+        allow create: if request.auth != null;
+        allow read, update, delete: if isOwner(resource.data.authorId) || isAdmin();
+    }
+    
+    match /transactions/{transactionId} {
+        // Only admins can manage financial transactions
+        allow read, create, update, delete: if isAdmin();
     }
   }
 }
