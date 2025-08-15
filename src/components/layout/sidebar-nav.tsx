@@ -1,4 +1,3 @@
-
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -41,8 +40,13 @@ export function SidebarNav() {
   
   if (!user) return null;
 
-  const isSuperOrAdmin = user.role === 'super_admin' || user.role === 'admin';
-  const itemsToShow = isSuperOrAdmin && adminViewMode === 'admin_view' ? adminNavItems : memberNavItems;
+  let itemsToShow = memberNavItems;
+  
+  if (user.role === 'super_admin') {
+      itemsToShow = adminNavItems;
+  } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
+      itemsToShow = adminNavItems;
+  }
 
   return (
     <SidebarMenu>

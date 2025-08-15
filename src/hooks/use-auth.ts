@@ -1,4 +1,3 @@
-
 // src/hooks/use-auth.ts
 "use client";
 
@@ -48,7 +47,7 @@ export function useAuth(): AuthState {
   const [adminViewMode, setAdminViewMode] = useState<AdminViewMode>('admin_view');
   const { toast } = useToast();
   const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const router = useRouter(); // Initialize router
+  const router = useRouter(); 
 
   useEffect(() => {
     const storedViewMode = localStorage.getItem('adminViewMode') as AdminViewMode;
@@ -60,7 +59,8 @@ export function useAuth(): AuthState {
   const handleSetAdminViewMode = (mode: AdminViewMode) => {
     setAdminViewMode(mode);
     localStorage.setItem('adminViewMode', mode);
-    router.push('/dashboard'); // Navigate to dashboard to force re-render of layout
+    // Use a full page reload to ensure all components re-evaluate the auth state and view mode
+    window.location.href = '/dashboard';
   };
 
   const logoutDueToInactivity = useCallback(() => {
