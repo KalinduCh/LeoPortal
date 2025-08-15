@@ -10,7 +10,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, DollarSign } from "lucide-react"; 
+import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, HandCoins } from "lucide-react"; 
 
 interface NavItem {
   href: string;
@@ -27,12 +27,12 @@ const mainNavItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
-  { href: "/events", label: "Event Management", icon: CalendarDays, role: "admin" },
   { href: "/members", label: "Member Management", icon: Users, role: "admin" },
+  { href: "/events", label: "Event Management", icon: CalendarDays, role: "admin" },
+  { href: "/admin/finance", label: "Finance", icon: HandCoins, role: "admin" },
+  { href: "/admin/communication", label: "Communication", icon: Mail, role: "admin" },
   { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, role: "admin" },
   { href: "/admin/reports", label: "Reports", icon: FileText, role: "admin" },
-  { href: "/admin/communication", label: "Communication", icon: Mail, role: "admin" },
-  { href: "/admin/finance", label: "Finance", icon: DollarSign, role: "admin" },
 ];
 
 
