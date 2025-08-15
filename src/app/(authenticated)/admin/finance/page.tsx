@@ -18,7 +18,7 @@ import { getTransactions, addTransaction, updateTransaction, deleteTransaction }
 import { format, parseISO, isValid, startOfMonth, endOfMonth, startOfYear, endOfYear, getYear, getMonth, eachMonthOfInterval } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 
 
@@ -245,14 +245,16 @@ export default function FinancePage() {
              </CardHeader>
             <CardContent>
                 <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                    <RechartsBarChart accessibilityLayer data={monthlyChartData}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                        <YAxis tickFormatter={(value) => `LKR ${Number(value) / 1000}k`} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="income" fill="var(--color-income)" radius={4} />
-                        <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
-                    </RechartsBarChart>
+                    <ResponsiveContainer>
+                        <RechartsBarChart accessibilityLayer data={monthlyChartData}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                            <YAxis tickFormatter={(value) => `LKR ${Number(value) / 1000}k`} />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Bar dataKey="income" fill="var(--color-income)" radius={4} />
+                            <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
+                        </RechartsBarChart>
+                    </ResponsiveContainer>
                 </ChartContainer>
             </CardContent>
         </Card>
