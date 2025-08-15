@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/members/page.tsx
 "use client";
 
@@ -17,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { addTransaction } from '@/services/financeService';
 
 import {
   AlertDialog,
@@ -441,16 +441,38 @@ export default function MemberManagementPage() {
   
   const handleUpdateFeeStatus = async () => {
     if (!memberToUpdateFee) return;
+    
+    const amountToRecord = Number(feeAmount);
+    if ( (feeStatus === 'paid' || feeStatus === 'partial') && (isNaN(amountToRecord) || amountToRecord <= 0) ) {
+        toast({ title: "Invalid Amount", description: "Please enter a valid positive number for the amount paid.", variant: "destructive"});
+        return;
+    }
+
     setIsSubmitting(true);
     try {
         await updateUserProfile(memberToUpdateFee.id, {
             membershipFeeStatus: feeStatus,
-            membershipFeeAmountPaid: feeStatus === 'partial' ? Number(feeAmount) : undefined
+            membershipFeeAmountPaid: feeStatus !== 'pending' ? amountToRecord : undefined,
         });
         toast({ title: "Fee Status Updated", description: `Payment status for ${memberToUpdateFee.name} has been updated.`});
+        
+        // If paid or partial, add a transaction to the finance module
+        if ((feeStatus === 'paid' || feeStatus === 'partial')) {
+            await addTransaction({
+                type: 'income',
+                date: new Date().toISOString(),
+                amount: amountToRecord,
+                category: 'Membership Fees',
+                source: `Fee from ${memberToUpdateFee.name}`,
+                notes: `Membership fee status updated to ${feeStatus}.`,
+            });
+            toast({ title: "Income Recorded", description: `An income of LKR ${amountToRecord.toFixed(2)} has been added to the finance records.` });
+        }
+        
         fetchMembers();
         setIsFeeModalOpen(false);
         setMemberToUpdateFee(null);
+        setFeeAmount('');
     } catch(error: any) {
         toast({ title: "Error", description: `Could not update fee status: ${error.message}`, variant: "destructive"});
     }
@@ -599,7 +621,7 @@ export default function MemberManagementPage() {
 
       <AlertDialog open={isBulkDeleteAlertOpen} onOpenChange={setIsBulkDeleteAlertOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete Multiple Users?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the profiles for the <strong>{selectedRows.length} selected users</strong>. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Delete Multiple Users?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the profiles for the <strong>{selectedRows.length} selected users}</strong>. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmBulkDelete} className="bg-destructive hover:bg-destructive/90">Yes, delete selected</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -622,7 +644,7 @@ export default function MemberManagementPage() {
                         </SelectContent>
                     </Select>
                 </div>
-                {feeStatus === 'partial' && (
+                {(feeStatus === 'partial' || feeStatus === 'paid') && (
                     <div className="space-y-2">
                         <Label htmlFor="fee-amount">Amount Paid (LKR)</Label>
                         <Input 
