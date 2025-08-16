@@ -1,7 +1,8 @@
 
-// Import the Firebase app and messaging services
-import { initializeApp } from 'firebase/app';
-import { getMessaging } from 'firebase/messaging/sw';
+// Import the Firebase app and messaging scripts.
+// Use the version from your project's package.json
+importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -15,10 +16,26 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
-// The service worker can be kept simple. It just needs to be present
-// for the browser to register it and for Firebase to use it.
-// Background message handling can be added here if needed in the future.
-console.log('Firebase Messaging Service Worker initialized.');
+// Retrieve an instance of Firebase Messaging so that it can handle background
+// messages.
+const messaging = firebase.messaging();
+
+messaging.onBackgroundMessage((payload) => {
+  console.log(
+    "[firebase-messaging-sw.js] Received background message ",
+    payload
+  );
+  
+  // Customize notification here
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
+    body: payload.notification.body,
+    icon: payload.notification.icon || "https://i.imgur.com/MP1YFNf.png",
+  };
+
+  self.registration.showNotification(notificationTitle, notificationOptions);
+});
