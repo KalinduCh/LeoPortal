@@ -196,7 +196,7 @@ export default function FinancePage() {
       </div>
       
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Income</CardTitle>
@@ -248,12 +248,12 @@ export default function FinancePage() {
                 <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Income vs. Expenses ({getYear(new Date())})</CardTitle>
              </CardHeader>
             <CardContent>
-                <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                <ChartContainer config={chartConfig} className="h-[200px] sm:h-[250px] w-full">
                     <ResponsiveContainer>
                         <RechartsBarChart accessibilityLayer data={monthlyChartData}>
                             <CartesianGrid vertical={false} />
-                            <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                            <YAxis tickFormatter={(value) => `LKR ${Number(value) / 1000}k`} />
+                            <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} fontSize={12} />
+                            <YAxis tickFormatter={(value) => `LKR ${Number(value) / 1000}k`} fontSize={12}/>
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <Bar dataKey="income" fill="var(--color-income)" radius={4} />
                             <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
@@ -367,5 +367,3 @@ export default function FinancePage() {
     </div>
   );
 }
-
-    
