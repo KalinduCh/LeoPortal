@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/finance/page.tsx
 "use client";
 
@@ -6,7 +7,7 @@ import type { Transaction, FinancialCategory, User } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -347,14 +348,14 @@ export default function FinancePage() {
                         <p className="text-sm text-muted-foreground">{t.source}</p>
                          <p className="text-xs text-muted-foreground pt-1">{format(parseISO(t.date), 'MMMM dd, yyyy')}</p>
                     </CardContent>
-                    <CardContent className="flex justify-end gap-2 pb-3">
+                    <CardFooter className="flex justify-end gap-2 pb-3 border-t pt-3">
                         <Button variant="outline" size="sm" onClick={() => handleOpenForm(t)}>
                             <Edit className="mr-1.5 h-3 w-3"/> Edit
                         </Button>
                         <Button variant="destructive" size="sm" onClick={() => handleDeleteTransaction(t.id)}>
                             <Trash2 className="mr-1.5 h-3 w-3"/> Delete
                         </Button>
-                    </CardContent>
+                    </CardFooter>
                 </Card>
              ))}
           </div>
@@ -366,3 +367,5 @@ export default function FinancePage() {
     </div>
   );
 }
+
+    
