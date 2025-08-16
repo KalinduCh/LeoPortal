@@ -35,6 +35,9 @@ interface MemberStat {
 
 const PIE_CHART_COLORS = ["#2563eb", "#14b8a6", "#ef4444", "#f97316", "#8b5cf6", "#3b82f6"];
 
+const memberChartConfig = { total: { label: "New Members", color: "hsl(var(--primary))" } } satisfies ChartConfig;
+const financialChartConfig = { income: { label: "Income", color: "hsl(var(--chart-2))" }, expenses: { label: "Expenses", color: "hsl(var(--chart-1))" } } satisfies ChartConfig;
+
 export default function ReportsPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -218,9 +221,6 @@ export default function ReportsPage() {
         return dateB - dateA;
     });
   }, [allEvents]);
-
-  const memberChartConfig = { total: { label: "New Members", color: "hsl(var(--primary))" } } satisfies ChartConfig;
-  const financialChartConfig = { income: { label: "Income", color: "hsl(var(--chart-2))" }, expenses: { label: "Expenses", color: "hsl(var(--chart-1))" } } satisfies ChartConfig;
 
   const handleExport = async (type: 'members' | 'events' | 'attendance' | 'transactions') => {
     setIsExporting(type);
@@ -513,15 +513,7 @@ export default function ReportsPage() {
             <Card><CardHeader><CardTitle className="flex items-center text-xl"><Users className="mr-2 h-6 w-6 text-primary" /> All Members</CardTitle><CardDescription>Export a full list of all registered members.</CardDescription></CardHeader><CardFooter><Button onClick={() => handleExport('members')} disabled={!!isExporting} className="w-full">{isExporting === 'members' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{isExporting === 'members' ? 'Exporting...' : 'Export Members (CSV)'}</Button></CardFooter></Card>
             <Card><CardHeader><CardTitle className="flex items-center text-xl"><Calendar className="mr-2 h-6 w-6 text-primary" /> All Events</CardTitle><CardDescription>Export a list of all events, past and upcoming.</CardDescription></CardHeader><CardFooter><Button onClick={() => handleExport('events')} disabled={!!isExporting} className="w-full">{isExporting === 'events' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{isExporting === 'events' ? 'Exporting...' : 'Export Events (CSV)'}</Button></CardFooter></Card>
             <Card><CardHeader><CardTitle className="flex items-center text-xl"><BarChart className="mr-2 h-6 w-6 text-primary" /> Attendance Log</CardTitle><CardDescription>Export a complete log of all attendance records.</CardDescription></CardHeader><CardFooter><Button onClick={() => handleExport('attendance')} disabled={!!isExporting} className="w-full">{isExporting === 'attendance' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{isExporting === 'attendance' ? 'Exporting...' : 'Export Attendance (CSV)'}</Button></CardFooter></Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center text-xl"><HandCoins className="mr-2 h-6 w-6 text-primary" /> Transactions</CardTitle>
-                    <CardDescription>Export a complete log of all financial transactions.</CardDescription>
-                </CardHeader>
-                <CardFooter>
-                    <Button onClick={() => handleExport('transactions')} disabled={!!isExporting} className="w-full">{isExporting === 'transactions' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{isExporting === 'transactions' ? 'Exporting...' : 'Export Transactions (CSV)'}</Button>
-                </CardFooter>
-            </Card>
+            <Card><CardHeader><CardTitle className="flex items-center text-xl"><HandCoins className="mr-2 h-6 w-6 text-primary" /> Transactions</CardTitle><CardDescription>Export a complete log of all financial transactions.</CardDescription></CardHeader><CardFooter><Button onClick={() => handleExport('transactions')} disabled={!!isExporting} className="w-full">{isExporting === 'transactions' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{isExporting === 'transactions' ? 'Exporting...' : 'Export Transactions (CSV)'}</Button></CardFooter></Card>
           </div>
         </TabsContent>
       </Tabs>
