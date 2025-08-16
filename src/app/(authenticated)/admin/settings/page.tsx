@@ -50,7 +50,7 @@ export default function SettingsPage() {
         setIsLoadingData(true);
         try {
             const allUsers = await getAllUsers();
-            const adminUsers = allUsers.filter(u => u.role === 'admin' || u.role === 'super_admin');
+            const adminUsers = allUsers.filter(u => u.role === 'admin' || u.role === 'super_admin').sort((a, b) => a.role === 'super_admin' ? -1 : 1);
             setAdmins(adminUsers);
         } catch (err) {
             console.error("Failed to fetch users for settings:", err);
@@ -122,7 +122,8 @@ export default function SettingsPage() {
                     <CardDescription>Assign granular permissions to administrators for accessing different sections of the portal.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="border rounded-lg overflow-x-auto">
+                    {/* Desktop View */}
+                    <div className="hidden md:block border rounded-lg overflow-x-auto">
                          <Table>
                             <TableHeader>
                                 <TableRow>
@@ -180,6 +181,63 @@ export default function SettingsPage() {
                             </TableBody>
                         </Table>
                     </div>
+
+                    {/* Mobile View */}
+                    <div className="block md:hidden space-y-4">
+                        {admins.map(admin => (
+                            <Card key={admin.id} className="shadow-md">
+                                <CardHeader>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-10 w-10">
+                                            <AvatarImage src={admin.photoUrl} alt={admin.name} data-ai-hint="profile avatar" />
+                                            <AvatarFallback>{getInitials(admin.name)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <CardTitle className="text-base">{admin.name}</CardTitle>
+                                            <CardDescription className="text-xs">{admin.email}</CardDescription>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                                        {PERMISSION_CONFIG.map(p => (
+                                            <div key={p.id} className="flex items-center space-x-2">
+                                                {admin.role === 'super_admin' ? (
+                                                    <Checkbox id={`${admin.id}-${p.id}`} checked={true} disabled={true} />
+                                                ) : (
+                                                    <Checkbox
+                                                        id={`${admin.id}-${p.id}`}
+                                                        checked={admin.permissions?.[p.id] ?? false}
+                                                        onCheckedChange={(value) => handlePermissionChange(admin.id, p.id, value as boolean)}
+                                                        disabled={isSubmitting === admin.id}
+                                                    />
+                                                )}
+                                                <Label htmlFor={`${admin.id}-${p.id}`} className="text-sm font-normal">{p.label}</Label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                                {admin.role !== 'super_admin' && (
+                                     <CardFooter className="border-t pt-4">
+                                        <Button 
+                                            size="sm" 
+                                            className="w-full"
+                                            onClick={() => handleSaveChanges(admin)} 
+                                            disabled={isSubmitting === admin.id}
+                                        >
+                                            {isSubmitting === admin.id ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                                            ) : (
+                                                <Save className="mr-2 h-4 w-4"/>
+                                            )}
+                                            Save Changes
+                                        </Button>
+                                    </CardFooter>
+                                )}
+                            </Card>
+                        ))}
+                    </div>
+
                 </CardContent>
             </Card>
 
