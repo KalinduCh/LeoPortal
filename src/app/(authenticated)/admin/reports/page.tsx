@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/reports/page.tsx
 "use client";
 
@@ -125,54 +126,30 @@ export default function ReportsPage() {
     });
   }, [allAttendance, allUsers]);
 
-  const { memberSignupData, memberSignupYear } = useMemo(() => {
-    if (!allUsers.length) return { memberSignupData: [], memberSignupYear: new Date().getFullYear() };
-
-    const yearsWithSignups: Set<number> = new Set();
-    allUsers.forEach(u => {
-      if (u.createdAt && isValid(parseISO(u.createdAt))) {
-        yearsWithSignups.add(getYear(parseISO(u.createdAt)));
-      }
-    });
-
-    const latestYear = yearsWithSignups.size > 0 
-      ? Math.max(...Array.from(yearsWithSignups)) 
-      : new Date().getFullYear();
-
+  const memberSignupData = useMemo(() => {
+    const currentYear = new Date().getFullYear();
     const monthlySignups = Array.from({ length: 12 }, (_, i) => ({
-      month: format(new Date(latestYear, i), 'MMM'),
+      month: format(new Date(currentYear, i), 'MMM'),
       total: 0,
     }));
     
     allUsers.forEach(u => {
       if (u.createdAt && isValid(parseISO(u.createdAt))) {
         const joinDate = parseISO(u.createdAt);
-        if (getYear(joinDate) === latestYear) {
+        if (getYear(joinDate) === currentYear) {
           const monthIndex = getMonth(joinDate);
           monthlySignups[monthIndex].total++;
         }
       }
     });
-    return { memberSignupData: monthlySignups, memberSignupYear: latestYear };
+    return monthlySignups;
   }, [allUsers]);
-
-  const { financialChartData, financialChartYear } = useMemo(() => {
-    if (!allTransactions.length) return { financialChartData: [], financialChartYear: new Date().getFullYear() };
-
-    const yearsWithTransactions: Set<number> = new Set();
-    allTransactions.forEach(t => {
-      if (t.date && isValid(parseISO(t.date))) {
-        yearsWithTransactions.add(getYear(parseISO(t.date)));
-      }
-    });
-    
-    const latestYear = yearsWithTransactions.size > 0 
-      ? Math.max(...Array.from(yearsWithTransactions)) 
-      : new Date().getFullYear();
-    
+  
+  const financialChartData = useMemo(() => {
+    const currentYear = new Date().getFullYear();
     const data = eachMonthOfInterval({
-        start: startOfYear(new Date(latestYear, 0, 1)),
-        end: endOfYear(new Date(latestYear, 11, 31))
+        start: startOfYear(new Date(currentYear, 0, 1)),
+        end: endOfYear(new Date(currentYear, 11, 31))
     }).map(month => ({
         name: format(month, 'MMM'),
         income: 0,
@@ -181,7 +158,7 @@ export default function ReportsPage() {
 
     allTransactions.forEach(t => {
         const transactionDate = parseISO(t.date);
-        if (getYear(transactionDate) === latestYear) {
+        if (getYear(transactionDate) === currentYear) {
             const monthIndex = getMonth(transactionDate);
             if(t.type === 'income') {
                 data[monthIndex].income += t.amount;
@@ -190,7 +167,7 @@ export default function ReportsPage() {
             }
         }
     });
-    return { financialChartData: data, financialChartYear: latestYear };
+    return data;
   }, [allTransactions]);
 
   
@@ -353,8 +330,8 @@ export default function ReportsPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center"><LineChartIcon className="mr-2 h-5 w-5 text-primary"/>Member Growth ({memberSignupYear})</CardTitle>
-              <CardDescription>Monthly new member signups based on profile creation date.</CardDescription>
+              <CardTitle className="flex items-center"><LineChartIcon className="mr-2 h-5 w-5 text-primary"/>Member Growth ({new Date().getFullYear()})</CardTitle>
+              <CardDescription>Monthly new member signups based on profile creation date for the current year.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingData ? (
@@ -368,7 +345,7 @@ export default function ReportsPage() {
                   </RechartsBarChart>
                 </ChartContainer>
               ) : (
-                <p className="text-center text-muted-foreground py-8">No member signup data found for {memberSignupYear}.</p>
+                <p className="text-center text-muted-foreground py-8">No member signup data found for {new Date().getFullYear()}.</p>
               )}
             </CardContent>
           </Card>
@@ -406,8 +383,8 @@ export default function ReportsPage() {
         <TabsContent value="financial-reports" className="mt-6">
            <Card>
             <CardHeader>
-              <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Financial Summary ({financialChartYear})</CardTitle>
-              <CardDescription>Monthly income vs. expenses for the most recent year with data.</CardDescription>
+              <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Financial Summary ({new Date().getFullYear()})</CardTitle>
+              <CardDescription>Monthly income vs. expenses for the current year.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingData ? (<div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
@@ -423,7 +400,7 @@ export default function ReportsPage() {
                     </RechartsBarChart>
                 </ChartContainer>
               ) : (
-                 <p className="text-center text-muted-foreground py-8">No financial transaction data found for {financialChartYear}.</p>
+                 <p className="text-center text-muted-foreground py-8">No financial transaction data found for {new Date().getFullYear()}.</p>
               )}
             </CardContent>
           </Card>
