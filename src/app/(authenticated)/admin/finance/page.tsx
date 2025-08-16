@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/finance/page.tsx
 "use client";
 
@@ -21,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from '@/components/ui/label';
 import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { cn } from '@/lib/utils';
 
 
 const chartConfig = {
@@ -202,7 +202,7 @@ export default function FinancePage() {
                 <TrendingUp className="h-4 w-4 text-muted-foreground text-green-500" />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">LKR {financialSummary.yearIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-2xl font-bold text-green-600">LKR {financialSummary.yearIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <p className="text-xs text-muted-foreground">+LKR {financialSummary.monthIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} this month</p>
             </CardContent>
         </Card>
@@ -212,7 +212,7 @@ export default function FinancePage() {
                 <TrendingDown className="h-4 w-4 text-muted-foreground text-red-500" />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">LKR {financialSummary.yearExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-2xl font-bold text-red-600">LKR {financialSummary.yearExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <p className="text-xs text-muted-foreground">+LKR {financialSummary.monthExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} this month</p>
             </CardContent>
         </Card>
@@ -222,7 +222,7 @@ export default function FinancePage() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className="text-2xl font-bold text-primary">
                     LKR {netBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <p className="text-xs text-muted-foreground">Overall Profit / Loss</p>
@@ -293,43 +293,71 @@ export default function FinancePage() {
           <CardDescription>A complete log of all financial activities.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Source/Description</TableHead>
-                <TableHead className="text-right">Amount (LKR)</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell>{format(parseISO(t.date), 'MMM dd, yyyy')}</TableCell>
-                  <TableCell>
-                    <Badge variant={t.type === 'income' ? 'secondary' : 'destructive'} className={t.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                      {t.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium">{t.category}</TableCell>
-                  <TableCell className="text-muted-foreground">{t.source}</TableCell>
-                  <TableCell className={`text-right font-mono ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                    {t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </TableCell>
-                   <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenForm(t)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTransaction(t.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                  </TableCell>
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Source/Description</TableHead>
+                  <TableHead className="text-right">Amount (LKR)</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell>{format(parseISO(t.date), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>
+                      <Badge variant={t.type === 'income' ? 'secondary' : 'destructive'} className={t.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                        {t.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">{t.category}</TableCell>
+                    <TableCell className="text-muted-foreground">{t.source}</TableCell>
+                    <TableCell className={`text-right font-mono ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                      {t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </TableCell>
+                     <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenForm(t)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTransaction(t.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {/* Mobile Card View */}
+          <div className="block md:hidden space-y-3">
+             {transactions.map((t) => (
+                <Card key={t.id} className={cn("shadow-sm", t.type === 'income' ? 'border-green-500/20' : 'border-red-500/20')}>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-base font-semibold">{t.category}</CardTitle>
+                        <div className={cn("font-bold text-lg", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                            {t.type === 'income' ? '+' : '-'}LKR {t.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-1 pb-3">
+                        <p className="text-sm text-muted-foreground">{t.source}</p>
+                         <p className="text-xs text-muted-foreground pt-1">{format(parseISO(t.date), 'MMMM dd, yyyy')}</p>
+                    </CardContent>
+                    <CardContent className="flex justify-end gap-2 pb-3">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenForm(t)}>
+                            <Edit className="mr-1.5 h-3 w-3"/> Edit
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteTransaction(t.id)}>
+                            <Trash2 className="mr-1.5 h-3 w-3"/> Delete
+                        </Button>
+                    </CardContent>
+                </Card>
+             ))}
+          </div>
           {transactions.length === 0 && (
             <p className="text-center text-muted-foreground py-8">No transactions recorded yet.</p>
           )}
