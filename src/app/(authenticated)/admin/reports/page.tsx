@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { User, Event, AttendanceRecord, BadgeId } from '@/types';
+import type { User, Event, AttendanceRecord, BadgeId, Transaction } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, LineChart as LineChartIcon } from "lucide-react";
+import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, LineChart as LineChartIcon, HandCoins } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { getAllUsers } from '@/services/userService';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
-import { format, parseISO, isValid, getYear, getMonth } from 'date-fns';
+import { getTransactions } from '@/services/financeService';
+import { format, parseISO, isValid, getYear, getMonth, startOfYear, endOfYear, eachMonthOfInterval } from 'date-fns';
 import Papa from 'papaparse';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -42,6 +43,7 @@ export default function ReportsPage() {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
@@ -55,14 +57,16 @@ export default function ReportsPage() {
   const fetchData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-      const [users, events, attendance] = await Promise.all([
+      const [users, events, attendance, transactions] = await Promise.all([
         getAllUsers(),
         getEvents(),
-        getAllAttendanceRecords()
+        getAllAttendanceRecords(),
+        getTransactions()
       ]);
       setAllUsers(users);
       setAllEvents(events);
       setAllAttendance(attendance);
+      setAllTransactions(transactions);
     } catch (error) {
       console.error("Failed to fetch data for reports page:", error);
       toast({ title: "Error", description: "Could not load data for reports.", variant: "destructive" });
@@ -85,19 +89,24 @@ export default function ReportsPage() {
 
   const memberLeaderboard = useMemo(() => {
     const stats: Record<string, { count: number; user: User | undefined }> = {};
+    
+    allUsers.forEach(u => {
+      // Initialize stats for all members and admins (but not super admins)
+      if (u.status === 'approved' && (u.role === 'member' || u.role === 'admin')) {
+        stats[u.id] = { count: 0, user: u };
+      }
+    });
+
     allAttendance.forEach(record => {
-      if (record.userId) {
-        if (!stats[record.userId]) {
-          stats[record.userId] = { count: 0, user: allUsers.find(u => u.id === record.userId) };
-        }
+      if (record.userId && stats[record.userId]) {
         stats[record.userId].count++;
       }
     });
 
-    const calculatedStats = Object.entries(stats)
-      .filter(([, data]) => data.user?.role === 'member' && data.user?.status === 'approved' && data.count > 0)
-      .map(([userId, data]) => ({
-        userId,
+    const calculatedStats = Object.values(stats)
+      .filter(data => data.count > 0)
+      .map(data => ({
+        userId: data.user!.id,
         name: data.user!.name || 'Unknown User',
         email: data.user!.email || 'N/A',
         attendanceCount: data.count,
@@ -123,23 +132,50 @@ export default function ReportsPage() {
       month: format(new Date(currentYear, i), 'MMM'),
       total: 0,
     }));
-
-    allUsers.forEach(user => {
-      if (user.createdAt && isValid(parseISO(user.createdAt))) {
-        const joinDate = parseISO(user.createdAt);
+    
+    allUsers.forEach(u => {
+      if (u.createdAt && isValid(parseISO(u.createdAt))) {
+        const joinDate = parseISO(u.createdAt);
         if (getYear(joinDate) === currentYear) {
           const monthIndex = getMonth(joinDate);
           monthlySignups[monthIndex].total++;
         }
       }
     });
-
     return monthlySignups;
   }, [allUsers]);
+
+  const financialChartData = useMemo(() => {
+    const now = new Date();
+    const currentYear = getYear(now);
+    const months = eachMonthOfInterval({
+        start: startOfYear(now),
+        end: endOfYear(now)
+    });
+    
+    const data = months.map(month => ({
+        name: format(month, 'MMM'),
+        income: 0,
+        expenses: 0
+    }));
+
+    allTransactions.forEach(t => {
+        const transactionDate = parseISO(t.date);
+        if(getYear(transactionDate) === currentYear) {
+            const monthIndex = getMonth(transactionDate);
+            if(t.type === 'income') {
+                data[monthIndex].income += t.amount;
+            } else {
+                data[monthIndex].expenses += t.amount;
+            }
+        }
+    });
+    return data;
+  }, [allTransactions]);
+
   
   const eventReportsData = useMemo(() => {
     if (!allEvents.length) return [];
-    // Sort by most recent start date first
     return [...allEvents].sort((a, b) => {
         const dateA = a.startDate ? parseISO(a.startDate).getTime() : 0;
         const dateB = b.startDate ? parseISO(b.startDate).getTime() : 0;
@@ -147,15 +183,10 @@ export default function ReportsPage() {
     });
   }, [allEvents]);
 
+  const memberChartConfig = { total: { label: "New Members", color: "hsl(var(--primary))" } } satisfies ChartConfig;
+  const financialChartConfig = { income: { label: "Income", color: "hsl(var(--chart-2))" }, expenses: { label: "Expenses", color: "hsl(var(--chart-1))" } } satisfies ChartConfig;
 
-  const chartConfig = {
-    total: {
-      label: "New Members",
-      color: "hsl(var(--primary))",
-    },
-  } satisfies ChartConfig;
-
-  const handleExport = async (type: 'members' | 'events' | 'attendance') => {
+  const handleExport = async (type: 'members' | 'events' | 'attendance' | 'transactions') => {
     setIsExporting(type);
     toast({ title: "Generating Report...", description: `Fetching all ${type} data.` });
     try {
@@ -176,6 +207,11 @@ export default function ReportsPage() {
           Location: event.location, Description: event.description, Latitude: event.latitude, Longitude: event.longitude
         }));
         fileName = `leo-portal_events_${new Date().toISOString().split('T')[0]}.csv`;
+      } else if (type === 'transactions') {
+        data = allTransactions.map(t => ({
+          ID: t.id, Type: t.type, Date: t.date, Amount: t.amount, Category: t.category, Source: t.source, Notes: t.notes
+        }));
+        fileName = `leo-portal_transactions_${new Date().toISOString().split('T')[0]}.csv`;
       } else { // attendance
         data = allAttendance.map(record => ({
           RecordID: record.id, EventID: record.eventId, UserID: record.userId, Timestamp: record.timestamp ? format(parseISO(record.timestamp), 'yyyy-MM-dd HH:mm:ss') : '',
@@ -220,9 +256,10 @@ export default function ReportsPage() {
       </div>
 
       <Tabs defaultValue="member-reports" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 h-auto">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 h-auto">
           <TabsTrigger value="member-reports" className="py-2"><Users2 className="mr-2 h-4 w-4"/>Member Reports</TabsTrigger>
           <TabsTrigger value="event-reports" className="py-2"><Calendar className="mr-2 h-4 w-4"/>Event Reports</TabsTrigger>
+          <TabsTrigger value="financial-reports" className="py-2"><HandCoins className="mr-2 h-4 w-4"/>Financial Overview</TabsTrigger>
           <TabsTrigger value="data-exports" className="py-2"><Download className="mr-2 h-4 w-4"/>Data Exports</TabsTrigger>
         </TabsList>
 
@@ -230,23 +267,16 @@ export default function ReportsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center"><Award className="mr-2 h-5 w-5 text-primary"/>Member Participation Leaderboard</CardTitle>
-              <CardDescription>Top attendees across all events. Based on total attendance records.</CardDescription>
+              <CardDescription>Top attendees (Members & Admins) across all events.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingData ? (
                 <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : memberLeaderboard.length > 0 ? (
                 <TooltipProvider>
-                   {/* Desktop Table View */}
                   <div className="hidden md:block">
                     <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[60px]">Rank</TableHead>
-                          <TableHead>Member</TableHead>
-                          <TableHead className="text-right">Attendance Count</TableHead>
-                        </TableRow>
-                      </TableHeader>
+                      <TableHeader><TableRow><TableHead className="w-[60px]">Rank</TableHead><TableHead>Member</TableHead><TableHead className="text-right">Attendance Count</TableHead></TableRow></TableHeader>
                       <TableBody>
                         {memberLeaderboard.slice(0, 20).map((stat, index) => (
                           <TableRow key={stat.userId}>
@@ -259,10 +289,7 @@ export default function ReportsPage() {
                                         if(!badge) return null;
                                         const Icon = badge.icon;
                                         return (
-                                            <Tooltip key={badgeId}>
-                                                <TooltipTrigger><Icon className="h-4 w-4 text-yellow-500" /></TooltipTrigger>
-                                                <TooltipContent><p className="font-semibold">{badge.name}</p></TooltipContent>
-                                            </Tooltip>
+                                            <Tooltip key={badgeId}><TooltipTrigger><Icon className="h-4 w-4 text-yellow-500" /></TooltipTrigger><TooltipContent><p className="font-semibold">{badge.name}</p></TooltipContent></Tooltip>
                                         )
                                     })}
                                 </div>
@@ -273,38 +300,23 @@ export default function ReportsPage() {
                       </TableBody>
                     </Table>
                   </div>
-                   {/* Mobile Card View */}
                   <div className="block md:hidden space-y-3">
                     {memberLeaderboard.slice(0, 20).map((stat, index) => (
                       <Card key={stat.userId} className="shadow-sm">
                         <CardContent className="p-4 flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                              <Avatar className="h-12 w-12">
-                                <AvatarImage src={stat.photoUrl} alt={stat.name} data-ai-hint="profile avatar" />
-                                <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                                  {getInitials(stat.name)}
-                                </AvatarFallback>
-                              </Avatar>
+                              <Avatar className="h-12 w-12"><AvatarImage src={stat.photoUrl} alt={stat.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold">{getInitials(stat.name)}</AvatarFallback></Avatar>
                               <div>
-                                <p className="font-semibold flex items-center gap-2">
-                                  {index + 1}. {stat.name}
+                                <p className="font-semibold flex items-center gap-2">{index + 1}. {stat.name}
                                   <span className="flex items-center gap-1.5">
                                     {stat.badges.map(badgeId => {
                                       const badge = BADGE_DEFINITIONS[badgeId];
                                       if(!badge) return null;
                                       const Icon = badge.icon;
-                                      return (
-                                        <Tooltip key={badgeId}>
-                                          <TooltipTrigger asChild>
-                                            <Icon className="h-4 w-4 text-yellow-500" />
-                                          </TooltipTrigger>
-                                          <TooltipContent><p>{badge.name}</p></TooltipContent>
-                                        </Tooltip>
-                                      );
+                                      return (<Tooltip key={badgeId}><TooltipTrigger asChild><Icon className="h-4 w-4 text-yellow-500" /></TooltipTrigger><TooltipContent><p>{badge.name}</p></TooltipContent></Tooltip>);
                                     })}
                                   </span>
-                                </p>
-                                <p className="text-xs text-muted-foreground">{stat.email}</p>
+                                </p><p className="text-xs text-muted-foreground">{stat.email}</p>
                               </div>
                           </div>
                           <Badge variant="outline" className="text-lg px-3 py-1">{stat.attendanceCount}</Badge>
@@ -318,37 +330,25 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
-
-           <Card>
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center"><LineChartIcon className="mr-2 h-5 w-5 text-primary"/>Member Growth (Current Year)</CardTitle>
-              <CardDescription>Monthly new member signups.</CardDescription>
+              <CardDescription>Monthly new member signups based on profile creation date.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingData ? (
                 <div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : (
-                <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                <ChartContainer config={memberChartConfig} className="h-[250px] w-full">
                   <RechartsBarChart accessibilityLayer data={memberSignupData}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                    />
-                    <YAxis allowDecimals={false} />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent indicator="dot" />}
-                    />
+                    <CartesianGrid vertical={false} /><XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} /><YAxis allowDecimals={false} />
+                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
                     <Bar dataKey="total" fill="var(--color-primary)" radius={4} />
                   </RechartsBarChart>
                 </ChartContainer>
               )}
             </CardContent>
           </Card>
-
         </TabsContent>
 
         <TabsContent value="event-reports" className="mt-6">
@@ -358,58 +358,20 @@ export default function ReportsPage() {
                 <CardDescription>A list of all created events, sorted by most recent. Click an event to view its detailed summary.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                {isLoadingData ? (
-                    <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                {isLoadingData ? (<div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : eventReportsData.length > 0 ? (
                     <div className="max-h-[600px] overflow-y-auto">
-                    {/* Desktop Table View */}
-                    <div className="hidden md:block">
+                      <div className="hidden md:block">
                         <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>Event Name</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Location</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {eventReportsData.map((event) => (
-                            <TableRow key={event.id}>
-                                <TableCell className="font-medium">{event.name}</TableCell>
-                                <TableCell>{event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell>
-                                <TableCell>{event.location}</TableCell>
-                                <TableCell className="text-right">
-                                <Button variant="outline" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>
-                                    View Summary <ExternalLink className="ml-2 h-3 w-3" />
-                                </Button>
-                                </TableCell>
-                            </TableRow>
-                            ))}
-                        </TableBody>
+                          <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Date</TableHead><TableHead>Location</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                          <TableBody>
+                            {eventReportsData.map((event) => (<TableRow key={event.id}><TableCell className="font-medium">{event.name}</TableCell><TableCell>{event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell><TableCell>{event.location}</TableCell><TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>View Summary <ExternalLink className="ml-2 h-3 w-3" /></Button></TableCell></TableRow>))}
+                          </TableBody>
                         </Table>
-                    </div>
-                    {/* Mobile Card View */}
-                    <div className="block md:hidden space-y-3">
-                        {eventReportsData.map((event) => (
-                        <Card key={event.id} className="shadow-sm">
-                            <CardHeader className="pb-4">
-                                <CardTitle className="text-base font-semibold text-primary">{event.name}</CardTitle>
-                                <CardDescription className="text-xs">
-                                    {event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="pb-4">
-                                <p className="text-sm text-muted-foreground">{event.location}</p>
-                            </CardContent>
-                            <CardFooter>
-                                <Button variant="outline" className="w-full" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>
-                                    View Summary <ExternalLink className="ml-2 h-3 w-3" />
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                        ))}
-                    </div>
+                      </div>
+                      <div className="block md:hidden space-y-3">
+                        {eventReportsData.map((event) => (<Card key={event.id} className="shadow-sm"><CardHeader className="pb-4"><CardTitle className="text-base font-semibold text-primary">{event.name}</CardTitle><CardDescription className="text-xs">{event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'MMM dd, yyyy') : 'N/A'}</CardDescription></CardHeader><CardContent className="pb-4"><p className="text-sm text-muted-foreground">{event.location}</p></CardContent><CardFooter><Button variant="outline" className="w-full" size="sm" onClick={() => router.push(`/admin/event-summary/${event.id}`)}>View Summary <ExternalLink className="ml-2 h-3 w-3" /></Button></CardFooter></Card>))}
+                      </div>
                     </div>
                 ) : (
                     <p className="text-center text-muted-foreground py-8">No events have been created yet.</p>
@@ -418,44 +380,35 @@ export default function ReportsPage() {
             </Card>
         </TabsContent>
 
+        <TabsContent value="financial-reports" className="mt-6">
+           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Financial Summary ({getYear(new Date())})</CardTitle>
+              <CardDescription>Monthly income vs. expenses for the current year.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingData ? (<div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>) : (
+                <ChartContainer config={financialChartConfig} className="h-[250px] w-full">
+                    <RechartsBarChart accessibilityLayer data={financialChartData}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                        <YAxis tickFormatter={(value) => `LKR ${Number(value) / 1000}k`} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="income" fill="var(--color-income)" radius={4} />
+                        <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
+                    </RechartsBarChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="data-exports" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-6 w-6 text-primary" /> All Members</CardTitle>
-                <CardDescription>Export a full list of all registered members in the system.</CardDescription>
-              </CardHeader>
-              <CardFooter>
-                <Button onClick={() => handleExport('members')} disabled={!!isExporting} className="w-full">
-                  {isExporting === 'members' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                  {isExporting === 'members' ? 'Exporting...' : 'Export Members (CSV)'}
-                </Button>
-              </CardFooter>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center text-xl"><Calendar className="mr-2 h-6 w-6 text-primary" /> All Events</CardTitle>
-                <CardDescription>Export a list of all events, past and upcoming.</CardDescription>
-              </CardHeader>
-              <CardFooter>
-                <Button onClick={() => handleExport('events')} disabled={!!isExporting} className="w-full">
-                  {isExporting === 'events' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                  {isExporting === 'events' ? 'Exporting...' : 'Export Events (CSV)'}
-                </Button>
-              </CardFooter>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center text-xl"><BarChart className="mr-2 h-6 w-6 text-primary" /> Attendance Log</CardTitle>
-                <CardDescription>Export a complete log of all attendance records for all events.</CardDescription>
-              </CardHeader>
-              <CardFooter>
-                <Button onClick={() => handleExport('attendance')} disabled={!!isExporting} className="w-full">
-                  {isExporting === 'attendance' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                  {isExporting === 'attendance' ? 'Exporting...' : 'Export Attendance (CSV)'}
-                </Button>
-              </CardFooter>
-            </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+            <Card><CardHeader><CardTitle className="flex items-center text-xl"><Users className="mr-2 h-6 w-6 text-primary" /> All Members</CardTitle><CardDescription>Export a full list of all registered members.</CardDescription></CardHeader><CardFooter><Button onClick={() => handleExport('members')} disabled={!!isExporting} className="w-full">{isExporting === 'members' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{isExporting === 'members' ? 'Exporting...' : 'Export Members (CSV)'}</Button></CardFooter></Card>
+            <Card><CardHeader><CardTitle className="flex items-center text-xl"><Calendar className="mr-2 h-6 w-6 text-primary" /> All Events</CardTitle><CardDescription>Export a list of all events, past and upcoming.</CardDescription></CardHeader><CardFooter><Button onClick={() => handleExport('events')} disabled={!!isExporting} className="w-full">{isExporting === 'events' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{isExporting === 'events' ? 'Exporting...' : 'Export Events (CSV)'}</Button></CardFooter></Card>
+            <Card><CardHeader><CardTitle className="flex items-center text-xl"><BarChart className="mr-2 h-6 w-6 text-primary" /> Attendance Log</CardTitle><CardDescription>Export a complete log of all attendance records.</CardDescription></CardHeader><CardFooter><Button onClick={() => handleExport('attendance')} disabled={!!isExporting} className="w-full">{isExporting === 'attendance' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{isExporting === 'attendance' ? 'Exporting...' : 'Export Attendance (CSV)'}</Button></CardFooter></Card>
+            <Card><CardHeader><CardTitle className="flex items-center text-xl"><HandCoins className="mr-2 h-6 w-6 text-primary" /> Transactions</CardTitle><CardDescription>Export a complete log of all financial transactions.</CardDescription></CardHeader><CardFooter><Button onClick={() => handleExport('transactions')} disabled={!!isExporting} className="w-full">{isExporting === 'transactions' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{isExporting === 'transactions' ? 'Exporting...' : 'Export Transactions (CSV)'}</Button></CardFooter></Card>
           </div>
         </TabsContent>
       </Tabs>
