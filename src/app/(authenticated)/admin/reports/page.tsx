@@ -128,56 +128,52 @@ export default function ReportsPage() {
   const { memberSignupData, memberSignupYear } = useMemo(() => {
     if (!allUsers.length) return { memberSignupData: [], memberSignupYear: new Date().getFullYear() };
 
-    const yearsWithSignups: Record<number, number> = {};
+    const yearsWithSignups: Set<number> = new Set();
     allUsers.forEach(u => {
-        if(u.createdAt && isValid(parseISO(u.createdAt))) {
-            const year = getYear(parseISO(u.createdAt));
-            yearsWithSignups[year] = (yearsWithSignups[year] || 0) + 1;
-        }
+      if (u.createdAt && isValid(parseISO(u.createdAt))) {
+        yearsWithSignups.add(getYear(parseISO(u.createdAt)));
+      }
     });
 
-    const latestYearWithSignups = Object.keys(yearsWithSignups).length > 0
-        ? Math.max(...Object.keys(yearsWithSignups).map(Number))
-        : new Date().getFullYear();
+    const latestYear = yearsWithSignups.size > 0 
+      ? Math.max(...Array.from(yearsWithSignups)) 
+      : new Date().getFullYear();
 
     const monthlySignups = Array.from({ length: 12 }, (_, i) => ({
-      month: format(new Date(latestYearWithSignups, i), 'MMM'),
+      month: format(new Date(latestYear, i), 'MMM'),
       total: 0,
     }));
     
     allUsers.forEach(u => {
       if (u.createdAt && isValid(parseISO(u.createdAt))) {
         const joinDate = parseISO(u.createdAt);
-        if (getYear(joinDate) === latestYearWithSignups) {
+        if (getYear(joinDate) === latestYear) {
           const monthIndex = getMonth(joinDate);
           monthlySignups[monthIndex].total++;
         }
       }
     });
-    return { memberSignupData: monthlySignups, memberSignupYear: latestYearWithSignups };
+    return { memberSignupData: monthlySignups, memberSignupYear: latestYear };
   }, [allUsers]);
 
   const { financialChartData, financialChartYear } = useMemo(() => {
     if (!allTransactions.length) return { financialChartData: [], financialChartYear: new Date().getFullYear() };
 
-    const yearsWithTransactions: Record<number, number> = {};
+    const yearsWithTransactions: Set<number> = new Set();
     allTransactions.forEach(t => {
-        if(t.date && isValid(parseISO(t.date))) {
-            const year = getYear(parseISO(t.date));
-            yearsWithTransactions[year] = (yearsWithTransactions[year] || 0) + 1;
-        }
+      if (t.date && isValid(parseISO(t.date))) {
+        yearsWithTransactions.add(getYear(parseISO(t.date)));
+      }
     });
     
-    const latestYearWithData = Object.keys(yearsWithTransactions).length > 0
-        ? Math.max(...Object.keys(yearsWithTransactions).map(Number))
-        : new Date().getFullYear();
+    const latestYear = yearsWithTransactions.size > 0 
+      ? Math.max(...Array.from(yearsWithTransactions)) 
+      : new Date().getFullYear();
     
-    const months = eachMonthOfInterval({
-        start: startOfYear(new Date(latestYearWithData, 0, 1)),
-        end: endOfYear(new Date(latestYearWithData, 11, 31))
-    });
-    
-    const data = months.map(month => ({
+    const data = eachMonthOfInterval({
+        start: startOfYear(new Date(latestYear, 0, 1)),
+        end: endOfYear(new Date(latestYear, 11, 31))
+    }).map(month => ({
         name: format(month, 'MMM'),
         income: 0,
         expenses: 0
@@ -185,7 +181,7 @@ export default function ReportsPage() {
 
     allTransactions.forEach(t => {
         const transactionDate = parseISO(t.date);
-        if(getYear(transactionDate) === latestYearWithData) {
+        if (getYear(transactionDate) === latestYear) {
             const monthIndex = getMonth(transactionDate);
             if(t.type === 'income') {
                 data[monthIndex].income += t.amount;
@@ -194,7 +190,7 @@ export default function ReportsPage() {
             }
         }
     });
-    return { financialChartData: data, financialChartYear: latestYearWithData };
+    return { financialChartData: data, financialChartYear: latestYear };
   }, [allTransactions]);
 
   
@@ -445,3 +441,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+    
