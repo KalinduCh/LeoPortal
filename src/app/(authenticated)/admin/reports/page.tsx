@@ -213,7 +213,7 @@ export default function ReportsPage() {
         data = allAttendance.map(record => ({
           RecordID: record.id, EventID: record.eventId, UserID: record.userId, Timestamp: record.timestamp ? format(parseISO(record.timestamp), 'yyyy-MM-dd HH:mm:ss') : '',
           Status: record.status, AttendanceType: record.attendanceType, VisitorName: record.visitorName, VisitorDesignation: record.visitorDesignation,
-          VisitorClub: record.visitorClub, VisitorComment: record.visitorComment, MarkedLatitude: record.markedLatitude, MarkedLongitude: record.markedLongitude
+          VisitorClub: record.visitorComment, MarkedLatitude: record.markedLatitude, MarkedLongitude: record.markedLongitude
         }));
         fileName = `leo-portal_attendance-log_${new Date().toISOString().split('T')[0]}.csv`;
       }
@@ -331,7 +331,7 @@ export default function ReportsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center"><LineChartIcon className="mr-2 h-5 w-5 text-primary"/>Member Growth ({new Date().getFullYear()})</CardTitle>
-              <CardDescription>Monthly new member signups based on profile creation date for the current year.</CardDescription>
+              <CardDescription>Monthly new member signups for the current year.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingData ? (
