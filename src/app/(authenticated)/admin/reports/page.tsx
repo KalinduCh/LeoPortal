@@ -256,11 +256,11 @@ export default function ReportsPage() {
       </div>
 
       <Tabs defaultValue="member-reports" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 h-auto">
-          <TabsTrigger value="member-reports" className="py-2"><Users2 className="mr-2 h-4 w-4"/>Member Reports</TabsTrigger>
-          <TabsTrigger value="event-reports" className="py-2"><Calendar className="mr-2 h-4 w-4"/>Event Reports</TabsTrigger>
-          <TabsTrigger value="financial-reports" className="py-2"><HandCoins className="mr-2 h-4 w-4"/>Financial Overview</TabsTrigger>
-          <TabsTrigger value="data-exports" className="py-2"><Download className="mr-2 h-4 w-4"/>Data Exports</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 h-auto bg-primary/10 text-primary-foreground">
+          <TabsTrigger value="member-reports" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Users2 className="mr-2 h-4 w-4"/>Member Reports</TabsTrigger>
+          <TabsTrigger value="event-reports" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Calendar className="mr-2 h-4 w-4"/>Event Reports</TabsTrigger>
+          <TabsTrigger value="financial-reports" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><HandCoins className="mr-2 h-4 w-4"/>Financial Overview</TabsTrigger>
+          <TabsTrigger value="data-exports" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Download className="mr-2 h-4 w-4"/>Data Exports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="member-reports" className="mt-6 space-y-6">
