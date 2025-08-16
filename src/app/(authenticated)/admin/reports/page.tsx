@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/reports/page.tsx
 "use client";
 
@@ -11,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, LineChart as LineChartIcon, HandCoins } from "lucide-react";
+import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, LineChart as LineChartIcon, HandCoins, PieChart as PieChartIcon } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { getAllUsers } from '@/services/userService';
 import { getEvents } from '@/services/eventService';
@@ -22,7 +21,7 @@ import Papa from 'papaparse';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell, Legend } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 
 interface MemberStat {
@@ -33,6 +32,8 @@ interface MemberStat {
   badges: BadgeId[];
   photoUrl?: string;
 }
+
+const PIE_CHART_COLORS = ["#2563eb", "#14b8a6", "#ef4444", "#f97316", "#8b5cf6", "#3b82f6"];
 
 export default function ReportsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -190,6 +191,24 @@ export default function ReportsPage() {
     });
     return { financialChartData: data, financialChartYear: latestYear };
   }, [allTransactions]);
+
+  const { incomePieData, expensePieData } = useMemo(() => {
+    const incomeByCategory: { [key: string]: number } = {};
+    const expenseByCategory: { [key: string]: number } = {};
+
+    allTransactions.forEach(t => {
+      if (t.type === 'income') {
+        incomeByCategory[t.category] = (incomeByCategory[t.category] || 0) + t.amount;
+      } else {
+        expenseByCategory[t.category] = (expenseByCategory[t.category] || 0) + t.amount;
+      }
+    });
+
+    const incomeData = Object.entries(incomeByCategory).map(([name, value]) => ({ name, value }));
+    const expenseData = Object.entries(expenseByCategory).map(([name, value]) => ({ name, value }));
+    
+    return { incomePieData: incomeData, expensePieData: expenseData };
+  }, [allTransactions]);
   
   const eventReportsData = useMemo(() => {
     if (!allEvents.length) return [];
@@ -269,6 +288,19 @@ export default function ReportsPage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+  
+  const CustomPieTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="p-2 text-sm bg-background border rounded-md shadow-lg">
+          <p className="font-bold">{`${payload[0].name}`}</p>
+          <p className="text-muted-foreground">{`Amount: LKR ${payload[0].value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}</p>
+          <p className="text-muted-foreground">{`Share: ${(payload[0].percent * 100).toFixed(2)}%`}</p>
+        </div>
+      );
+    }
+    return null;
   };
 
   if (authLoading || isLoadingData || !user || !isSuperOrAdmin) {
@@ -410,7 +442,7 @@ export default function ReportsPage() {
             </Card>
         </TabsContent>
 
-        <TabsContent value="financial-reports" className="mt-6">
+        <TabsContent value="financial-reports" className="mt-6 space-y-6">
            <Card>
             <CardHeader>
               <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Financial Summary ({financialChartYear})</CardTitle>
@@ -434,6 +466,46 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center"><PieChartIcon className="mr-2 h-5 w-5 text-green-600"/>Income by Category</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {isLoadingData ? ( <div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                    ) : incomePieData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={250}>
+                            <PieChart>
+                                <Pie data={incomePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                                    {incomePieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />))}
+                                </Pie>
+                                <Tooltip content={<CustomPieTooltip />} />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    ) : (<p className="text-center text-muted-foreground py-8 h-[250px] flex items-center justify-center">No income data available.</p>)}
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center"><PieChartIcon className="mr-2 h-5 w-5 text-red-600"/>Expenses by Category</CardTitle>
+                </CardHeader>
+                <CardContent>
+                     {isLoadingData ? ( <div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                    ) : expensePieData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={250}>
+                            <PieChart>
+                                <Pie data={expensePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                                    {expensePieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />))}
+                                </Pie>
+                                <Tooltip content={<CustomPieTooltip />} />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    ) : (<p className="text-center text-muted-foreground py-8 h-[250px] flex items-center justify-center">No expense data available.</p>)}
+                </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="data-exports" className="mt-6">
