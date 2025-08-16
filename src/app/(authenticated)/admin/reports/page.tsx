@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/reports/page.tsx
 "use client";
 
@@ -104,7 +103,7 @@ export default function ReportsPage() {
     });
 
     const calculatedStats = Object.values(stats)
-      .filter(data => data.count > 0)
+      .filter(data => data.count > 0 && data.user)
       .map(data => ({
         userId: data.user!.id,
         name: data.user!.name || 'Unknown User',
@@ -126,31 +125,56 @@ export default function ReportsPage() {
     });
   }, [allAttendance, allUsers]);
 
-  const memberSignupData = useMemo(() => {
-    const currentYear = new Date().getFullYear();
+  const { memberSignupData, memberSignupYear } = useMemo(() => {
+    if (!allUsers.length) return { memberSignupData: [], memberSignupYear: new Date().getFullYear() };
+
+    const yearsWithSignups: Record<number, number> = {};
+    allUsers.forEach(u => {
+        if(u.createdAt && isValid(parseISO(u.createdAt))) {
+            const year = getYear(parseISO(u.createdAt));
+            yearsWithSignups[year] = (yearsWithSignups[year] || 0) + 1;
+        }
+    });
+
+    const latestYearWithSignups = Object.keys(yearsWithSignups).length > 0
+        ? Math.max(...Object.keys(yearsWithSignups).map(Number))
+        : new Date().getFullYear();
+
     const monthlySignups = Array.from({ length: 12 }, (_, i) => ({
-      month: format(new Date(currentYear, i), 'MMM'),
+      month: format(new Date(latestYearWithSignups, i), 'MMM'),
       total: 0,
     }));
     
     allUsers.forEach(u => {
       if (u.createdAt && isValid(parseISO(u.createdAt))) {
         const joinDate = parseISO(u.createdAt);
-        if (getYear(joinDate) === currentYear) {
+        if (getYear(joinDate) === latestYearWithSignups) {
           const monthIndex = getMonth(joinDate);
           monthlySignups[monthIndex].total++;
         }
       }
     });
-    return monthlySignups;
+    return { memberSignupData: monthlySignups, memberSignupYear: latestYearWithSignups };
   }, [allUsers]);
 
-  const financialChartData = useMemo(() => {
-    const now = new Date();
-    const currentYear = getYear(now);
+  const { financialChartData, financialChartYear } = useMemo(() => {
+    if (!allTransactions.length) return { financialChartData: [], financialChartYear: new Date().getFullYear() };
+
+    const yearsWithTransactions: Record<number, number> = {};
+    allTransactions.forEach(t => {
+        if(t.date && isValid(parseISO(t.date))) {
+            const year = getYear(parseISO(t.date));
+            yearsWithTransactions[year] = (yearsWithTransactions[year] || 0) + 1;
+        }
+    });
+    
+    const latestYearWithData = Object.keys(yearsWithTransactions).length > 0
+        ? Math.max(...Object.keys(yearsWithTransactions).map(Number))
+        : new Date().getFullYear();
+    
     const months = eachMonthOfInterval({
-        start: startOfYear(now),
-        end: endOfYear(now)
+        start: startOfYear(new Date(latestYearWithData, 0, 1)),
+        end: endOfYear(new Date(latestYearWithData, 11, 31))
     });
     
     const data = months.map(month => ({
@@ -161,7 +185,7 @@ export default function ReportsPage() {
 
     allTransactions.forEach(t => {
         const transactionDate = parseISO(t.date);
-        if(getYear(transactionDate) === currentYear) {
+        if(getYear(transactionDate) === latestYearWithData) {
             const monthIndex = getMonth(transactionDate);
             if(t.type === 'income') {
                 data[monthIndex].income += t.amount;
@@ -170,7 +194,7 @@ export default function ReportsPage() {
             }
         }
     });
-    return data;
+    return { financialChartData: data, financialChartYear: latestYearWithData };
   }, [allTransactions]);
 
   
@@ -256,11 +280,11 @@ export default function ReportsPage() {
       </div>
 
       <Tabs defaultValue="member-reports" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 h-auto bg-primary/10 text-primary-foreground">
-          <TabsTrigger value="member-reports" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Users2 className="mr-2 h-4 w-4"/>Member Reports</TabsTrigger>
-          <TabsTrigger value="event-reports" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Calendar className="mr-2 h-4 w-4"/>Event Reports</TabsTrigger>
-          <TabsTrigger value="financial-reports" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><HandCoins className="mr-2 h-4 w-4"/>Financial Overview</TabsTrigger>
-          <TabsTrigger value="data-exports" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Download className="mr-2 h-4 w-4"/>Data Exports</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 h-auto bg-primary/10">
+          <TabsTrigger value="member-reports" className="py-2 text-primary-foreground/80 hover:bg-primary/20 hover:text-primary-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Users2 className="mr-2 h-4 w-4"/>Member Reports</TabsTrigger>
+          <TabsTrigger value="event-reports" className="py-2 text-primary-foreground/80 hover:bg-primary/20 hover:text-primary-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Calendar className="mr-2 h-4 w-4"/>Event Reports</TabsTrigger>
+          <TabsTrigger value="financial-reports" className="py-2 text-primary-foreground/80 hover:bg-primary/20 hover:text-primary-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><HandCoins className="mr-2 h-4 w-4"/>Financial Overview</TabsTrigger>
+          <TabsTrigger value="data-exports" className="py-2 text-primary-foreground/80 hover:bg-primary/20 hover:text-primary-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Download className="mr-2 h-4 w-4"/>Data Exports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="member-reports" className="mt-6 space-y-6">
@@ -281,7 +305,8 @@ export default function ReportsPage() {
                         {memberLeaderboard.slice(0, 20).map((stat, index) => (
                           <TableRow key={stat.userId}>
                             <TableCell><Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80" : ""}>{index + 1}</Badge></TableCell>
-                            <TableCell className="font-semibold flex items-center gap-2">
+                            <TableCell className="font-semibold flex items-center gap-3">
+                                <Avatar className="h-9 w-9"><AvatarImage src={stat.photoUrl} alt={stat.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold">{getInitials(stat.name)}</AvatarFallback></Avatar>
                                 {stat.name}
                                 <div className="flex items-center gap-1.5">
                                     {stat.badges.map(badgeId => {
@@ -332,13 +357,13 @@ export default function ReportsPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center"><LineChartIcon className="mr-2 h-5 w-5 text-primary"/>Member Growth (Current Year)</CardTitle>
+              <CardTitle className="flex items-center"><LineChartIcon className="mr-2 h-5 w-5 text-primary"/>Member Growth ({memberSignupYear})</CardTitle>
               <CardDescription>Monthly new member signups based on profile creation date.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingData ? (
                 <div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : (
+              ) : memberSignupData.some(d => d.total > 0) ? (
                 <ChartContainer config={memberChartConfig} className="h-[250px] w-full">
                   <RechartsBarChart accessibilityLayer data={memberSignupData}>
                     <CartesianGrid vertical={false} /><XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} /><YAxis allowDecimals={false} />
@@ -346,6 +371,8 @@ export default function ReportsPage() {
                     <Bar dataKey="total" fill="var(--color-primary)" radius={4} />
                   </RechartsBarChart>
                 </ChartContainer>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">No member signup data found for {memberSignupYear}.</p>
               )}
             </CardContent>
           </Card>
@@ -383,11 +410,12 @@ export default function ReportsPage() {
         <TabsContent value="financial-reports" className="mt-6">
            <Card>
             <CardHeader>
-              <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Financial Summary ({getYear(new Date())})</CardTitle>
-              <CardDescription>Monthly income vs. expenses for the current year.</CardDescription>
+              <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Financial Summary ({financialChartYear})</CardTitle>
+              <CardDescription>Monthly income vs. expenses for the most recent year with data.</CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingData ? (<div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>) : (
+              {isLoadingData ? (<div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+              ) : financialChartData.some(d => d.income > 0 || d.expenses > 0) ? (
                 <ChartContainer config={financialChartConfig} className="h-[250px] w-full">
                     <RechartsBarChart accessibilityLayer data={financialChartData}>
                         <CartesianGrid vertical={false} />
@@ -398,6 +426,8 @@ export default function ReportsPage() {
                         <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
                     </RechartsBarChart>
                 </ChartContainer>
+              ) : (
+                 <p className="text-center text-muted-foreground py-8">No financial transaction data found for {financialChartYear}.</p>
               )}
             </CardContent>
           </Card>
