@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/project-ideas/page.tsx
 "use client";
 

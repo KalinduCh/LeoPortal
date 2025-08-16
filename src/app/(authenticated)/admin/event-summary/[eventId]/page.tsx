@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/event-summary/[eventId]/page.tsx
 "use client";
 
@@ -336,7 +335,7 @@ export default function EventSummaryPage() {
                   </ScrollArea>
                 </div>
                 {/* Mobile Card View */}
-                <div className="block md:hidden print-hide-card-view">
+                <div className="block md:hidden print-hide-card-view space-y-3">
                   {participantsSummary.map((summary) => (
                     <Card key={summary.id} className="shadow-sm">
                       <CardContent className="p-3">
