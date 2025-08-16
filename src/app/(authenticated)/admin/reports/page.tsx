@@ -17,7 +17,7 @@ import { getAllUsers } from '@/services/userService';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
 import { getTransactions } from '@/services/financeService';
-import { format, parseISO, isValid, getYear, getMonth, startOfYear, endOfYear, eachMonthOfInterval } from 'date-fns';
+import { format, parseISO, isValid, getYear, getMonth } from 'date-fns';
 import Papa from 'papaparse';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -126,39 +126,56 @@ export default function ReportsPage() {
     });
   }, [allAttendance, allUsers]);
 
-  const memberSignupData = useMemo(() => {
-    const currentYear = new Date().getFullYear();
+  const { memberSignupData, memberSignupYear } = useMemo(() => {
+    if (allUsers.length === 0) return { memberSignupData: [], memberSignupYear: new Date().getFullYear() };
+    
+    const yearWithMostSignups = allUsers.reduce((acc, user) => {
+        if (user.createdAt && isValid(parseISO(user.createdAt))) {
+            const year = getYear(parseISO(user.createdAt));
+            acc[year] = (acc[year] || 0) + 1;
+        }
+        return acc;
+    }, {} as Record<number, number>);
+
+    const latestYear = Object.keys(yearWithMostSignups).map(Number).sort((a,b) => b-a)[0] || new Date().getFullYear();
+
     const monthlySignups = Array.from({ length: 12 }, (_, i) => ({
-      month: format(new Date(currentYear, i), 'MMM'),
+      month: format(new Date(latestYear, i), 'MMM'),
       total: 0,
     }));
     
     allUsers.forEach(u => {
       if (u.createdAt && isValid(parseISO(u.createdAt))) {
         const joinDate = parseISO(u.createdAt);
-        if (getYear(joinDate) === currentYear) {
+        if (getYear(joinDate) === latestYear) {
           const monthIndex = getMonth(joinDate);
           monthlySignups[monthIndex].total++;
         }
       }
     });
-    return monthlySignups;
+    return { memberSignupData: monthlySignups, memberSignupYear: latestYear };
   }, [allUsers]);
   
-  const financialChartData = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const data = eachMonthOfInterval({
-        start: startOfYear(new Date(currentYear, 0, 1)),
-        end: endOfYear(new Date(currentYear, 11, 31))
-    }).map(month => ({
-        name: format(month, 'MMM'),
-        income: 0,
-        expenses: 0
+  const { financialChartData, financialChartYear } = useMemo(() => {
+    if (allTransactions.length === 0) return { financialChartData: [], financialChartYear: new Date().getFullYear() };
+
+    const yearWithMostTransactions = allTransactions.reduce((acc, t) => {
+        const year = getYear(parseISO(t.date));
+        acc[year] = (acc[year] || 0) + 1;
+        return acc;
+    }, {} as Record<number, number>);
+
+    const latestYear = Object.keys(yearWithMostTransactions).map(Number).sort((a,b) => b-a)[0] || new Date().getFullYear();
+
+    const data = Array.from({ length: 12 }, (_, i) => ({
+      name: format(new Date(latestYear, i), 'MMM'),
+      income: 0,
+      expenses: 0
     }));
 
     allTransactions.forEach(t => {
         const transactionDate = parseISO(t.date);
-        if (getYear(transactionDate) === currentYear) {
+        if (getYear(transactionDate) === latestYear) {
             const monthIndex = getMonth(transactionDate);
             if(t.type === 'income') {
                 data[monthIndex].income += t.amount;
@@ -167,9 +184,8 @@ export default function ReportsPage() {
             }
         }
     });
-    return data;
+    return { financialChartData: data, financialChartYear: latestYear };
   }, [allTransactions]);
-
   
   const eventReportsData = useMemo(() => {
     if (!allEvents.length) return [];
@@ -330,8 +346,8 @@ export default function ReportsPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center"><LineChartIcon className="mr-2 h-5 w-5 text-primary"/>Member Growth ({new Date().getFullYear()})</CardTitle>
-              <CardDescription>Monthly new member signups for the current year.</CardDescription>
+              <CardTitle className="flex items-center"><LineChartIcon className="mr-2 h-5 w-5 text-primary"/>Member Growth ({memberSignupYear})</CardTitle>
+              <CardDescription>Monthly new member signups for the most active year.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingData ? (
@@ -345,7 +361,7 @@ export default function ReportsPage() {
                   </RechartsBarChart>
                 </ChartContainer>
               ) : (
-                <p className="text-center text-muted-foreground py-8">No member signup data found for {new Date().getFullYear()}.</p>
+                <p className="text-center text-muted-foreground py-8">No member signup data found for any year.</p>
               )}
             </CardContent>
           </Card>
@@ -383,8 +399,8 @@ export default function ReportsPage() {
         <TabsContent value="financial-reports" className="mt-6">
            <Card>
             <CardHeader>
-              <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Financial Summary ({new Date().getFullYear()})</CardTitle>
-              <CardDescription>Monthly income vs. expenses for the current year.</CardDescription>
+              <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Financial Summary ({financialChartYear})</CardTitle>
+              <CardDescription>Monthly income vs. expenses for the most active year.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingData ? (<div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
@@ -400,7 +416,7 @@ export default function ReportsPage() {
                     </RechartsBarChart>
                 </ChartContainer>
               ) : (
-                 <p className="text-center text-muted-foreground py-8">No financial transaction data found for {new Date().getFullYear()}.</p>
+                 <p className="text-center text-muted-foreground py-8">No financial transaction data found for any year.</p>
               )}
             </CardContent>
           </Card>
@@ -418,5 +434,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    
