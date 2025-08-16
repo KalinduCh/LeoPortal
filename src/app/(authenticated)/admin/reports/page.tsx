@@ -136,8 +136,10 @@ export default function ReportsPage() {
         }
         return acc;
     }, {} as Record<number, number>);
-
-    const latestYear = Object.keys(yearWithMostSignups).map(Number).sort((a,b) => b-a)[0] || new Date().getFullYear();
+    
+    const latestYear = Object.keys(yearWithMostSignups).length > 0
+        ? Math.max(...Object.keys(yearWithMostSignups).map(Number))
+        : new Date().getFullYear();
 
     const monthlySignups = Array.from({ length: 12 }, (_, i) => ({
       month: format(new Date(latestYear, i), 'MMM'),
@@ -165,7 +167,9 @@ export default function ReportsPage() {
         return acc;
     }, {} as Record<number, number>);
 
-    const latestYear = Object.keys(yearWithMostTransactions).map(Number).sort((a,b) => b-a)[0] || new Date().getFullYear();
+    const latestYear = Object.keys(yearWithMostTransactions).length > 0
+        ? Math.max(...Object.keys(yearWithMostTransactions).map(Number))
+        : new Date().getFullYear();
 
     const data = Array.from({ length: 12 }, (_, i) => ({
       name: format(new Date(latestYear, i), 'MMM'),
@@ -226,10 +230,20 @@ export default function ReportsPage() {
         }));
         fileName = `leo-portal_transactions_${new Date().toISOString().split('T')[0]}.csv`;
       } else { // attendance
+        const eventMap = new Map(allEvents.map(e => [e.id, e.name]));
         data = allAttendance.map(record => ({
-          RecordID: record.id, EventID: record.eventId, UserID: record.userId, Timestamp: record.timestamp ? format(parseISO(record.timestamp), 'yyyy-MM-dd HH:mm:ss') : '',
-          Status: record.status, AttendanceType: record.attendanceType, VisitorName: record.visitorName, VisitorDesignation: record.visitorDesignation,
-          VisitorClub: record.visitorClub, VisitorComment: record.visitorComment, MarkedLatitude: record.markedLatitude, MarkedLongitude: record.markedLongitude
+          RecordID: record.id,
+          EventName: eventMap.get(record.eventId) || 'Unknown Event',
+          UserID: record.userId,
+          Timestamp: record.timestamp ? format(parseISO(record.timestamp), 'yyyy-MM-dd HH:mm:ss') : '',
+          Status: record.status,
+          AttendanceType: record.attendanceType,
+          VisitorName: record.visitorName,
+          VisitorDesignation: record.visitorDesignation,
+          VisitorClub: record.visitorClub,
+          VisitorComment: record.visitorComment,
+          MarkedLatitude: record.markedLatitude,
+          MarkedLongitude: record.markedLongitude
         }));
         fileName = `leo-portal_attendance-log_${new Date().toISOString().split('T')[0]}.csv`;
       }
@@ -361,7 +375,7 @@ export default function ReportsPage() {
                   </RechartsBarChart>
                 </ChartContainer>
               ) : (
-                <p className="text-center text-muted-foreground py-8">No member signup data found for any year.</p>
+                <p className="text-center text-muted-foreground py-8">No member signup data found for {memberSignupYear}.</p>
               )}
             </CardContent>
           </Card>
@@ -416,7 +430,7 @@ export default function ReportsPage() {
                     </RechartsBarChart>
                 </ChartContainer>
               ) : (
-                 <p className="text-center text-muted-foreground py-8">No financial transaction data found for any year.</p>
+                 <p className="text-center text-muted-foreground py-8">No financial transaction data found for {financialChartYear}.</p>
               )}
             </CardContent>
           </Card>
