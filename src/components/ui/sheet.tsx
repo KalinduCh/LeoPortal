@@ -69,6 +69,11 @@ const SheetContent = React.forwardRef<
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>
+      {/* Adding sr-only title and description for accessibility */}
+      <SheetPrimitive.Title className="sr-only">Sheet</SheetPrimitive.Title>
+      <SheetPrimitive.Description className="sr-only">
+        A sheet component that slides in from the edge of the screen.
+      </SheetPrimitive.Description>
     </SheetPrimitive.Content>
   </SheetPortal>
 ))

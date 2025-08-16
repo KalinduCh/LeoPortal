@@ -149,3 +149,15 @@ body {
 .animate-fade-in-rise-opportunity {
   animation: fadeInRise 1s ease-out 2.5s forwards; /* Delay by 2.5s */
 }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
