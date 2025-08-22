@@ -6,31 +6,42 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
 
 ## ✨ Key Features
 
-- **Role-Based Access Control**: Separate, feature-rich dashboards for **Admins** and **Members**.
+### Member & Club Management
+- **Role-Based Access Control**: Separate, feature-rich dashboards for **Admins** and **Members**, with a view-toggle for admins to see the member experience.
 - **Authentication**: Secure email & password login and signup flow. New member registrations require admin approval.
-- **Event Management**: Admins can create, update, and delete club events, including setting optional start and end times.
-- **Smart Attendance Tracking**:
-    - Members can mark attendance for **ongoing events only**.
-    - Optional **geolocation restriction** requires members to be within a 500-meter radius of the event.
-    - **Visitor Attendance**: A dedicated public page allows visiting Leos to mark their attendance for ongoing events, also with optional geolocation.
 - **User Management**:
     - Admins can **approve or reject** pending member applications.
     - Full **CRUD** (Create, Read, Update, Delete) capabilities for user profiles.
     - **Bulk Import**: Admins can import new members from a CSV file.
+- **Granular Admin Permissions**: Super Admins can assign specific permissions to other admins, controlling their access to modules like Finance, Members, Events, etc.
+
+### Event & Attendance
+- **Event Management**: Admins can create, update, and delete club events, including setting optional start and end times.
+- **Smart Attendance Tracking**:
+    - Members can mark attendance for **ongoing events only**.
+    - Optional **geolocation restriction** requires members to be within a 500-meter radius of the event.
+    - **Visitor Attendance**: A dedicated public page allows visiting Leos to mark their attendance for ongoing events.
+- **Event Summaries**: View detailed post-event summaries with participant lists (members and visitors).
+
+### Financial Tools
+- **Finance Dashboard**: A comprehensive module for tracking club finances.
+- **Transaction Logging**: Record income and expenses with categories, dates, and descriptions.
+- **Financial Reporting**: View an overview of income vs. expenses with charts and export all transactions to **CSV** or **PDF**.
+
+### Engagement & Communication
 - **AI-Powered Communication**: An AI assistant helps admins draft professional and engaging email communications for club members.
-- **Backend Email System**: The admin "Communication" page uses a secure **Next.js API Route** and **Nodemailer** to send emails, keeping credentials safe on the server.
-- **Reporting & Data Export**:
-    - Admins can view detailed **event summaries** with participant lists.
-    - Reports on member participation and club growth.
-    - Export key data (members, events, attendance) to **CSV** and **PDF**.
+- **Automated Birthday Wishes**: An automated system checks for member birthdays daily and sends a personalized greeting email.
 - **Dynamic Member Profiles**:
     - Members can update their personal information and profile picture.
     - **Achievement Badges** are automatically awarded for participation and leadership roles.
-- **Modern UI/UX**:
-    - Clean, responsive design built with Shadcn/UI and Tailwind CSS.
-    - Light and Dark mode support.
-    - Intuitive navigation and user-friendly forms.
 - **PWA & Push Notifications**: Installable app experience with push notifications for new events and approvals.
+
+### Project & Idea Management
+- **AI-Powered Project Proposals**: Members can submit a simple project idea, and an AI assistant will generate a complete, structured project proposal based on a club template.
+- **Idea Review Workflow**: Admins can review, approve, decline, or request revisions for submitted project proposals.
+
+### Reporting & Integrations
+- **Data Export**: Export key data (members, events, attendance, transactions) to **CSV** and **PDF**.
 - **Google Sheets Integration**: Automatically syncs member data to a Google Sheet for easy use with other tools like Google Apps Script.
 
 ## 🛠️ Tech Stack
@@ -39,7 +50,7 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
 - **UI**: [React](https://reactjs.org/), [Shadcn/UI](https://ui.shadcn.com/), [Tailwind CSS](https://tailwindcss.com/)
 - **Backend & Database**: [Firebase](https://firebase.google.com/) (Authentication, Firestore, Functions)
-- **Email**: [Nodemailer](https://nodemailer.com/) (via Next.js API Route)
+- **Email**: [Nodemailer](https://nodemailer.com/) (via Firebase Functions and Next.js API Route)
 - **AI Integration**: [Google AI & Genkit](https://firebase.google.com/docs/genkit)
 - **Forms**: [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/)
 - **Styling**: [Lucide React](https://lucide.dev/) for icons
@@ -91,9 +102,9 @@ Open [http://localhost:3000](http://localhost:3000) to see the result.
 3. Go to your **Firebase Console**.
 4. Navigate to **Firestore Database**.
 5. Find the **"users"** collection and open the document for the user you just created.
-6. Change the **`role`** field to **`admin`**.
+6. Change the **`role`** field to **`super_admin`**.
 7. Change the **`status`** field to **`approved`**.
-8. You can now log in with this user's credentials to access the admin dashboard and manage the application.
+8. You can now log in with this user's credentials to access all admin dashboards and manage the application.
 
 ---
 
@@ -139,4 +150,3 @@ The AI Content Assistant uses Google's Generative AI.
 1.  Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).
 2.  Click **"Create API key"** and copy the generated key.
 3.  This is your `GEMINI_API_KEY`. Add it to your `.env` file for local development or your hosting provider's settings for deployment.
-```
