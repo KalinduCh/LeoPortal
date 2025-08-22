@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/finance/page.tsx
 "use client";
 
@@ -24,7 +23,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { cn } from '@/lib/utils';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 
 const chartConfig = {
@@ -206,8 +205,12 @@ export default function FinancePage() {
         tableRows.push(transactionData);
     });
 
-    (doc as any).autoTable(tableColumn, tableRows, { startY: 20 });
     doc.text("Leo Club Transactions", 14, 15);
+    autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 20,
+    });
     doc.save(`leo-club-transactions-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
