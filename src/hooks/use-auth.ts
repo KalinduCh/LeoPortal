@@ -1,3 +1,4 @@
+
 // src/hooks/use-auth.ts
 "use client";
 
@@ -64,12 +65,15 @@ export function useAuth(): AuthState {
   };
 
   const logoutDueToInactivity = useCallback(() => {
-    firebaseSignOut(auth);
-    toast({
-        title: "Session Expired",
-        description: "You have been logged out due to inactivity.",
-        variant: "destructive",
-        duration: 7000
+    firebaseSignOut(auth).then(() => {
+        toast({
+            title: "Session Expired",
+            description: "You have been logged out due to inactivity.",
+            variant: "destructive",
+            duration: 7000
+        });
+        // Redirect to login page after signing out
+        window.location.href = '/login';
     });
   }, [toast]);
 
