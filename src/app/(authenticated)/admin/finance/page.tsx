@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, ExternalLink, Calendar, Filter, HandCoins } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, ExternalLink, Calendar, Filter, HandCoins, FileDown, FileText } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { FinanceForm, type FinanceFormValues } from '@/components/finance/finance-form';
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/financeService';
@@ -22,6 +22,9 @@ import { Label } from '@/components/ui/label';
 import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { cn } from '@/lib/utils';
+import Papa from 'papaparse';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 const chartConfig = {
@@ -78,7 +81,7 @@ export default function FinancePage() {
         await deleteTransaction(transactionId);
         toast({ title: "Transaction Deleted" });
         fetchTransactions();
-      } catch (error: any) {
+      } catch (error:-any) {
         toast({ title: "Error", description: `Could not delete transaction: ${error.message}`, variant: "destructive" });
       }
       setIsSubmitting(false);
@@ -165,6 +168,48 @@ export default function FinancePage() {
 
     return data;
   }, [transactions]);
+
+  const handleExportCSV = () => {
+    const dataToExport = transactions.map(t => ({
+        Date: format(parseISO(t.date), 'yyyy-MM-dd'),
+        Type: t.type,
+        Category: t.category,
+        'Source/Description': t.source,
+        Amount: t.amount,
+        Notes: t.notes
+    }));
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `leo-club-transactions-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    const tableColumn = ["Date", "Type", "Category", "Source/Description", "Amount (LKR)"];
+    const tableRows: any[][] = [];
+
+    transactions.forEach(t => {
+        const transactionData = [
+            format(parseISO(t.date), 'MMM dd, yyyy'),
+            t.type,
+            t.category,
+            t.source,
+            t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        ];
+        tableRows.push(transactionData);
+    });
+
+    (doc as any).autoTable(tableColumn, tableRows, { startY: 20 });
+    doc.text("Leo Club Transactions", 14, 15);
+    doc.save(`leo-club-transactions-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
 
   if (authLoading || isLoading || !user || !isSuperOrAdmin) {
@@ -289,9 +334,15 @@ export default function FinancePage() {
       </div>
 
        <Card>
-        <CardHeader>
-          <CardTitle>All Transactions</CardTitle>
-          <CardDescription>A complete log of all financial activities.</CardDescription>
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+                <CardTitle>All Transactions</CardTitle>
+                <CardDescription>A complete log of all financial activities.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button onClick={handleExportCSV} variant="outline" className="w-full sm:w-auto"><FileText className="mr-2 h-4 w-4" /> Export CSV</Button>
+                <Button onClick={handleDownloadPDF} variant="outline" className="w-full sm:w-auto"><FileDown className="mr-2 h-4 w-4" /> Download PDF</Button>
+            </div>
         </CardHeader>
         <CardContent>
           {/* Desktop Table View */}
