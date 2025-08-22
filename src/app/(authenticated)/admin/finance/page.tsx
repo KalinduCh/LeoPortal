@@ -81,7 +81,7 @@ export default function FinancePage() {
         await deleteTransaction(transactionId);
         toast({ title: "Transaction Deleted" });
         fetchTransactions();
-      } catch (error:-any) {
+      } catch (error: any) {
         toast({ title: "Error", description: `Could not delete transaction: ${error.message}`, variant: "destructive" });
       }
       setIsSubmitting(false);
