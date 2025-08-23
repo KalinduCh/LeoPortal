@@ -40,17 +40,13 @@ export default function AuthenticatedLayout({
   React.useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
-      toast({
-        title: "You're back online!",
-        description: "Checking for pending offline data to sync.",
-        icon: <Wifi className="h-5 w-5 text-green-500" />,
-      });
       try {
         const syncedCount = await syncOfflineAttendance();
         if (syncedCount > 0) {
           toast({
-            title: "Sync Complete",
-            description: `Successfully synced ${syncedCount} offline attendance record(s).`,
+            title: "Offline Sync Complete",
+            description: `Successfully synced ${syncedCount} pending record(s) from when you were offline.`,
+            icon: <Wifi className="h-5 w-5 text-green-500" />,
           });
         }
       } catch (error) {
