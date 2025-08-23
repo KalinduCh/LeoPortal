@@ -23,8 +23,8 @@ const ideaFormSchema = z.object({
   projectName: z.string().min(3, { message: "Project name must be at least 3 characters." }),
   goal: z.string().min(10, { message: "Please describe the goal in at least 10 characters." }),
   targetAudience: z.string().min(3, { message: "Target audience is required." }),
-  budget: z.string({ required_error: "Please select a budget range." }),
-  timeline: z.string({ required_error: "Please select a timeline." }),
+  budget: z.string({ required_error: "Please select or specify a budget." }),
+  timeline: z.string({ required_error: "Please select or specify a timeline." }),
   specialConsiderations: z.string().optional(),
 });
 
@@ -35,6 +35,10 @@ export default function NewProjectIdeaPage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [isGenerating, setIsGenerating] = useState(false);
+    
+    // State to manage custom input visibility
+    const [showCustomBudget, setShowCustomBudget] = useState(false);
+    const [showCustomTimeline, setShowCustomTimeline] = useState(false);
 
     const form = useForm<IdeaFormValues>({
         resolver: zodResolver(ideaFormSchema),
@@ -151,20 +155,40 @@ export default function NewProjectIdeaPage() {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Estimated Budget Range</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select
+                                                onValueChange={(value) => {
+                                                    if (value === 'custom') {
+                                                        setShowCustomBudget(true);
+                                                        field.onChange(''); // Clear the field to allow custom input
+                                                    } else {
+                                                        setShowCustomBudget(false);
+                                                        field.onChange(value);
+                                                    }
+                                                }}
+                                                defaultValue={field.value}
+                                            >
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Select a budget range" />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    <SelectItem value="< $100">Under $100</SelectItem>
-                                                    <SelectItem value="$100 - $500">$100 - $500</SelectItem>
-                                                    <SelectItem value="$500 - $1000">$500 - $1000</SelectItem>
-                                                    <SelectItem value="$1000+">$1000+</SelectItem>
+                                                    <SelectItem value="Below LKR 10,000">Below LKR 10,000</SelectItem>
+                                                    <SelectItem value="LKR 10,000 - 20,000">LKR 10,000 - 20,000</SelectItem>
+                                                    <SelectItem value="LKR 20,000 - 50,000">LKR 20,000 - 50,000</SelectItem>
                                                     <SelectItem value="Zero Budget">Zero Budget / In-kind</SelectItem>
+                                                    <SelectItem value="custom">Custom...</SelectItem>
                                                 </SelectContent>
                                             </Select>
+                                            {showCustomBudget && (
+                                                <FormControl>
+                                                    <Input
+                                                        placeholder="Enter custom budget (e.g., LKR 75,000)"
+                                                        onChange={field.onChange}
+                                                        className="mt-2"
+                                                    />
+                                                </FormControl>
+                                            )}
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -176,7 +200,18 @@ export default function NewProjectIdeaPage() {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Preferred Timeline</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select
+                                                onValueChange={(value) => {
+                                                    if (value === 'custom') {
+                                                        setShowCustomTimeline(true);
+                                                        field.onChange('');
+                                                    } else {
+                                                        setShowCustomTimeline(false);
+                                                        field.onChange(value);
+                                                    }
+                                                }}
+                                                defaultValue={field.value}
+                                            >
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Select a timeline" />
@@ -188,8 +223,18 @@ export default function NewProjectIdeaPage() {
                                                     <SelectItem value="1 month">1 month</SelectItem>
                                                     <SelectItem value="2-3 months">2-3 months</SelectItem>
                                                     <SelectItem value="Long-term (3+ months)">Long-term (3+ months)</SelectItem>
+                                                    <SelectItem value="custom">Custom...</SelectItem>
                                                 </SelectContent>
                                             </Select>
+                                            {showCustomTimeline && (
+                                                 <FormControl>
+                                                    <Input
+                                                        placeholder="Enter custom timeline (e.g., 6 weeks)"
+                                                        onChange={field.onChange}
+                                                        className="mt-2"
+                                                    />
+                                                </FormControl>
+                                            )}
                                             <FormMessage />
                                         </FormItem>
                                     )}
