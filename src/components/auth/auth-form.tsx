@@ -2,6 +2,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -58,7 +59,7 @@ export function AuthForm({ mode, onSubmit, loading }: AuthFormProps) {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {mode === "signup" && (
               <FormField
                 control={form.control}
@@ -92,7 +93,17 @@ export function AuthForm({ mode, onSubmit, loading }: AuthFormProps) {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Password</FormLabel>
+                     {mode === 'login' && (
+                        <Link
+                            href="/forgot-password"
+                            className="text-xs font-medium text-primary hover:underline"
+                        >
+                            Forgot password?
+                        </Link>
+                     )}
+                  </div>
                   <FormControl>
                     <div className="relative">
                       <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} />
@@ -112,7 +123,7 @@ export function AuthForm({ mode, onSubmit, loading }: AuthFormProps) {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full !mt-6" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {mode === "login" ? "Log In" : "Sign Up"}
             </Button>

@@ -1,4 +1,3 @@
-
 // src/hooks/use-auth.ts
 "use client";
 
@@ -7,6 +6,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   signOut as firebaseSignOut,
   type User as FirebaseUser
 } from 'firebase/auth';
@@ -35,6 +35,7 @@ interface AuthState {
   login: (email: string, pass: string) => Promise<LoginResult>;
   signup: (name: string, email: string, pass: string) => Promise<User | null>;
   logout: () => Promise<void>;
+  sendPasswordResetEmail: (email: string) => Promise<{ success: boolean; error?: any }>;
   performAdminAuthOperation: (asyncTask: () => Promise<void>) => Promise<void>;
   setAuthOperationInProgress: (inProgress: boolean) => void;
 }
@@ -198,6 +199,16 @@ export function useAuth(): AuthState {
     }
   }, []);
 
+  const sendPasswordResetEmail = useCallback(async (email: string): Promise<{ success: boolean; error?: any }> => {
+    try {
+      await firebaseSendPasswordResetEmail(auth, email);
+      return { success: true };
+    } catch (error) {
+      console.error("Password reset error:", error);
+      return { success: false, error };
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     if (inactivityTimeoutRef.current) {
         clearTimeout(inactivityTimeoutRef.current);
@@ -234,5 +245,5 @@ export function useAuth(): AuthState {
     }
   }, []);
 
-  return { user, firebaseUser, isLoading, isAuthOperationInProgress, login, signup, logout, performAdminAuthOperation, setAuthOperationInProgress: setIsAuthOperationInProgress, adminViewMode, setAdminViewMode: handleSetAdminViewMode };
+  return { user, firebaseUser, isLoading, isAuthOperationInProgress, login, signup, logout, sendPasswordResetEmail, performAdminAuthOperation, setAuthOperationInProgress: setIsAuthOperationInProgress, adminViewMode, setAdminViewMode: handleSetAdminViewMode };
 }
