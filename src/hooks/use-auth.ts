@@ -1,3 +1,4 @@
+
 // src/hooks/use-auth.ts
 "use client";
 
@@ -8,7 +9,6 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   signOut as firebaseSignOut,
-  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   type User as FirebaseUser
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/clientApp';
@@ -29,6 +29,7 @@ export interface LoginResult {
 export interface PasswordResetResult {
     success: boolean;
     message?: string;
+    error?: any; // Keep error for detailed logging if needed
 }
 
 interface AuthState {
@@ -41,11 +42,7 @@ interface AuthState {
   login: (email: string, pass: string) => Promise<LoginResult>;
   signup: (name: string, email: string, pass: string) => Promise<User | null>;
   logout: () => Promise<void>;
-<<<<<<< HEAD
-  sendPasswordResetEmail: (email: string) => Promise<{ success: boolean; error?: any }>;
-=======
   sendPasswordResetEmail: (email: string) => Promise<PasswordResetResult>;
->>>>>>> 9edc0fed339811fee1ce6fd834e9558dfc848c96
   performAdminAuthOperation: (asyncTask: () => Promise<void>) => Promise<void>;
   setAuthOperationInProgress: (inProgress: boolean) => void;
 }
@@ -209,16 +206,6 @@ export function useAuth(): AuthState {
     }
   }, []);
 
-  const sendPasswordResetEmail = useCallback(async (email: string): Promise<{ success: boolean; error?: any }> => {
-    try {
-      await firebaseSendPasswordResetEmail(auth, email);
-      return { success: true };
-    } catch (error) {
-      console.error("Password reset error:", error);
-      return { success: false, error };
-    }
-  }, []);
-
   const logout = useCallback(async () => {
     if (inactivityTimeoutRef.current) {
         clearTimeout(inactivityTimeoutRef.current);
@@ -248,12 +235,7 @@ export function useAuth(): AuthState {
         return { success: true };
     } catch (error: any) {
         console.error("Password reset error:", error);
-        if (error.code === 'auth/user-not-found') {
-            // To prevent email enumeration, we can return success even if user not found.
-            // The user won't get an email, which is the same UX as if they did it correctly.
-            return { success: true };
-        }
-        return { success: false, message: "Failed to send reset email. Please try again later." };
+        return { success: false, message: "Failed to send reset email. Please try again later.", error };
     } finally {
         setIsAuthOperationInProgress(false);
     }
@@ -273,9 +255,6 @@ export function useAuth(): AuthState {
     }
   }, []);
 
-<<<<<<< HEAD
-  return { user, firebaseUser, isLoading, isAuthOperationInProgress, login, signup, logout, sendPasswordResetEmail, performAdminAuthOperation, setAuthOperationInProgress: setIsAuthOperationInProgress, adminViewMode, setAdminViewMode: handleSetAdminViewMode };
-=======
   return { 
       user, 
       firebaseUser, 
@@ -290,5 +269,4 @@ export function useAuth(): AuthState {
       adminViewMode, 
       setAdminViewMode: handleSetAdminViewMode 
     };
->>>>>>> 9edc0fed339811fee1ce6fd834e9558dfc848c96
 }
