@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/event-summary/[eventId]/page.tsx
 "use client";
 
@@ -13,7 +14,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Mail, UserCircle, Briefcase, Star, MessageSquare, ClipboardCopy } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
-import { useReactToPrint } from 'react-to-print';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from "@/components/ui/badge";
@@ -33,10 +33,9 @@ export default function EventSummaryPage() {
 
   const componentRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
-    documentTitle: event ? `Event Summary - ${event.name}` : 'Event Summary',
-  });
+  const handlePrint = () => {
+    window.print();
+  };
 
   const getInitials = (name?: string) => {
     if (!name) return "??";
@@ -121,7 +120,7 @@ export default function EventSummaryPage() {
     if (event.endDate && isValid(parseISO(event.endDate))) {
         const eventEndDateObj = parseISO(event.endDate);
         if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
-            (eventEndDateObj.getHours() !== eventStartDateObj.getMinutes() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
+            (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
              formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
         }
     }
@@ -225,12 +224,12 @@ export default function EventSummaryPage() {
     <div className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <Button onClick={() => router.back()} variant="outline" size="sm" className="mb-2 print-hide">
+            <Button onClick={() => router.back()} variant="outline" size="sm" className="mb-2 print:hidden">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
             <h1 className="text-2xl sm:text-3xl font-bold font-headline text-primary">{event.name} - Summary</h1>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 print-hide w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row gap-2 print:hidden w-full sm:w-auto">
             <button onClick={handleCopySummary} className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
               <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Summary
             </button>
@@ -240,14 +239,14 @@ export default function EventSummaryPage() {
         </div>
       </div>
 
-      <div ref={componentRef} className="p-2 sm:p-4 md:p-6 space-y-6 rounded-lg border bg-card text-card-foreground shadow-sm modal-print-area">
-        <Card className="shadow-none border-0 sm:border sm:shadow-sm">
+      <div ref={componentRef} className="p-2 sm:p-4 md:p-6 space-y-6 rounded-lg border bg-card text-card-foreground shadow-sm print:border-0 print:shadow-none print:p-0">
+        <Card className="shadow-none border-0 sm:border sm:shadow-sm print:border-0 print:shadow-none">
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl font-semibold text-primary print-title flex items-center">
                 <Info className="mr-2 h-5 w-5" /> Event Details
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 sm:space-y-3 print-section">
+          <CardContent className="space-y-2 sm:space-y-3">
             <div className="flex items-center text-sm">
               <CalendarDays className="mr-2 h-4 w-4 text-muted-foreground" />
               <span className="font-medium">Date & Time:</span>
@@ -259,7 +258,7 @@ export default function EventSummaryPage() {
                 <span className="font-medium">Location:</span>
                 <span className="ml-2 text-muted-foreground">{event.location}</span>
                 {event.latitude !== undefined && event.longitude !== undefined && (
-                  <p className="text-xs text-muted-foreground/80">
+                  <p className="text-xs text-muted-foreground/80 print:hidden">
                     (Coordinates: {event.latitude}, {event.longitude})
                   </p>
                 )}
@@ -275,22 +274,22 @@ export default function EventSummaryPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-none border-0 sm:border sm:shadow-sm">
+        <Card className="shadow-none border-0 sm:border sm:shadow-sm print:border-0 print:shadow-none">
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl font-semibold text-primary print-title flex items-center">
               <Users className="mr-2 h-5 w-5" /> Participants ({participantsSummary.length})
             </CardTitle>
           </CardHeader>
-          <CardContent className="print-section">
+          <CardContent>
             {participantsSummary.length > 0 ? (
               <>
                 {/* Desktop Table View */}
-                <div className="hidden md:block print-force-table-view">
-                  <ScrollArea className="max-h-[400px] border rounded-md print-scroll">
-                    <Table className="print-table">
-                      <TableHeader className="print-table-header bg-muted/50">
+                <div className="hidden md:block">
+                  <ScrollArea className="max-h-[400px] border rounded-md print:max-h-none print:border-0 print:overflow-visible">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
                         <TableRow>
-                          <TableHead className="w-12 print-hide">Avatar/Icon</TableHead>
+                          <TableHead className="w-12 print:hidden">Avatar/Icon</TableHead>
                           <TableHead>Name</TableHead>
                           <TableHead>Role/Designation</TableHead>
                           <TableHead>Email/Club</TableHead>
@@ -298,10 +297,10 @@ export default function EventSummaryPage() {
                           <TableHead>Timestamp</TableHead>
                         </TableRow>
                       </TableHeader>
-                      <TableBody className="print-table-body">
+                      <TableBody>
                         {participantsSummary.map((summary) => (
                           <TableRow key={summary.id}>
-                            <TableCell className="print-hide">
+                            <TableCell className="print:hidden">
                                {summary.type === 'member' ? (
                                  <Avatar className="h-9 w-9">
                                   <AvatarImage src={summary.userPhotoUrl} alt={summary.userName} data-ai-hint="profile avatar" />
@@ -335,7 +334,7 @@ export default function EventSummaryPage() {
                   </ScrollArea>
                 </div>
                 {/* Mobile Card View */}
-                <div className="block md:hidden print-hide-card-view space-y-3">
+                <div className="block md:hidden print:hidden space-y-3">
                   {participantsSummary.map((summary) => (
                     <Card key={summary.id} className="shadow-sm">
                       <CardContent className="p-3">
@@ -396,3 +395,5 @@ export default function EventSummaryPage() {
     </div>
   );
 }
+
+    
