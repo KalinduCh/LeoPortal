@@ -12,22 +12,8 @@ import { format, parseISO, isPast, isFuture, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { EventForm, type EventFormValues } from "@/components/events/event-form";
 import { getEvents, createEvent, updateEvent, deleteEvent as deleteEventService } from '@/services/eventService';
-import { Calendar, dateFnsLocalizer, type View } from 'react-big-calendar';
-import { format as formatDate, parse, startOfWeek, getDay } from 'date-fns';
-import enUS from 'date-fns/locale/en-US';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
-
-const locales = {
-  'en-US': enUS,
-};
-
-const localizer = dateFnsLocalizer({
-  format: formatDate,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
 export default function EventManagementPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -39,8 +25,6 @@ export default function EventManagementPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  
-  const [dialogData, setDialogData] = useState<{ event?: Event | { start: Date, end: Date }, isOpen: boolean }>({ isOpen: false });
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
@@ -67,56 +51,19 @@ export default function EventManagementPage() {
       fetchEvents();
     }
   }, [user, fetchEvents, isSuperOrAdmin]);
-  
-  const calendarEvents = useMemo(() => events.map(event => ({
-    title: event.name,
-    start: parseISO(event.startDate),
-    end: event.endDate ? parseISO(event.endDate) : parseISO(event.startDate),
-    resource: event,
-  })), [events]);
 
-  const handleSelectSlot = useCallback(({ start, end }: { start: Date; end: Date }) => {
-    setDialogData({ event: { start, end }, isOpen: true });
-  }, []);
-
-  const handleSelectEvent = useCallback((calendarEvent: { resource: Event }) => {
-    setDialogData({ event: calendarEvent.resource, isOpen: true });
-  }, []);
-  
-  const handleMoveEvent = async ({ event, start, end }: { event: any, start: Date, end: Date }) => {
-      const { resource } = event;
-      if (!resource.id) return;
-      
-      const isConfirmed = window.confirm("Are you sure you want to reschedule this event?");
-      if (isConfirmed) {
-          setIsSubmitting(true);
-          try {
-              const updatedData = { 
-                  name: resource.name,
-                  location: resource.location,
-                  description: resource.description,
-                  startDate: start, 
-                  endDate: end 
-              };
-              await updateEvent(resource.id, updatedData as EventFormValues);
-              toast({ title: "Event Rescheduled", description: `${resource.name} has been moved.` });
-              fetchEvents();
-          } catch(error: any) {
-              toast({ title: "Error", description: `Could not reschedule event: ${error.message}`, variant: "destructive"});
-          }
-          setIsSubmitting(false);
-      }
+  const handleOpenForm = (event?: Event) => {
+    setSelectedEvent(event || null);
+    setIsFormOpen(true);
   };
 
-  const handleDeleteEvent = async (eventId?: string) => {
-    if (!eventId) return;
+  const handleDeleteEvent = async (eventId: string) => {
     if (confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
       setIsSubmitting(true);
       try {
         await deleteEventService(eventId);
         toast({ title: "Event Deleted" });
         fetchEvents();
-        setDialogData({ isOpen: false });
       } catch (error: any) {
         toast({ title: "Error", description: `Could not delete event: ${error.message}`, variant: "destructive" });
       }
@@ -127,81 +74,138 @@ export default function EventManagementPage() {
   const handleFormSubmit = async (data: EventFormValues) => {
     setIsSubmitting(true);
     try {
-      const eventToSubmit = dialogData.event as Event;
-      if (eventToSubmit && 'id' in eventToSubmit && eventToSubmit.id) {
-        await updateEvent(eventToSubmit.id, data);
+      if (selectedEvent) {
+        await updateEvent(selectedEvent.id, data);
         toast({ title: "Event Updated" });
       } else {
         await createEvent(data);
         toast({ title: "Event Created" });
       }
       fetchEvents();
-      setDialogData({ isOpen: false });
+      setIsFormOpen(false);
+      setSelectedEvent(null);
     } catch (error: any) {
       toast({ title: "Error", description: `Could not save event: ${error.message}`, variant: "destructive" });
     }
     setIsSubmitting(false);
   };
-  
-  if (authLoading || isLoading || !user || !isSuperOrAdmin) {
+
+  const { upcomingEvents, pastEvents } = useMemo(() => {
+    const upcoming: Event[] = [];
+    const past: Event[] = [];
+
+    events.forEach(event => {
+      if (!event.startDate || !isValid(parseISO(event.startDate))) {
+        return;
+      }
+      if (isFuture(parseISO(event.startDate)) || isPast(parseISO(event.startDate)) === false) {
+        upcoming.push(event);
+      } else {
+        past.push(event);
+      }
+    });
+
+    return { 
+      upcomingEvents: upcoming.sort((a,b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime()),
+      pastEvents: past.sort((a,b) => parseISO(b.startDate).getTime() - parseISO(a.startDate).getTime())
+    };
+  }, [events]);
+
+  if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
+  
+  if (!isSuperOrAdmin) return null;
 
   return (
-    <div className="container mx-auto py-4 sm:py-8 h-[calc(100vh-8rem)] flex flex-col">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
-        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Event Calendar</h1>
-        <Button onClick={() => setDialogData({ event: { start: new Date(), end: new Date() }, isOpen: true })} className="w-full sm:w-auto">
-            <PlusCircle className="mr-2 h-4 w-4" /> Create New Event
-        </Button>
+    <div className="container mx-auto py-4 sm:py-8 space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Event Management</h1>
+        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto">
+              <PlusCircle className="mr-2 h-4 w-4" /> Create Event
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{selectedEvent ? "Edit Event" : "Create New Event"}</DialogTitle>
+            </DialogHeader>
+            <EventForm
+              event={selectedEvent}
+              onSubmit={handleFormSubmit}
+              onCancel={() => setIsFormOpen(false)}
+              isLoading={isSubmitting}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <div className="flex-grow">
-        <Calendar
-          localizer={localizer}
-          events={calendarEvents}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ flexGrow: 1 }}
-          selectable
-          onSelectSlot={handleSelectSlot}
-          onSelectEvent={handleSelectEvent}
-          onEventDrop={handleMoveEvent}
-          resizable
-          onEventResize={handleMoveEvent}
-          className="bg-card p-4 rounded-lg shadow-lg border"
-        />
+      <div className="grid gap-8 md:grid-cols-2">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-primary"/>Upcoming Events</CardTitle>
+            <CardDescription>Events that are scheduled for the future.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {upcomingEvents.length > 0 ? (
+              <div className="space-y-4">
+                {upcomingEvents.map(event => (
+                  <EventListItem key={event.id} event={event} onEdit={handleOpenForm} onDelete={handleDeleteEvent} onViewSummary={() => router.push(`/admin/event-summary/${event.id}`)} />
+                ))}
+              </div>
+            ) : <p className="text-muted-foreground text-center py-4">No upcoming events.</p>}
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground"/>Past Events</CardTitle>
+            <CardDescription>Events that have already concluded.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {pastEvents.length > 0 ? (
+              <div className="space-y-4">
+                {pastEvents.map(event => (
+                  <EventListItem key={event.id} event={event} onEdit={handleOpenForm} onDelete={handleDeleteEvent} onViewSummary={() => router.push(`/admin/event-summary/${event.id}`)} />
+                ))}
+              </div>
+            ) : <p className="text-muted-foreground text-center py-4">No past events found.</p>}
+          </CardContent>
+        </Card>
       </div>
-
-      <Dialog
-        open={dialogData.isOpen}
-        onOpenChange={(open) => setDialogData({ isOpen: open })}
-      >
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{dialogData.event && 'id' in dialogData.event ? "Edit Event" : "Create New Event"}</DialogTitle>
-          </DialogHeader>
-          <EventForm
-            event={dialogData.event && 'id' in dialogData.event ? dialogData.event as Event : undefined}
-            onSubmit={handleFormSubmit}
-            onCancel={() => setDialogData({ isOpen: false })}
-            isLoading={isSubmitting}
-          />
-          {dialogData.event && 'id' in dialogData.event && (
-             <Button 
-                variant="destructive" 
-                className="mt-4"
-                onClick={() => handleDeleteEvent((dialogData.event as Event).id)} 
-                disabled={isSubmitting}>
-                <Trash2 className="mr-2 h-4 w-4" /> Delete Event
-             </Button>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
+
+interface EventListItemProps {
+  event: Event;
+  onEdit: (event: Event) => void;
+  onDelete: (eventId: string) => void;
+  onViewSummary: (eventId: string) => void;
+}
+
+const EventListItem = ({ event, onEdit, onDelete, onViewSummary }: EventListItemProps) => {
+  return (
+    <div className="p-3 border rounded-lg shadow-sm hover:bg-muted/50 transition-colors">
+        <div className="flex justify-between items-start">
+            <h3 className="font-semibold text-primary">{event.name}</h3>
+             <Button variant="outline" size="sm" onClick={() => onViewSummary(event.id)} className="ml-auto mr-2">
+                <Eye className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => onEdit(event)}>
+                <Edit className="h-4 w-4" />
+            </Button>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">{format(parseISO(event.startDate), 'PPP, p')}</p>
+        <p className="text-sm text-muted-foreground flex items-center mt-1">
+            <MapPin className="mr-1.5 h-4 w-4"/>
+            {event.location}
+        </p>
+    </div>
+  );
+};
