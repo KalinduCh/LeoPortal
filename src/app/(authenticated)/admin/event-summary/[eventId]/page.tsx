@@ -316,58 +316,56 @@ export default function EventSummaryPage() {
               <Users className="mr-2 h-5 w-5" /> Participants ({participantsSummary.length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="max-h-[500px] overflow-y-auto">
             {participantsSummary.length > 0 ? (
               <>
                 {/* Desktop Table View */}
                 <div className="hidden md:block">
-                  <ScrollArea className="max-h-[400px] border rounded-md">
-                    <Table>
-                      <TableHeader className="bg-muted/50">
-                        <TableRow>
-                          <TableHead className="w-12">Avatar</TableHead>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Role/Designation</TableHead>
-                          <TableHead>Email/Club</TableHead>
-                          <TableHead>Comment</TableHead>
-                          <TableHead>Timestamp</TableHead>
+                  <Table>
+                    <TableHeader className="bg-muted/50 sticky top-0">
+                      <TableRow>
+                        <TableHead className="w-12">Avatar/Icon</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Role/Designation</TableHead>
+                        <TableHead>Email/Club</TableHead>
+                        <TableHead>Comment</TableHead>
+                        <TableHead>Timestamp</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {participantsSummary.map((summary) => (
+                        <TableRow key={summary.id}>
+                          <TableCell>
+                             {summary.type === 'member' ? (
+                               <Avatar className="h-9 w-9">
+                                <AvatarImage src={summary.userPhotoUrl} alt={summary.userName} data-ai-hint="profile avatar" />
+                                <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                    {getInitials(summary.userName)}
+                                </AvatarFallback>
+                              </Avatar>
+                             ) : (
+                              <Star className="h-7 w-7 text-yellow-500" /> 
+                             )}
+                          </TableCell>
+                          <TableCell className="font-medium">{summary.userName || summary.visitorName}</TableCell>
+                          <TableCell className="capitalize text-xs">
+                              <Badge variant={summary.type === 'member' ? (summary.userRole === 'admin' ? "default" : "secondary") : "outline"} className={summary.type === 'member' && summary.userRole === 'admin' ? "bg-primary/80" : (summary.type === 'visitor' ? "border-yellow-500 text-yellow-600" : "") }>
+                                  {summary.userDesignation || summary.userRole || summary.visitorDesignation || 'Visitor'}
+                              </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                              {summary.userEmail || summary.visitorClub}
+                          </TableCell>
+                           <TableCell className="text-xs text-muted-foreground italic">
+                              {summary.type === 'visitor' ? (summary.visitorComment || 'N/A') : 'N/A'}
+                           </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a") : "Invalid Date"}
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {participantsSummary.map((summary) => (
-                          <TableRow key={summary.id}>
-                            <TableCell>
-                               {summary.type === 'member' ? (
-                                 <Avatar className="h-9 w-9">
-                                  <AvatarImage src={summary.userPhotoUrl} alt={summary.userName} data-ai-hint="profile avatar" />
-                                  <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                                      {getInitials(summary.userName)}
-                                  </AvatarFallback>
-                                </Avatar>
-                               ) : (
-                                <Star className="h-7 w-7 text-yellow-500" /> 
-                               )}
-                            </TableCell>
-                            <TableCell className="font-medium">{summary.userName || summary.visitorName}</TableCell>
-                            <TableCell className="capitalize text-xs">
-                                <Badge variant={summary.type === 'member' ? (summary.userRole === 'admin' ? "default" : "secondary") : "outline"} className={summary.type === 'member' && summary.userRole === 'admin' ? "bg-primary/80" : (summary.type === 'visitor' ? "border-yellow-500 text-yellow-600" : "") }>
-                                    {summary.userDesignation || summary.userRole || summary.visitorDesignation || 'Visitor'}
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                                {summary.userEmail || summary.visitorClub}
-                            </TableCell>
-                             <TableCell className="text-xs text-muted-foreground italic">
-                                {summary.type === 'visitor' ? (summary.visitorComment || 'N/A') : 'N/A'}
-                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a") : "Invalid Date"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
                 {/* Mobile Card View */}
                 <div className="block md:hidden space-y-3">
