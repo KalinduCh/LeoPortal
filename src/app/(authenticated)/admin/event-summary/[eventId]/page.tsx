@@ -14,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Mail, UserCircle, Briefcase, Star, MessageSquare, ClipboardCopy } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from "@/components/ui/badge";
@@ -31,17 +33,64 @@ export default function EventSummaryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const componentRef = useRef<HTMLDivElement>(null);
-
-  const handlePrint = () => {
-    window.print();
-  };
-
   const getInitials = (name?: string) => {
     if (!name) return "??";
     const names = name.split(' ');
     if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
     return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+  };
+
+  let formattedEventDate = "Date unavailable";
+  if (event?.startDate && isValid(parseISO(event.startDate))) {
+    const eventStartDateObj = parseISO(event.startDate);
+    formattedEventDate = format(eventStartDateObj, "MMMM d, yyyy 'at' h:mm a");
+    if (event.endDate && isValid(parseISO(event.endDate))) {
+        const eventEndDateObj = parseISO(event.endDate);
+        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
+            (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
+             formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
+        }
+    }
+  }
+
+  const handleDownloadPDF = () => {
+    if (!event) return;
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text(event.name, 14, 22);
+
+    // Subtitle
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Event Summary - ${formattedEventDate}`, 14, 30);
+    doc.text(`Location: ${event.location}`, 14, 36);
+
+    // Table
+    const tableColumn = ["Type", "Name", "Role/Designation", "Email/Club", "Comment", "Timestamp"];
+    const tableRows: any[][] = [];
+
+    participantsSummary.forEach(summary => {
+      const timestamp = summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp))
+        ? format(parseISO(summary.attendanceTimestamp), "yyyy-MM-dd HH:mm:ss")
+        : "Invalid Date";
+        
+      const row = summary.type === 'member'
+        ? ["Member", summary.userName || "", summary.userDesignation || summary.userRole || "Member", summary.userEmail || "", "N/A", timestamp]
+        : ["Visitor", summary.visitorName || "", summary.visitorDesignation || "", summary.visitorClub || "", summary.visitorComment || "N/A", timestamp];
+      
+      tableRows.push(row);
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 50,
+    });
+
+    doc.save(`Event-Summary-${event.name.replace(/ /g, '_')}.pdf`);
+    toast({ title: "PDF Generated", description: "Your event summary is downloading." });
   };
 
   const fetchEventData = useCallback(async () => {
@@ -113,19 +162,6 @@ export default function EventSummaryPage() {
     fetchEventData();
   }, [fetchEventData]);
   
-  let formattedEventDate = "Date unavailable";
-  if (event?.startDate && isValid(parseISO(event.startDate))) {
-    const eventStartDateObj = parseISO(event.startDate);
-    formattedEventDate = format(eventStartDateObj, "MMMM d, yyyy 'at' h:mm a");
-    if (event.endDate && isValid(parseISO(event.endDate))) {
-        const eventEndDateObj = parseISO(event.endDate);
-        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
-            (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
-             formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
-        }
-    }
-  }
-
   const handleCopySummary = () => {
     if (!event) return;
 
@@ -224,25 +260,25 @@ export default function EventSummaryPage() {
     <div className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <Button onClick={() => router.back()} variant="outline" size="sm" className="mb-2 print:hidden">
+            <Button onClick={() => router.back()} variant="outline" size="sm" className="mb-2">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
             <h1 className="text-2xl sm:text-3xl font-bold font-headline text-primary">{event.name} - Summary</h1>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 print:hidden w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <button onClick={handleCopySummary} className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
               <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Summary
             </button>
-            <button onClick={handlePrint} className={cn(buttonVariants({}), "w-full sm:w-auto")}>
-              <Printer className="mr-2 h-4 w-4" /> Print / PDF
+            <button onClick={handleDownloadPDF} className={cn(buttonVariants({}), "w-full sm:w-auto")}>
+              <Printer className="mr-2 h-4 w-4" /> Download PDF
             </button>
         </div>
       </div>
 
-      <div ref={componentRef} className="p-2 sm:p-4 md:p-6 space-y-6 rounded-lg border bg-card text-card-foreground shadow-sm print:border-0 print:shadow-none print:p-0">
-        <Card className="shadow-none border-0 sm:border sm:shadow-sm print:border-0 print:shadow-none">
+      <div className="p-2 sm:p-4 md:p-6 space-y-6 rounded-lg border bg-card text-card-foreground shadow-sm">
+        <Card className="shadow-none border-0 sm:border sm:shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg sm:text-xl font-semibold text-primary print-title flex items-center">
+            <CardTitle className="text-lg sm:text-xl font-semibold text-primary flex items-center">
                 <Info className="mr-2 h-5 w-5" /> Event Details
             </CardTitle>
           </CardHeader>
@@ -258,7 +294,7 @@ export default function EventSummaryPage() {
                 <span className="font-medium">Location:</span>
                 <span className="ml-2 text-muted-foreground">{event.location}</span>
                 {event.latitude !== undefined && event.longitude !== undefined && (
-                  <p className="text-xs text-muted-foreground/80 print:hidden">
+                  <p className="text-xs text-muted-foreground/80">
                     (Coordinates: {event.latitude}, {event.longitude})
                   </p>
                 )}
@@ -274,9 +310,9 @@ export default function EventSummaryPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-none border-0 sm:border sm:shadow-sm print:border-0 print:shadow-none">
+        <Card className="shadow-none border-0 sm:border sm:shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg sm:text-xl font-semibold text-primary print-title flex items-center">
+            <CardTitle className="text-lg sm:text-xl font-semibold text-primary flex items-center">
               <Users className="mr-2 h-5 w-5" /> Participants ({participantsSummary.length})
             </CardTitle>
           </CardHeader>
@@ -285,11 +321,11 @@ export default function EventSummaryPage() {
               <>
                 {/* Desktop Table View */}
                 <div className="hidden md:block">
-                  <ScrollArea className="max-h-[400px] border rounded-md print:max-h-none print:border-0 print:overflow-visible">
+                  <ScrollArea className="max-h-[400px] border rounded-md">
                     <Table>
                       <TableHeader className="bg-muted/50">
                         <TableRow>
-                          <TableHead className="w-12 print:hidden">Avatar/Icon</TableHead>
+                          <TableHead className="w-12">Avatar</TableHead>
                           <TableHead>Name</TableHead>
                           <TableHead>Role/Designation</TableHead>
                           <TableHead>Email/Club</TableHead>
@@ -300,7 +336,7 @@ export default function EventSummaryPage() {
                       <TableBody>
                         {participantsSummary.map((summary) => (
                           <TableRow key={summary.id}>
-                            <TableCell className="print:hidden">
+                            <TableCell>
                                {summary.type === 'member' ? (
                                  <Avatar className="h-9 w-9">
                                   <AvatarImage src={summary.userPhotoUrl} alt={summary.userName} data-ai-hint="profile avatar" />
@@ -334,7 +370,7 @@ export default function EventSummaryPage() {
                   </ScrollArea>
                 </div>
                 {/* Mobile Card View */}
-                <div className="block md:hidden print:hidden space-y-3">
+                <div className="block md:hidden space-y-3">
                   {participantsSummary.map((summary) => (
                     <Card key={summary.id} className="shadow-sm">
                       <CardContent className="p-3">
@@ -395,5 +431,3 @@ export default function EventSummaryPage() {
     </div>
   );
 }
-
-    
