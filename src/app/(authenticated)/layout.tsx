@@ -6,8 +6,10 @@ import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/layout/app-shell";
-import { Loader2, BellRing, Settings, HelpCircle } from "lucide-react";
+import { Loader2, BellRing, Settings, HelpCircle, Wifi, WifiOff } from "lucide-react";
 import { useFcm } from "@/hooks/use-fcm";
+import { syncOfflineAttendance } from "@/services/offlineSyncService";
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,14 +31,64 @@ export default function AuthenticatedLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { requestPermission, notificationPermissionStatus } = useFcm(user);
+  const { toast } = useToast();
   
   const [isPermissionDialogOpen, setIsPermissionDialogOpen] = React.useState(false);
+  const [isOnline, setIsOnline] = React.useState(true);
+
+  // Effect for online/offline status detection
+  React.useEffect(() => {
+    const handleOnline = async () => {
+      setIsOnline(true);
+      try {
+        const syncedCount = await syncOfflineAttendance();
+        if (syncedCount > 0) {
+          toast({
+            title: "Offline Sync Complete",
+            description: `Successfully synced ${syncedCount} pending record(s) from when you were offline.`,
+            icon: <Wifi className="h-5 w-5 text-green-500" />,
+          });
+        }
+      } catch (error) {
+        console.error("Error during offline sync:", error);
+        toast({
+          title: "Sync Failed",
+          description: "Could not sync offline attendance records. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast({
+        title: "You are currently offline",
+        description: "Attendance marking will be saved locally and synced when you reconnect.",
+        icon: <WifiOff className="h-5 w-5 text-destructive" />,
+        duration: 10000,
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Set initial state
+    if(typeof window !== 'undefined') {
+        setIsOnline(navigator.onLine);
+        if(navigator.onLine) {
+            handleOnline(); // Initial sync check on load if online
+        }
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [toast]);
 
   // Effect to ask for notification permission
   React.useEffect(() => {
-    // Only ask if user is logged in, not loading, and permission is 'default'
     if (user && !isLoading && notificationPermissionStatus === 'default') {
-      // Delay the dialog slightly to not be too intrusive on login
       const timer = setTimeout(() => setIsPermissionDialogOpen(true), 5000);
       return () => clearTimeout(timer);
     }
@@ -57,7 +109,6 @@ export default function AuthenticatedLayout({
         router.replace('/dashboard');
     }
     
-    // If a regular admin is in member view, block them from admin pages
     if (user.role === 'admin' && adminViewMode === 'member_view' && isAdminPage) {
         router.replace('/dashboard');
     }
