@@ -1,3 +1,4 @@
+
 // src/app/login/page.tsx
 "use client";
 
@@ -79,7 +80,12 @@ export default function LoginPage() {
         )}
         <AuthForm mode="login" onSubmit={handleSubmit} loading={formLoading} />
       </div>
-      <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
+       <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
+        <p>
+          <Link href="/forgot-password" passHref>
+             <span className="font-medium text-primary hover:underline cursor-pointer">Forgot your password?</span>
+          </Link>
+        </p>
         <p>
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="font-medium text-primary hover:underline">

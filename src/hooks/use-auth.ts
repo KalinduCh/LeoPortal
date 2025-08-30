@@ -8,6 +8,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   type User as FirebaseUser
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/clientApp';
@@ -25,6 +26,11 @@ export interface LoginResult {
   reason?: 'pending' | 'not_found' | 'invalid_credentials';
 }
 
+export interface PasswordResetResult {
+    success: boolean;
+    message?: string;
+}
+
 interface AuthState {
   user: User | null;
   firebaseUser: FirebaseUser | null;
@@ -35,6 +41,7 @@ interface AuthState {
   login: (email: string, pass: string) => Promise<LoginResult>;
   signup: (name: string, email: string, pass: string) => Promise<User | null>;
   logout: () => Promise<void>;
+  sendPasswordResetEmail: (email: string) => Promise<PasswordResetResult>;
   performAdminAuthOperation: (asyncTask: () => Promise<void>) => Promise<void>;
   setAuthOperationInProgress: (inProgress: boolean) => void;
 }
@@ -220,6 +227,24 @@ export function useAuth(): AuthState {
     });
   }, [user]);
 
+   const sendPasswordResetEmail = useCallback(async (email: string): Promise<PasswordResetResult> => {
+    setIsAuthOperationInProgress(true);
+    try {
+        await firebaseSendPasswordResetEmail(auth, email);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Password reset error:", error);
+        if (error.code === 'auth/user-not-found') {
+            // To prevent email enumeration, we can return success even if user not found.
+            // The user won't get an email, which is the same UX as if they did it correctly.
+            return { success: true };
+        }
+        return { success: false, message: "Failed to send reset email. Please try again later." };
+    } finally {
+        setIsAuthOperationInProgress(false);
+    }
+   }, []);
+
   const performAdminAuthOperation = useCallback(async (asyncTask: () => Promise<void>): Promise<void> => {
     setIsAuthOperationInProgress(true);
     setIsLoading(true);
@@ -234,5 +259,18 @@ export function useAuth(): AuthState {
     }
   }, []);
 
-  return { user, firebaseUser, isLoading, isAuthOperationInProgress, login, signup, logout, performAdminAuthOperation, setAuthOperationInProgress: setIsAuthOperationInProgress, adminViewMode, setAdminViewMode: handleSetAdminViewMode };
+  return { 
+      user, 
+      firebaseUser, 
+      isLoading, 
+      isAuthOperationInProgress, 
+      login, 
+      signup, 
+      logout,
+      sendPasswordResetEmail,
+      performAdminAuthOperation, 
+      setAuthOperationInProgress: setIsAuthOperationInProgress, 
+      adminViewMode, 
+      setAdminViewMode: handleSetAdminViewMode 
+    };
 }
