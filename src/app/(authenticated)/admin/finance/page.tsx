@@ -350,7 +350,7 @@ export default function FinancePage() {
         </CardHeader>
         <CardContent>
           {/* Desktop Table View */}
-          <div className="hidden md:block">
+          <ScrollArea className="hidden md:block max-h-[600px]">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -388,7 +388,7 @@ export default function FinancePage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollArea>
           {/* Mobile Card View */}
           <ScrollArea className="md:hidden max-h-[600px]">
             <div className="space-y-3 pr-2">
