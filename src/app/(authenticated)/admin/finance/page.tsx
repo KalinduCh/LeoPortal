@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const chartConfig = {
@@ -389,30 +390,32 @@ export default function FinancePage() {
             </Table>
           </div>
           {/* Mobile Card View */}
-          <div className="block md:hidden space-y-3">
-             {transactions.map((t) => (
-                <Card key={t.id} className={cn("shadow-sm", t.type === 'income' ? 'border-green-500/20' : 'border-red-500/20')}>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-base font-semibold">{t.category}</CardTitle>
-                        <div className={cn("font-bold text-lg", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
-                            {t.type === 'income' ? '+' : '-'}LKR {t.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-1 pb-3">
-                        <p className="text-sm text-muted-foreground">{t.source}</p>
-                         <p className="text-xs text-muted-foreground pt-1">{format(parseISO(t.date), 'MMMM dd, yyyy')}</p>
-                    </CardContent>
-                    <CardFooter className="flex justify-end gap-2 pb-3 border-t pt-3">
-                        <Button variant="outline" size="sm" onClick={() => handleOpenForm(t)}>
-                            <Edit className="mr-1.5 h-3 w-3"/> Edit
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDeleteTransaction(t.id)}>
-                            <Trash2 className="mr-1.5 h-3 w-3"/> Delete
-                        </Button>
-                    </CardFooter>
-                </Card>
-             ))}
-          </div>
+          <ScrollArea className="md:hidden max-h-[600px]">
+            <div className="space-y-3 pr-2">
+              {transactions.map((t) => (
+                  <Card key={t.id} className={cn("shadow-sm", t.type === 'income' ? 'border-green-500/20' : 'border-red-500/20')}>
+                      <CardHeader className="flex flex-row items-center justify-between pb-2">
+                          <CardTitle className="text-base font-semibold">{t.category}</CardTitle>
+                          <div className={cn("font-bold text-lg", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                              {t.type === 'income' ? '+' : '-'}LKR {t.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </div>
+                      </CardHeader>
+                      <CardContent className="space-y-1 pb-3">
+                          <p className="text-sm text-muted-foreground">{t.source}</p>
+                          <p className="text-xs text-muted-foreground pt-1">{format(parseISO(t.date), 'MMMM dd, yyyy')}</p>
+                      </CardContent>
+                      <CardFooter className="flex justify-end gap-2 pb-3 border-t pt-3">
+                          <Button variant="outline" size="sm" onClick={() => handleOpenForm(t)}>
+                              <Edit className="mr-1.5 h-3 w-3"/> Edit
+                          </Button>
+                          <Button variant="destructive" size="sm" onClick={() => handleDeleteTransaction(t.id)}>
+                              <Trash2 className="mr-1.5 h-3 w-3"/> Delete
+                          </Button>
+                      </CardFooter>
+                  </Card>
+              ))}
+            </div>
+          </ScrollArea>
           {transactions.length === 0 && (
             <p className="text-center text-muted-foreground py-8">No transactions recorded yet.</p>
           )}
