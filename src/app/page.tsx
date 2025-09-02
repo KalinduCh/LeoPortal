@@ -1,3 +1,4 @@
+
 // src/app/page.tsx
 "use client";
 
@@ -13,7 +14,6 @@ export default function HomePage() {
 
   useEffect(() => {
     // We give the animation some time to run before redirecting.
-    // The total animation takes about 3.5s to feel complete.
     const redirectTimeout = setTimeout(() => {
         if (!isLoading) {
           if (user) {
@@ -22,7 +22,7 @@ export default function HomePage() {
             router.replace('/login');
           }
         }
-    }, 4000); // Wait 4 seconds before redirecting
+    }, 2000); // Wait 2 seconds before redirecting
 
     // Cleanup the timeout if the component unmounts or dependencies change
     return () => clearTimeout(redirectTimeout);
