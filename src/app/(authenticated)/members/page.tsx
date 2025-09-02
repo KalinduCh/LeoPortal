@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { User } from '@/types';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -36,8 +37,19 @@ import { createUserProfile, updateUserProfile, approveUser as approveUserService
 import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX, CreditCard, HandCoins } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { MemberEditForm, type MemberEditFormValues } from '@/components/members/member-edit-form';
-import { MemberAddForm, type MemberAddFormValues } from '@/components/members/member-add-form';
+import type { MemberEditFormValues } from '@/components/members/member-edit-form';
+import type { MemberAddFormValues } from '@/components/members/member-add-form';
+
+const MemberEditForm = dynamic(() => import('@/components/members/member-edit-form').then(mod => mod.MemberEditForm), {
+    ssr: false,
+    loading: () => <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+});
+
+const MemberAddForm = dynamic(() => import('@/components/members/member-add-form').then(mod => mod.MemberAddForm), {
+    ssr: false,
+    loading: () => <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+});
+
 
 type FeeStatus = 'paid' | 'pending' | 'partial';
 

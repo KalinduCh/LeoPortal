@@ -8,8 +8,7 @@ import { useRouter } from 'next/navigation';
 import type { User, Event, AttendanceRecord, BadgeId } from '@/types';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase/clientApp';
+import { getAllUsers } from '@/services/userService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, CalendarDays, Activity, PlusCircle, Eye, Award, Filter, Loader2, ExternalLink, List } from 'lucide-react';
@@ -49,32 +48,16 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const usersRef = collection(db, "users");
-      const usersSnapshot = await getDocs(usersRef);
-      const fetchedUsers: User[] = [];
-      usersSnapshot.forEach(doc => {
-        const data = doc.data();
-        fetchedUsers.push({
-          id: doc.id,
-          name: data.name,
-          email: data.email,
-          role: data.role,
-          status: data.status || 'approved',
-          designation: data.designation,
-          photoUrl: data.photoUrl,
-          nic: data.nic,
-          dateOfBirth: data.dateOfBirth,
-          gender: data.gender,
-          mobileNumber: data.mobileNumber
-        } as User);
-      });
+      // Fetch all data in parallel
+      const [fetchedUsers, fetchedEvents, fetchedAttendance] = await Promise.all([
+        getAllUsers(),
+        getEvents(),
+        getAllAttendanceRecords()
+      ]);
+
       setAllUsers(fetchedUsers);
       setTotalMembers(fetchedUsers.filter(u => u.role === 'member').length);
-
-      const fetchedEvents = await getEvents();
       setAllEvents(fetchedEvents);
-      
-      const fetchedAttendance = await getAllAttendanceRecords();
       setAllAttendance(fetchedAttendance);
 
     } catch (error) {
