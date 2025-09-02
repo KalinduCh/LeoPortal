@@ -87,26 +87,15 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       }
       
       const startDate = parseISO(event.startDate);
-      let isEventOver = false;
+      // If end date is present and valid, use it. Otherwise, assume event lasts 24 hours.
+      const endDate = event.endDate && isValid(parseISO(event.endDate))
+          ? parseISO(event.endDate)
+          : new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
 
-      if (event.endDate && isValid(parseISO(event.endDate))) {
-        const endDate = parseISO(event.endDate);
-        if (isPast(endDate)) {
-          isEventOver = true;
-        } else {
-          upcoming.push(event);
-        }
-      } else {
-        const oneDayAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-        if (isPast(oneDayAfterStart)) {
-          isEventOver = true;
-        } else {
-          upcoming.push(event);
-        }
-      }
-
-      if (isEventOver) {
+      if (isPast(endDate)) {
         past.push(event);
+      } else {
+        upcoming.push(event);
       }
     });
 
