@@ -137,8 +137,8 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
       location: event?.location || "",
       description: event?.description || "",
       enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
-      latitude: event?.latitude,
-      longitude: event?.longitude,
+      latitude: event?.latitude ?? '',
+      longitude: event?.longitude ?? '',
     },
   });
 
@@ -150,8 +150,8 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
       location: event?.location || "",
       description: event?.description || "",
       enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
-      latitude: event?.latitude,
-      longitude: event?.longitude,
+      latitude: event?.latitude ?? '',
+      longitude: event?.longitude ?? '',
     });
   }, [event, form]);
 
@@ -248,7 +248,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                 <FormItem>
                   <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Latitude</FormLabel>
                   <FormControl>
-                    <Input type="number" step="any" placeholder="e.g., 34.0522" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                    <Input type="number" step="any" placeholder="e.g., 34.0522" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -261,7 +261,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                 <FormItem>
                   <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Longitude</FormLabel>
                   <FormControl>
-                    <Input type="number" step="any" placeholder="e.g., -118.2437" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                    <Input type="number" step="any" placeholder="e.g., -118.2437" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
