@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Transaction, FinancialCategory, User } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, ExternalLink, Calendar, Filter, HandCoins, FileDown, FileText } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { FinanceForm, type FinanceFormValues } from '@/components/finance/finance-form';
+// import { FinanceForm, type FinanceFormValues } from '@/components/finance/finance-form'; // Lazy loaded
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/financeService';
 import { format, parseISO, isValid, startOfMonth, endOfMonth, startOfYear, endOfYear, getYear, getMonth, eachMonthOfInterval } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,6 +27,12 @@ import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import type { FinanceFormValues } from '@/components/finance/finance-form';
+
+const FinanceForm = dynamic(() => import('@/components/finance/finance-form').then(mod => mod.FinanceForm), {
+    ssr: false,
+    loading: () => <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+});
 
 
 const chartConfig = {
