@@ -76,23 +76,12 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       }
       
       const startDate = parseISO(event.startDate);
-      const now = new Date();
-      let isEventOver = false;
-
-      // Determine if the event is over
-      if (event.endDate && isValid(parseISO(event.endDate))) {
-        if (isPast(parseISO(event.endDate))) {
-          isEventOver = true;
-        }
-      } else {
-        // If no end date, consider it over 24 hours after it started
-        const twentyFourHoursAfterStart = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-        if (isPast(twentyFourHoursAfterStart)) {
-          isEventOver = true;
-        }
-      }
+      // If end date is present and valid, use it. Otherwise, assume event lasts 24 hours.
+      const endDate = event.endDate && isValid(parseISO(event.endDate))
+          ? parseISO(event.endDate)
+          : new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
       
-      if (isEventOver) {
+      if (isPast(endDate)) {
         const hasAttended = userAttendanceRecords.some(ar => ar.eventId === event.id && ar.userId === user?.id && ar.status === 'present');
         if (hasAttended) {
           pastAttended.push(event);

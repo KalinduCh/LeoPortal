@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Edit, Eye, CalendarDays, Loader2, MapPin } from "lucide-react";
-import { format, parseISO, isFuture, isValid } from 'date-fns';
+import { format, parseISO, isFuture, isPast, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { getEvents, deleteEvent as deleteEventService } from '@/services/eventService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -70,10 +70,17 @@ export default function EventManagementPage() {
       if (!event.startDate || !isValid(parseISO(event.startDate))) {
         return;
       }
-      if (isFuture(parseISO(event.startDate)) || !isFuture(parseISO(event.endDate || event.startDate))) {
-        upcoming.push(event);
-      } else {
+      
+      const startDate = parseISO(event.startDate);
+      // If end date is present and valid, use it. Otherwise, assume event lasts 24 hours.
+      const endDate = event.endDate && isValid(parseISO(event.endDate))
+          ? parseISO(event.endDate)
+          : new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+
+      if (isPast(endDate)) {
         past.push(event);
+      } else {
+        upcoming.push(event);
       }
     });
 
