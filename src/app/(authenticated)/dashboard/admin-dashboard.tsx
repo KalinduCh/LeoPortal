@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/dashboard/admin-dashboard.tsx
 "use client";
 
@@ -9,7 +10,7 @@ import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, CalendarDays, Activity, PlusCircle, Eye, Award, Filter, Loader2, ExternalLink, List } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -409,6 +410,11 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
             <p className="text-center text-muted-foreground py-8">No attendance data for the selected period, or no members found.</p>
           )}
         </CardContent>
+         <CardFooter className="text-center justify-center border-t pt-4">
+            <Link href="/admin/reports">
+                <Button variant="link">View Full Report</Button>
+            </Link>
+        </CardFooter>
       </Card>
       
       <div className="grid gap-6 md:grid-cols-2">

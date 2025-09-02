@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/events/page.tsx
 "use client";
 
@@ -13,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { EventForm, type EventFormValues } from "@/components/events/event-form";
 import { getEvents, createEvent, updateEvent, deleteEvent as deleteEventService } from '@/services/eventService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function EventManagementPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -131,16 +132,18 @@ export default function EventManagementPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Create Event
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{selectedEvent ? "Edit Event" : "Create New Event"}</DialogTitle>
             </DialogHeader>
-            <EventForm
-              event={selectedEvent}
-              onSubmit={handleFormSubmit}
-              onCancel={() => setIsFormOpen(false)}
-              isLoading={isSubmitting}
-            />
+            <ScrollArea className="flex-grow pr-6 -mr-6">
+                <EventForm
+                  event={selectedEvent}
+                  onSubmit={handleFormSubmit}
+                  onCancel={() => setIsFormOpen(false)}
+                  isLoading={isSubmitting}
+                />
+            </ScrollArea>
           </DialogContent>
         </Dialog>
       </div>

@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/finance/page.tsx
 "use client";
 
@@ -43,6 +44,16 @@ export default function FinancePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+  
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return transactions.slice(startIndex, startIndex + rowsPerPage);
+  }, [transactions, currentPage]);
+  
+  const totalPages = useMemo(() => Math.ceil(transactions.length / rowsPerPage), [transactions.length]);
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
@@ -350,49 +361,48 @@ export default function FinancePage() {
         </CardHeader>
         <CardContent>
           {/* Desktop Table View */}
-          <ScrollArea className="hidden md:block max-h-[600px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Source/Description</TableHead>
-                  <TableHead className="text-right">Amount (LKR)</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell>{format(parseISO(t.date), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell>
-                      <Badge variant={t.type === 'income' ? 'secondary' : 'destructive'} className={t.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                        {t.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">{t.category}</TableCell>
-                    <TableCell className="text-muted-foreground">{t.source}</TableCell>
-                    <TableCell className={`text-right font-mono ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                      {t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-                     <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenForm(t)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTransaction(t.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </TableCell>
+          <div className="hidden md:block">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Source/Description</TableHead>
+                    <TableHead className="text-right">Amount (LKR)</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+                </TableHeader>
+                <TableBody>
+                  {paginatedTransactions.map((t) => (
+                    <TableRow key={t.id}>
+                      <TableCell>{format(parseISO(t.date), 'MMM dd, yyyy')}</TableCell>
+                      <TableCell>
+                        <Badge variant={t.type === 'income' ? 'secondary' : 'destructive'} className={t.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                          {t.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{t.category}</TableCell>
+                      <TableCell className="text-muted-foreground">{t.source}</TableCell>
+                      <TableCell className={`text-right font-mono ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                        {t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenForm(t)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTransaction(t.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+          </div>
           {/* Mobile Card View */}
-          <ScrollArea className="md:hidden max-h-[600px]">
-            <div className="space-y-3 pr-2">
-              {transactions.map((t) => (
+          <div className="md:hidden space-y-3">
+              {paginatedTransactions.map((t) => (
                   <Card key={t.id} className={cn("shadow-sm", t.type === 'income' ? 'border-green-500/20' : 'border-red-500/20')}>
                       <CardHeader className="flex flex-row items-center justify-between pb-2">
                           <CardTitle className="text-base font-semibold">{t.category}</CardTitle>
@@ -414,12 +424,20 @@ export default function FinancePage() {
                       </CardFooter>
                   </Card>
               ))}
-            </div>
-          </ScrollArea>
+          </div>
           {transactions.length === 0 && (
             <p className="text-center text-muted-foreground py-8">No transactions recorded yet.</p>
           )}
         </CardContent>
+        {totalPages > 1 && (
+            <CardFooter className="border-t pt-4">
+                <div className="flex items-center justify-end space-x-2 w-full">
+                    <span className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>Previous</Button>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}>Next</Button>
+                </div>
+            </CardFooter>
+        )}
       </Card>
     </div>
   );
