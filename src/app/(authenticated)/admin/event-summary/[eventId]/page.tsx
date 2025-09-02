@@ -2,7 +2,7 @@
 // src/app/(authenticated)/admin/event-summary/[eventId]/page.tsx
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Event, User, AttendanceRecord, EventParticipantSummary } from '@/types';
 import { getEvent } from '@/services/eventService';
