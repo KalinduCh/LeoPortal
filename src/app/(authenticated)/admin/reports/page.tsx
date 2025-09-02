@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/reports/page.tsx
 "use client";
 
@@ -34,9 +35,6 @@ interface MemberStat {
 }
 
 const PIE_CHART_COLORS = ["#2563eb", "#14b8a6", "#ef4444", "#f97316", "#8b5cf6", "#3b82f6"];
-
-const memberChartConfig = { total: { label: "New Members", color: "hsl(var(--primary))" } } satisfies ChartConfig;
-const financialChartConfig = { income: { label: "Income", color: "hsl(var(--chart-2))" }, expenses: { label: "Expenses", color: "hsl(var(--chart-1))" } } satisfies ChartConfig;
 
 export default function ReportsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -129,71 +127,6 @@ export default function ReportsPage() {
         return { ...stat, badges };
     });
   }, [allAttendance, allUsers]);
-
-  const { memberSignupData, memberSignupYear } = useMemo(() => {
-    if (allUsers.length === 0) return { memberSignupData: [], memberSignupYear: new Date().getFullYear() };
-    
-    const yearWithMostSignups = allUsers.reduce((acc, user) => {
-        if (user.createdAt && isValid(parseISO(user.createdAt))) {
-            const year = getYear(parseISO(user.createdAt));
-            acc[year] = (acc[year] || 0) + 1;
-        }
-        return acc;
-    }, {} as Record<number, number>);
-    
-    const latestYear = Object.keys(yearWithMostSignups).length > 0
-        ? Math.max(...Object.keys(yearWithMostSignups).map(Number))
-        : new Date().getFullYear();
-
-    const monthlySignups = Array.from({ length: 12 }, (_, i) => ({
-      month: format(new Date(latestYear, i), 'MMM'),
-      total: 0,
-    }));
-    
-    allUsers.forEach(u => {
-      if (u.createdAt && isValid(parseISO(u.createdAt))) {
-        const joinDate = parseISO(u.createdAt);
-        if (getYear(joinDate) === latestYear) {
-          const monthIndex = getMonth(joinDate);
-          monthlySignups[monthIndex].total++;
-        }
-      }
-    });
-    return { memberSignupData: monthlySignups, memberSignupYear: latestYear };
-  }, [allUsers]);
-  
-  const { financialChartData, financialChartYear } = useMemo(() => {
-    if (allTransactions.length === 0) return { financialChartData: [], financialChartYear: new Date().getFullYear() };
-
-    const yearWithMostTransactions = allTransactions.reduce((acc, t) => {
-        const year = getYear(parseISO(t.date));
-        acc[year] = (acc[year] || 0) + 1;
-        return acc;
-    }, {} as Record<number, number>);
-
-    const latestYear = Object.keys(yearWithMostTransactions).length > 0
-        ? Math.max(...Object.keys(yearWithMostTransactions).map(Number))
-        : new Date().getFullYear();
-
-    const data = Array.from({ length: 12 }, (_, i) => ({
-      name: format(new Date(latestYear, i), 'MMM'),
-      income: 0,
-      expenses: 0
-    }));
-
-    allTransactions.forEach(t => {
-        const transactionDate = parseISO(t.date);
-        if (getYear(transactionDate) === latestYear) {
-            const monthIndex = getMonth(transactionDate);
-            if(t.type === 'income') {
-                data[monthIndex].income += t.amount;
-            } else {
-                data[monthIndex].expenses += t.amount;
-            }
-        }
-    });
-    return { financialChartData: data, financialChartYear: latestYear };
-  }, [allTransactions]);
 
   const { incomePieData, expensePieData } = useMemo(() => {
     const incomeByCategory: { [key: string]: number } = {};
@@ -390,27 +323,6 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center"><LineChartIcon className="mr-2 h-5 w-5 text-primary"/>Member Growth ({memberSignupYear})</CardTitle>
-              <CardDescription>Monthly new member signups for the most active year.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingData ? (
-                <div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : memberSignupData.some(d => d.total > 0) ? (
-                <ChartContainer config={memberChartConfig} className="h-[250px] w-full">
-                  <RechartsBarChart accessibilityLayer data={memberSignupData}>
-                    <CartesianGrid vertical={false} /><XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} /><YAxis allowDecimals={false} />
-                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                    <Bar dataKey="total" fill="var(--color-primary)" radius={4} />
-                  </RechartsBarChart>
-                </ChartContainer>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">No member signup data found for {memberSignupYear}.</p>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="event-reports" className="mt-6">
@@ -443,29 +355,6 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="financial-reports" className="mt-6 space-y-6">
-           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Financial Summary ({financialChartYear})</CardTitle>
-              <CardDescription>Monthly income vs. expenses for the most active year.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingData ? (<div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : financialChartData.some(d => d.income > 0 || d.expenses > 0) ? (
-                <ChartContainer config={financialChartConfig} className="h-[250px] w-full">
-                    <RechartsBarChart accessibilityLayer data={financialChartData}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                        <YAxis tickFormatter={(value) => `LKR ${Number(value) / 1000}k`} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="income" fill="var(--color-income)" radius={4} />
-                        <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
-                    </RechartsBarChart>
-                </ChartContainer>
-              ) : (
-                 <p className="text-center text-muted-foreground py-8">No financial transaction data found for {financialChartYear}.</p>
-              )}
-            </CardContent>
-          </Card>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
                 <CardHeader>
