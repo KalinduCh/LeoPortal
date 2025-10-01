@@ -51,7 +51,7 @@ const createEmailHtml = (bodyContent: string) => {
                       </p>
                     </td>
                     <td align="right" valign="top" style="width: 70px;">
-                      <img src="https://i.imgur.com/MP1YFNf.png" alt="Leo Club Logo" width="60" style="width: 60px; height: auto;" data-ai-hint="club logo">
+                      <img src="https://i.postimg.cc/4xDKG4TV/Navy-Blue-Minimal-Professional-Linked-In-Profile-Picture.png" alt="Leo Club Logo" width="60" style="width: 60px; height: auto; border-radius: 50%;" data-ai-hint="club logo">
                     </td>
                   </tr>
                 </table>
@@ -323,4 +323,5 @@ export const onUserDocumentChanged = functions.firestore
       });
     }
   });
+    
     
