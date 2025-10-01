@@ -1,10 +1,8 @@
+// public/firebase-messaging-sw.js
+import { initializeApp } from 'firebase/app';
+import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw';
+import { getFunctions } from 'firebase/functions'; // Although not used, it is good to have for consistency
 
-// Import the Firebase app and messaging scripts.
-// Use the version from your project's package.json
-importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
-
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBf_kQkSkomBserNaNZYaF2TkE6qObD36U",
   authDomain: "leoathugal.firebaseapp.com",
@@ -15,26 +13,16 @@ const firebaseConfig = {
   measurementId: "G-Q8PYQMFSCD"
 };
 
-// Initialize Firebase
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
+const app = initializeApp(firebaseConfig);
+const messaging = getMessaging(app);
 
-// Retrieve an instance of Firebase Messaging so that it can handle background
-// messages.
-const messaging = firebase.messaging();
+onBackgroundMessage(messaging, (payload) => {
+  console.log('[firebase-messaging-sw.js] Received background message ', payload);
 
-messaging.onBackgroundMessage((payload) => {
-  console.log(
-    "[firebase-messaging-sw.js] Received background message ",
-    payload
-  );
-  
-  // Customize notification here
-  const notificationTitle = payload.notification.title;
+  const notificationTitle = payload.notification?.title || 'New LeoPortal Notification';
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: payload.notification.icon || "https://i.imgur.com/MP1YFNf.png",
+    body: payload.notification?.body || 'You have a new update.',
+    icon: payload.notification?.icon || '/icons/icon-192x192.png', // Default icon
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
