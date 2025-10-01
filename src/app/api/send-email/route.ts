@@ -61,16 +61,16 @@ export async function POST(request: Request) {
                       <p style="margin: 5px 0 0 0; font-size: 11px; color: #777777;">Leostic Year 2025/26</p>
                       <p style="margin-top: 15px;">
                           <a href="https://www.facebook.com/leoclubofathugalpura/" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.imgur.com/J1yVxxH.png" alt="Facebook" width="24" height="24" style="border:0;"/>
+                              <img src="https://i.postimg.cc/0QtH6Bn7/image.png" alt="Facebook" width="24" height="24" style="border:0;"/>
                           </a>
                           <a href="https://www.instagram.com/athugalpuraleos/" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.imgur.com/x4p4kU7.png" alt="Instagram" width="24" height="24" style="border:0;"/>
+                              <img src="https://i.postimg.cc/RZLrSGkP/image.png" alt="Instagram" width="24" height="24" style="border:0;"/>
                           </a>
                           <a href="https://www.youtube.com/channel/UCe23x0ATwC2rIqA5RKWuF6w" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.imgur.com/3YQd8M2.png" alt="YouTube" width="24" height="24" style="border:0;"/>
+                              <img src="https://i.postimg.cc/CMBWBw32/image.png" alt="YouTube" width="24" height="24" style="border:0;"/>
                           </a>
                           <a href="https://www.tiktok.com/@athugalpuraleos" target="_blank" style="text-decoration: none;">
-                              <img src="https://i.imgur.com/DUEsV4Q.png" alt="TikTok" width="24" height="24" style="border:0;"/>
+                              <img src="https://i.postimg.cc/hjJ3d05k/image.png" alt="TikTok" width="24" height="24" style="border:0;"/>
                           </a>
                       </p>
                     </td>
