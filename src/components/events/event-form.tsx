@@ -20,11 +20,12 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO, isValid } from 'date-fns';
-import { CalendarIcon, Loader2, MapPin } from 'lucide-react';
+import { CalendarIcon, Loader2, MapPin, ExternalLink } from 'lucide-react';
 import type { Event } from '@/types';
 import { cn } from '@/lib/utils';
 import { Label } from '../ui/label';
 import { Checkbox } from '../ui/checkbox';
+import Link from 'next/link';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: "Event name must be at least 3 characters." }),
@@ -240,33 +241,38 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
         />
         
         {geoRestrictionEnabled && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-md shadow-sm bg-muted/30">
-            <FormField
-              control={form.control}
-              name="latitude"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Latitude</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="any" placeholder="e.g., 34.0522" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="longitude"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Longitude</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="any" placeholder="e.g., -118.2437" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="p-4 border rounded-md shadow-sm bg-muted/30 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                control={form.control}
+                name="latitude"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Latitude</FormLabel>
+                    <FormControl>
+                        <Input type="number" step="any" placeholder="e.g., 6.9271" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="longitude"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Longitude</FormLabel>
+                    <FormControl>
+                        <Input type="number" step="any" placeholder="e.g., 79.8612" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
+            <Link href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline inline-flex items-center">
+                Find on Google Maps <ExternalLink className="ml-1 h-3 w-3" />
+            </Link>
           </div>
         )}
 
@@ -287,16 +293,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
             </FormItem>
           )}
         />
-
-        <div className="flex justify-end space-x-3 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {event ? 'Save Changes' : 'Create Event'}
-          </Button>
-        </div>
+        
       </form>
     </Form>
   );
