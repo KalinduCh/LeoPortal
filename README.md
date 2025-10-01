@@ -29,12 +29,12 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
 - **Financial Reporting**: View an overview of income vs. expenses with charts and export all transactions to **CSV** or **PDF**.
 
 ### Engagement & Communication
-- **AI-Powered Communication**: An AI assistant helps admins draft professional and engaging email communications for club members.
-- **Automated Birthday Wishes**: An automated system checks for member birthdays daily and sends a personalized greeting email.
+- **AI-Powered Communication**: An AI assistant helps admins draft professional and engaging email communications for club members, now with **file attachment support**.
+- **Automated Birthday Wishes**: An automated system checks for member birthdays daily and sends a personalized greeting email and push notification.
 - **Dynamic Member Profiles**:
     - Members can update their personal information and profile picture.
     - **Achievement Badges** are automatically awarded for participation and leadership roles.
-- **PWA & Push Notifications**: Installable app experience with push notifications for new events and approvals.
+- **PWA & Push Notifications**: Installable app experience with push notifications for new events, approvals, and **24-hour event reminders**.
 
 ### Project & Idea Management
 - **AI-Powered Project Proposals**: Members can submit a simple project idea, and an AI assistant will generate a complete, structured project proposal based on a club template.
