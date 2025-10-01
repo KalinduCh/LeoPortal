@@ -324,4 +324,97 @@ export const onUserDocumentChanged = functions.firestore
     }
   });
     
+
+export const sendMonthlyReports = functions.pubsub.schedule("0 9 1 * *")
+    .timeZone("Asia/Colombo")
+    .onRun(async (context) => {
+        const now = new Date();
+        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const prevMonthName = prevMonth.toLocaleString("default", { month: "long" });
+        const year = prevMonth.getFullYear();
+
+        const startOfMonth = admin.firestore.Timestamp.fromDate(new Date(year, prevMonth.getMonth(), 1));
+        const endOfMonth = admin.firestore.Timestamp.fromDate(new Date(year, prevMonth.getMonth() + 1, 0, 23, 59, 59));
+
+        // 1. Get Admins
+        const adminsSnapshot = await db.collection("users").where("role", "in", ["admin", "super_admin"]).get();
+        const adminEmails = adminsSnapshot.docs.map((doc) => doc.data().email).filter(Boolean);
+
+        if (adminEmails.length === 0) {
+            console.log("No admins found to send reports to.");
+            return;
+        }
+
+        // 2. Get Finance Data
+        const transactionsSnapshot = await db.collection("transactions")
+            .where("date", ">=", startOfMonth)
+            .where("date", "<=", endOfMonth).get();
+        
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        transactionsSnapshot.forEach((doc) => {
+            const t = doc.data();
+            if (t.type === "income") totalIncome += t.amount;
+            else totalExpenses += t.amount;
+        });
+
+        // 3. Get Attendance Data
+        const attendanceSnapshot = await db.collection("attendance")
+            .where("timestamp", ">=", startOfMonth)
+            .where("timestamp", "<=", endOfMonth).get();
+        const attendanceCount = attendanceSnapshot.size;
+
+        // 4. Construct and Send Email
+        const subject = `LEO Portal Monthly Report: ${prevMonthName} ${year}`;
+        const htmlBody = `
+            <h2>Monthly Summary: ${prevMonthName} ${year}</h2>
+            <p>Here is your automated monthly summary from the LEO Portal.</p>
+            
+            <h3>Financial Overview</h3>
+            <ul>
+                <li>Total Income: <strong>LKR ${totalIncome.toFixed(2)}</strong></li>
+                <li>Total Expenses: <strong>LKR ${totalExpenses.toFixed(2)}</strong></li>
+                <li>Net Balance: <strong>LKR ${(totalIncome - totalExpenses).toFixed(2)}</strong></li>
+            </ul>
+
+            <h3>Activity Overview</h3>
+            <ul>
+                <li>Total Attendance Records Logged: <strong>${attendanceCount}</strong></li>
+            </ul>
+            
+            <p>For a more detailed breakdown, please visit the Reports section in the LEO Portal.</p>
+            <p>Best Regards,<br>LEO Portal Automation</p>
+        `;
+
+        for (const email of adminEmails) {
+            await sendEmail(email, subject, htmlBody);
+        }
+        
+        console.log(`Monthly reports sent to ${adminEmails.length} admins.`);
+    });
+
+
+export const sendFeeReminders = functions.pubsub.schedule("0 9 * * 1") // Every Monday at 9 AM
+    .timeZone("Asia/Colombo")
+    .onRun(async (context) => {
+        const usersSnapshot = await db.collection("users")
+            .where("status", "==", "approved")
+            .where("membershipFeeStatus", "==", "pending").get();
+
+        if (usersSnapshot.empty) {
+            console.log("No users with pending fees. No reminders sent.");
+            return;
+        }
+
+        const userIds = usersSnapshot.docs.map((doc) => doc.id);
+
+        console.log(`Sending fee reminders to ${userIds.length} user(s).`);
+
+        await sendPushToUsers(
+            userIds,
+            "Membership Fee Reminder",
+            "This is a friendly reminder that your annual membership fee is pending. Please contact the treasurer to complete your payment.",
+            "/profile"
+        );
+    });
     
