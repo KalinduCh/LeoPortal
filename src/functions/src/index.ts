@@ -37,21 +37,21 @@ const createEmailHtml = (bodyContent: string) => {
                       <p style="margin: 5px 0 0 0; font-size: 11px; color: #777777;">Leostic Year 2025/26</p>
                       <p style="margin-top: 15px;">
                           <a href="https://www.facebook.com/leoclubofathugalpura/" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.imgur.com/J1yVxxH.png" alt="Facebook" width="24" height="24">
+                              <img src="https://i.imgur.com/J1yVxxH.png" alt="Facebook" width="24" height="24" style="border:0;"/>
                           </a>
                           <a href="https://www.instagram.com/athugalpuraleos/" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.imgur.com/x4p4kU7.png" alt="Instagram" width="24" height="24">
+                              <img src="https://i.imgur.com/x4p4kU7.png" alt="Instagram" width="24" height="24" style="border:0;"/>
                           </a>
                           <a href="https://www.youtube.com/channel/UCe23x0ATwC2rIqA5RKWuF6w" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.imgur.com/3YQd8M2.png" alt="YouTube" width="24" height="24">
+                              <img src="https://i.imgur.com/3YQd8M2.png" alt="YouTube" width="24" height="24" style="border:0;"/>
                           </a>
                           <a href="https://www.tiktok.com/@athugalpuraleos" target="_blank" style="text-decoration: none;">
-                              <img src="https://i.imgur.com/DUEsV4Q.png" alt="TikTok" width="24" height="24">
+                              <img src="https://i.imgur.com/DUEsV4Q.png" alt="TikTok" width="24" height="24" style="border:0;"/>
                           </a>
                       </p>
                     </td>
                     <td align="right" valign="top" style="width: 70px;">
-                      <img src="https://i.imgur.com/MP1YFNf.png" alt="Leo Club Logo" width="60" style="width: 60px; height: auto;" data-ai-hint="club logo">
+                      <img src="https://i.imgur.com/MP1YFNf.png" alt="Leo Club Logo" width="60" style="width: 60px; height: auto; border:0;" data-ai-hint="club logo">
                     </td>
                   </tr>
                 </table>
@@ -323,4 +323,5 @@ export const onUserDocumentChanged = functions.firestore
       });
     }
   });
+    
     
