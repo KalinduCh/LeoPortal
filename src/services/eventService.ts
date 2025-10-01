@@ -15,6 +15,7 @@ export async function createEvent(data: EventFormValues): Promise<string> {
     startDate: Timestamp.fromDate(data.startDate),
     location: data.location,
     description: data.description,
+    reminderSent: false, // Initialize reminderSent to false
   };
 
   if (data.endDate) {
@@ -60,6 +61,7 @@ export async function getEvents(): Promise<Event[]> {
         description: data.description,
         latitude: data.latitude,
         longitude: data.longitude,
+        reminderSent: data.reminderSent || false,
       };
       if (data.endDate && typeof data.endDate.toDate === 'function') {
         event.endDate = (data.endDate as Timestamp).toDate().toISOString();
@@ -93,6 +95,7 @@ export async function getEvent(eventId: string): Promise<Event | null> {
       description: data.description,
       latitude: data.latitude,
       longitude: data.longitude,
+      reminderSent: data.reminderSent || false,
     };
     if (data.endDate && typeof data.endDate.toDate === 'function') {
       event.endDate = (data.endDate as Timestamp).toDate().toISOString();
@@ -133,3 +136,5 @@ export async function deleteEvent(eventId: string): Promise<void> {
   const eventRef = doc(db, 'events', eventId);
   await deleteDoc(eventRef);
 }
+
+    
