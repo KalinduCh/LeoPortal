@@ -455,7 +455,7 @@ export default function CommunicationPage() {
                 <FormItem>
                   <FormLabel className="flex items-center"><Paperclip className="mr-1.5 h-4 w-4 text-muted-foreground" /> Attachments</FormLabel>
                   <FormControl>
-                      <>
+                      <div>
                         <input
                             type="file"
                             multiple
@@ -470,7 +470,7 @@ export default function CommunicationPage() {
                         <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={formSubmitting}>
                            <PlusCircle className="mr-2 h-4 w-4" /> Add Files
                         </Button>
-                      </>
+                      </div>
                   </FormControl>
                   <FormDescription className="text-xs">
                      Max file size: {MAX_FILE_SIZE_MB}MB. Total limit: {MAX_TOTAL_SIZE_MB}MB.
