@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Mail, Users, Send, Loader2, Sparkles, Search, Info, Edit, PlusCircle, Settings, Trash2 } from "lucide-react";
+import { Mail, Users, Send, Loader2, Sparkles, Search, Info, Edit, PlusCircle, Settings, Trash2, Paperclip, X } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { generateCommunication, type GenerateCommunicationInput } from '@/ai/flows/generate-communication-flow';
@@ -39,11 +39,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from '@/lib/utils';
 
+const MAX_FILE_SIZE_MB = 2;
+const MAX_TOTAL_SIZE_MB = 7;
+
+const fileSchema = z.custom<File>(f => f instanceof File, "Expected a file.")
+    .refine(file => file.size <= MAX_FILE_SIZE_MB * 1024 * 1024, `Each file must be ${MAX_FILE_SIZE_MB}MB or less.`);
 
 const emailFormSchema = z.object({
   subject: z.string().min(3, { message: "Subject must be at least 3 characters." }),
   body: z.string().min(10, { message: "Email body must be at least 10 characters." }),
   recipientUserIds: z.array(z.string()).min(1, { message: "Please select at least one recipient." }),
+  attachments: z.array(fileSchema).optional()
+    .refine(files => {
+        if (!files) return true;
+        const totalSize = files.reduce((acc, file) => acc + file.size, 0);
+        return totalSize <= MAX_TOTAL_SIZE_MB * 1024 * 1024;
+    }, `Total attachments size must not exceed ${MAX_TOTAL_SIZE_MB}MB.`),
 });
 
 type EmailFormValues = z.infer<typeof emailFormSchema>;
@@ -61,32 +72,31 @@ export default function CommunicationPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  // State for main form
   const [members, setMembers] = useState<User[]>([]);
   const [groups, setGroups] = useState<CommunicationGroup[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
   
-  // State for AI generation
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState("");
   
-  // State for recipient selection
   const [recipientSearchTerm, setRecipientSearchTerm] = useState("");
   
-  // State for group management dialog
   const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
   const [isGroupSubmitting, setIsGroupSubmitting] = useState(false);
   const [selectedGroupForEdit, setSelectedGroupForEdit] = useState<GroupFormState | null>(null);
   const [groupMemberSearchTerm, setGroupMemberSearchTerm] = useState('');
   const [groupToDelete, setGroupToDelete] = useState<CommunicationGroup | null>(null);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
 
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailFormSchema),
-    defaultValues: { subject: "", body: "", recipientUserIds: [] },
+    defaultValues: { subject: "", body: "", recipientUserIds: [], attachments: [] },
   });
+  
+  const watchedAttachments = form.watch('attachments') || [];
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
@@ -170,7 +180,13 @@ export default function CommunicationPage() {
     const newBody = bodyWithoutSignature.trim() + (SIGNATURE_TEMPLATES[signatureKey].value || "");
     form.setValue("body", newBody, { shouldValidate: true });
   };
-
+  
+    const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
 
   const onSubmit = async (data: EmailFormValues) => {
     setFormSubmitting(true);
@@ -182,12 +198,33 @@ export default function CommunicationPage() {
         setFormSubmitting(false);
         return;
     }
+    
+    let attachmentsForApi: { filename: string, content: string, contentType: string }[] = [];
+    if (data.attachments && data.attachments.length > 0) {
+        try {
+            attachmentsForApi = await Promise.all(data.attachments.map(async (file) => ({
+                filename: file.name,
+                content: (await fileToBase64(file)).split(',')[1],
+                contentType: file.type
+            })));
+        } catch (error) {
+            toast({ title: "Attachment Error", description: "Could not process attachments. Please try again.", variant: "destructive" });
+            setFormSubmitting(false);
+            return;
+        }
+    }
+
 
     try {
       const response = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: recipientEmails.join(','), subject: data.subject, body: data.body }),
+        body: JSON.stringify({ 
+            to: recipientEmails.join(','), 
+            subject: data.subject, 
+            body: data.body,
+            attachments: attachmentsForApi
+        }),
       });
 
       if (!response.ok) {
@@ -288,6 +325,8 @@ export default function CommunicationPage() {
   if (authLoading || isLoadingData || !user || !isSuperOrAdmin) {
     return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
+  
+  const totalAttachmentSize = watchedAttachments.reduce((acc, file) => acc + file.size, 0);
   
   return (
     <div className="container mx-auto py-4 sm:py-8 space-y-6">
@@ -404,11 +443,62 @@ export default function CommunicationPage() {
           </Card>
           
           <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Sparkles className="mr-2 h-5 w-5 text-primary" /> AI Content Assistant</CardTitle></CardHeader><CardContent className="space-y-3"><Alert><Info className="h-4 w-4" /><AlertTitle>How to use the Topic field</AlertTitle><AlertDescription className="text-xs leading-relaxed"><ol className="list-decimal list-inside space-y-1 mt-1"><li>Be specific. Instead of "meeting," try "Monthly meeting reminder for August".</li><li>Include key details if you have them, like "charity drive on Saturday at the main hall".</li><li>The AI will automatically write in a professional and friendly tone suitable for the club.</li></ol></AlertDescription></Alert><div><Label htmlFor="ai-topic">Email Topic</Label><div className="flex items-center gap-2 mt-1"><Input id="ai-topic" placeholder="e.g., Beach cleanup event this weekend" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} disabled={isGenerating || formSubmitting}/><Button type="button" onClick={handleGenerateContent} disabled={isGenerating || formSubmitting}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Generate</Button></div></div></CardContent></Card>
-          <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle><CardDescription className="text-sm">Write or edit the subject and body of your email.</CardDescription></CardHeader><CardContent className="space-y-4"><FormField control={form.control} name="subject" render={({ field }) => (<FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="Important Update: Upcoming Event" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-              <FormField control={form.control} name="body" render={({ field }) => (<FormItem><FormLabel>Body</FormLabel><FormControl><Textarea placeholder="Dear members, ..." className="resize-y min-h-[150px] sm:min-h-[200px]" {...field}/></FormControl><FormMessage /></FormItem>)}/>
-               <FormItem><FormLabel className="flex items-center"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Signature</FormLabel><Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}><FormControl><SelectTrigger><SelectValue placeholder="Select a signature template" /></SelectTrigger></FormControl><SelectContent>{Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (<SelectItem key={key} value={key}>{template.label}</SelectItem>))}</SelectContent></Select><FormDescription className="text-xs">Select a signature to append to your email body.</FormDescription></FormItem>
-            </CardContent>
-          </Card>
+          <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle><CardDescription className="text-sm">Write or edit the subject and body of your email.</CardDescription></CardHeader><CardContent className="space-y-4">
+            <FormField control={form.control} name="subject" render={({ field }) => (<FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="Important Update: Upcoming Event" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+            <FormField control={form.control} name="body" render={({ field }) => (<FormItem><FormLabel>Body</FormLabel><FormControl><Textarea placeholder="Dear members, ..." className="resize-y min-h-[150px] sm:min-h-[200px]" {...field}/></FormControl><FormMessage /></FormItem>)}/>
+            <FormItem><FormLabel className="flex items-center"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Signature</FormLabel><Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}><FormControl><SelectTrigger><SelectValue placeholder="Select a signature template" /></SelectTrigger></FormControl><SelectContent>{Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (<SelectItem key={key} value={key}>{template.label}</SelectItem>))}</SelectContent></Select><FormDescription className="text-xs">Select a signature to append to your email body.</FormDescription></FormItem>
+            
+            <FormField
+              control={form.control}
+              name="attachments"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center"><Paperclip className="mr-1.5 h-4 w-4 text-muted-foreground" /> Attachments</FormLabel>
+                  <FormControl>
+                      <>
+                        <input
+                            type="file"
+                            multiple
+                            ref={fileInputRef}
+                            className="hidden"
+                            onChange={(e) => {
+                                const newFiles = Array.from(e.target.files || []);
+                                const currentFiles = field.value || [];
+                                field.onChange([...currentFiles, ...newFiles]);
+                            }}
+                        />
+                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={formSubmitting}>
+                           <PlusCircle className="mr-2 h-4 w-4" /> Add Files
+                        </Button>
+                      </>
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                     Max file size: {MAX_FILE_SIZE_MB}MB. Total limit: {MAX_TOTAL_SIZE_MB}MB.
+                  </FormDescription>
+                  {watchedAttachments.length > 0 && (
+                    <div className="space-y-2 pt-2">
+                        {watchedAttachments.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 text-sm rounded-md border bg-muted/50">
+                                <span className="truncate pr-2">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                                    const newFiles = [...watchedAttachments];
+                                    newFiles.splice(index, 1);
+                                    field.onChange(newFiles);
+                                }}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                         <div className="text-xs font-medium text-muted-foreground pt-1">
+                            Total size: {(totalAttachmentSize / 1024 / 1024).toFixed(2)}MB / {MAX_TOTAL_SIZE_MB}MB
+                         </div>
+                    </div>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent></Card>
           
           <div className="flex justify-end"><Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingData || watchedRecipients.length === 0} size="lg">{formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}{formSubmitting ? "Sending..." : `Send Email to ${watchedRecipients.length} Member(s)`}</Button></div>
         </form>
