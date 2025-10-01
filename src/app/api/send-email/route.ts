@@ -2,17 +2,23 @@
 // src/app/api/send-email/route.ts
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import type { Attachment } from 'nodemailer/lib/mailer';
 
 // Define the expected request body shape
 interface EmailRequestBody {
     to: string;
     subject: string;
     body: string;
+    attachments?: {
+        filename: string;
+        content: string; // base64 encoded
+        contentType: string;
+    }[];
 }
 
 export async function POST(request: Request) {
   try {
-    const { to, subject, body }: EmailRequestBody = await request.json();
+    const { to, subject, body, attachments }: EmailRequestBody = await request.json();
 
     // Validate request body
     if (!to || !subject || !body) {
@@ -32,6 +38,10 @@ export async function POST(request: Request) {
         user: GMAIL_EMAIL,
         pass: GMAIL_APP_PASSWORD,
       },
+      // Increase pool size for potentially better performance with many emails
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
     });
 
     const emailHtml = `
@@ -75,13 +85,22 @@ export async function POST(request: Request) {
       </div>
     `;
 
-
-    const mailOptions = {
+    const mailOptions: nodemailer.SendMailOptions = {
         from: `"LEO CLUB OF ATHUGALPURA" <${GMAIL_EMAIL}>`,
         to: to, // Can be a single email or a comma-separated list
         subject: subject,
         html: emailHtml,
     };
+    
+    // Add attachments if they exist
+    if (attachments && attachments.length > 0) {
+        mailOptions.attachments = attachments.map(att => ({
+            filename: att.filename,
+            content: att.content,
+            encoding: 'base64',
+            contentType: att.contentType,
+        }));
+    }
 
     await transporter.sendMail(mailOptions);
 
@@ -91,6 +110,9 @@ export async function POST(request: Request) {
     console.error("Error in /api/send-email:", err);
     // Provide a more specific error message if available
     const errorMessage = err.message || 'An unknown error occurred while sending the email.';
+    if (err.code === 'EENVELOPE') { // Specific Nodemailer error for large payload
+        return NextResponse.json({ error: 'Failed to send email', details: 'Attachments are too large. Please reduce the total size and try again.' }, { status: 413 });
+    }
     return NextResponse.json({ error: 'Failed to send email', details: errorMessage }, { status: 500 });
   }
 }
