@@ -2,13 +2,14 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { User, Event, AttendanceRecord, BadgeId } from '@/types';
+import type { User, Event, AttendanceRecord, BadgeId, ProjectIdea } from '@/types';
 import { EventList } from '@/components/events/event-list';
 import { getEvents } from '@/services/eventService';
 import { getAttendanceRecordsForUser } from '@/services/attendanceService';
+import { getProjectIdeasForUser } from '@/services/projectIdeaService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CalendarDays, CheckSquare, Loader2, History, MapPin, Award, Clock, Activity } from 'lucide-react';
+import { CalendarDays, CheckSquare, Loader2, History, MapPin, Award, Clock, Activity, Lightbulb } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { parseISO, isPast, isValid, format, isFuture, isWithinInterval, differenceInHours } from 'date-fns';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
@@ -22,6 +23,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [userAttendanceRecords, setUserAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [userBadges, setUserBadges] = useState<BadgeId[]>([]);
+  const [projectIdeaCount, setProjectIdeaCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -34,13 +36,15 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     setIsLoading(true);
 
     try {
-      const [fetchedEvents, attendance] = await Promise.all([
+      const [fetchedEvents, attendance, projectIdeas] = await Promise.all([
         getEvents(),
-        getAttendanceRecordsForUser(user.id)
+        getAttendanceRecordsForUser(user.id),
+        getProjectIdeasForUser(user.id),
       ]);
       
       setAllEvents(fetchedEvents);
       setUserAttendanceRecords(attendance);
+      setProjectIdeaCount(projectIdeas.length);
 
       const badgeIds = calculateBadgeIds(user, attendance);
       setUserBadges(badgeIds);
@@ -138,6 +142,16 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   <p className="text-xs text-muted-foreground">Estimated total hours contributed.</p>
               </CardContent>
           </Card>
+          <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Project Ideas Submitted</CardTitle>
+                  <Lightbulb className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                  <div className="text-2xl font-bold">{projectIdeaCount}</div>
+                  <p className="text-xs text-muted-foreground">Total creative ideas shared.</p>
+              </CardContent>
+          </Card>
       </div>
       
       <Card>
@@ -218,8 +232,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               <p className="ml-2">Loading your event history...</p>
             </div>
           ) : !isLoading && attendedPastEvents.length > 0 ? (
-            <ScrollArea className="h-[400px] pr-3"> 
-              <ul className="space-y-4">
+            <ScrollArea className="h-[400px] pr-3">
+              <div className="space-y-4">
                 {attendedPastEvents.map(event => {
                   const attendance = userAttendanceRecords.find(ar => ar.eventId === event.id && ar.userId === user.id);
                   
@@ -243,28 +257,30 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   }
 
                   return (
-                    <li key={event.id} className="p-4 border rounded-lg shadow-sm hover:bg-muted/50 transition-colors">
-                      <h4 className="font-semibold text-md text-primary">{event.name}</h4>
-                      <div className="mt-1 space-y-0.5">
-                        <p className="text-sm text-muted-foreground flex items-center">
-                          <CalendarDays className="mr-1.5 h-4 w-4 shrink-0" />
-                          {formattedEventDate}
-                        </p>
-                        <p className="text-sm text-muted-foreground flex items-center">
-                          <MapPin className="mr-1.5 h-4 w-4 shrink-0" />
-                          {event.location || "Location not specified"}
-                        </p>
-                        {attendance && (
-                          <p className="text-xs text-secondary-foreground bg-secondary px-2 py-1 rounded-md inline-flex items-center mt-1.5">
-                            <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
-                            You attended: {formattedAttendanceTime}
+                    <Card key={event.id} className="shadow-sm hover:bg-muted/50 transition-colors">
+                      <CardContent className="p-4 space-y-2">
+                        <h4 className="font-semibold text-md text-primary">{event.name}</h4>
+                        <div className="space-y-1">
+                          <p className="text-sm text-muted-foreground flex items-center">
+                            <CalendarDays className="mr-1.5 h-4 w-4 shrink-0" />
+                            {formattedEventDate}
                           </p>
-                        )}
-                      </div>
-                    </li>
+                          <p className="text-sm text-muted-foreground flex items-center">
+                            <MapPin className="mr-1.5 h-4 w-4 shrink-0" />
+                            {event.location || "Location not specified"}
+                          </p>
+                          {attendance && (
+                            <p className="text-xs text-secondary-foreground bg-secondary px-2 py-1 rounded-md inline-flex items-center mt-1.5">
+                              <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
+                              You attended: {formattedAttendanceTime}
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
                   );
                 })}
-              </ul>
+              </div>
             </ScrollArea>
           ) : ( 
             <p className="text-muted-foreground text-center py-6">You have no past attended events recorded.</p>
