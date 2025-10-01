@@ -3,6 +3,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
 import * as nodemailer from "nodemailer";
+import type { Event } from "../../types";
 
 admin.initializeApp();
 
@@ -37,21 +38,21 @@ const createEmailHtml = (bodyContent: string) => {
                       <p style="margin: 5px 0 0 0; font-size: 11px; color: #777777;">Leostic Year 2025/26</p>
                       <p style="margin-top: 15px;">
                           <a href="https://www.facebook.com/leoclubofathugalpura/" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.imgur.com/J1yVxxH.png" alt="Facebook" width="24" height="24" style="border:0;"/>
+                              <img src="https://i.postimg.cc/0QtH6Bn7/image.png" alt="Facebook" width="24" height="24">
                           </a>
                           <a href="https://www.instagram.com/athugalpuraleos/" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.imgur.com/x4p4kU7.png" alt="Instagram" width="24" height="24" style="border:0;"/>
+                              <img src="https://i.postimg.cc/RZLrSGkP/image.png" alt="Instagram" width="24" height="24">
                           </a>
                           <a href="https://www.youtube.com/channel/UCe23x0ATwC2rIqA5RKWuF6w" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.imgur.com/3YQd8M2.png" alt="YouTube" width="24" height="24" style="border:0;"/>
+                              <img src="https://i.postimg.cc/CMBWBw32/image.png" alt="YouTube" width="24" height="24">
                           </a>
                           <a href="https://www.tiktok.com/@athugalpuraleos" target="_blank" style="text-decoration: none;">
-                              <img src="https://i.imgur.com/DUEsV4Q.png" alt="TikTok" width="24" height="24" style="border:0;"/>
+                              <img src="https://i.postimg.cc/hjJ3d05k/image.png" alt="TikTok" width="24" height="24">
                           </a>
                       </p>
                     </td>
                     <td align="right" valign="top" style="width: 70px;">
-                      <img src="https://i.imgur.com/MP1YFNf.png" alt="Leo Club Logo" width="60" style="width: 60px; height: auto; border:0;" data-ai-hint="club logo">
+                      <img src="https://i.postimg.cc/4xDKG4TV/Navy-Blue-Minimal-Professional-Linked-In-Profile-Picture.png" alt="Leo Club Logo" width="60" style="width: 60px; height: auto; border-radius: 50%;" data-ai-hint="club logo">
                     </td>
                   </tr>
                 </table>
@@ -217,6 +218,104 @@ export const onEventCreated = functions.firestore
     );
   });
 
+export const sendBirthdayNotifications = functions.pubsub.schedule("0 9 * * *")
+    .timeZone("Asia/Colombo")
+    .onRun(async (context) => {
+        const today = new Date();
+        const month = (today.getMonth() + 1).toString().padStart(2, '0');
+        const day = today.getDate().toString().padStart(2, '0');
+        const todayMMDD = `${month}-${day}`;
+        console.log(`Checking for birthdays on: ${todayMMDD}`);
+
+        const usersSnapshot = await db.collection("users")
+            .where("status", "==", "approved").get();
+
+        if (usersSnapshot.empty) {
+            console.log("No approved users found.");
+            return;
+        }
+
+        const birthdayUsers: { id: string, name: string, email: string }[] = [];
+        usersSnapshot.forEach(doc => {
+            const user = doc.data();
+            if (user.dateOfBirth) {
+                // Assuming dateOfBirth is stored as "YYYY-MM-DD"
+                const userMMDD = user.dateOfBirth.substring(5);
+                if (userMMDD === todayMMDD) {
+                    birthdayUsers.push({ id: doc.id, name: user.name, email: user.email });
+                }
+            }
+        });
+
+        if (birthdayUsers.length === 0) {
+            console.log("No birthdays today.");
+            return;
+        }
+
+        console.log(`Found ${birthdayUsers.length} user(s) with birthdays today.`);
+
+        for (const user of birthdayUsers) {
+            // Send Push Notification
+            await sendPushToUsers(
+                [user.id],
+                "Happy Birthday!",
+                `Happy Birthday, ${user.name}! The Leo Club of Athugalpura wishes you all the best.`
+            );
+
+            // Send Email
+            const subject = "A Very Happy Birthday from your Leo Family!";
+            const htmlBody = `
+                <p>Dear ${user.name},</p>
+                <p>The entire Leo Club of Athugalpura family wishes you a very happy and joyful birthday!</p>
+                <p>May your day be filled with happiness, and your year be full of success. Thank you for being a valuable part of our club.</p>
+                <p>Best wishes,<br>Leo Club of Athugalpura</p>
+            `;
+            await sendEmail(user.email, subject, htmlBody);
+        }
+    });
+
+export const sendEventReminders = functions.pubsub.schedule("every 1 hours")
+    .onRun(async (context) => {
+        const now = admin.firestore.Timestamp.now();
+        const twentyFourHoursFromNow = admin.firestore.Timestamp.fromMillis(now.toMillis() + 24 * 60 * 60 * 1000);
+
+        const eventsSnapshot = await db.collection("events")
+            .where("startDate", ">=", now)
+            .where("startDate", "<=", twentyFourHoursFromNow)
+            .where("reminderSent", "==", false)
+            .get();
+
+        if (eventsSnapshot.empty) {
+            console.log("No upcoming events in the next 24 hours needing a reminder.");
+            return;
+        }
+
+        const usersSnapshot = await db.collection("users")
+            .where("status", "==", "approved").get();
+        
+        if (usersSnapshot.empty) {
+            console.log("No approved users to send reminders to.");
+            return;
+        }
+        
+        const userIds = usersSnapshot.docs.map(doc => doc.id);
+
+        for (const doc of eventsSnapshot.docs) {
+            const event = doc.data() as Event;
+            console.log(`Sending reminder for event: ${event.name}`);
+
+            await sendPushToUsers(
+                userIds,
+                "Event Reminder",
+                `Don't forget! The event "${event.name}" is starting in less than 24 hours.`
+            );
+
+            // Mark the event as reminder sent
+            await doc.ref.update({ reminderSent: true });
+        }
+    });
+
+
 export const onUserDocumentChanged = functions.firestore
   .document("users/{userId}")
   .onWrite(async (change, context) => {
@@ -324,4 +423,6 @@ export const onUserDocumentChanged = functions.firestore
     }
   });
     
+    
+
     

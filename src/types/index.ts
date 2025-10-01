@@ -43,7 +43,7 @@ export interface Event {
   location: string; // Textual location
   latitude?: number;  // For geolocation
   longitude?: number; // For geolocation
-  reminderSent?: boolean; // To track if a reminder has been sent
+  reminderSent: boolean; // To track if a reminder has been sent
 }
 
 export interface AttendanceRecord {
@@ -165,3 +165,5 @@ export interface FinancialCategory {
     id: string;
     name: string;
 }
+
+    
