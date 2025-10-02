@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { format, parseISO, getYear, getMonth, isPast, isValid, isFuture, isWithinInterval } from 'date-fns';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 interface AdminDashboardProps {
   user: User;
@@ -197,6 +198,15 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     );
   }
 
+  const getRankColor = (index: number) => {
+    switch(index) {
+        case 0: return 'bg-yellow-100/50 hover:bg-yellow-100/70 dark:bg-yellow-500/10 dark:hover:bg-yellow-500/20';
+        case 1: return 'bg-slate-100/50 hover:bg-slate-100/70 dark:bg-slate-500/10 dark:hover:bg-slate-500/20';
+        case 2: return 'bg-orange-100/50 hover:bg-orange-100/70 dark:bg-orange-500/10 dark:hover:bg-orange-500/20';
+        default: return '';
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -299,7 +309,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                   </TableHeader>
                   <TableBody>
                     {memberStats.slice(0, 10).map((stat, index) => (
-                      <TableRow key={stat.userId}>
+                      <TableRow key={stat.userId} className={cn(getRankColor(index))}>
                         <TableCell className="font-medium">
                             <Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80 hover:bg-primary/90" : ""}>
                                 {index + 1}
@@ -339,7 +349,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
               {/* Mobile Card View */}
               <div className="block md:hidden space-y-3">
                 {memberStats.slice(0, 10).map((stat, index) => (
-                  <Card key={stat.userId} className="shadow-sm">
+                  <Card key={stat.userId} className={cn("shadow-sm", getRankColor(index))}>
                     <CardContent className="p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                          <Avatar className="h-12 w-12">
