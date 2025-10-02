@@ -2,59 +2,78 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
+    
+    // Helper functions
     function isSuperAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
     }
     
     function isAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin'];
+      let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return userRole == 'admin' || userRole == 'super_admin';
     }
 
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-    
-    function isApprovedMember() {
+    function isMember() {
         return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved';
     }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
 
+    // Collection: users
     match /users/{userId} {
-      allow read: if request.auth != null; // Any authenticated user can read user profiles
-      allow create: if request.auth != null; // New users can create their own profile on signup
-      allow update: if isOwner(userId) || isSuperAdmin(); // User can update their own profile, or super admin can update any
-      allow delete: if isSuperAdmin(); // Only super admin can delete users
+      // Admins can list all users, members can only read their own profile.
+      allow list: if isAdmin();
+      allow get: if isMember();
+      
+      allow create: if request.auth != null; // For signup
+      allow update: if isAdmin() || isOwner(userId);
+      allow delete: if isAdmin();
     }
     
+    // Collection: events
     match /events/{eventId} {
-      allow read: if request.auth != null; // All authenticated users can read events
-      allow create, update, delete: if isAdmin(); // Only admins can manage events
+      allow read: if isMember();
+      allow write: if isAdmin();
     }
     
+    // Collection: attendance
     match /attendance/{attendanceId} {
-      allow read: if isAdmin(); // Only admins can see full attendance lists
-      // Allow members to read their own attendance, and anyone to write (for visitor check-in)
-      allow write: if request.auth != null; 
-      // More specific read for a user to see their own records
-      allow list: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        // Members can read their own attendance, Admins can read all.
+        allow read: if isAdmin() || (isMember() && resource.data.userId == request.auth.uid);
+        allow create: if request.auth != null || request.auth == null; // Allow logged in and visitors
+        // Only admins can update/delete attendance records
+        allow update, delete: if isAdmin();
     }
     
-    match /communicationGroups/{groupId} {
-        allow read, create, update, delete: if isAdmin();
-    }
-    
-    match /transactions/{transactionId} {
-        allow read, create, update, delete: if isAdmin();
+    // Collection: documents (if you re-add it)
+    match /documents/{documentId} {
+      allow read, write: if isAdmin();
     }
 
-    match /projectIdeas/{ideaId} {
-        allow read: if isApprovedMember();
-        allow create: if isApprovedMember();
-        allow update: if isOwner(resource.data.authorId) || isAdmin();
+    // Collection: communicationGroups
+    match /communicationGroups/{groupId} {
+        allow read, write: if isAdmin();
     }
     
+    // Collection: projectIdeas
+    match /projectIdeas/{ideaId} {
+        allow read: if isMember();
+        allow create: if isMember();
+        allow update: if isAdmin() || (isMember() && resource.data.authorId == request.auth.uid);
+        allow delete: if isAdmin() || (isMember() && resource.data.authorId == request.auth.uid);
+    }
+    
+    // Collection: transactions
+    match /transactions/{transactionId} {
+        allow read, write: if isAdmin();
+    }
+
+    // Collection: pointsEntries
     match /pointsEntries/{entryId} {
-        allow read, create, delete, update: if isAdmin();
+        allow read: if isMember(); // Allow all members to read points for leaderboards
+        allow write: if isAdmin(); // Only admins can create, update, or delete points
     }
   }
 }
