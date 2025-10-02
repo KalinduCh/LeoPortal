@@ -53,7 +53,7 @@ export function SidebarNav() {
   let itemsToShow: NavItem[];
 
   if (user.role === 'super_admin') {
-      itemsToShow = superAdminNavİtems;
+      itemsToShow = superAdminNavItems;
   } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
       // Filter admin items based on user's permissions
       itemsToShow = adminNavItems.filter(item => {

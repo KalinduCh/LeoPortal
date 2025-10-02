@@ -1,5 +1,4 @@
 
-
 import type { ReactElement, ElementType } from 'react';
 
 export type UserRole = 'super_admin' | 'admin' | 'member';
@@ -51,7 +50,7 @@ export interface Event {
   points?: number;
 }
 
-// This type is being deprecated in favor of MonthlyPoints
+// DEPRECATED - This type is being deprecated in favor of MonthlyPoints
 export interface PointsEntry {
   id: string;
   userId: string;
@@ -67,7 +66,7 @@ export interface PointsEntry {
 
 // New data structure for the editable grid
 export interface MonthlyPoints {
-    id?: string; // month-year-userId
+    id?: string; // predictable ID, e.g. year-month-userId
     userId: string;
     userName: string;
     photoUrl?: string;
