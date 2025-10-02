@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/leaderboard/page.tsx
 "use client";
 
@@ -8,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { User, PointsEntry } from '@/types';
 import { getAllUsers } from '@/services/userService';
 import { getPointsForPeriod, addPointsEntry, deletePointsEntry } from '@/services/pointsService';
-import { format, getYear, eachYearOfInterval, subYears, startOfDay } from 'date-fns';
+import { format, getYear, eachYearOfInterval, subYears } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -112,26 +113,24 @@ export default function LeaderboardPage() {
   }, [watchedCategory, form]);
 
   useEffect(() => {
-    if (watchedCategory === 'other' || !watchedSubCategory) {
+    const subCategory = form.getValues('subCategory');
+    if (watchedCategory === 'other' || !subCategory) {
       if (watchedCategory !== 'other') {
-          form.setValue('points', 0);
-          form.setValue('projectName', '');
+          // Keep points if they were manually entered, otherwise clear
       }
       return;
     };
     
     let item;
     if (watchedCategory === 'role') {
-        item = pointsSystem.roles.find(r => r.name === watchedSubCategory);
+        item = pointsSystem.roles.find(r => r.name === subCategory);
     } else {
-        item = pointsSystem.participation.find(p => p.name === watchedSubCategory);
+        item = pointsSystem.participation.find(p => p.name === subCategory);
     }
     
     if (item) {
         form.setValue('points', item.points);
-        if(!form.getValues('projectName')) { // Don't override if user typed something
-            form.setValue('projectName', item.name);
-        }
+        form.setValue('projectName', item.name);
     }
   }, [watchedSubCategory, watchedCategory, form]);
 
@@ -145,16 +144,11 @@ export default function LeaderboardPage() {
       ]);
 
       setAllUsers(users);
+      setPointsLog(points);
       
       if (!users || users.length === 0) {
         toast({ title: "Data Notice", description: "No users found. Leaderboard may be incomplete.", variant: "default" });
       }
-      
-      if (!points) {
-          toast({ title: "Data Notice", description: "No points entries found for this period.", variant: "default" });
-      }
-
-      setPointsLog(points);
     } catch (error: any) {
       console.error("Error in fetchData for leaderboard:", error);
       toast({ title: "Error", description: `Failed to load leaderboard data: ${error.message}`, variant: "destructive" });
@@ -278,7 +272,7 @@ export default function LeaderboardPage() {
                                 >
                                 {isLoading
                                   ? "Loading members..."
-                                  : field.value
+                                  : field.value && approvedMembers.length > 0
                                     ? approvedMembers.find(
                                         (member) => member.id === field.value
                                     )?.name
@@ -417,7 +411,95 @@ export default function LeaderboardPage() {
           </DialogContent>
         </Dialog>
       </div>
-      
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 shadow-lg">
+            <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <CardTitle className="flex items-center"><Trophy className="mr-2 h-5 w-5 text-primary" />Monthly Leaderboard</CardTitle>
+                        <CardDescription>Top members based on total points for the selected month.</CardDescription>
+                    </div>
+                    <div className="flex items-end gap-2 w-full sm:w-auto">
+                       <div className="flex-1 sm:flex-none"><Label htmlFor="filter-month">Month</Label><Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}><SelectTrigger id="filter-month"><SelectValue/></SelectTrigger><SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}</SelectContent></Select></div>
+                       <div className="flex-1 sm:flex-none"><Label htmlFor="filter-year">Year</Label><Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}><SelectTrigger id="filter-year"><SelectValue/></SelectTrigger><SelectContent>{availableYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}</SelectContent></Select></div>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? (
+                     <div className="flex items-center justify-center h-64"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
+                ) : leaderboardData.length > 0 ? (
+                    <>
+                    <div className="hidden md:block">
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Rank</TableHead><TableHead>Member</TableHead><TableHead className="text-right">Total Points</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {leaderboardData.slice(0, 10).map((item, index) => (
+                                    <TableRow key={item.user.id}>
+                                        <TableCell className="font-bold text-lg">{index + 1}</TableCell>
+                                        <TableCell className="flex items-center gap-3 font-medium">
+                                            <Avatar className="h-9 w-9"><AvatarImage src={item.user.photoUrl} alt={item.user.name} data-ai-hint="profile avatar"/><AvatarFallback>{getInitials(item.user.name)}</AvatarFallback></Avatar>
+                                            {item.user.name}
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-lg text-primary">{item.totalPoints.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <div className="block md:hidden space-y-3">
+                         {leaderboardData.slice(0, 10).map((item, index) => (
+                            <Card key={item.user.id} className="shadow-sm">
+                                <CardContent className="p-3 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-lg w-6 text-center">{index + 1}</span>
+                                        <Avatar className="h-10 w-10"><AvatarImage src={item.user.photoUrl} alt={item.user.name} data-ai-hint="profile avatar"/><AvatarFallback>{getInitials(item.user.name)}</AvatarFallback></Avatar>
+                                        <p className="font-medium">{item.user.name}</p>
+                                    </div>
+                                    <p className="font-bold text-md text-primary">{item.totalPoints.toLocaleString()}</p>
+                                </CardContent>
+                            </Card>
+                         ))}
+                    </div>
+                    </>
+                ) : <p className="text-center text-muted-foreground py-8">No points recorded for this period.</p>}
+            </CardContent>
+        </Card>
+        
+        <Card className="shadow-lg">
+            <CardHeader>
+                <CardTitle className="flex items-center"><List className="mr-2 h-5 w-5 text-primary"/>Points Log</CardTitle>
+                <CardDescription>Recent manual points entries for this month.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ScrollArea className="h-96">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                    ) : pointsLog.length > 0 ? (
+                        <div className="space-y-3">
+                            {pointsLog.map(entry => (
+                                <div key={entry.id} className="flex items-start justify-between text-sm p-2 rounded-md hover:bg-muted/50">
+                                    <div>
+                                        <p className="font-semibold">{entry.userName}</p>
+                                        <p className="text-xs text-muted-foreground">{entry.description}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{format(new Date(entry.date), 'MMM dd, yyyy')}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <span className="font-bold text-primary">{entry.points.toLocaleString()}</span>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {setEntryToDelete(entry); setIsDeleteAlertOpen(true);}}>
+                                            <Trash2 className="h-4 w-4 text-destructive"/>
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : <p className="text-center text-muted-foreground pt-10">No entries for this period.</p>}
+                </ScrollArea>
+            </CardContent>
+        </Card>
+      </div>
+
        <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-xl"><Info className="mr-2 h-5 w-5 text-primary" />Points System Overview</CardTitle>
@@ -454,75 +536,6 @@ export default function LeaderboardPage() {
           </div>
         </CardContent>
       </Card>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-            <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <CardTitle className="flex items-center"><Trophy className="mr-2 h-5 w-5 text-primary" />Monthly Leaderboard</CardTitle>
-                        <CardDescription>Top members based on total points for the selected month.</CardDescription>
-                    </div>
-                    <div className="flex items-end gap-2 w-full sm:w-auto">
-                       <div className="flex-1 sm:flex-none"><Label htmlFor="filter-month">Month</Label><Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}><SelectTrigger id="filter-month"><SelectValue/></SelectTrigger><SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}</SelectContent></Select></div>
-                       <div className="flex-1 sm:flex-none"><Label htmlFor="filter-year">Year</Label><Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}><SelectTrigger id="filter-year"><SelectValue/></SelectTrigger><SelectContent>{availableYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}</SelectContent></Select></div>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {isLoading ? (
-                     <div className="flex items-center justify-center h-64"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
-                ) : leaderboardData.length > 0 ? (
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Rank</TableHead><TableHead>Member</TableHead><TableHead className="text-right">Total Points</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {leaderboardData.slice(0, 10).map((item, index) => (
-                                <TableRow key={item.user.id}>
-                                    <TableCell className="font-bold">{index + 1}</TableCell>
-                                    <TableCell className="flex items-center gap-2 font-medium">
-                                        <Avatar className="h-9 w-9"><AvatarImage src={item.user.photoUrl} alt={item.user.name} data-ai-hint="profile avatar"/><AvatarFallback>{getInitials(item.user.name)}</AvatarFallback></Avatar>
-                                        {item.user.name}
-                                    </TableCell>
-                                    <TableCell className="text-right font-bold text-lg text-primary">{item.totalPoints.toLocaleString()}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                ) : <p className="text-center text-muted-foreground py-8">No points recorded for this period.</p>}
-            </CardContent>
-        </Card>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center"><List className="mr-2 h-5 w-5 text-primary"/>Points Log</CardTitle>
-                <CardDescription>Recent manual points entries for this month.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ScrollArea className="h-96">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                    ) : pointsLog.length > 0 ? (
-                        <div className="space-y-3">
-                            {pointsLog.map(entry => (
-                                <div key={entry.id} className="flex items-start justify-between text-sm p-2 rounded-md hover:bg-muted/50">
-                                    <div>
-                                        <p className="font-semibold">{entry.userName}</p>
-                                        <p className="text-xs text-muted-foreground">{entry.description}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-bold text-primary">{entry.points.toLocaleString()}</span>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {setEntryToDelete(entry); setIsDeleteAlertOpen(true);}}>
-                                            <Trash2 className="h-4 w-4 text-destructive"/>
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : <p className="text-center text-muted-foreground pt-10">No entries for this period.</p>}
-                </ScrollArea>
-            </CardContent>
-        </Card>
-      </div>
 
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
@@ -541,3 +554,5 @@ export default function LeaderboardPage() {
     </div>
   );
 }
+
+    
