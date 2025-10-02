@@ -86,7 +86,7 @@ export default function LeaderboardPage() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   
   const approvedMembers = useMemo(() => {
-    if (!allUsers.length) return [];
+    if (!allUsers || allUsers.length === 0) return [];
     return allUsers
       .filter(u => u.status === 'approved' && ['member', 'admin', 'super_admin'].includes(u.role))
       .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
@@ -107,14 +107,15 @@ export default function LeaderboardPage() {
   }, [isFormOpen, form]);
 
   useEffect(() => {
-    form.setValue('subCategory', '');
+    if (watchedCategory) form.setValue('subCategory', '');
   }, [watchedCategory, form]);
 
   useEffect(() => {
     if (watchedCategory === 'other' || !watchedSubCategory) {
-      if (form.getValues('points') === 0 && form.getValues('description') === '') return;
-      form.setValue('points', '' as any); // Use empty string for uncontrolled to controlled fix
-      form.setValue('description', '');
+      if (watchedCategory !== 'other') {
+          form.setValue('points', 0);
+          form.setValue('description', '');
+      }
       return;
     };
     
@@ -139,12 +140,20 @@ export default function LeaderboardPage() {
         getAllUsers(),
         getPointsForPeriod(selectedMonth, selectedYear)
       ]);
+
+      if (!users || users.length === 0) {
+        console.warn("getAllUsers() returned empty or null. Leaderboard may be empty.");
+        toast({ title: "Data Notice", description: "No users found to populate the leaderboard.", variant: "default" });
+      }
+      
       setAllUsers(users);
       setPointsLog(points);
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to load leaderboard data.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("Error in fetchData for leaderboard:", error);
+      toast({ title: "Error", description: `Failed to load leaderboard data: ${error.message}`, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [toast, selectedMonth, selectedYear]);
 
   useEffect(() => {
@@ -178,7 +187,7 @@ export default function LeaderboardPage() {
       const newEntry: Omit<PointsEntry, 'id' | 'createdAt'> = {
         ...values,
         userName: selectedUser.name,
-        date: new Date(selectedYear, selectedMonth, 1).toISOString(), // Use start of selected month
+        date: new Date(selectedYear, selectedMonth, 1).toISOString(),
         addedBy: user.id,
       };
       await addPointsEntry(newEntry);
@@ -329,7 +338,7 @@ export default function LeaderboardPage() {
                 )}
                 
                 <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Chairperson for Beach Cleanup" {...field} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
+                  <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Chairperson for Beach Cleanup" {...field} disabled={watchedCategory !== 'other'} value={field.value || ''} /></FormControl><FormMessage/></FormItem>
                 )}/>
                 <FormField control={form.control} name="points" render={({ field }) => (
                   <FormItem><FormLabel>Points</FormLabel><FormControl><Input type="number" placeholder="e.g., 12000" {...field} value={field.value || ''} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
