@@ -3,7 +3,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
 import * as nodemailer from "nodemailer";
-import type { Event } from "../../types";
+import type { Event, PointsEntry } from "../../types";
 
 admin.initializeApp();
 
@@ -218,104 +218,6 @@ export const onEventCreated = functions.firestore
     );
   });
 
-export const sendBirthdayNotifications = functions.pubsub.schedule("0 9 * * *")
-    .timeZone("Asia/Colombo")
-    .onRun(async (context) => {
-        const today = new Date();
-        const month = (today.getMonth() + 1).toString().padStart(2, '0');
-        const day = today.getDate().toString().padStart(2, '0');
-        const todayMMDD = `${month}-${day}`;
-        console.log(`Checking for birthdays on: ${todayMMDD}`);
-
-        const usersSnapshot = await db.collection("users")
-            .where("status", "==", "approved").get();
-
-        if (usersSnapshot.empty) {
-            console.log("No approved users found.");
-            return;
-        }
-
-        const birthdayUsers: { id: string, name: string, email: string }[] = [];
-        usersSnapshot.forEach(doc => {
-            const user = doc.data();
-            if (user.dateOfBirth) {
-                // Assuming dateOfBirth is stored as "YYYY-MM-DD"
-                const userMMDD = user.dateOfBirth.substring(5);
-                if (userMMDD === todayMMDD) {
-                    birthdayUsers.push({ id: doc.id, name: user.name, email: user.email });
-                }
-            }
-        });
-
-        if (birthdayUsers.length === 0) {
-            console.log("No birthdays today.");
-            return;
-        }
-
-        console.log(`Found ${birthdayUsers.length} user(s) with birthdays today.`);
-
-        for (const user of birthdayUsers) {
-            // Send Push Notification
-            await sendPushToUsers(
-                [user.id],
-                "Happy Birthday!",
-                `Happy Birthday, ${user.name}! The Leo Club of Athugalpura wishes you all the best.`
-            );
-
-            // Send Email
-            const subject = "A Very Happy Birthday from your Leo Family!";
-            const htmlBody = `
-                <p>Dear ${user.name},</p>
-                <p>The entire Leo Club of Athugalpura family wishes you a very happy and joyful birthday!</p>
-                <p>May your day be filled with happiness, and your year be full of success. Thank you for being a valuable part of our club.</p>
-                <p>Best wishes,<br>Leo Club of Athugalpura</p>
-            `;
-            await sendEmail(user.email, subject, htmlBody);
-        }
-    });
-
-export const sendEventReminders = functions.pubsub.schedule("every 1 hours")
-    .onRun(async (context) => {
-        const now = admin.firestore.Timestamp.now();
-        const twentyFourHoursFromNow = admin.firestore.Timestamp.fromMillis(now.toMillis() + 24 * 60 * 60 * 1000);
-
-        const eventsSnapshot = await db.collection("events")
-            .where("startDate", ">=", now)
-            .where("startDate", "<=", twentyFourHoursFromNow)
-            .where("reminderSent", "==", false)
-            .get();
-
-        if (eventsSnapshot.empty) {
-            console.log("No upcoming events in the next 24 hours needing a reminder.");
-            return;
-        }
-
-        const usersSnapshot = await db.collection("users")
-            .where("status", "==", "approved").get();
-        
-        if (usersSnapshot.empty) {
-            console.log("No approved users to send reminders to.");
-            return;
-        }
-        
-        const userIds = usersSnapshot.docs.map(doc => doc.id);
-
-        for (const doc of eventsSnapshot.docs) {
-            const event = doc.data() as Event;
-            console.log(`Sending reminder for event: ${event.name}`);
-
-            await sendPushToUsers(
-                userIds,
-                "Event Reminder",
-                `Don't forget! The event "${event.name}" is starting in less than 24 hours.`
-            );
-
-            // Mark the event as reminder sent
-            await doc.ref.update({ reminderSent: true });
-        }
-    });
-
-
 export const onUserDocumentChanged = functions.firestore
   .document("users/{userId}")
   .onWrite(async (change, context) => {
@@ -423,6 +325,161 @@ export const onUserDocumentChanged = functions.firestore
     }
   });
     
+
+export const sendMonthlyReports = functions.pubsub.schedule("0 9 1 * *")
+    .timeZone("Asia/Colombo")
+    .onRun(async (context) => {
+        const now = new Date();
+        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const prevMonthName = prevMonth.toLocaleString("default", { month: "long" });
+        const year = prevMonth.getFullYear();
+
+        const startOfMonth = admin.firestore.Timestamp.fromDate(new Date(year, prevMonth.getMonth(), 1));
+        const endOfMonth = admin.firestore.Timestamp.fromDate(new Date(year, prevMonth.getMonth() + 1, 0, 23, 59, 59));
+
+        // 1. Get Admins
+        const adminsSnapshot = await db.collection("users").where("role", "in", ["admin", "super_admin"]).get();
+        const adminEmails = adminsSnapshot.docs.map((doc) => doc.data().email).filter(Boolean);
+
+        if (adminEmails.length === 0) {
+            console.log("No admins found to send reports to.");
+            return;
+        }
+
+        // 2. Get Finance Data
+        const transactionsSnapshot = await db.collection("transactions")
+            .where("date", ">=", startOfMonth)
+            .where("date", "<=", endOfMonth).get();
+        
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        transactionsSnapshot.forEach((doc) => {
+            const t = doc.data();
+            if (t.type === "income") totalIncome += t.amount;
+            else totalExpenses += t.amount;
+        });
+
+        // 3. Get Attendance Data
+        const attendanceSnapshot = await db.collection("attendance")
+            .where("timestamp", ">=", startOfMonth)
+            .where("timestamp", "<=", endOfMonth).get();
+        const attendanceCount = attendanceSnapshot.size;
+
+        // 4. Construct and Send Email
+        const subject = `LEO Portal Monthly Report: ${prevMonthName} ${year}`;
+        const htmlBody = `
+            <h2>Monthly Summary: ${prevMonthName} ${year}</h2>
+            <p>Here is your automated monthly summary from the LEO Portal.</p>
+            
+            <h3>Financial Overview</h3>
+            <ul>
+                <li>Total Income: <strong>LKR ${totalIncome.toFixed(2)}</strong></li>
+                <li>Total Expenses: <strong>LKR ${totalExpenses.toFixed(2)}</strong></li>
+                <li>Net Balance: <strong>LKR ${(totalIncome - totalExpenses).toFixed(2)}</strong></li>
+            </ul>
+
+            <h3>Activity Overview</h3>
+            <ul>
+                <li>Total Attendance Records Logged: <strong>${attendanceCount}</strong></li>
+            </ul>
+            
+            <p>For a more detailed breakdown, please visit the Reports section in the LEO Portal.</p>
+            <p>Best Regards,<br>LEO Portal Automation</p>
+        `;
+
+        for (const email of adminEmails) {
+            await sendEmail(email, subject, htmlBody);
+        }
+        
+        console.log(`Monthly reports sent to ${adminEmails.length} admins.`);
+    });
+
+
+export const sendFeeReminders = functions.pubsub.schedule("0 9 * * 1") // Every Monday at 9 AM
+    .timeZone("Asia/Colombo")
+    .onRun(async (context) => {
+        const usersSnapshot = await db.collection("users")
+            .where("status", "==", "approved")
+            .where("membershipFeeStatus", "==", "pending").get();
+
+        if (usersSnapshot.empty) {
+            console.log("No users with pending fees. No reminders sent.");
+            return;
+        }
+
+        const userIds = usersSnapshot.docs.map((doc) => doc.id);
+
+        console.log(`Sending fee reminders to ${userIds.length} user(s).`);
+
+        await sendPushToUsers(
+            userIds,
+            "Membership Fee Reminder",
+            "This is a friendly reminder that your annual membership fee is pending. Please contact the treasurer to complete your payment.",
+            "/profile"
+        );
+    });
+
+export const onAttendanceCreated = functions.firestore
+  .document("attendance/{attendanceId}")
+  .onCreate(async (snap, context) => {
+    const attendanceRecord = snap.data();
+
+    // Ensure it's a member attendance and not a visitor
+    if (attendanceRecord.attendanceType !== "member" || !attendanceRecord.userId) {
+      console.log(`Skipping points allocation for non-member or visitor attendance: ${snap.id}`);
+      return;
+    }
+
+    const { eventId, userId } = attendanceRecord;
+
+    // 1. Fetch Event Details
+    const eventRef = db.collection("events").doc(eventId);
+    const eventSnap = await eventRef.get();
+
+    if (!eventSnap.exists) {
+      console.error(`Event ${eventId} not found for attendance record ${snap.id}.`);
+      return;
+    }
+    const eventData = eventSnap.data() as Event;
+    
+    // 2. Check if the event has points assigned
+    if (!eventData.points || eventData.points <= 0) {
+      console.log(`Event ${eventId} has no participation points assigned. Skipping.`);
+      return;
+    }
+
+    // 3. Fetch User Details
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+        console.error(`User ${userId} not found for attendance record ${snap.id}.`);
+        return;
+    }
+    const userData = userSnap.data();
+    if (!userData) return;
+
+    // 4. Create Points Entry
+    const pointsEntry: Omit<PointsEntry, "id" | "createdAt"> = {
+        userId: userId,
+        userName: userData.name || "Unknown User",
+        date: attendanceRecord.timestamp.toDate().toISOString(),
+        description: `Attended event: ${eventData.name}`,
+        points: eventData.points,
+        category: "participation",
+        addedBy: "system", // Mark as automated
+        eventId: eventId,
+    };
+
+    try {
+        await db.collection("pointsEntries").add({
+            ...pointsEntry,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            date: attendanceRecord.timestamp, // Use the attendance timestamp for the points date
+        });
+        console.log(`Successfully awarded ${eventData.points} points to user ${userId} for event ${eventId}.`);
+    } catch (error) {
+        console.error(`Failed to create points entry for user ${userId} and event ${eventId}:`, error);
+    }
+  });
     
 
-    

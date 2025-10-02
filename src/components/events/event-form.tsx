@@ -20,12 +20,13 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO, isValid } from 'date-fns';
-import { CalendarIcon, Loader2, MapPin, ExternalLink } from 'lucide-react';
-import type { Event } from '@/types';
+import { CalendarIcon, Loader2, MapPin, ExternalLink, Award } from 'lucide-react';
+import type { Event, EventType } from '@/types';
 import { cn } from '@/lib/utils';
 import { Label } from '../ui/label';
 import { Checkbox } from '../ui/checkbox';
 import Link from 'next/link';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: "Event name must be at least 3 characters." }),
@@ -36,6 +37,8 @@ const eventFormSchema = z.object({
   enableGeoRestriction: z.boolean().optional(),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
+  eventType: z.enum(['monthly_meeting', 'club_project', 'district_project', 'multiple_project', 'official_visit', 'other']).optional(),
+  points: z.coerce.number().positive("Points must be a positive number.").optional(),
 }).refine(data => {
   if (data.endDate) {
     return data.endDate > data.startDate;
@@ -128,6 +131,15 @@ const DateTimePicker = ({ field, label }: { field: any, label: string }) => {
     );
 };
 
+const eventTypeOptions: { value: EventType, label: string }[] = [
+    { value: 'monthly_meeting', label: 'Monthly Meeting' },
+    { value: 'club_project', label: 'Club Project' },
+    { value: 'district_project', label: 'District Project' },
+    { value: 'multiple_project', label: 'Multiple Project' },
+    { value: 'official_visit', label: 'Official Visit' },
+    { value: 'other', label: 'Other' },
+];
+
 export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormProps) {
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -138,8 +150,10 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
       location: event?.location || "",
       description: event?.description || "",
       enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
-      latitude: event?.latitude ?? '',
-      longitude: event?.longitude ?? '',
+      latitude: event?.latitude ?? undefined,
+      longitude: event?.longitude ?? undefined,
+      eventType: event?.eventType || undefined,
+      points: event?.points || undefined,
     },
   });
 
@@ -151,13 +165,15 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
       location: event?.location || "",
       description: event?.description || "",
       enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
-      latitude: event?.latitude ?? '',
-      longitude: event?.longitude ?? '',
+      latitude: event?.latitude ?? undefined,
+      longitude: event?.longitude ?? undefined,
+      eventType: event?.eventType || undefined,
+      points: event?.points || undefined,
     });
   }, [event, form]);
 
   const handleFormSubmit = async (values: EventFormValues) => {
-    const submissionValues = { ...values };
+    const submissionValues: EventFormValues = { ...values };
     if (!values.enableGeoRestriction) {
       submissionValues.latitude = undefined;
       submissionValues.longitude = undefined;
@@ -250,7 +266,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                     <FormItem>
                     <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Latitude</FormLabel>
                     <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 6.9271" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        <Input type="number" step="any" placeholder="e.g., 6.9271" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -263,7 +279,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                     <FormItem>
                     <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Longitude</FormLabel>
                     <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 79.8612" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        <Input type="number" step="any" placeholder="e.g., 79.8612" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -293,6 +309,50 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
             </FormItem>
           )}
         />
+
+        <div className="p-4 border rounded-md shadow-sm bg-muted/30 space-y-4">
+            <h3 className="font-semibold flex items-center"><Award className="mr-2 h-5 w-5 text-primary"/>Points System</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="eventType"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Event Type</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select an event type" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {eventTypeOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="points"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Participation Points</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="e.g., 5000" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                            </FormControl>
+                             <FormDescription className="text-xs">Points awarded for attending this event.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>Cancel</Button>
+            <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {event ? 'Save Changes' : 'Create Event'}
+            </Button>
+        </div>
         
       </form>
     </Form>

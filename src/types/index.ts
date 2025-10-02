@@ -35,6 +35,8 @@ export interface User {
   permissions?: Partial<Record<AdminPermission, boolean>>;
 }
 
+export type EventType = 'monthly_meeting' | 'club_project' | 'district_project' | 'multiple_project' | 'official_visit' | 'other';
+
 export interface Event {
   id: string; // Firestore document ID
   name: string;
@@ -45,6 +47,8 @@ export interface Event {
   latitude?: number;  // For geolocation
   longitude?: number; // For geolocation
   reminderSent: boolean; // To track if a reminder has been sent
+  eventType?: EventType;
+  points?: number; // Participation points
 }
 
 export interface PointsEntry {
@@ -54,9 +58,10 @@ export interface PointsEntry {
   date: string; // ISO string for the date the points apply to
   description: string;
   points: number;
-  category: 'role' | 'participation';
-  addedBy: string; // Admin's user ID
+  category: 'role' | 'participation' | 'other';
+  addedBy: string; // Admin's user ID or 'system'
   createdAt: string; // ISO string
+  eventId?: string; // Link to the event if applicable
 }
 
 export interface AttendanceRecord {
