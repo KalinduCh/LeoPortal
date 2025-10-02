@@ -15,6 +15,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Loader2, Trophy, List, Star, Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const pointsSystem = {
     roles: [
@@ -35,6 +37,15 @@ const pointsSystem = {
         { name: 'Multiple Project Participation (Online)', points: 6000 },
     ]
 };
+
+const getRankColor = (index: number) => {
+    switch(index) {
+        case 0: return 'bg-yellow-100/50 hover:bg-yellow-100/70 dark:bg-yellow-500/10 dark:hover:bg-yellow-500/20';
+        case 1: return 'bg-slate-100/50 hover:bg-slate-100/70 dark:bg-slate-500/10 dark:hover:bg-slate-500/20';
+        case 2: return 'bg-orange-100/50 hover:bg-orange-100/70 dark:bg-orange-500/10 dark:hover:bg-orange-500/20';
+        default: return '';
+    }
+  };
 
 export default function MemberLeaderboardPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -173,8 +184,13 @@ export default function MemberLeaderboardPage() {
                       <TableHeader><TableRow><TableHead>Rank</TableHead><TableHead>Member</TableHead><TableHead className="text-right">Total Points</TableHead></TableRow></TableHeader>
                       <TableBody>
                           {leaderboardData.map((item, index) => (
-                              <TableRow key={item.user.id} className={item.user.id === user?.id ? 'bg-primary/10' : ''}>
-                                  <TableCell className="font-bold">{index + 1}</TableCell>
+                              <TableRow key={item.user.id} className={cn(
+                                getRankColor(index),
+                                item.user.id === user?.id && 'bg-primary/10 hover:bg-primary/20'
+                              )}>
+                                  <TableCell className="font-bold">
+                                    <Badge variant={index < 3 ? 'default' : 'secondary'} className={index < 3 ? 'bg-primary/80' : ''}>{index + 1}</Badge>
+                                  </TableCell>
                                   <TableCell className="flex items-center gap-2 font-medium">
                                       <Avatar className="h-9 w-9"><AvatarImage src={item.user.photoUrl} alt={item.user.name} data-ai-hint="profile avatar"/><AvatarFallback>{getInitials(item.user.name)}</AvatarFallback></Avatar>
                                       {item.user.name}
