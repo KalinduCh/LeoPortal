@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/leaderboard/page.tsx
 "use client";
 
@@ -5,49 +6,22 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { User, PointsEntry } from '@/types';
+import type { User, MonthlyPoints } from '@/types';
 import { getAllUsers } from '@/services/userService';
-import { addPointsEntry, getPointsEntries, deletePointsEntry } from '@/services/pointsService';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { format, getMonth, getYear, startOfMonth, endOfMonth, eachYearOfInterval, subMonths } from 'date-fns';
+import { getMonthlyPointsForPeriod, saveMonthlyPointsBatch } from '@/services/monthlyPointsService';
+import { produce } from 'immer';
+import { format, getYear, getMonth, eachYearOfInterval, subYears } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, PlusCircle, Trophy, List, CalendarIcon, Trash2, Filter, Info, Star } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-
-const pointsFormSchema = z.object({
-  userId: z.string().min(1, "Please select a member."),
-  date: z.date({ required_error: "A date is required." }),
-  description: z.string().min(3, "Description is required."),
-  points: z.coerce.number().positive("Points must be a positive number."),
-  category: z.enum(['role', 'participation'], { required_error: "Category is required." }),
-});
-
-type PointsFormValues = z.infer<typeof pointsFormSchema>;
+import { Loader2, Trophy, List, Star, Save, Info, Crown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const pointsSystem = {
     roles: [
@@ -65,139 +39,134 @@ const pointsSystem = {
     ]
 };
 
+const pointCategories: (keyof Omit<MonthlyPoints, 'id' | 'userId' | 'userName' | 'photoUrl' | 'month' | 'year' | 'totalPoints' | 'updatedAt'>)[] = [
+    'chairSecTrePoints',
+    'ocPoints',
+    'meetingPoints',
+    'clubProjectPoints'
+];
+
 export default function LeaderboardPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [pointsEntries, setPointsEntries] = useState<PointsEntry[]>([]);
+  const [monthlyPoints, setMonthlyPoints] = useState<MonthlyPoints[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  
-  const [entryToDelete, setEntryToDelete] = useState<PointsEntry | null>(null);
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-
-  const pointsForm = useForm<PointsFormValues>({
-    resolver: zodResolver(pointsFormSchema),
-    defaultValues: {
-        userId: '',
-        date: new Date(),
-        description: '',
-        points: undefined,
-        category: 'participation',
-    }
-  });
   
   const approvedMembers = useMemo(() => 
     allUsers.filter(u => u.status === 'approved' && ['member', 'admin', 'super_admin'].includes(u.role))
+    .sort((a, b) => a.name.localeCompare(b.name))
   , [allUsers]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [users, entries] = await Promise.all([getAllUsers(), getPointsEntries()]);
+      const [users, points] = await Promise.all([
+        getAllUsers(),
+        getMonthlyPointsForPeriod(selectedMonth, selectedYear)
+      ]);
       setAllUsers(users);
-      setPointsEntries(entries);
+      setMonthlyPoints(points);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to load data.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to load leaderboard data.", variant: "destructive" });
     }
     setIsLoading(false);
-  }, [toast]);
+  }, [toast, selectedMonth, selectedYear]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleAddPoints = async (values: PointsFormValues) => {
-    if (!user) return;
-    setIsSubmitting(true);
-    const targetUser = allUsers.find(u => u.id === values.userId);
-    if (!targetUser) {
-        toast({ title: "Error", description: "Selected user not found.", variant: "destructive" });
-        setIsSubmitting(false);
-        return;
-    }
-    
-    try {
-      await addPointsEntry({
-        ...values,
-        date: values.date.toISOString(),
-        userName: targetUser.name,
-        addedBy: user.id,
-      });
-      toast({ title: "Success", description: "Points added successfully." });
-      fetchData();
-      setIsFormOpen(false);
-      pointsForm.reset({ userId: '', date: new Date(), description: '', points: undefined, category: 'participation' });
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to add points.", variant: "destructive" });
-    }
-    setIsSubmitting(false);
+  const leaderboardData = useMemo(() => {
+    const data = approvedMembers.map(member => {
+        const points = monthlyPoints.find(p => p.userId === member.id);
+        return {
+            userId: member.id,
+            userName: member.name,
+            photoUrl: member.photoUrl,
+            chairSecTrePoints: points?.chairSecTrePoints || 0,
+            ocPoints: points?.ocPoints || 0,
+            meetingPoints: points?.meetingPoints || 0,
+            clubProjectPoints: points?.clubProjectPoints || 0,
+            totalPoints: points?.totalPoints || 0,
+        };
+    });
+    return data.sort((a, b) => b.totalPoints - a.totalPoints);
+  }, [approvedMembers, monthlyPoints]);
+
+
+  const handlePointsChange = (userId: string, category: keyof Omit<MonthlyPoints, 'id' | 'userId' | 'userName' | 'photoUrl' | 'month' | 'year' | 'totalPoints' | 'updatedAt'>, value: string) => {
+    const newPoints = parseInt(value, 10);
+    if (isNaN(newPoints) && value !== '') return; // Prevent non-numeric input
+
+    setMonthlyPoints(
+      produce(draft => {
+        let userEntry = draft.find(p => p.userId === userId);
+        const userDetails = allUsers.find(u => u.id === userId);
+        if (!userEntry) {
+            // Create a new entry if it doesn't exist
+            userEntry = {
+                userId,
+                userName: userDetails?.name || 'Unknown',
+                photoUrl: userDetails?.photoUrl,
+                month: selectedMonth,
+                year: selectedYear,
+                chairSecTrePoints: 0,
+                ocPoints: 0,
+                meetingPoints: 0,
+                clubProjectPoints: 0,
+                totalPoints: 0,
+                updatedAt: new Date().toISOString()
+            };
+            draft.push(userEntry);
+        }
+
+        (userEntry as any)[category] = value === '' ? 0 : newPoints;
+
+        // Recalculate total
+        userEntry.totalPoints = pointCategories.reduce((total, cat) => {
+            return total + ((userEntry as any)[cat] || 0);
+        }, 0);
+      })
+    );
   };
   
-  const handleDeleteEntry = async () => {
-    if (!entryToDelete) return;
-    setIsSubmitting(true);
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
     try {
-        await deletePointsEntry(entryToDelete.id);
-        toast({ title: "Entry Deleted" });
-        fetchData();
-    } catch (error) {
-        toast({ title: "Error", description: "Failed to delete entry.", variant: "destructive" });
+        // Filter out entries that have all zero points and don't exist in Firestore yet
+        const dataToSave = monthlyPoints.filter(mp => mp.totalPoints > 0 || mp.id);
+        await saveMonthlyPointsBatch(dataToSave);
+        toast({ title: "Success", description: "Leaderboard points have been saved." });
+        fetchData(); // Refresh data from server
+    } catch(error: any) {
+        toast({ title: "Save Error", description: `Could not save points: ${error.message}`, variant: "destructive" });
     }
-    setIsSubmitting(false);
-    setIsDeleteAlertOpen(false);
-    setEntryToDelete(null);
+    setIsSaving(false);
   };
-  
+
   const getInitials = (name?: string) => {
     if (!name) return "??";
     const names = name.split(' ');
     if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
     return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   };
-  
-  const availableYears = useMemo(() => {
-    const years = new Set(pointsEntries.map(e => getYear(new Date(e.date))));
-    const currentYear = new Date().getFullYear();
-    if (!years.has(currentYear)) years.add(currentYear);
-    return Array.from(years).sort((a, b) => b - a);
-  }, [pointsEntries]);
 
+  const availableYears = useMemo(() => {
+    const end = new Date();
+    const start = subYears(end, 5);
+    return eachYearOfInterval({ start, end }).map(d => getYear(d)).sort((a,b) => b-a);
+  }, []);
+  
   const months = Array.from({ length: 12 }, (_, i) => ({ value: i, label: format(new Date(0, i), 'MMMM') }));
 
-  const { leaderboardData, filteredEntries } = useMemo(() => {
-    const start = startOfMonth(new Date(selectedYear, selectedMonth));
-    const end = endOfMonth(new Date(selectedYear, selectedMonth));
-    
-    const currentMonthEntries = pointsEntries.filter(entry => {
-        const entryDate = new Date(entry.date);
-        return entryDate >= start && entryDate <= end;
-    });
-
-    const pointsByUser: Record<string, { total: number; name: string; photoUrl?: string }> = {};
-
-    currentMonthEntries.forEach(entry => {
-      if (!pointsByUser[entry.userId]) {
-        const userDetails = allUsers.find(u => u.id === entry.userId);
-        pointsByUser[entry.userId] = { total: 0, name: entry.userName, photoUrl: userDetails?.photoUrl };
-      }
-      pointsByUser[entry.userId].total += entry.points;
-    });
-
-    const sortedLeaderboard = Object.entries(pointsByUser)
-      .map(([userId, data]) => ({ userId, ...data }))
-      .sort((a, b) => b.total - a.total);
-
-    return { leaderboardData: sortedLeaderboard, filteredEntries: currentMonthEntries };
-  }, [pointsEntries, allUsers, selectedMonth, selectedYear]);
-
-  if (authLoading || isLoading) {
+  if (authLoading) {
     return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
@@ -205,39 +174,16 @@ export default function LeaderboardPage() {
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h1 className="text-3xl font-bold font-headline">Impact Leaderboard</h1>
-         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Add Points Entry</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Add Manual Points</DialogTitle></DialogHeader>
-            <Form {...pointsForm}>
-                <form onSubmit={pointsForm.handleSubmit(handleAddPoints)} className="space-y-4">
-                    <FormField control={pointsForm.control} name="userId" render={({ field }) => (
-                        <FormItem><FormLabel>Member</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger></FormControl><SelectContent><ScrollArea className="h-60">{approvedMembers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</ScrollArea></SelectContent></Select><FormMessage /></FormItem>
-                    )}/>
-                     <FormField control={pointsForm.control} name="date" render={({ field }) => (
-                        <FormItem className="flex flex-col"><FormLabel>Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn(!field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
-                     )}/>
-                     <FormField control={pointsForm.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Project Chairperson for Beach Cleanup" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                     <FormField control={pointsForm.control} name="points" render={({ field }) => (<FormItem><FormLabel>Points</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                     <FormField control={pointsForm.control} name="category" render={({ field }) => (<FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="role">Role</SelectItem><SelectItem value="participation">Participation</SelectItem></SelectContent></Select><FormMessage /></FormItem>)}/>
-                    <DialogFooter><Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button><Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Add Points</Button></DialogFooter>
-                </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={handleSaveChanges} disabled={isSaving || isLoading}>
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+            Save Changes
+        </Button>
       </div>
       
        <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center text-xl">
-            <Info className="mr-2 h-5 w-5 text-primary" />
-            Points System Overview
-          </CardTitle>
-          <CardDescription>
-            Points are awarded based on roles and participation in club activities.
-          </CardDescription>
+          <CardTitle className="flex items-center text-xl"><Info className="mr-2 h-5 w-5 text-primary" />Points System Overview</CardTitle>
+          <CardDescription>Points are awarded based on roles and participation in club activities.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -267,7 +213,6 @@ export default function LeaderboardPage() {
                 ))}
               </TableBody>
             </Table>
-            <p className="text-xs text-muted-foreground mt-2">Note: For some projects, the higher point value is for leadership roles and the lower for general participation.</p>
           </div>
         </CardContent>
       </Card>
@@ -276,8 +221,8 @@ export default function LeaderboardPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center"><Trophy className="mr-2 h-5 w-5 text-primary" /> Monthly Leaderboard</CardTitle>
-              <CardDescription>Top contributors for the selected period.</CardDescription>
+              <CardTitle className="flex items-center"><Trophy className="mr-2 h-5 w-5 text-primary" />Points Table</CardTitle>
+              <CardDescription>Manually enter the points for each member for the selected month.</CardDescription>
             </div>
             <div className="flex items-end gap-2 w-full sm:w-auto">
                <div className="flex-1 sm:flex-none"><Label htmlFor="filter-month">Month</Label><Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}><SelectTrigger id="filter-month"><SelectValue/></SelectTrigger><SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}</SelectContent></Select></div>
@@ -286,52 +231,53 @@ export default function LeaderboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-            {leaderboardData.length > 0 ? (
-                <Table>
-                  <TableHeader><TableRow><TableHead className="w-[50px]">Rank</TableHead><TableHead>Member</TableHead><TableHead className="text-right">Total Points</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {leaderboardData.map((member, index) => (
-                      <TableRow key={member.userId}>
-                        <TableCell><Badge variant={index < 3 ? "default" : "secondary"} className={cn("text-lg", index < 3 && "bg-primary/80")}>{index + 1}</Badge></TableCell>
-                        <TableCell className="font-medium flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="profile avatar"/><AvatarFallback>{getInitials(member.name)}</AvatarFallback></Avatar>{member.name}</TableCell>
-                        <TableCell className="text-right font-bold text-lg text-primary">{member.total.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-            ) : <p className="text-center text-muted-foreground py-8">No points recorded for {format(new Date(selectedYear, selectedMonth), 'MMMM yyyy')}.</p>}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center"><List className="mr-2 h-5 w-5 text-primary" />Points Log</CardTitle>
-          <CardDescription>A detailed log of all manually added points for {format(new Date(selectedYear, selectedMonth), 'MMMM yyyy')}.</CardDescription>
-        </CardHeader>
-        <CardContent>
-             {filteredEntries.length > 0 ? (
-                <Table>
-                    <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Member</TableHead><TableHead>Description</TableHead><TableHead>Category</TableHead><TableHead>Points</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {filteredEntries.map(entry => (
-                            <TableRow key={entry.id}>
-                                <TableCell>{format(new Date(entry.date), 'MMM dd, yyyy')}</TableCell>
-                                <TableCell>{entry.userName}</TableCell>
-                                <TableCell>{entry.description}</TableCell>
-                                <TableCell><Badge variant="outline" className="capitalize">{entry.category}</Badge></TableCell>
-                                <TableCell className="font-medium">{entry.points}</TableCell>
-                                <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/80 hover:text-destructive" onClick={() => { setEntryToDelete(entry); setIsDeleteAlertOpen(true);}}><Trash2 className="h-4 w-4"/></Button></TableCell>
-                            </TableRow>
+             {isLoading ? (
+                <div className="flex items-center justify-center h-64"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
+             ) : leaderboardData.length > 0 ? (
+                <ScrollArea className="max-h-[800px] w-full">
+                    <Table className="min-w-full">
+                      <TableHeader className="sticky top-0 bg-background z-10">
+                        <TableRow>
+                            <TableHead className="w-[250px] min-w-[200px]">Member</TableHead>
+                            <TableHead className="w-[150px] min-w-[120px] text-center">Chair/Sec/Tre</TableHead>
+                            <TableHead className="w-[150px] min-w-[120px] text-center">OC Member</TableHead>
+                            <TableHead className="w-[150px] min-w-[120px] text-center">MM Points</TableHead>
+                            <TableHead className="w-[150px] min-w-[120px] text-center">Club PP</TableHead>
+                            <TableHead className="w-[150px] min-w-[120px] text-center font-bold text-primary">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {leaderboardData.map((member) => (
+                          <TableRow key={member.userId}>
+                            <TableCell className="font-medium flex items-center gap-3">
+                                {member.totalPoints > 0 && leaderboardData[0].totalPoints === member.totalPoints && <Crown className="h-5 w-5 text-yellow-500" />}
+                                <Avatar className="h-9 w-9">
+                                    <AvatarImage src={member.photoUrl} alt={member.userName} data-ai-hint="profile avatar"/>
+                                    <AvatarFallback>{getInitials(member.userName)}</AvatarFallback>
+                                </Avatar>
+                                {member.userName}
+                            </TableCell>
+                            <TableCell>
+                                <Input type="number" className="text-center" placeholder="0" value={member.chairSecTrePoints || ''} onChange={e => handlePointsChange(member.userId, 'chairSecTrePoints', e.target.value)} />
+                            </TableCell>
+                             <TableCell>
+                                <Input type="number" className="text-center" placeholder="0" value={member.ocPoints || ''} onChange={e => handlePointsChange(member.userId, 'ocPoints', e.target.value)} />
+                            </TableCell>
+                             <TableCell>
+                                <Input type="number" className="text-center" placeholder="0" value={member.meetingPoints || ''} onChange={e => handlePointsChange(member.userId, 'meetingPoints', e.target.value)} />
+                            </TableCell>
+                             <TableCell>
+                                <Input type="number" className="text-center" placeholder="0" value={member.clubProjectPoints || ''} onChange={e => handlePointsChange(member.userId, 'clubProjectPoints', e.target.value)} />
+                            </TableCell>
+                            <TableCell className="text-center font-bold text-lg text-primary">{member.totalPoints.toLocaleString()}</TableCell>
+                          </TableRow>
                         ))}
-                    </TableBody>
-                </Table>
-             ) : <p className="text-center text-muted-foreground py-8">No point entries for this period.</p>}
+                      </TableBody>
+                    </Table>
+                </ScrollArea>
+            ) : <p className="text-center text-muted-foreground py-8">No members found to display.</p>}
         </CardContent>
       </Card>
-      
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
-        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the points entry: "{entryToDelete?.description}" for {entryToDelete?.userName}. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setEntryToDelete(null)}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteEntry} className="bg-destructive hover:bg-destructive/90">{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Delete"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
