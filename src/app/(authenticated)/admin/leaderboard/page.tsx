@@ -24,6 +24,7 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -92,7 +93,7 @@ export default function LeaderboardPage() {
 
   const form = useForm<PointsFormValues>({
     resolver: zodResolver(pointsFormSchema),
-    defaultValues: { userId: '', description: '', points: undefined, category: 'participation', subCategory: '' },
+    defaultValues: { userId: '', description: '', points: 0, category: 'participation', subCategory: '' },
   });
   
   const watchedCategory = form.watch('category');
@@ -100,7 +101,7 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     if(!isFormOpen) {
-        form.reset({ userId: '', description: '', points: undefined, category: 'participation', subCategory: '' });
+        form.reset({ userId: '', description: '', points: 0, category: 'participation', subCategory: '' });
     }
   }, [isFormOpen, form]);
 
@@ -109,9 +110,9 @@ export default function LeaderboardPage() {
   }, [watchedCategory, form]);
 
   useEffect(() => {
-    // When subCategory changes, auto-fill points and description
     if (watchedCategory === 'other' || !watchedSubCategory) {
-      form.setValue('points', '');
+      if (form.getValues('points') === 0 && form.getValues('description') === '') return;
+      form.setValue('points', 0);
       form.setValue('description', '');
       return;
     };
@@ -327,7 +328,7 @@ export default function LeaderboardPage() {
                   <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Chairperson for Beach Cleanup" {...field} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
                 )}/>
                 <FormField control={form.control} name="points" render={({ field }) => (
-                  <FormItem><FormLabel>Points</FormLabel><FormControl><Input type="number" placeholder="e.g., 12000" {...field} value={field.value ?? ''} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
+                  <FormItem><FormLabel>Points</FormLabel><FormControl><Input type="number" placeholder="e.g., 12000" {...field} value={field.value || ''} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
                 )}/>
 
                 <DialogFooter>
