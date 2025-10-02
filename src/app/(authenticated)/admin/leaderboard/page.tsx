@@ -26,7 +26,6 @@ import {
   AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogFooter
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
@@ -35,7 +34,7 @@ import * as z from 'zod';
 import { Loader2, Trophy, List, Star, PlusCircle, Info, Trash2, ChevronsUpDown, Check } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 
 const pointsSystem = {
@@ -84,10 +83,12 @@ export default function LeaderboardPage() {
   const [entryToDelete, setEntryToDelete] = useState<PointsEntry | null>(null);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   
-  const approvedMembers = useMemo(() => 
-    allUsers.filter(u => u.status === 'approved' && ['member', 'admin', 'super_admin'].includes(u.role))
-    .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-  , [allUsers]);
+  const approvedMembers = useMemo(() => {
+    if (!allUsers.length) return [];
+    return allUsers
+      .filter(u => u.status === 'approved' && ['member', 'admin', 'super_admin'].includes(u.role))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [allUsers]);
 
   const form = useForm<PointsFormValues>({
     resolver: zodResolver(pointsFormSchema),
@@ -99,7 +100,7 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     if(!isFormOpen) {
-        form.reset({ userId: '', description: '', points: '' as any, category: 'participation', subCategory: '' });
+        form.reset({ userId: '', description: '', points: undefined, category: 'participation', subCategory: '' });
     }
   }, [isFormOpen, form]);
 
@@ -108,13 +109,9 @@ export default function LeaderboardPage() {
   }, [watchedCategory, form]);
 
   useEffect(() => {
-    if (watchedCategory === 'other') {
-      form.setValue('points', '' as any);
-      form.setValue('description', '');
-      return;
-    };
-    if (!watchedSubCategory) {
-      form.setValue('points', '' as any);
+    // When subCategory changes, auto-fill points and description
+    if (watchedCategory === 'other' || !watchedSubCategory) {
+      form.setValue('points', '');
       form.setValue('description', '');
       return;
     };
@@ -153,6 +150,7 @@ export default function LeaderboardPage() {
   }, [fetchData]);
 
   const leaderboardData = useMemo(() => {
+    if (!approvedMembers.length) return [];
     const memberPoints: Record<string, { totalPoints: number; user: User }> = {};
 
     approvedMembers.forEach(member => {
@@ -184,7 +182,6 @@ export default function LeaderboardPage() {
       await addPointsEntry(newEntry);
       toast({ title: "Success", description: "Points entry added." });
       setIsFormOpen(false);
-      form.reset();
       fetchData();
     } catch (error: any) {
        toast({ title: "Error", description: `Could not add points: ${error.message}`, variant: "destructive" });
@@ -268,28 +265,30 @@ export default function LeaderboardPage() {
                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                             <Command>
                                 <CommandInput placeholder="Search member..." />
-                                <CommandEmpty>No member found.</CommandEmpty>
-                                <CommandGroup>
-                                {approvedMembers.map((member) => (
-                                    <CommandItem
-                                    value={member.name}
-                                    key={member.id}
-                                    onSelect={() => {
-                                        form.setValue("userId", member.id)
-                                    }}
-                                    >
-                                    <Check
-                                        className={cn(
-                                        "mr-2 h-4 w-4",
-                                        member.id === field.value
-                                            ? "opacity-100"
-                                            : "opacity-0"
-                                        )}
-                                    />
-                                    {member.name}
-                                    </CommandItem>
-                                ))}
-                                </CommandGroup>
+                                <CommandList>
+                                  <CommandEmpty>No member found.</CommandEmpty>
+                                  <CommandGroup>
+                                  {approvedMembers.map((member) => (
+                                      <CommandItem
+                                      value={member.name}
+                                      key={member.id}
+                                      onSelect={() => {
+                                          form.setValue("userId", member.id)
+                                      }}
+                                      >
+                                      <Check
+                                          className={cn(
+                                          "mr-2 h-4 w-4",
+                                          member.id === field.value
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          )}
+                                      />
+                                      {member.name}
+                                      </CommandItem>
+                                  ))}
+                                  </CommandGroup>
+                                </CommandList>
                             </Command>
                             </PopoverContent>
                         </Popover>
@@ -314,13 +313,10 @@ export default function LeaderboardPage() {
                 {watchedCategory !== 'other' && (
                   <FormField control={form.control} name="subCategory" render={({ field }) => (
                     <FormItem><FormLabel>{watchedCategory === 'role' ? 'Role' : 'Activity'}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
                           <FormControl><SelectTrigger><SelectValue placeholder={`Select a ${watchedCategory}...`}/></SelectTrigger></FormControl>
                           <SelectContent>
-                            {watchedCategory === 'role' 
-                                ? pointsSystem.roles.map(r => <SelectItem key={r.name} value={r.name}>{r.name}</SelectItem>)
-                                : pointsSystem.participation.map(p => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)
-                            }
+                            {(watchedCategory === 'role' ? pointsSystem.roles : pointsSystem.participation).map(item => <SelectItem key={item.name} value={item.name}>{item.name}</SelectItem>)}
                           </SelectContent>
                       </Select>
                       <FormMessage/></FormItem>
