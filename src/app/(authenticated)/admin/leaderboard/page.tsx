@@ -26,7 +26,6 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogHeader,
-  AlertDialogTitle,
   AlertDialogFooter
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -38,17 +37,21 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const pointsSystem = {
     roles: [
-        { name: 'Project Chairperson', points: '12,000' },
-        { name: 'Project Secretary', points: '10,000' },
-        { name: 'Project Treasurer', points: '10,000' },
-        { name: 'Project OC Members', points: '8,000' },
+        { name: 'Project Chairperson', points: 12000 },
+        { name: 'Project Secretary', points: 10000 },
+        { name: 'Project Treasurer', points: 10000 },
+        { name: 'Project OC Members', points: 8000 },
     ],
     participation: [
-        { name: 'Monthly Meeting (Online/Physical)', points: '5,000 / 9,000' },
-        { name: 'Official Visit Participation', points: '10,000' },
-        { name: 'Club Project Participation', points: '8,000 / 4,500' },
-        { name: 'District Project Participation', points: '9,000 / 5,000' },
-        { name: 'Multiple Project Participation', points: '10,000 / 6,000' },
+        { name: 'Monthly Meeting (Physical)', points: 9000 },
+        { name: 'Monthly Meeting (Online)', points: 5000 },
+        { name: 'Official Visit Participation', points: 10000 },
+        { name: 'Club Project Participation (Physical)', points: 8000 },
+        { name: 'Club Project Participation (Online)', points: 4500 },
+        { name: 'District Project Participation (Physical)', points: 9000 },
+        { name: 'District Project Participation (Online)', points: 5000 },
+        { name: 'Multiple Project Participation (Physical)', points: 10000 },
+        { name: 'Multiple Project Participation (Online)', points: 6000 },
     ]
 };
 
@@ -57,6 +60,7 @@ const pointsFormSchema = z.object({
   description: z.string().min(3, "Description must be at least 3 characters."),
   points: z.coerce.number().positive("Points must be a positive number."),
   category: z.enum(['role', 'participation', 'other'], { required_error: "Category is required." }),
+  subCategory: z.string().optional(),
 });
 type PointsFormValues = z.infer<typeof pointsFormSchema>;
 
@@ -79,13 +83,43 @@ export default function LeaderboardPage() {
   
   const approvedMembers = useMemo(() => 
     allUsers.filter(u => u.status === 'approved' && ['member', 'admin', 'super_admin'].includes(u.role))
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
   , [allUsers]);
 
   const form = useForm<PointsFormValues>({
     resolver: zodResolver(pointsFormSchema),
-    defaultValues: { userId: '', description: '', points: undefined, category: 'participation' },
+    defaultValues: { userId: '', description: '', points: undefined, category: 'participation', subCategory: '' },
   });
+  
+  const watchedCategory = form.watch('category');
+  const watchedSubCategory = form.watch('subCategory');
+
+  useEffect(() => {
+    if(!isFormOpen) {
+        form.reset({ userId: '', description: '', points: undefined, category: 'participation', subCategory: '' });
+    }
+  }, [isFormOpen, form]);
+
+  useEffect(() => {
+    form.setValue('subCategory', '');
+  }, [watchedCategory, form]);
+
+  useEffect(() => {
+    if (watchedCategory === 'other' || !watchedSubCategory) return;
+    
+    let item;
+    if (watchedCategory === 'role') {
+        item = pointsSystem.roles.find(r => r.name === watchedSubCategory);
+    } else {
+        item = pointsSystem.participation.find(p => p.name === watchedSubCategory);
+    }
+    
+    if (item) {
+        form.setValue('points', item.points);
+        form.setValue('description', item.name);
+    }
+  }, [watchedSubCategory, watchedCategory, form]);
+
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -205,24 +239,43 @@ export default function LeaderboardPage() {
                     <FormMessage/>
                   </FormItem>
                 )}/>
-                <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Chairperson for Beach Cleanup" {...field} /></FormControl><FormMessage/></FormItem>
-                )}/>
-                <FormField control={form.control} name="points" render={({ field }) => (
-                  <FormItem><FormLabel>Points</FormLabel><FormControl><Input type="number" placeholder="e.g., 12000" {...field} /></FormControl><FormMessage/></FormItem>
-                )}/>
+
                 <FormField control={form.control} name="category" render={({ field }) => (
                   <FormItem><FormLabel>Category</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                         <SelectContent>
-                            <SelectItem value="role">Role-based</SelectItem>
                             <SelectItem value="participation">Participation</SelectItem>
+                            <SelectItem value="role">Role-based</SelectItem>
                             <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                     </Select>
                     <FormMessage/></FormItem>
                 )}/>
+
+                {watchedCategory !== 'other' && (
+                  <FormField control={form.control} name="subCategory" render={({ field }) => (
+                    <FormItem><FormLabel>{watchedCategory === 'role' ? 'Role' : 'Activity'}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder={`Select a ${watchedCategory}...`}/></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {watchedCategory === 'role' 
+                                ? pointsSystem.roles.map(r => <SelectItem key={r.name} value={r.name}>{r.name}</SelectItem>)
+                                : pointsSystem.participation.map(p => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)
+                            }
+                          </SelectContent>
+                      </Select>
+                      <FormMessage/></FormItem>
+                  )}/>
+                )}
+                
+                <FormField control={form.control} name="description" render={({ field }) => (
+                  <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Chairperson for Beach Cleanup" {...field} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
+                )}/>
+                <FormField control={form.control} name="points" render={({ field }) => (
+                  <FormItem><FormLabel>Points</FormLabel><FormControl><Input type="number" placeholder="e.g., 12000" {...field} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
+                )}/>
+
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
                   <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Add Entry"}</Button>
@@ -247,7 +300,7 @@ export default function LeaderboardPage() {
                 {pointsSystem.roles.map((role) => (
                   <TableRow key={role.name}>
                     <TableCell className="font-medium">{role.name}</TableCell>
-                    <TableCell className="text-right">{role.points}</TableCell>
+                    <TableCell className="text-right">{role.points.toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -261,7 +314,7 @@ export default function LeaderboardPage() {
                 {pointsSystem.participation.map((activity) => (
                   <TableRow key={activity.name}>
                     <TableCell className="font-medium">{activity.name}</TableCell>
-                    <TableCell className="text-right">{activity.points}</TableCell>
+                    <TableCell className="text-right">{activity.points.toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
