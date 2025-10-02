@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/leaderboard/page.tsx
 "use client";
 
@@ -112,7 +113,7 @@ export default function LeaderboardPage() {
   useEffect(() => {
     if (watchedCategory === 'other' || !watchedSubCategory) {
       if (form.getValues('points') === 0 && form.getValues('description') === '') return;
-      form.setValue('points', 0);
+      form.setValue('points', '' as any); // Use empty string for uncontrolled to controlled fix
       form.setValue('description', '');
       return;
     };
@@ -249,12 +250,15 @@ export default function LeaderboardPage() {
                                 <Button
                                 variant="outline"
                                 role="combobox"
+                                disabled={isLoading}
                                 className={cn(
                                     "w-full justify-between",
                                     !field.value && "text-muted-foreground"
                                 )}
                                 >
-                                {field.value
+                                {isLoading
+                                  ? "Loading members..."
+                                  : field.value
                                     ? approvedMembers.find(
                                         (member) => member.id === field.value
                                     )?.name
