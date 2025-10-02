@@ -24,7 +24,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, PlusCircle, Trophy, List, CalendarIcon, Trash2, Filter } from 'lucide-react';
+import { Loader2, PlusCircle, Trophy, List, CalendarIcon, Trash2, Filter, Info, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -48,6 +48,22 @@ const pointsFormSchema = z.object({
 });
 
 type PointsFormValues = z.infer<typeof pointsFormSchema>;
+
+const pointsSystem = {
+    roles: [
+        { name: 'Project Chairperson', points: '12,000' },
+        { name: 'Project Secretary', points: '10,000' },
+        { name: 'Project Treasurer', points: '10,000' },
+        { name: 'Project OC Members', points: '8,000' },
+    ],
+    participation: [
+        { name: 'Monthly Meeting (Online/Physical)', points: '5,000 / 9,000' },
+        { name: 'Official Visit Participation', points: '10,000' },
+        { name: 'Club Project Participation', points: '8,000 / 4,500' },
+        { name: 'District Project Participation', points: '9,000 / 5,000' },
+        { name: 'Multiple Project Participation', points: '10,000 / 6,000' },
+    ]
+};
 
 export default function LeaderboardPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -206,6 +222,49 @@ export default function LeaderboardPage() {
         </Dialog>
       </div>
       
+       <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center text-xl">
+            <Info className="mr-2 h-5 w-5 text-primary" />
+            Points System Overview
+          </CardTitle>
+          <CardDescription>
+            Points are awarded based on roles and participation in club activities.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="font-semibold mb-2 flex items-center"><Star className="mr-2 h-4 w-4 text-yellow-500" />Roles</h3>
+            <Table>
+              <TableHeader><TableRow><TableHead>Role</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {pointsSystem.roles.map((role) => (
+                  <TableRow key={role.name}>
+                    <TableCell className="font-medium">{role.name}</TableCell>
+                    <TableCell className="text-right">{role.points}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div>
+            <h3 className="font-semibold mb-2 flex items-center"><Star className="mr-2 h-4 w-4 text-yellow-500" />Participation</h3>
+            <Table>
+              <TableHeader><TableRow><TableHead>Activity</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {pointsSystem.participation.map((activity) => (
+                  <TableRow key={activity.name}>
+                    <TableCell className="font-medium">{activity.name}</TableCell>
+                    <TableCell className="text-right">{activity.points}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <p className="text-xs text-muted-foreground mt-2">Note: For some projects, the higher point value is for leadership roles and the lower for general participation.</p>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
