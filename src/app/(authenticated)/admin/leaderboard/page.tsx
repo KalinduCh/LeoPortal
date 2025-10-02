@@ -107,11 +107,15 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     if (watchedCategory === 'other') {
-      form.setValue('points', '' as any); // Set to empty string for controlled input
+      form.setValue('points', '' as any);
       form.setValue('description', '');
       return;
     };
-    if (!watchedSubCategory) return;
+    if (!watchedSubCategory) {
+      form.setValue('points', '' as any);
+      form.setValue('description', '');
+      return;
+    };
     
     let item;
     if (watchedCategory === 'role') {
