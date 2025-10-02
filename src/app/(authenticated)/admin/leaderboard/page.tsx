@@ -89,12 +89,16 @@ export default function LeaderboardPage() {
         category: 'participation',
     }
   });
+  
+  const approvedMembers = useMemo(() => 
+    allUsers.filter(u => u.status === 'approved' && ['member', 'admin'].includes(u.role))
+  , [allUsers]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [users, entries] = await Promise.all([getAllUsers(), getPointsEntries()]);
-      setAllUsers(users.filter(u => u.status === 'approved' && ['member', 'admin'].includes(u.role)));
+      setAllUsers(users);
       setPointsEntries(entries);
     } catch (error) {
       toast({ title: "Error", description: "Failed to load data.", variant: "destructive" });
@@ -207,7 +211,7 @@ export default function LeaderboardPage() {
             <Form {...pointsForm}>
                 <form onSubmit={pointsForm.handleSubmit(handleAddPoints)} className="space-y-4">
                     <FormField control={pointsForm.control} name="userId" render={({ field }) => (
-                        <FormItem><FormLabel>Member</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger></FormControl><SelectContent><ScrollArea className="h-60">{allUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</ScrollArea></SelectContent></Select><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Member</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger></FormControl><SelectContent><ScrollArea className="h-60">{approvedMembers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</ScrollArea></SelectContent></Select><FormMessage /></FormItem>
                     )}/>
                      <FormField control={pointsForm.control} name="date" render={({ field }) => (
                         <FormItem className="flex flex-col"><FormLabel>Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn(!field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
