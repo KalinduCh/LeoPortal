@@ -46,7 +46,9 @@ export interface Event {
   location: string; // Textual location
   latitude?: number;  // For geolocation
   longitude?: number; // For geolocation
-  reminderSent: boolean; // To track if a reminder has been sent
+  reminderSent: boolean; // To track if a reminder has been sent;
+  eventType?: EventType;
+  points?: number;
 }
 
 // This type is being deprecated in favor of MonthlyPoints
@@ -75,6 +77,8 @@ export interface MonthlyPoints {
     ocPoints: number;
     meetingPoints: number;
     clubProjectPoints: number;
+    districtProjectPoints: number;
+    multipleProjectPoints: number;
     totalPoints: number;
     updatedAt: string; // ISO string
 }

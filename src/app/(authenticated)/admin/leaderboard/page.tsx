@@ -43,7 +43,9 @@ const pointCategories: (keyof Omit<MonthlyPoints, 'id' | 'userId' | 'userName' |
     'chairSecTrePoints',
     'ocPoints',
     'meetingPoints',
-    'clubProjectPoints'
+    'clubProjectPoints',
+    'districtProjectPoints',
+    'multipleProjectPoints'
 ];
 
 export default function LeaderboardPage() {
@@ -94,6 +96,8 @@ export default function LeaderboardPage() {
             ocPoints: points?.ocPoints || 0,
             meetingPoints: points?.meetingPoints || 0,
             clubProjectPoints: points?.clubProjectPoints || 0,
+            districtProjectPoints: points?.districtProjectPoints || 0,
+            multipleProjectPoints: points?.multipleProjectPoints || 0,
             totalPoints: points?.totalPoints || 0,
         };
     });
@@ -121,6 +125,8 @@ export default function LeaderboardPage() {
                 ocPoints: 0,
                 meetingPoints: 0,
                 clubProjectPoints: 0,
+                districtProjectPoints: 0,
+                multipleProjectPoints: 0,
                 totalPoints: 0,
                 updatedAt: new Date().toISOString()
             };
@@ -243,6 +249,8 @@ export default function LeaderboardPage() {
                             <TableHead className="w-[150px] min-w-[120px] text-center">OC Member</TableHead>
                             <TableHead className="w-[150px] min-w-[120px] text-center">MM Points</TableHead>
                             <TableHead className="w-[150px] min-w-[120px] text-center">Club PP</TableHead>
+                            <TableHead className="w-[150px] min-w-[120px] text-center">District PP</TableHead>
+                            <TableHead className="w-[150px] min-w-[120px] text-center">Multiple PP</TableHead>
                             <TableHead className="w-[150px] min-w-[120px] text-center font-bold text-primary">Total</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -268,6 +276,12 @@ export default function LeaderboardPage() {
                             </TableCell>
                              <TableCell>
                                 <Input type="number" className="text-center" placeholder="0" value={member.clubProjectPoints || ''} onChange={e => handlePointsChange(member.userId, 'clubProjectPoints', e.target.value)} />
+                            </TableCell>
+                            <TableCell>
+                                <Input type="number" className="text-center" placeholder="0" value={member.districtProjectPoints || ''} onChange={e => handlePointsChange(member.userId, 'districtProjectPoints', e.target.value)} />
+                            </TableCell>
+                             <TableCell>
+                                <Input type="number" className="text-center" placeholder="0" value={member.multipleProjectPoints || ''} onChange={e => handlePointsChange(member.userId, 'multipleProjectPoints', e.target.value)} />
                             </TableCell>
                             <TableCell className="text-center font-bold text-lg text-primary">{member.totalPoints.toLocaleString()}</TableCell>
                           </TableRow>
