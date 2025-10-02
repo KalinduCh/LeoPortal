@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/leaderboard/page.tsx
 "use client";
 
@@ -32,6 +33,7 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
