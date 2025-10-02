@@ -47,10 +47,9 @@ export interface Event {
   latitude?: number;  // For geolocation
   longitude?: number; // For geolocation
   reminderSent: boolean; // To track if a reminder has been sent
-  eventType?: EventType;
-  points?: number; // Participation points
 }
 
+// This type is being deprecated in favor of MonthlyPoints
 export interface PointsEntry {
   id: string;
   userId: string;
@@ -63,6 +62,23 @@ export interface PointsEntry {
   createdAt: string; // ISO string
   eventId?: string; // Link to the event if applicable
 }
+
+// New data structure for the editable grid
+export interface MonthlyPoints {
+    id?: string; // month-year-userId
+    userId: string;
+    userName: string;
+    photoUrl?: string;
+    month: number; // 0-11
+    year: number;
+    chairSecTrePoints: number;
+    ocPoints: number;
+    meetingPoints: number;
+    clubProjectPoints: number;
+    totalPoints: number;
+    updatedAt: string; // ISO string
+}
+
 
 export interface AttendanceRecord {
   id: string; // Firestore document ID
