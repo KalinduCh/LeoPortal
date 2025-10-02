@@ -32,7 +32,6 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -91,7 +90,7 @@ export default function LeaderboardPage() {
   });
   
   const approvedMembers = useMemo(() => 
-    allUsers.filter(u => u.status === 'approved' && ['member', 'admin'].includes(u.role))
+    allUsers.filter(u => u.status === 'approved' && ['member', 'admin', 'super_admin'].includes(u.role))
   , [allUsers]);
 
   const fetchData = useCallback(async () => {
