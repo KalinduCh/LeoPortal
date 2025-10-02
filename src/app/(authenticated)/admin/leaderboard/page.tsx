@@ -106,7 +106,12 @@ export default function LeaderboardPage() {
   }, [watchedCategory, form]);
 
   useEffect(() => {
-    if (watchedCategory === 'other' || !watchedSubCategory) return;
+    if (watchedCategory === 'other') {
+      form.setValue('points', '' as any); // Set to empty string for controlled input
+      form.setValue('description', '');
+      return;
+    };
+    if (!watchedSubCategory) return;
     
     let item;
     if (watchedCategory === 'role') {
@@ -274,7 +279,7 @@ export default function LeaderboardPage() {
                   <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Chairperson for Beach Cleanup" {...field} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
                 )}/>
                 <FormField control={form.control} name="points" render={({ field }) => (
-                  <FormItem><FormLabel>Points</FormLabel><FormControl><Input type="number" placeholder="e.g., 12000" {...field} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
+                  <FormItem><FormLabel>Points</FormLabel><FormControl><Input type="number" placeholder="e.g., 12000" {...field} value={field.value ?? ''} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
                 )}/>
 
                 <DialogFooter>
