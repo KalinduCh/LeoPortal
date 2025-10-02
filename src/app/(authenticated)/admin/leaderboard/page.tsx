@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/leaderboard/page.tsx
 "use client";
 
@@ -141,12 +140,13 @@ export default function LeaderboardPage() {
         getPointsForPeriod(selectedMonth, selectedYear)
       ]);
 
-      if (!users || users.length === 0) {
-        console.warn("getAllUsers() returned empty or null. Leaderboard may be empty.");
-        toast({ title: "Data Notice", description: "No users found to populate the leaderboard.", variant: "default" });
-      }
-      
       setAllUsers(users);
+      
+      // Additional check for empty or invalid data
+      if (!users || users.length === 0) {
+        toast({ title: "Data Notice", description: "No users found. Leaderboard may be incomplete.", variant: "default" });
+      }
+
       setPointsLog(points);
     } catch (error: any) {
       console.error("Error in fetchData for leaderboard:", error);
@@ -338,7 +338,7 @@ export default function LeaderboardPage() {
                 )}
                 
                 <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Chairperson for Beach Cleanup" {...field} disabled={watchedCategory !== 'other'} value={field.value || ''} /></FormControl><FormMessage/></FormItem>
+                  <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Chairperson for Beach Cleanup" {...field} value={field.value || ''} /></FormControl><FormMessage/></FormItem>
                 )}/>
                 <FormField control={form.control} name="points" render={({ field }) => (
                   <FormItem><FormLabel>Points</FormLabel><FormControl><Input type="number" placeholder="e.g., 12000" {...field} value={field.value || ''} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
