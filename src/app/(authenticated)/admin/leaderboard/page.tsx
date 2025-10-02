@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/leaderboard/page.tsx
 "use client";
 
@@ -33,8 +32,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Loader2, Trophy, List, Star, PlusCircle, Info, Trash2 } from 'lucide-react';
+import { Loader2, Trophy, List, Star, PlusCircle, Info, Trash2, ChevronsUpDown, Check } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 const pointsSystem = {
     roles: [
@@ -97,7 +99,7 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     if(!isFormOpen) {
-        form.reset({ userId: '', description: '', points: undefined, category: 'participation', subCategory: '' });
+        form.reset({ userId: '', description: '', points: '' as any, category: 'participation', subCategory: '' });
     }
   }, [isFormOpen, form]);
 
@@ -237,18 +239,64 @@ export default function LeaderboardPage() {
             <DialogHeader><DialogTitle>Add Manual Points</DialogTitle></DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
-                <FormField control={form.control} name="userId" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Member</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select a member..."/></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {approvedMembers.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
+                <FormField
+                    control={form.control}
+                    name="userId"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Member</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn(
+                                    "w-full justify-between",
+                                    !field.value && "text-muted-foreground"
+                                )}
+                                >
+                                {field.value
+                                    ? approvedMembers.find(
+                                        (member) => member.id === field.value
+                                    )?.name
+                                    : "Select a member..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                            <Command>
+                                <CommandInput placeholder="Search member..." />
+                                <CommandEmpty>No member found.</CommandEmpty>
+                                <CommandGroup>
+                                {approvedMembers.map((member) => (
+                                    <CommandItem
+                                    value={member.name}
+                                    key={member.id}
+                                    onSelect={() => {
+                                        form.setValue("userId", member.id)
+                                    }}
+                                    >
+                                    <Check
+                                        className={cn(
+                                        "mr-2 h-4 w-4",
+                                        member.id === field.value
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                    />
+                                    {member.name}
+                                    </CommandItem>
+                                ))}
+                                </CommandGroup>
+                            </Command>
+                            </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
                 <FormField control={form.control} name="category" render={({ field }) => (
                   <FormItem><FormLabel>Category</FormLabel>
