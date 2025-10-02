@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { User, PointsEntry } from '@/types';
 import { getAllUsers } from '@/services/userService';
 import { getPointsForPeriod, addPointsEntry, deletePointsEntry } from '@/services/pointsService';
-import { format, getYear, eachYearOfInterval, subYears } from 'date-fns';
+import { format, getYear, eachYearOfInterval, subYears, startOfDay } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -24,17 +24,17 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialogFooter,
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Loader2, Trophy, List, Star, PlusCircle, Info, Trash2, ChevronsUpDown, Check } from 'lucide-react';
+import { Loader2, Trophy, List, Star, PlusCircle, Info, Trash2, ChevronsUpDown, Check, Calendar as CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 
@@ -60,7 +60,8 @@ const pointsSystem = {
 
 const pointsFormSchema = z.object({
   userId: z.string().min(1, "Please select a member."),
-  description: z.string().min(3, "Description must be at least 3 characters."),
+  projectName: z.string().min(3, "Project name must be at least 3 characters."),
+  date: z.date({ required_error: "A date for the entry is required." }),
   points: z.coerce.number().positive("Points must be a positive number."),
   category: z.enum(['role', 'participation', 'other'], { required_error: "Category is required." }),
   subCategory: z.string().optional(),
@@ -93,7 +94,7 @@ export default function LeaderboardPage() {
 
   const form = useForm<PointsFormValues>({
     resolver: zodResolver(pointsFormSchema),
-    defaultValues: { userId: '', description: '', points: 0, category: 'participation', subCategory: '' },
+    defaultValues: { userId: '', projectName: '', date: new Date(), points: 0, category: 'participation', subCategory: '' },
   });
   
   const watchedCategory = form.watch('category');
@@ -101,7 +102,7 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     if(!isFormOpen) {
-        form.reset({ userId: '', description: '', points: 0, category: 'participation', subCategory: '' });
+        form.reset({ userId: '', projectName: '', date: new Date(), points: 0, category: 'participation', subCategory: '' });
     }
   }, [isFormOpen, form]);
 
@@ -113,7 +114,7 @@ export default function LeaderboardPage() {
     if (watchedCategory === 'other' || !watchedSubCategory) {
       if (watchedCategory !== 'other') {
           form.setValue('points', 0);
-          form.setValue('description', '');
+          form.setValue('projectName', '');
       }
       return;
     };
@@ -127,7 +128,9 @@ export default function LeaderboardPage() {
     
     if (item) {
         form.setValue('points', item.points);
-        form.setValue('description', item.name);
+        if(!form.getValues('projectName')) { // Don't override if user typed something
+            form.setValue('projectName', item.name);
+        }
     }
   }, [watchedSubCategory, watchedCategory, form]);
 
@@ -142,7 +145,6 @@ export default function LeaderboardPage() {
 
       setAllUsers(users);
       
-      // Additional check for empty or invalid data
       if (!users || users.length === 0) {
         toast({ title: "Data Notice", description: "No users found. Leaderboard may be incomplete.", variant: "default" });
       }
@@ -185,9 +187,13 @@ export default function LeaderboardPage() {
       if (!selectedUser) throw new Error("Selected user not found.");
 
       const newEntry: Omit<PointsEntry, 'id' | 'createdAt'> = {
-        ...values,
+        userId: values.userId,
         userName: selectedUser.name,
-        date: new Date(selectedYear, selectedMonth, 1).toISOString(),
+        date: values.date.toISOString(),
+        description: `${values.subCategory || 'Manual Entry'}: ${values.projectName}`,
+        points: values.points,
+        category: values.category,
+        projectName: values.projectName,
         addedBy: user.id,
       };
       await addPointsEntry(newEntry);
@@ -337,9 +343,62 @@ export default function LeaderboardPage() {
                   )}/>
                 )}
                 
-                <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Chairperson for Beach Cleanup" {...field} value={field.value || ''} /></FormControl><FormMessage/></FormItem>
-                )}/>
+                <FormField
+                    control={form.control}
+                    name="projectName"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Project Name / Reason</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g., Beach Cleanup Day" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Date</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full pl-3 text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                )}
+                                >
+                                {field.value ? (
+                                    format(field.value, "PPP")
+                                ) : (
+                                    <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                disabled={(date) =>
+                                date > new Date() || date < new Date("1900-01-01")
+                                }
+                                initialFocus
+                            />
+                            </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
                 <FormField control={form.control} name="points" render={({ field }) => (
                   <FormItem><FormLabel>Points</FormLabel><FormControl><Input type="number" placeholder="e.g., 12000" {...field} value={field.value || ''} disabled={watchedCategory !== 'other'} /></FormControl><FormMessage/></FormItem>
                 )}/>

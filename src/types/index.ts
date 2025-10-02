@@ -58,6 +58,7 @@ export interface PointsEntry {
   description: string;
   points: number;
   category: 'role' | 'participation' | 'other';
+  projectName?: string; // Optional project name
   addedBy: string; // Admin's user ID or 'system'
   createdAt: string; // ISO string
   eventId?: string; // Link to the event if applicable
