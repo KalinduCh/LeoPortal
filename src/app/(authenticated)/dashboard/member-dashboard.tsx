@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/dashboard/member-dashboard.tsx
 "use client";
 
@@ -23,26 +22,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getPointsForPeriod } from '@/services/pointsService';
 import { getAllUsers } from '@/services/userService';
 
-const pointsSystem = {
-    roles: [
-        { name: 'Project Chairperson', points: 12000 },
-        { name: 'Project Secretary', points: 10000 },
-        { name: 'Project Treasurer', points: 10000 },
-        { name: 'Project OC Members', points: 8000 },
-    ],
-    participation: [
-        { name: 'Monthly Meeting (Physical)', points: 9000 },
-        { name: 'Monthly Meeting (Online)', points: 5000 },
-        { name: 'Official Visit Participation', points: 10000 },
-        { name: 'Club Project Participation (Physical)', points: 8000 },
-        { name: 'Club Project Participation (Online)', points: 4500 },
-        { name: 'District Project Participation (Physical)', points: 9000 },
-        { name: 'District Project Participation (Online)', points: 5000 },
-        { name: 'Multiple Project Participation (Physical)', points: 10000 },
-        { name: 'Multiple Project Participation (Online)', points: 6000 },
-    ]
-};
-
 
 interface MemberDashboardProps {
   user: User;
@@ -56,12 +35,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [pointsLog, setPointsLog] = useState<PointsEntry[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-
-
   const fetchDashboardData = useCallback(async () => {
     if (!user?.id) {
       setIsLoading(false);
@@ -71,19 +44,15 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     setIsLoading(true);
 
     try {
-      const [fetchedEvents, attendance, projectIdeas, fetchedUsers, points] = await Promise.all([
+      const [fetchedEvents, attendance, projectIdeas] = await Promise.all([
         getEvents(),
         getAttendanceRecordsForUser(user.id),
         getProjectIdeasForUser(user.id),
-        getAllUsers(),
-        getPointsForPeriod(selectedMonth, selectedYear)
       ]);
       
       setAllEvents(fetchedEvents);
       setUserAttendanceRecords(attendance);
       setProjectIdeaCount(projectIdeas.length);
-      setAllUsers(fetchedUsers);
-      setPointsLog(points);
 
       const badgeIds = calculateBadgeIds(user, attendance);
       setUserBadges(badgeIds);
@@ -93,7 +62,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         toast({ title: "Error Loading Data", description: "Could not load your events and achievements.", variant: "destructive"});
     }
     setIsLoading(false);
-  }, [user?.id, user, toast, selectedMonth, selectedYear]);
+  }, [user?.id, user, toast]);
 
   useEffect(() => {
     if (user) {
@@ -101,36 +70,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     }
   }, [user, fetchDashboardData]);
 
-  const leaderboardData = useMemo(() => {
-    const approvedMembers = allUsers.filter(u => u.status === 'approved' && ['member', 'admin', 'super_admin'].includes(u.role));
-    if (!approvedMembers.length) return [];
-    
-    const memberPoints: Record<string, { totalPoints: number; user: User }> = {};
-
-    approvedMembers.forEach(member => {
-        memberPoints[member.id] = { totalPoints: 0, user: member };
-    });
-
-    pointsLog.forEach(entry => {
-        if(memberPoints[entry.userId]) {
-            memberPoints[entry.userId].totalPoints += entry.points;
-        }
-    });
-    
-    return Object.values(memberPoints).sort((a, b) => b.totalPoints - a.totalPoints);
-  }, [allUsers, pointsLog]);
   
   const handleAttendanceMarked = () => {
     if (user) {
       fetchDashboardData(); 
     }
-  };
-
-  const getInitials = (name?: string) => {
-    if (!name) return "??";
-    const names = name.split(' ');
-    if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
-    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   };
 
   const { upcomingAndOngoingEvents, attendedPastEvents, totalHoursVolunteered } = useMemo(() => {
@@ -168,13 +112,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
   }, [allEvents, userAttendanceRecords, user?.id]);
 
-  const availableYears = useMemo(() => {
-    const end = new Date();
-    const start = subYears(end, 5);
-    return eachYearOfInterval({ start, end }).map(d => getYear(d)).sort((a,b) => b-a);
-  }, []);
-  
-  const months = Array.from({ length: 12 }, (_, i) => ({ value: i, label: format(new Date(0, i), 'MMMM') }));
 
   if (!user) {
     return (
@@ -261,80 +198,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         </CardContent>
       </Card>
       
-       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center text-xl"><Trophy className="mr-2 h-5 w-5 text-primary" />Points System Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-semibold mb-2 flex items-center"><Star className="mr-2 h-4 w-4 text-yellow-500" />Roles</h3>
-                <Table>
-                  <TableHeader><TableRow><TableHead>Role</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {pointsSystem.roles.map((role) => (
-                      <TableRow key={role.name}>
-                        <TableCell className="font-medium">{role.name}</TableCell>
-                        <TableCell className="text-right">{role.points.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2 flex items-center"><Star className="mr-2 h-4 w-4 text-yellow-500" />Participation</h3>
-                <Table>
-                  <TableHeader><TableRow><TableHead>Activity</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {pointsSystem.participation.map((activity) => (
-                      <TableRow key={activity.name}>
-                        <TableCell className="font-medium">{activity.name}</TableCell>
-                        <TableCell className="text-right">{activity.points.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <CardTitle className="flex items-center"><Trophy className="mr-2 h-5 w-5 text-primary" />Monthly Leaderboard</CardTitle>
-                        <CardDescription>Top members for the selected month.</CardDescription>
-                    </div>
-                    <div className="flex items-end gap-2 w-full sm:w-auto">
-                       <div className="flex-1 sm:flex-none"><Label htmlFor="filter-month">Month</Label><Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}><SelectTrigger id="filter-month"><SelectValue/></SelectTrigger><SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}</SelectContent></Select></div>
-                       <div className="flex-1 sm:flex-none"><Label htmlFor="filter-year">Year</Label><Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}><SelectTrigger id="filter-year"><SelectValue/></SelectTrigger><SelectContent>{availableYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}</SelectContent></Select></div>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {isLoading ? (
-                     <div className="flex items-center justify-center h-64"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
-                ) : leaderboardData.length > 0 ? (
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Rank</TableHead><TableHead>Member</TableHead><TableHead className="text-right">Total Points</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {leaderboardData.slice(0, 10).map((item, index) => (
-                                <TableRow key={item.user.id} className={item.user.id === user.id ? 'bg-primary/10' : ''}>
-                                    <TableCell className="font-bold">{index + 1}</TableCell>
-                                    <TableCell className="flex items-center gap-2 font-medium">
-                                        <Avatar className="h-9 w-9"><AvatarImage src={item.user.photoUrl} alt={item.user.name} data-ai-hint="profile avatar"/><AvatarFallback>{getInitials(item.user.name)}</AvatarFallback></Avatar>
-                                        {item.user.name}
-                                    </TableCell>
-                                    <TableCell className="text-right font-bold text-lg text-primary">{item.totalPoints.toLocaleString()}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                ) : <p className="text-center text-muted-foreground py-8">No points recorded for this period.</p>}
-            </CardContent>
-        </Card>
-      </div>
-
-
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle className="flex items-center font-headline">
