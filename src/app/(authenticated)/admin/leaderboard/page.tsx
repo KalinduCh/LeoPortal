@@ -26,6 +26,7 @@ import {
   AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogFooter,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
@@ -148,6 +149,10 @@ export default function LeaderboardPage() {
       if (!users || users.length === 0) {
         toast({ title: "Data Notice", description: "No users found. Leaderboard may be incomplete.", variant: "default" });
       }
+      
+      if (!points) {
+          toast({ title: "Data Notice", description: "No points entries found for this period.", variant: "default" });
+      }
 
       setPointsLog(points);
     } catch (error: any) {
@@ -201,7 +206,7 @@ export default function LeaderboardPage() {
       setIsFormOpen(false);
       fetchData();
     } catch (error: any) {
-       toast({ title: "Error", description: `Could not add points: ${error.message}`, variant: "destructive" });
+       toast({ title: "Error", description: `Could not add points: ${error.message}`, variant: "destructive"});
     }
     setIsSubmitting(false);
   };
