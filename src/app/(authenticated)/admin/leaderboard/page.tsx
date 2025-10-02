@@ -33,7 +33,6 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -86,7 +85,10 @@ export default function LeaderboardPage() {
   const pointsForm = useForm<PointsFormValues>({
     resolver: zodResolver(pointsFormSchema),
     defaultValues: {
+        userId: '',
         date: new Date(),
+        description: '',
+        points: undefined,
         category: 'participation',
     }
   });
@@ -131,7 +133,7 @@ export default function LeaderboardPage() {
       toast({ title: "Success", description: "Points added successfully." });
       fetchData();
       setIsFormOpen(false);
-      pointsForm.reset({ date: new Date(), category: 'participation' });
+      pointsForm.reset({ userId: '', date: new Date(), description: '', points: undefined, category: 'participation' });
     } catch (error) {
       toast({ title: "Error", description: "Failed to add points.", variant: "destructive" });
     }
