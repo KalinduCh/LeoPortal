@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, HandCoins, Settings } from "lucide-react"; 
+import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, HandCoins, Settings, Trophy } from "lucide-react"; 
 import type { AdminPermission } from "@/types";
 
 interface NavItem {
@@ -31,6 +31,7 @@ const adminNavItems: NavItem[] = [
   { href: "/members", label: "Members", icon: Users, permission: 'members' },
   { href: "/events", label: "Events", icon: CalendarDays, permission: 'events' },
   { href: "/admin/finance", label: "Finance", icon: HandCoins, permission: 'finance' },
+  { href: "/admin/leaderboard", label: "Leaderboard", icon: Trophy, permission: 'leaderboard' },
   { href: "/admin/communication", label: "Communication", icon: Mail, permission: 'communication' },
   { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, permission: 'project_ideas' },
   { href: "/admin/reports", label: "Reports", icon: FileText, permission: 'reports' },
@@ -52,14 +53,14 @@ export function SidebarNav() {
   let itemsToShow: NavItem[];
 
   if (user.role === 'super_admin') {
-      itemsToShow = superAdminNavItems;
+      itemsToShow = superAdminNavİtems;
   } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
       // Filter admin items based on user's permissions
       itemsToShow = adminNavItems.filter(item => {
           // If an item doesn't require a specific permission, always show it (like Dashboard)
           if (!item.permission) return true;
-          // Otherwise, check if the user has that permission
-          return user.permissions?.[item.permission] === true;
+          // Otherwise, check if the user has that permission. Default to true if permissions object is not defined.
+          return user.permissions?.[item.permission] ?? true;
       });
   } else {
       itemsToShow = memberNavItems;

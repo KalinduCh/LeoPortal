@@ -23,6 +23,7 @@ const PERMISSION_CONFIG: { id: AdminPermission; label: string }[] = [
     { id: 'members', label: 'Members' },
     { id: 'events', label: 'Events' },
     { id: 'finance', label: 'Finance' },
+    { id: 'leaderboard', label: 'Leaderboard' },
     { id: 'communication', label: 'Communication' },
     { id: 'project_ideas', label: 'Idea Review' },
     { id: 'reports', label: 'Reports' },

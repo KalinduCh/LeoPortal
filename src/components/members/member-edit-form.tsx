@@ -67,6 +67,7 @@ export function MemberEditForm({ member, onSubmit, onCancel, isLoading }: Member
   };
 
   const isSuperAdmin = currentUser?.role === 'super_admin';
+  const canEditRole = isSuperAdmin && currentUser.id !== member.id;
 
   return (
     <Form {...form}>
@@ -105,7 +106,7 @@ export function MemberEditForm({ member, onSubmit, onCancel, isLoading }: Member
           render={({ field }) => (
             <FormItem>
               <FormLabel>Role</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isSuperAdmin}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!canEditRole}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a role" />
@@ -117,7 +118,7 @@ export function MemberEditForm({ member, onSubmit, onCancel, isLoading }: Member
                   {isSuperAdmin && <SelectItem value="super_admin">Super Admin</SelectItem>}
                 </SelectContent>
               </Select>
-              {!isSuperAdmin && <FormMessage>Only a Super Admin can change roles.</FormMessage>}
+              {!canEditRole && <FormMessage>Only a Super Admin can change another user's role.</FormMessage>}
             </FormItem>
           )}
         />
