@@ -37,6 +37,7 @@ export async function createUserProfile(
         communication: true,
         project_ideas: true,
         reports: true,
+        leaderboard: true,
     } : {}
   };
 

@@ -1,4 +1,5 @@
 
+
 import type { ReactElement, ElementType } from 'react';
 
 export type UserRole = 'super_admin' | 'admin' | 'member';
@@ -12,7 +13,7 @@ export interface Badge {
   icon: ElementType;
 }
 
-export type AdminPermission = 'members' | 'events' | 'finance' | 'communication' | 'project_ideas' | 'reports';
+export type AdminPermission = 'members' | 'events' | 'finance' | 'communication' | 'project_ideas' | 'reports' | 'leaderboard';
 
 export interface User {
   id: string; // This will be the Firebase Auth UID
@@ -44,6 +45,18 @@ export interface Event {
   latitude?: number;  // For geolocation
   longitude?: number; // For geolocation
   reminderSent: boolean; // To track if a reminder has been sent
+}
+
+export interface PointsEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  date: string; // ISO string for the date the points apply to
+  description: string;
+  points: number;
+  category: 'role' | 'participation';
+  addedBy: string; // Admin's user ID
+  createdAt: string; // ISO string
 }
 
 export interface AttendanceRecord {
@@ -165,5 +178,3 @@ export interface FinancialCategory {
     id: string;
     name: string;
 }
-
-    
