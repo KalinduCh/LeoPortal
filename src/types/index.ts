@@ -50,7 +50,6 @@ export interface Event {
   points?: number;
 }
 
-// DEPRECATED - This type is being deprecated in favor of MonthlyPoints
 export interface PointsEntry {
   id: string;
   userId: string;
@@ -64,13 +63,13 @@ export interface PointsEntry {
   eventId?: string; // Link to the event if applicable
 }
 
-// New data structure for the editable grid
+// DEPRECATED data structure - no longer in use
 export interface MonthlyPoints {
-    id?: string; // predictable ID, e.g. year-month-userId
+    id?: string;
     userId: string;
     userName: string;
     photoUrl?: string;
-    month: number; // 0-11
+    month: number;
     year: number;
     chairSecTrePoints: number;
     ocPoints: number;
@@ -79,7 +78,7 @@ export interface MonthlyPoints {
     districtProjectPoints: number;
     multipleProjectPoints: number;
     totalPoints: number;
-    updatedAt: string; // ISO string
+    updatedAt: string;
 }
 
 
