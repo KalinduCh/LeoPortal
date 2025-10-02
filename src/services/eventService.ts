@@ -2,7 +2,7 @@
 // src/services/eventService.ts
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp, query, orderBy, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
-import type { Event } from '@/types';
+import type { Event, EventType } from '@/types';
 import type { EventFormValues } from '@/components/events/event-form';
 
 const eventsCollection = collection(db, 'events');
@@ -10,7 +10,7 @@ const eventsCollection = collection(db, 'events');
 // EventFormValues now includes optional endDate and conditional lat/long
 export async function createEvent(data: EventFormValues): Promise<string> {
   console.log("Creating event with form data:", data);
-  const eventData: any = {
+  const eventData: Partial<Event> & { startDate: Timestamp, reminderSent: boolean } = {
     name: data.name,
     startDate: Timestamp.fromDate(data.startDate),
     location: data.location,
@@ -19,7 +19,7 @@ export async function createEvent(data: EventFormValues): Promise<string> {
   };
 
   if (data.endDate) {
-    eventData.endDate = Timestamp.fromDate(data.endDate);
+    eventData.endDate = data.endDate.toISOString();
   }
 
   if (data.enableGeoRestriction && typeof data.latitude === 'number' && !isNaN(data.latitude)) {
@@ -28,6 +28,13 @@ export async function createEvent(data: EventFormValues): Promise<string> {
   if (data.enableGeoRestriction && typeof data.longitude === 'number' && !isNaN(data.longitude)) {
     eventData.longitude = data.longitude;
   }
+  if (data.eventType) {
+      eventData.eventType = data.eventType;
+  }
+  if (data.points) {
+      eventData.points = data.points;
+  }
+
 
   const docRef = await addDoc(eventsCollection, eventData);
   console.log("Event created with ID:", docRef.id);
@@ -62,6 +69,8 @@ export async function getEvents(): Promise<Event[]> {
         latitude: data.latitude,
         longitude: data.longitude,
         reminderSent: data.reminderSent || false,
+        eventType: data.eventType,
+        points: data.points,
       };
       if (data.endDate && typeof data.endDate.toDate === 'function') {
         event.endDate = (data.endDate as Timestamp).toDate().toISOString();
@@ -96,6 +105,8 @@ export async function getEvent(eventId: string): Promise<Event | null> {
       latitude: data.latitude,
       longitude: data.longitude,
       reminderSent: data.reminderSent || false,
+      eventType: data.eventType,
+      points: data.points,
     };
     if (data.endDate && typeof data.endDate.toDate === 'function') {
       event.endDate = (data.endDate as Timestamp).toDate().toISOString();
@@ -112,6 +123,8 @@ export async function updateEvent(eventId: string, data: EventFormValues): Promi
     startDate: Timestamp.fromDate(data.startDate),
     location: data.location,
     description: data.description,
+    eventType: data.eventType || deleteField(),
+    points: data.points || deleteField(),
   };
 
   if (data.endDate) {
