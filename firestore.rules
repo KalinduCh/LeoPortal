@@ -1,77 +1,60 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check for admin role
-    function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+  
+    function isSuperAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
     }
     
-    // Helper function to check if the user is the owner of the document
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin'];
+    }
+
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    function isApprovedMember() {
+        return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved';
     }
 
     match /users/{userId} {
-      // Allow anyone to create a user document (for signup)
-      // The status will be 'pending' by default, controlled by backend logic
-      allow create: if true;
-      
-      // Any authenticated user can read any user's profile (for member lists, etc.)
-      allow read: if request.auth != null;
-      
-      // Update rules:
-      // - Admins can update any field on any user document.
-      // - A user can update their OWN document, but cannot change their role, status, or fee details.
-      allow update: if isAdmin() || 
-                      (isOwner(userId) && 
-                       !('role' in request.resource.data) && 
-                       !('status' in request.resource.data) &&
-                       !('membershipFeeStatus' in request.resource.data) &&
-                       !('membershipFeeAmountPaid' in request.resource.data)
-                      );
-      
-      // Admins can delete any user
-      allow delete: if isAdmin();
+      allow read: if request.auth != null; // Any authenticated user can read user profiles
+      allow create: if request.auth != null; // New users can create their own profile on signup
+      allow update: if isOwner(userId) || isSuperAdmin(); // User can update their own profile, or super admin can update any
+      allow delete: if isSuperAdmin(); // Only super admin can delete users
     }
-
+    
     match /events/{eventId} {
-      // Allow anyone (including unauthenticated visitors) to see event details
-      allow read: if true;
-      
-      // Only admins can create, update, or delete events
-      allow create, update, delete: if isAdmin();
+      allow read: if request.auth != null; // All authenticated users can read events
+      allow create, update, delete: if isAdmin(); // Only admins can manage events
     }
-
+    
     match /attendance/{attendanceId} {
-        // Anyone can create an attendance record (for both members and visitors).
-        // This is secure because they can't read/modify other records.
-        allow create: if true;
-        
-        // Only admins can read the full list of attendance records for reports.
-        // Members read their own records via a different, more specific query handled in app logic.
-        allow read, update, delete: if isAdmin();
+      allow read: if isAdmin(); // Only admins can see full attendance lists
+      // Allow members to read their own attendance, and anyone to write (for visitor check-in)
+      allow write: if request.auth != null; 
+      // More specific read for a user to see their own records
+      allow list: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
     
     match /communicationGroups/{groupId} {
-        // Only admins can manage communication groups
+        allow read, create, update, delete: if isAdmin();
+    }
+    
+    match /transactions/{transactionId} {
         allow read, create, update, delete: if isAdmin();
     }
 
     match /projectIdeas/{ideaId} {
-        // - Anyone authenticated can create an idea.
-        // - The author or an admin can update an idea.
-        // - The author or an admin can read an idea.
-        // - The author or an admin can delete an idea.
-        allow create: if request.auth != null;
-        allow read, update, delete: if isOwner(resource.data.authorId) || isAdmin();
+        allow read: if isApprovedMember();
+        allow create: if isApprovedMember();
+        allow update: if isOwner(resource.data.authorId) || isAdmin();
     }
     
-    match /transactions/{transactionId} {
-        // Only admins can manage financial transactions
-        allow read, create, update, delete: if isAdmin();
+    match /pointsEntries/{entryId} {
+        allow read, create, delete, update: if isAdmin();
     }
   }
 }
