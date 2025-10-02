@@ -463,9 +463,10 @@ export const onAttendanceCreated = functions.firestore
         userId: userId,
         userName: userData.name || "Unknown User",
         date: attendanceRecord.timestamp.toDate().toISOString(),
-        description: `Attended event: ${eventData.name}`,
+        description: `Attended: ${eventData.name}`,
         points: eventData.points,
         category: "participation",
+        projectName: eventData.name, // Use event name as project name
         addedBy: "system", // Mark as automated
         eventId: eventId,
     };

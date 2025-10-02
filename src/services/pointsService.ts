@@ -26,6 +26,7 @@ const docToPointsEntry = (docSnap: any): PointsEntry => {
     description: data.description,
     points: data.points,
     category: data.category,
+    projectName: data.projectName,
     addedBy: data.addedBy,
     createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
     eventId: data.eventId,
@@ -33,11 +34,20 @@ const docToPointsEntry = (docSnap: any): PointsEntry => {
 };
 
 export async function addPointsEntry(data: Omit<PointsEntry, 'id' | 'createdAt'>): Promise<string> {
-  const entryData = {
+  const entryData: any = {
     ...data,
     date: Timestamp.fromDate(new Date(data.date)),
     createdAt: serverTimestamp(),
   };
+
+  // Ensure optional fields are not added if they are undefined
+  if (!entryData.projectName) {
+    delete entryData.projectName;
+  }
+  if (!entryData.eventId) {
+    delete entryData.eventId;
+  }
+  
   const docRef = await addDoc(pointsCollectionRef, entryData);
   return docRef.id;
 }
