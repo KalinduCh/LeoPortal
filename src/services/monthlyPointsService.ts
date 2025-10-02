@@ -28,6 +28,8 @@ const docToMonthlyPoints = (docSnap: any): MonthlyPoints => {
     ocPoints: data.ocPoints || 0,
     meetingPoints: data.meetingPoints || 0,
     clubProjectPoints: data.clubProjectPoints || 0,
+    districtProjectPoints: data.districtProjectPoints || 0,
+    multipleProjectPoints: data.multipleProjectPoints || 0,
     totalPoints: data.totalPoints || 0,
     updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
   };
@@ -66,7 +68,7 @@ export async function saveMonthlyPointsBatch(pointsData: MonthlyPoints[]): Promi
     const docId = `${data.year}-${data.month}-${data.userId}`;
     const docRef = doc(db, 'monthlyPoints', docId);
     
-    const dataToSave = {
+    const dataToSave: any = {
         ...data,
         updatedAt: now,
     };
