@@ -1,4 +1,3 @@
-
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -23,6 +22,7 @@ interface NavItem {
 
 const memberNavItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/project-ideas", label: "Project Ideas", icon: Lightbulb },
 ];
 
