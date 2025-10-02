@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/leaderboard/page.tsx
 "use client";
 
