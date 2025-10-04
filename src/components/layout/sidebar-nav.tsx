@@ -10,7 +10,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, HandCoins, Settings, Trophy } from "lucide-react"; 
+import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, HandCoins, Settings, Trophy, BarChart } from "lucide-react"; 
 import type { AdminPermission } from "@/types";
 
 interface NavItem {
@@ -34,7 +34,7 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/leaderboard", label: "Leaderboard", icon: Trophy, permission: 'leaderboard' },
   { href: "/admin/communication", label: "Communication", icon: Mail, permission: 'communication' },
   { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, permission: 'project_ideas' },
-  { href: "/admin/reports", label: "Reports", icon: FileText, permission: 'reports' },
+  { href: "/admin/reports", label: "Reports", icon: BarChart, permission: 'reports' },
 ];
 
 const superAdminNavItems: NavItem[] = [
@@ -59,8 +59,8 @@ export function SidebarNav() {
       itemsToShow = adminNavItems.filter(item => {
           // If an item doesn't require a specific permission, always show it (like Dashboard)
           if (!item.permission) return true;
-          // Otherwise, check if the user has that permission. Default to true if permissions object is not defined.
-          return user.permissions?.[item.permission] ?? true;
+          // Otherwise, check if the user has that specific permission set to true.
+          return user.permissions?.[item.permission] === true;
       });
   } else {
       itemsToShow = memberNavItems;
