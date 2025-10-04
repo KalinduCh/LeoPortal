@@ -57,9 +57,12 @@ export function SidebarNav() {
   } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
       // Filter admin items based on user's permissions
       itemsToShow = adminNavItems.filter(item => {
-          // If an item doesn't require a specific permission, always show it (like Dashboard)
-          if (!item.permission) return true;
-          // Otherwise, check if the user has that specific permission set to true.
+          // If an item doesn't require a specific permission, always show it (e.g., Dashboard).
+          if (!item.permission) {
+              return true;
+          }
+          // Otherwise, strictly check if the user has that specific permission set to true.
+          // If permissions are not defined or the specific permission is false/undefined, deny access.
           return user.permissions?.[item.permission] === true;
       });
   } else {
