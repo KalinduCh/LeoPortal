@@ -429,7 +429,12 @@ export const onAttendanceCreated = functions.firestore
       console.log(`Skipping points allocation for non-member or visitor attendance: ${snap.id}`);
       return;
     }
+    
+    // TEMPORARILY DISABLED: The points feature is being refactored.
+    console.log("Points allocation is temporarily disabled. Skipping.");
+    return;
 
+    /*
     const { eventId, userId } = attendanceRecord;
 
     // 1. Fetch Event Details
@@ -481,6 +486,7 @@ export const onAttendanceCreated = functions.firestore
     } catch (error) {
         console.error(`Failed to create points entry for user ${userId} and event ${eventId}:`, error);
     }
+    */
   });
     
 
