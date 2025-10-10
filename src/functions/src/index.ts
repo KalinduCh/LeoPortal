@@ -1,4 +1,5 @@
 
+
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
@@ -10,28 +11,16 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-/**
- * Creates a Nodemailer transporter with credentials fetched from Firestore.
- * This is a more secure and flexible approach than hardcoding credentials.
- */
-const createTransporter = async () => {
-    const settingsDoc = await db.collection('clubSettings').doc('email').get();
-    const emailSettings = settingsDoc.data();
+const GMAIL_EMAIL = "athugalpuraleoclub306d9@gmail.com";
+const GMAIL_APP_PASSWORD = "osng xjdz lhwu movh";
 
-    if (!emailSettings || !emailSettings.user || !emailSettings.pass) {
-        console.error("Email settings are not configured in Firestore under /clubSettings/email.");
-        throw new Error("Email credentials not configured.");
-    }
-    
-    return nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-            user: emailSettings.user,
-            pass: emailSettings.pass,
-        },
-    });
-};
-
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: GMAIL_EMAIL,
+        pass: GMAIL_APP_PASSWORD,
+    },
+});
 
 const createEmailHtml = (bodyContent: string) => {
     return `
@@ -77,29 +66,22 @@ const createEmailHtml = (bodyContent: string) => {
 
 
 /**
- * Sends a transactional email using credentials from Firestore.
+ * Sends a transactional email.
  */
 const sendEmail = async (to: string, subject: string, htmlBody: string) => {
-    try {
-        const transporter = await createTransporter();
-        const settingsDoc = await db.collection('clubSettings').doc('email').get();
-        const fromEmail = settingsDoc.data()?.user || "noreply@leoathugal.web.app";
-        const clubNameDoc = await db.collection('clubSettings').doc('profile').get();
-        const clubName = clubNameDoc.data()?.name || "LEO Portal";
+    const fullHtml = createEmailHtml(htmlBody);
+    const mailOptions = {
+        from: `"LEO CLUB OF ATHUGALPURA" <${GMAIL_EMAIL}>`,
+        to,
+        subject,
+        html: fullHtml,
+    };
 
-        const fullHtml = createEmailHtml(htmlBody);
-        const mailOptions = {
-            from: `"${clubName}" <${fromEmail}>`,
-            to,
-            subject,
-            html: fullHtml,
-        };
+    try {
         await transporter.sendMail(mailOptions);
         console.log(`Email sent to ${to} with subject: ${subject}`);
     } catch (error) {
         console.error(`Failed to send email to ${to}:`, error);
-        // Re-throw the error so the calling function knows it failed
-        throw error;
     }
 };
 
@@ -194,11 +176,7 @@ export const onUserStatusChange = functions.firestore
         <p>Best Regards,<br>Leo Club Of Athugalpura</p>
       `;
       if (userEmail) {
-         try {
-            await sendEmail(userEmail, subject, htmlBody);
-         } catch (e) {
-            console.error("Failed to send approval email, but proceeding with user approval.", e);
-         }
+        await sendEmail(userEmail, subject, htmlBody);
       }
     }
     
@@ -216,14 +194,10 @@ export const onUserStatusChange = functions.firestore
             <p>Best Regards,<br>Leo Club Of Athugalpura</p>
         `;
         if (userEmail) {
-            try {
-                await sendEmail(userEmail, subject, htmlBody);
-            } catch(e) {
-                console.error("Could not send rejection email. Deleting user document anyway.", e);
-            }
+            await sendEmail(userEmail, subject, htmlBody);
         }
 
-        // After sending email (or attempting to), delete the user document
+        // After sending email, delete the user document
         await db.collection("users").doc(userId).delete();
         console.log(`Rejected user ${userId} document deleted after sending email.`);
     }
@@ -415,11 +389,7 @@ export const sendMonthlyReports = functions.pubsub.schedule("0 9 1 * *")
         `;
 
         for (const email of adminEmails) {
-            try {
-                await sendEmail(email, subject, htmlBody);
-            } catch(e) {
-                console.error(`Failed to send monthly report to ${email}.`, e);
-            }
+            await sendEmail(email, subject, htmlBody);
         }
         
         console.log(`Monthly reports sent to ${adminEmails.length} admins.`);

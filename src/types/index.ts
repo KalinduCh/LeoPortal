@@ -34,7 +34,7 @@ export interface User {
   permissions?: Partial<Record<AdminPermission, boolean>>;
 }
 
-export type EventType = 'monthly_meeting' | 'club_project' | 'district_project' | 'multiple_project' | 'official_visit' | 'other';
+export type EventType = 'club_project' | 'district_project' | 'joint_project' | 'official_visit' | 'deadline' | 'other';
 
 export interface Event {
   id: string; // Firestore document ID
