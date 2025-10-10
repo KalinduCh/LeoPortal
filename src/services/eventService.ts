@@ -29,9 +29,6 @@ export async function createEvent(data: EventFormValues): Promise<string> {
     if (data.enableGeoRestriction && typeof data.longitude === 'number' && !isNaN(data.longitude)) {
         eventData.longitude = data.longitude;
     }
-    if (data.points) {
-        eventData.points = data.points;
-    }
   }
 
   if (data.eventType) {
@@ -136,7 +133,7 @@ export async function updateEvent(eventId: string, data: EventFormValues): Promi
   } else {
     updatePayload.endDate = data.endDate ? data.endDate.toISOString() : deleteField();
     updatePayload.location = data.location;
-    updatePayload.points = data.points || deleteField();
+    updatePayload.points = deleteField(); // Always remove points
     if (data.enableGeoRestriction && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
         updatePayload.latitude = data.latitude;
         updatePayload.longitude = data.longitude;
