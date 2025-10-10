@@ -1,4 +1,6 @@
 
+@import "react-big-calendar/lib/css/react-big-calendar.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -196,5 +198,3 @@ body {
     overflow: visible !important;
   }
 }
-
-    
