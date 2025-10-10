@@ -19,6 +19,7 @@ import { Loader2, Trophy, Star, Info, User as UserIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const pointsSystem = {
     roles: [
@@ -233,34 +234,78 @@ export default function MemberLeaderboardPage() {
           <CardTitle className="flex items-center text-xl"><Info className="mr-2 h-5 w-5 text-primary" />Points System Overview</CardTitle>
           <CardDescription>Points are awarded based on roles and participation in club activities.</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="font-semibold mb-2 flex items-center"><Star className="mr-2 h-4 w-4 text-yellow-500" />Roles</h3>
-            <Table>
-              <TableHeader><TableRow><TableHead>Role</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {pointsSystem.roles.map((role) => (
-                  <TableRow key={role.name}>
-                    <TableCell className="font-medium">{role.name}</TableCell>
-                    <TableCell className="text-right">{role.points.toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <CardContent>
+          {/* Desktop View */}
+          <div className="hidden md:grid md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-semibold mb-2 flex items-center"><Star className="mr-2 h-4 w-4 text-yellow-500" />Roles</h3>
+              <Table>
+                <TableHeader><TableRow><TableHead>Role</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {pointsSystem.roles.map((role) => (
+                    <TableRow key={role.name}>
+                      <TableCell className="font-medium">{role.name}</TableCell>
+                      <TableCell className="text-right">{role.points.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2 flex items-center"><Star className="mr-2 h-4 w-4 text-yellow-500" />Participation</h3>
+              <Table>
+                <TableHeader><TableRow><TableHead>Activity</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {pointsSystem.participation.map((activity) => (
+                    <TableRow key={activity.name}>
+                      <TableCell className="font-medium">{activity.name}</TableCell>
+                      <TableCell className="text-right">{activity.points.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold mb-2 flex items-center"><Star className="mr-2 h-4 w-4 text-yellow-500" />Participation</h3>
-            <Table>
-              <TableHeader><TableRow><TableHead>Activity</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {pointsSystem.participation.map((activity) => (
-                  <TableRow key={activity.name}>
-                    <TableCell className="font-medium">{activity.name}</TableCell>
-                    <TableCell className="text-right">{activity.points.toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+           {/* Mobile Accordion View */}
+          <div className="md:hidden">
+            <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="roles">
+                    <AccordionTrigger>
+                        <h3 className="font-semibold flex items-center text-base"><Star className="mr-2 h-4 w-4 text-yellow-500" />Roles</h3>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Role</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                            {pointsSystem.roles.map((role) => (
+                                <TableRow key={role.name}>
+                                    <TableCell className="font-medium">{role.name}</TableCell>
+                                    <TableCell className="text-right">{role.points.toLocaleString()}</TableCell>
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="participation">
+                     <AccordionTrigger>
+                        <h3 className="font-semibold flex items-center text-base"><Star className="mr-2 h-4 w-4 text-yellow-500" />Participation</h3>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Activity</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                            {pointsSystem.participation.map((activity) => (
+                                <TableRow key={activity.name}>
+                                <TableCell className="font-medium">{activity.name}</TableCell>
+                                <TableCell className="text-right">{activity.points.toLocaleString()}</TableCell>
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
           </div>
         </CardContent>
       </Card>
