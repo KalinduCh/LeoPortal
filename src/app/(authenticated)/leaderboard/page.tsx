@@ -10,14 +10,15 @@ import { getAllUsers } from '@/services/userService';
 import { getPointsForPeriod } from '@/services/pointsService';
 import { format, getYear, eachYearOfInterval, subYears } from 'date-fns';
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Loader2, Trophy, List, Star, Info } from 'lucide-react';
+import { Loader2, Trophy, Star, Info, User as UserIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 const pointsSystem = {
     roles: [
@@ -58,6 +59,8 @@ export default function MemberLeaderboardPage() {
   
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
   
   const approvedMembers = useMemo(() => {
     if (!allUsers.length) return [];
@@ -102,6 +105,26 @@ export default function MemberLeaderboardPage() {
     return Object.values(memberPoints).sort((a, b) => b.totalPoints - a.totalPoints);
   }, [approvedMembers, pointsLog]);
 
+  const { paginatedData, totalPages, currentUserRank } = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const paginated = leaderboardData.slice(startIndex, startIndex + rowsPerPage);
+    const pages = Math.ceil(leaderboardData.length / rowsPerPage);
+    
+    let rankInfo = null;
+    if (user) {
+        const rankIndex = leaderboardData.findIndex(item => item.user.id === user.id);
+        if (rankIndex !== -1) {
+            rankInfo = {
+                ...leaderboardData[rankIndex],
+                rank: rankIndex + 1
+            };
+        }
+    }
+    
+    return { paginatedData: paginated, totalPages: pages, currentUserRank: rankInfo };
+  }, [leaderboardData, currentPage, user]);
+
+
   const getInitials = (name?: string) => {
     if (!name) return "??";
     const names = name.split(' ');
@@ -135,25 +158,27 @@ export default function MemberLeaderboardPage() {
                       <CardDescription>Top members based on total points for the selected month.</CardDescription>
                   </div>
                   <div className="flex items-end gap-2 w-full sm:w-auto">
-                      <div className="flex-1 sm:flex-none"><Label htmlFor="filter-month">Month</Label><Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}><SelectTrigger id="filter-month"><SelectValue/></SelectTrigger><SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}</SelectContent></Select></div>
-                      <div className="flex-1 sm:flex-none"><Label htmlFor="filter-year">Year</Label><Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}><SelectTrigger id="filter-year"><SelectValue/></SelectTrigger><SelectContent>{availableYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}</SelectContent></Select></div>
+                      <div className="flex-1 sm:flex-none"><Label htmlFor="filter-month">Month</Label><Select value={selectedMonth.toString()} onValueChange={(v) => { setSelectedMonth(parseInt(v)); setCurrentPage(1); }}><SelectTrigger id="filter-month"><SelectValue/></SelectTrigger><SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}</SelectContent></Select></div>
+                      <div className="flex-1 sm:flex-none"><Label htmlFor="filter-year">Year</Label><Select value={selectedYear.toString()} onValueChange={(v) => { setSelectedYear(parseInt(v)); setCurrentPage(1); }}><SelectTrigger id="filter-year"><SelectValue/></SelectTrigger><SelectContent>{availableYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}</SelectContent></Select></div>
                   </div>
               </div>
           </CardHeader>
           <CardContent>
               {isLoading ? (
                     <div className="flex items-center justify-center h-64"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
-              ) : leaderboardData.length > 0 ? (
+              ) : paginatedData.length > 0 ? (
                   <Table>
                       <TableHeader><TableRow><TableHead>Rank</TableHead><TableHead>Member</TableHead><TableHead className="text-right">Total Points</TableHead></TableRow></TableHeader>
                       <TableBody>
-                          {leaderboardData.map((item, index) => (
+                          {paginatedData.map((item, index) => {
+                            const rank = (currentPage - 1) * rowsPerPage + index + 1;
+                            return (
                               <TableRow key={item.user.id} className={cn(
-                                getRankColor(index),
+                                getRankColor(rank - 1),
                                 item.user.id === user?.id && 'bg-primary/10 hover:bg-primary/20'
                               )}>
                                   <TableCell className="font-bold">
-                                    <Badge variant={index < 3 ? 'default' : 'secondary'} className={index < 3 ? 'bg-primary/80' : ''}>{index + 1}</Badge>
+                                    <Badge variant={rank <= 3 ? 'default' : 'secondary'} className={rank <= 3 ? 'bg-primary/80' : ''}>{rank}</Badge>
                                   </TableCell>
                                   <TableCell className="flex items-center gap-2 font-medium">
                                       <Avatar className="h-9 w-9"><AvatarImage src={item.user.photoUrl} alt={item.user.name} data-ai-hint="profile avatar"/><AvatarFallback>{getInitials(item.user.name)}</AvatarFallback></Avatar>
@@ -161,13 +186,48 @@ export default function MemberLeaderboardPage() {
                                   </TableCell>
                                   <TableCell className="text-right font-bold text-lg text-primary">{item.totalPoints.toLocaleString()}</TableCell>
                               </TableRow>
-                          ))}
+                          )})}
                       </TableBody>
                   </Table>
               ) : <p className="text-center text-muted-foreground py-8">No points recorded for this period.</p>}
           </CardContent>
+           {totalPages > 1 && (
+            <CardFooter className="border-t pt-4">
+                <div className="flex items-center justify-end space-x-2 w-full">
+                    <span className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>Previous</Button>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}>Next</Button>
+                </div>
+            </CardFooter>
+        )}
       </Card>
       
+      {currentUserRank && (
+        <Card className="bg-primary/5 border-primary/20 shadow-lg">
+            <CardHeader>
+                <CardTitle className="flex items-center text-primary"><UserIcon className="mr-2 h-5 w-5"/>Your Current Rank</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <span className="text-4xl font-bold text-primary">{currentUserRank.rank}</span>
+                        <div className="flex items-center gap-3">
+                            <Avatar className="h-12 w-12 border-2 border-primary/30">
+                                <AvatarImage src={currentUserRank.user.photoUrl} alt={currentUserRank.user.name} data-ai-hint="profile avatar"/>
+                                <AvatarFallback>{getInitials(currentUserRank.user.name)}</AvatarFallback>
+                            </Avatar>
+                            <p className="font-semibold text-lg">{currentUserRank.user.name}</p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">{currentUserRank.totalPoints.toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground">Total Points</p>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+      )}
+
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-xl"><Info className="mr-2 h-5 w-5 text-primary" />Points System Overview</CardTitle>
@@ -204,8 +264,6 @@ export default function MemberLeaderboardPage() {
           </div>
         </CardContent>
       </Card>
-
     </div>
   );
 }
-
