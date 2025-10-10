@@ -3,6 +3,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
 import * as nodemailer from "nodemailer";
+import type { Event, PointsEntry } from "../../types";
 
 admin.initializeApp();
 
@@ -417,4 +418,69 @@ export const sendFeeReminders = functions.pubsub.schedule("0 9 * * 1") // Every 
             "/profile"
         );
     });
+
+export const onAttendanceCreated = functions.firestore
+  .document("attendance/{attendanceId}")
+  .onCreate(async (snap, context) => {
+    const attendanceRecord = snap.data();
+
+    // Ensure it's a member attendance and not a visitor
+    if (attendanceRecord.attendanceType !== "member" || !attendanceRecord.userId) {
+      console.log(`Skipping points allocation for non-member or visitor attendance: ${snap.id}`);
+      return;
+    }
+
+    const { eventId, userId } = attendanceRecord;
+
+    // 1. Fetch Event Details
+    const eventRef = db.collection("events").doc(eventId);
+    const eventSnap = await eventRef.get();
+
+    if (!eventSnap.exists) {
+      console.error(`Event ${eventId} not found for attendance record ${snap.id}.`);
+      return;
+    }
+    const eventData = eventSnap.data() as Event;
     
+    // 2. Check if the event has points assigned
+    if (!eventData.points || eventData.points <= 0) {
+      console.log(`Event ${eventId} has no participation points assigned. Skipping.`);
+      return;
+    }
+
+    // 3. Fetch User Details
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+        console.error(`User ${userId} not found for attendance record ${snap.id}.`);
+        return;
+    }
+    const userData = userSnap.data();
+    if (!userData) return;
+
+    // 4. Create Points Entry
+    const pointsEntry: Omit<PointsEntry, "id" | "createdAt"> = {
+        userId: userId,
+        userName: userData.name || "Unknown User",
+        date: attendanceRecord.timestamp.toDate().toISOString(),
+        description: `Attended: ${eventData.name}`,
+        points: eventData.points,
+        category: "participation",
+        projectName: eventData.name, // Use event name as project name
+        addedBy: "system", // Mark as automated
+        eventId: eventId,
+    };
+
+    try {
+        await db.collection("pointsEntries").add({
+            ...pointsEntry,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            date: attendanceRecord.timestamp, // Use the attendance timestamp for the points date
+        });
+        console.log(`Successfully awarded ${eventData.points} points to user ${userId} for event ${eventId}.`);
+    } catch (error) {
+        console.error(`Failed to create points entry for user ${userId} and event ${eventId}:`, error);
+    }
+  });
+    
+
