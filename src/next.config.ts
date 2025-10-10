@@ -1,12 +1,15 @@
 
 import type {NextConfig} from 'next';
 
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+})
+
 const withPWA = require('next-pwa')({
     dest: 'public',
     register: true,
     skipWaiting: true,
-    // disable: process.env.NODE_ENV === 'development', // This line is removed to enable PWA in dev
-    sw: 'firebase-messaging-sw.js', // Point to the custom service worker
+    sw: 'firebase-messaging-sw.js',
 });
 
 const nextConfig: NextConfig = {
@@ -35,4 +38,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA(nextConfig);
+export default withBundleAnalyzer(withPWA(nextConfig));

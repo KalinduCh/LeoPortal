@@ -84,7 +84,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
     allEvents.forEach(event => {
       if (!event.startDate || !isValid(parseISO(event.startDate))) {
-        console.warn(`[MemberDashboard/Filter] Skipping event due to invalid startDate: ${event.name} (ID: ${event.id})`);
+        // Silently ignore invalid events to prevent crashes
         return;
       }
       

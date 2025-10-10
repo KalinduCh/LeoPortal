@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/finance/page.tsx
 "use client";
 
