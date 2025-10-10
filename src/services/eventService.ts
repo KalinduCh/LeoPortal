@@ -16,7 +16,7 @@ export async function createEvent(data: EventFormValues): Promise<string> {
     reminderSent: false, // Initialize reminderSent to false
   };
 
-  if (data.endDate) {
+  if (data.eventType !== 'deadline' && data.endDate) {
     eventData.endDate = data.endDate.toISOString();
   }
 
@@ -126,19 +126,15 @@ export async function updateEvent(eventId: string, data: EventFormValues): Promi
     eventType: data.eventType || deleteField(),
   };
 
-  if (data.endDate) {
-    updatePayload.endDate = data.endDate.toISOString();
-  } else {
-    updatePayload.endDate = deleteField();
-  }
-
   // Handle fields based on event type
   if (data.eventType === 'deadline') {
+    updatePayload.endDate = deleteField();
     updatePayload.location = deleteField();
     updatePayload.latitude = deleteField();
     updatePayload.longitude = deleteField();
     updatePayload.points = deleteField();
   } else {
+    updatePayload.endDate = data.endDate ? data.endDate.toISOString() : deleteField();
     updatePayload.location = data.location;
     updatePayload.points = data.points || deleteField();
     if (data.enableGeoRestriction && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
