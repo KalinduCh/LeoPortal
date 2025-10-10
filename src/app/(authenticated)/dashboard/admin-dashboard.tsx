@@ -57,7 +57,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       ]);
 
       setAllUsers(fetchedUsers);
-      setTotalMembers(fetchedUsers.filter(u => u.role === 'member' || u.role === 'admin').length);
+      setTotalMembers(fetchedUsers.filter(u => u.status === 'approved' && (u.role === 'member' || u.role === 'admin')).length);
       setAllEvents(fetchedEvents);
       setAllAttendance(fetchedAttendance);
 
