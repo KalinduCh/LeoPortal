@@ -12,7 +12,7 @@ export async function createEvent(data: EventFormValues): Promise<string> {
   console.log("Creating event with form data:", data);
   const eventData: Partial<Event> & { startDate: Timestamp, reminderSent: boolean } = {
     name: data.name,
-    startDate: Timestamp.fromDate(data.startDate),
+    startDate: Timestamp.fromDate(data.startDate).toDate().toISOString(),
     location: data.location,
     description: data.description,
     reminderSent: false, // Initialize reminderSent to false
@@ -56,14 +56,14 @@ export async function getEvents(): Promise<Event[]> {
 
     const events = snapshot.docs.map(docSnap => {
       const data = docSnap.data();
-      if (!data.startDate || typeof data.startDate.toDate !== 'function') {
+      if (!data.startDate) {
         console.warn(`[EventService] Event ${docSnap.id} has invalid or missing startDate. Skipping. Data:`, data);
         return null;
       }
       const event: Event = {
         id: docSnap.id,
         name: data.name,
-        startDate: (data.startDate as Timestamp).toDate().toISOString(),
+        startDate: (data.startDate.toDate) ? data.startDate.toDate().toISOString() : data.startDate,
         location: data.location,
         description: data.description,
         latitude: data.latitude,
@@ -72,8 +72,8 @@ export async function getEvents(): Promise<Event[]> {
         eventType: data.eventType,
         points: data.points,
       };
-      if (data.endDate && typeof data.endDate.toDate === 'function') {
-        event.endDate = (data.endDate as Timestamp).toDate().toISOString();
+      if (data.endDate) {
+        event.endDate = (data.endDate.toDate) ? data.endDate.toDate().toISOString() : data.endDate;
       }
       return event;
     }).filter(event => event !== null) as Event[];
@@ -92,14 +92,14 @@ export async function getEvent(eventId: string): Promise<Event | null> {
   const docSnap = await getDoc(eventRef);
   if (docSnap.exists()) {
     const data = docSnap.data();
-    if (!data.startDate || typeof data.startDate.toDate !== 'function') {
+    if (!data.startDate) {
       console.error(`Event ${docSnap.id} has invalid or missing startDate. Data:`, data);
       return null;
     }
     const event: Event = {
       id: docSnap.id,
       name: data.name,
-      startDate: (data.startDate as Timestamp).toDate().toISOString(),
+      startDate: (data.startDate.toDate) ? data.startDate.toDate().toISOString() : data.startDate,
       location: data.location,
       description: data.description,
       latitude: data.latitude,
@@ -108,8 +108,8 @@ export async function getEvent(eventId: string): Promise<Event | null> {
       eventType: data.eventType,
       points: data.points,
     };
-    if (data.endDate && typeof data.endDate.toDate === 'function') {
-      event.endDate = (data.endDate as Timestamp).toDate().toISOString();
+    if (data.endDate) {
+      event.endDate = (data.endDate.toDate) ? data.endDate.toDate().toISOString() : data.endDate;
     }
     return event;
   }
@@ -120,7 +120,7 @@ export async function updateEvent(eventId: string, data: EventFormValues): Promi
   const eventRef = doc(db, 'events', eventId);
   const updatePayload: any = {
     name: data.name,
-    startDate: Timestamp.fromDate(data.startDate),
+    startDate: Timestamp.fromDate(data.startDate).toDate().toISOString(),
     location: data.location,
     description: data.description,
     eventType: data.eventType || deleteField(),
@@ -128,7 +128,7 @@ export async function updateEvent(eventId: string, data: EventFormValues): Promi
   };
 
   if (data.endDate) {
-    updatePayload.endDate = Timestamp.fromDate(data.endDate);
+    updatePayload.endDate = Timestamp.fromDate(data.endDate).toDate().toISOString();
   } else {
     updatePayload.endDate = deleteField(); // Remove field if it's not provided
   }
@@ -149,5 +149,3 @@ export async function deleteEvent(eventId: string): Promise<void> {
   const eventRef = doc(db, 'events', eventId);
   await deleteDoc(eventRef);
 }
-
-    

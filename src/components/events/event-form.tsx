@@ -37,7 +37,7 @@ const eventFormSchema = z.object({
   enableGeoRestriction: z.boolean().optional(),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
-  eventType: z.enum(['monthly_meeting', 'club_project', 'district_project', 'multiple_project', 'official_visit', 'other']).optional(),
+  eventType: z.enum(['club_project', 'district_project', 'joint_project', 'official_visit', 'deadline', 'other']).optional(),
   points: z.coerce.number().positive("Points must be a positive number.").optional(),
 }).refine(data => {
   if (data.endDate) {
@@ -132,11 +132,11 @@ const DateTimePicker = ({ field, label }: { field: any, label: string }) => {
 };
 
 const eventTypeOptions: { value: EventType, label: string }[] = [
-    { value: 'monthly_meeting', label: 'Monthly Meeting' },
     { value: 'club_project', label: 'Club Project' },
     { value: 'district_project', label: 'District Project' },
-    { value: 'multiple_project', label: 'Multiple Project' },
+    { value: 'joint_project', label: 'Joint Project' },
     { value: 'official_visit', label: 'Official Visit' },
+    { value: 'deadline', label: 'Deadline/Submission' },
     { value: 'other', label: 'Other' },
 ];
 
@@ -152,7 +152,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
       enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
       latitude: event?.latitude ?? undefined,
       longitude: event?.longitude ?? undefined,
-      eventType: event?.eventType || undefined,
+      eventType: event?.eventType || 'other',
       points: event?.points || undefined,
     },
   });
@@ -167,7 +167,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
       enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
       latitude: event?.latitude ?? undefined,
       longitude: event?.longitude ?? undefined,
-      eventType: event?.eventType || undefined,
+      eventType: event?.eventType || 'other',
       points: event?.points || undefined,
     });
   }, [event, form]);
