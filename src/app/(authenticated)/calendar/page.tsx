@@ -189,14 +189,19 @@ export default function CalendarPage() {
                     status = 'Ongoing';
                     statusClass = 'bg-blue-100 text-blue-800 border-blue-200';
                 }
+                
+                const eventColor = event.eventType ? eventTypeColors[event.eventType].backgroundColor : eventTypeColors.other.backgroundColor;
 
                 return (
                   <div key={event.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-md border hover:bg-muted/50 transition-colors">
-                    <div className="flex-grow">
-                      <p className="font-semibold text-primary">{event.name}</p>
-                      <p className="text-sm text-muted-foreground">{format(startDate, 'MMM d, yyyy, p')}</p>
+                    <div className="flex items-center gap-3 flex-grow">
+                        <div className="w-2 h-10 rounded-full" style={{ backgroundColor: eventColor }}></div>
+                        <div className="flex-grow">
+                          <p className="font-semibold text-primary">{event.name}</p>
+                          <p className="text-sm text-muted-foreground">{format(startDate, 'MMM d, yyyy, p')}</p>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                    <div className="flex items-center gap-2 mt-2 sm:mt-0 sm:ml-4 flex-shrink-0">
                        <Badge variant="outline" className={cn("capitalize", statusClass)}>{status}</Badge>
                        <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(event)}>View</Button>
                     </div>
