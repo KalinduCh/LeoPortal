@@ -57,9 +57,8 @@ export default function CalendarPage() {
           start: event.startDate ? parseISO(event.startDate) : new Date(),
           end: event.endDate ? parseISO(event.endDate) : undefined,
           extendedProps: { ...event },
-          backgroundColor: color.backgroundColor,
-          borderColor: color.borderColor,
-          textColor: '#FFFFFF'
+          // Pass colors in extendedProps for the hook to use
+          ...color
         };
       });
       setEvents(calendarEvents);
@@ -120,6 +119,16 @@ export default function CalendarPage() {
       updateMonthlyEvents(newDate, allEvents);
   };
 
+  const handleEventDidMount = (info: any) => {
+    const { event, el } = info;
+    if (event.backgroundColor) {
+        el.style.backgroundColor = event.backgroundColor;
+    }
+    if (event.borderColor) {
+        el.style.borderColor = event.borderColor;
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="mb-6">
@@ -156,6 +165,7 @@ export default function CalendarPage() {
                 eventClick={handleEventClick}
                 dateClick={handleDateClick}
                 datesSet={handleDatesSet}
+                eventDidMount={handleEventDidMount}
                 height="auto"
                 dayMaxEvents={2}
                 navLinks={true}
@@ -259,9 +269,9 @@ export default function CalendarPage() {
         .fc-theme a.fc-event {
             cursor: pointer;
         }
-        .fc-theme .fc-h-event, .fc-theme .fc-v-event {
-            border: 1px solid var(--fc-event-border-color) !important;
-            background-color: var(--fc-event-bg-color) !important;
+        .fc .fc-daygrid-event-dot,
+        .fc .fc-list-event-dot {
+          border-color: var(--fc-event-border-color, transparent) !important;
         }
         .fc-toolbar.fc-header-toolbar {
             flex-direction: column;
