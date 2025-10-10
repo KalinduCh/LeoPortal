@@ -40,7 +40,8 @@ const eventFormSchema = z.object({
   eventType: z.enum(['club_project', 'district_project', 'joint_project', 'official_visit', 'deadline', 'other']).optional(),
   points: z.coerce.number().positive("Points must be a positive number.").optional(),
 }).refine(data => {
-  if (data.endDate) {
+  // For non-deadline events, if endDate exists, it must be after startDate
+  if (data.eventType !== 'deadline' && data.endDate) {
     return data.endDate > data.startDate;
   }
   return true;
@@ -192,6 +193,7 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
         submissionValues.location = undefined;
         submissionValues.points = undefined;
         submissionValues.enableGeoRestriction = false;
+        submissionValues.endDate = undefined; // Ensure end date is not sent for deadlines
     }
     await onSubmit(submissionValues);
   };
@@ -236,13 +238,20 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
             <FormField
               control={form.control}
               name="startDate"
-              render={({ field }) => <DateTimePicker field={field} label="Start Date & Time" />}
+              render={({ field }) => (
+                  <DateTimePicker 
+                      field={field} 
+                      label={watchedEventType === 'deadline' ? 'Deadline' : 'Start Date & Time'} 
+                  />
+              )}
             />
+            {watchedEventType !== 'deadline' && (
              <FormField
               control={form.control}
               name="endDate"
               render={({ field }) => <DateTimePicker field={field} label="End Date & Time (Optional)" />}
             />
+            )}
         </div>
         
         {watchedEventType !== 'deadline' && (
