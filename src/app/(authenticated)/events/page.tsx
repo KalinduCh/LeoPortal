@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Event, EventType } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { PlusCircle, Edit, Eye, CalendarDays, Loader2, MapPin, Trash2 } from "lucide-react";
 import { format, parseISO, isPast, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
