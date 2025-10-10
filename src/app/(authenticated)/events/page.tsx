@@ -3,15 +3,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Event, User } from '@/types';
+import type { Event, EventType } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Edit, Eye, CalendarDays, Loader2, MapPin, Trash2 } from "lucide-react";
-import { format, parseISO, isFuture, isPast, isValid } from 'date-fns';
+import { format, parseISO, isPast, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { getEvents, deleteEvent as deleteEventService } from '@/services/eventService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +24,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { cn } from '@/lib/utils';
+
+const eventTypeColors: Record<EventType, string> = {
+  club_project: 'bg-teal-500',
+  district_project: 'bg-blue-500',
+  joint_project: 'bg-purple-500',
+  official_visit: 'bg-amber-500',
+  deadline: 'bg-red-500',
+  other: 'bg-slate-500',
+};
 
 export default function EventManagementPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -118,6 +130,28 @@ export default function EventManagementPage() {
   }
 
   if (!isSuperOrAdmin) return null;
+  
+  const renderEventList = (eventList: Event[], listType: 'upcoming' | 'past') => (
+    eventList.length > 0 ? (
+      <div className="space-y-4">
+        {eventList.map(event => (
+          <EventListItem 
+            key={event.id} 
+            event={event} 
+            onEdit={() => router.push(`/events/${event.id}`)}
+            onDelete={() => handleDeleteClick(event)} 
+            onViewSummary={() => router.push(`/admin/event-summary/${event.id}`)} 
+          />
+        ))}
+      </div>
+    ) : (
+      <div className="text-center py-16 text-muted-foreground">
+        <CalendarDays className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-2 text-sm font-semibold">No {listType} events</h3>
+        <p className="mt-1 text-sm">{listType === 'upcoming' ? 'Create a new event to get started.' : 'There are no past events to show.'}</p>
+      </div>
+    )
+  );
 
   return (
     <>
@@ -129,51 +163,18 @@ export default function EventManagementPage() {
           </Button>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-primary"/>Upcoming Events</CardTitle>
-              <CardDescription>Events that are scheduled for the future.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {upcomingEvents.length > 0 ? (
-                <div className="space-y-4">
-                  {upcomingEvents.map(event => (
-                    <EventListItem 
-                      key={event.id} 
-                      event={event} 
-                      onEdit={() => router.push(`/events/${event.id}`)}
-                      onDelete={() => handleDeleteClick(event)} 
-                      onViewSummary={() => router.push(`/admin/event-summary/${event.id}`)} 
-                    />
-                  ))}
-                </div>
-              ) : <p className="text-muted-foreground text-center py-4">No upcoming events.</p>}
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground"/>Past Events</CardTitle>
-              <CardDescription>Events that have already concluded.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {pastEvents.length > 0 ? (
-                <div className="space-y-4">
-                  {pastEvents.map(event => (
-                    <EventListItem 
-                      key={event.id} 
-                      event={event} 
-                      onEdit={() => router.push(`/events/${event.id}`)} 
-                      onDelete={() => handleDeleteClick(event)} 
-                      onViewSummary={() => router.push(`/admin/event-summary/${event.id}`)} 
-                    />
-                  ))}
-                </div>
-              ) : <p className="text-muted-foreground text-center py-4">No past events found.</p>}
-            </CardContent>
-          </Card>
-        </div>
+        <Tabs defaultValue="upcoming" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                <TabsTrigger value="past">Past</TabsTrigger>
+            </TabsList>
+            <TabsContent value="upcoming" className="mt-6">
+                {renderEventList(upcomingEvents, 'upcoming')}
+            </TabsContent>
+            <TabsContent value="past" className="mt-6">
+                {renderEventList(pastEvents, 'past')}
+            </TabsContent>
+        </Tabs>
       </div>
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
@@ -185,7 +186,7 @@ export default function EventManagementPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setEventToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+            <AlertDialogAction onClick={confirmDelete} className={cn(buttonVariants({ variant: "destructive" }))}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
               Delete
             </AlertDialogAction>
@@ -204,32 +205,54 @@ interface EventListItemProps {
 }
 
 const EventListItem = ({ event, onEdit, onDelete, onViewSummary }: EventListItemProps) => {
+    let formattedDate = { day: 'N/A', month: 'N/A' };
+    if(event.startDate && isValid(parseISO(event.startDate))) {
+        const dateObj = parseISO(event.startDate);
+        formattedDate = {
+            day: format(dateObj, 'dd'),
+            month: format(dateObj, 'MMM')
+        };
+    }
+  
   return (
-    <Card className="shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3">
-        <h3 className="font-semibold text-primary">{event.name}</h3>
-      </CardHeader>
-      <CardContent className="space-y-2 pb-4">
-        <p className="text-sm text-muted-foreground flex items-center">
-            <CalendarDays className="mr-1.5 h-4 w-4"/>
-            {format(parseISO(event.startDate), 'PPP, p')}
-        </p>
-        <p className="text-sm text-muted-foreground flex items-center">
-            <MapPin className="mr-1.5 h-4 w-4"/>
-            {event.location}
-        </p>
-      </CardContent>
-      <CardFooter className="flex justify-end gap-2 border-t pt-3">
-          <Button variant="outline" size="sm" onClick={onViewSummary}>
-              <Eye className="mr-1.5 h-3.5 w-3.5" /> Summary
-          </Button>
-          <Button variant="outline" size="sm" onClick={onEdit}>
-              <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button variant="destructive" size="sm" onClick={onDelete}>
-              <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
-          </Button>
-      </CardFooter>
+    <Card className="shadow-md hover:shadow-lg transition-shadow group">
+        <div className="flex">
+            <div className="flex flex-col items-center justify-center p-4 border-r w-24 bg-muted/30">
+                <span className="text-3xl font-bold text-primary">{formattedDate.day}</span>
+                <span className="text-sm font-semibold text-muted-foreground uppercase">{formattedDate.month}</span>
+            </div>
+            <div className="flex-grow">
+                 <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start">
+                        <h3 className="font-semibold text-primary group-hover:underline text-lg pr-2">{event.name}</h3>
+                        <Badge variant="outline" className={cn("capitalize text-xs border-transparent", eventTypeColors[event.eventType || 'other'], 'text-white')}>
+                            {event.eventType?.replace(/_/g, ' ') || 'Other'}
+                        </Badge>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-2 pb-4">
+                    <p className="text-sm text-muted-foreground flex items-center">
+                        <CalendarDays className="mr-2 h-4 w-4"/>
+                        {event.startDate && isValid(parseISO(event.startDate)) ? format(parseISO(event.startDate), 'p') : 'Time not set'}
+                    </p>
+                    <p className="text-sm text-muted-foreground flex items-center">
+                        <MapPin className="mr-2 h-4 w-4"/>
+                        {event.location || "No location specified"}
+                    </p>
+                </CardContent>
+            </div>
+        </div>
+        <CardFooter className="flex justify-end gap-2 border-t pt-3 pb-3 px-4 bg-muted/20">
+            <Button variant="outline" size="sm" onClick={onViewSummary}>
+                <Eye className="mr-1.5 h-3.5 w-3.5" /> Summary
+            </Button>
+            <Button variant="outline" size="sm" onClick={onEdit}>
+                <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit
+            </Button>
+            <Button variant="destructive" size="sm" onClick={onDelete}>
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
+            </Button>
+        </CardFooter>
     </Card>
   );
 };
