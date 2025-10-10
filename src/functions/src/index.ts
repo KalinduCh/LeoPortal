@@ -10,16 +10,28 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-const GMAIL_EMAIL = "athugalpuraleoclub306d9@gmail.com";
-const GMAIL_APP_PASSWORD = "osng xjdz lhwu movh";
+/**
+ * Creates a Nodemailer transporter with credentials fetched from Firestore.
+ * This is a more secure and flexible approach than hardcoding credentials.
+ */
+const createTransporter = async () => {
+    const settingsDoc = await db.collection('clubSettings').doc('email').get();
+    const emailSettings = settingsDoc.data();
 
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: GMAIL_EMAIL,
-        pass: GMAIL_APP_PASSWORD,
-    },
-});
+    if (!emailSettings || !emailSettings.user || !emailSettings.pass) {
+        console.error("Email settings are not configured in Firestore under /clubSettings/email.");
+        throw new Error("Email credentials not configured.");
+    }
+    
+    return nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+            user: emailSettings.user,
+            pass: emailSettings.pass,
+        },
+    });
+};
+
 
 const createEmailHtml = (bodyContent: string) => {
     return `
@@ -65,22 +77,29 @@ const createEmailHtml = (bodyContent: string) => {
 
 
 /**
- * Sends a transactional email.
+ * Sends a transactional email using credentials from Firestore.
  */
 const sendEmail = async (to: string, subject: string, htmlBody: string) => {
-    const fullHtml = createEmailHtml(htmlBody);
-    const mailOptions = {
-        from: `"LEO CLUB OF ATHUGALPURA" <${GMAIL_EMAIL}>`,
-        to,
-        subject,
-        html: fullHtml,
-    };
-
     try {
+        const transporter = await createTransporter();
+        const settingsDoc = await db.collection('clubSettings').doc('email').get();
+        const fromEmail = settingsDoc.data()?.user || "noreply@leoathugal.web.app";
+        const clubNameDoc = await db.collection('clubSettings').doc('profile').get();
+        const clubName = clubNameDoc.data()?.name || "LEO Portal";
+
+        const fullHtml = createEmailHtml(htmlBody);
+        const mailOptions = {
+            from: `"${clubName}" <${fromEmail}>`,
+            to,
+            subject,
+            html: fullHtml,
+        };
         await transporter.sendMail(mailOptions);
         console.log(`Email sent to ${to} with subject: ${subject}`);
     } catch (error) {
         console.error(`Failed to send email to ${to}:`, error);
+        // Re-throw the error so the calling function knows it failed
+        throw error;
     }
 };
 
@@ -175,7 +194,11 @@ export const onUserStatusChange = functions.firestore
         <p>Best Regards,<br>Leo Club Of Athugalpura</p>
       `;
       if (userEmail) {
-        await sendEmail(userEmail, subject, htmlBody);
+         try {
+            await sendEmail(userEmail, subject, htmlBody);
+         } catch (e) {
+            console.error("Failed to send approval email, but proceeding with user approval.", e);
+         }
       }
     }
     
@@ -193,10 +216,14 @@ export const onUserStatusChange = functions.firestore
             <p>Best Regards,<br>Leo Club Of Athugalpura</p>
         `;
         if (userEmail) {
-            await sendEmail(userEmail, subject, htmlBody);
+            try {
+                await sendEmail(userEmail, subject, htmlBody);
+            } catch(e) {
+                console.error("Could not send rejection email. Deleting user document anyway.", e);
+            }
         }
 
-        // After sending email, delete the user document
+        // After sending email (or attempting to), delete the user document
         await db.collection("users").doc(userId).delete();
         console.log(`Rejected user ${userId} document deleted after sending email.`);
     }
@@ -388,7 +415,11 @@ export const sendMonthlyReports = functions.pubsub.schedule("0 9 1 * *")
         `;
 
         for (const email of adminEmails) {
-            await sendEmail(email, subject, htmlBody);
+            try {
+                await sendEmail(email, subject, htmlBody);
+            } catch(e) {
+                console.error(`Failed to send monthly report to ${email}.`, e);
+            }
         }
         
         console.log(`Monthly reports sent to ${adminEmails.length} admins.`);
