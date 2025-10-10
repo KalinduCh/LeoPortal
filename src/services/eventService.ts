@@ -7,13 +7,11 @@ import type { EventFormValues } from '@/components/events/event-form';
 
 const eventsCollection = collection(db, 'events');
 
-// EventFormValues now includes optional endDate and conditional lat/long
 export async function createEvent(data: EventFormValues): Promise<string> {
   console.log("Creating event with form data:", data);
-  const eventData: Partial<Event> & { startDate: Timestamp, reminderSent: boolean } = {
+  const eventData: Partial<Event> & { startDate: string, reminderSent: boolean } = {
     name: data.name,
-    startDate: Timestamp.fromDate(data.startDate).toDate().toISOString(),
-    location: data.location,
+    startDate: data.startDate.toISOString(),
     description: data.description,
     reminderSent: false, // Initialize reminderSent to false
   };
@@ -22,19 +20,23 @@ export async function createEvent(data: EventFormValues): Promise<string> {
     eventData.endDate = data.endDate.toISOString();
   }
 
-  if (data.enableGeoRestriction && typeof data.latitude === 'number' && !isNaN(data.latitude)) {
-    eventData.latitude = data.latitude;
+  // Conditionally add fields based on event type
+  if (data.eventType !== 'deadline') {
+    eventData.location = data.location;
+    if (data.enableGeoRestriction && typeof data.latitude === 'number' && !isNaN(data.latitude)) {
+        eventData.latitude = data.latitude;
+    }
+    if (data.enableGeoRestriction && typeof data.longitude === 'number' && !isNaN(data.longitude)) {
+        eventData.longitude = data.longitude;
+    }
+    if (data.points) {
+        eventData.points = data.points;
+    }
   }
-  if (data.enableGeoRestriction && typeof data.longitude === 'number' && !isNaN(data.longitude)) {
-    eventData.longitude = data.longitude;
-  }
+
   if (data.eventType) {
       eventData.eventType = data.eventType;
   }
-  if (data.points) {
-      eventData.points = data.points;
-  }
-
 
   const docRef = await addDoc(eventsCollection, eventData);
   console.log("Event created with ID:", docRef.id);
@@ -82,7 +84,6 @@ export async function getEvents(): Promise<Event[]> {
     return events;
   } catch (error) {
       console.error("CRITICAL ERROR in getEvents service:", error);
-      // Return empty array to prevent app crash, the error is logged for debugging.
       return [];
   }
 }
@@ -120,30 +121,39 @@ export async function updateEvent(eventId: string, data: EventFormValues): Promi
   const eventRef = doc(db, 'events', eventId);
   const updatePayload: any = {
     name: data.name,
-    startDate: Timestamp.fromDate(data.startDate).toDate().toISOString(),
-    location: data.location,
+    startDate: data.startDate.toISOString(),
     description: data.description,
     eventType: data.eventType || deleteField(),
-    points: data.points || deleteField(),
   };
 
   if (data.endDate) {
-    updatePayload.endDate = Timestamp.fromDate(data.endDate).toDate().toISOString();
+    updatePayload.endDate = data.endDate.toISOString();
   } else {
-    updatePayload.endDate = deleteField(); // Remove field if it's not provided
+    updatePayload.endDate = deleteField();
   }
 
-  if (data.enableGeoRestriction && typeof data.latitude === 'number' && !isNaN(data.latitude) && typeof data.longitude === 'number' && !isNaN(data.longitude) ) {
-    updatePayload.latitude = data.latitude;
-    updatePayload.longitude = data.longitude;
-  } else {
+  // Handle fields based on event type
+  if (data.eventType === 'deadline') {
+    updatePayload.location = deleteField();
     updatePayload.latitude = deleteField();
     updatePayload.longitude = deleteField();
+    updatePayload.points = deleteField();
+  } else {
+    updatePayload.location = data.location;
+    updatePayload.points = data.points || deleteField();
+    if (data.enableGeoRestriction && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+        updatePayload.latitude = data.latitude;
+        updatePayload.longitude = data.longitude;
+    } else {
+        updatePayload.latitude = deleteField();
+        updatePayload.longitude = deleteField();
+    }
   }
   
   await updateDoc(eventRef, updatePayload);
   console.log(`Event ${eventId} updated.`);
 }
+
 
 export async function deleteEvent(eventId: string): Promise<void> {
   const eventRef = doc(db, 'events', eventId);

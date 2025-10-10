@@ -1,3 +1,4 @@
+
 // src/components/events/event-card.tsx
 "use client";
 
@@ -53,7 +54,6 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
     }
   }
 
-  // NEW LOGIC for event status
   const now = new Date();
   const endDateForCheck = event.endDate && isValid(parseISO(event.endDate)) 
                 ? parseISO(event.endDate) 
@@ -70,7 +70,8 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
       statusClassName = 'bg-green-600 hover:bg-green-700 text-white';
   }
   
-  const canMarkAttendance = userRole === 'member' && eventStatus === 'Ongoing' && !currentAttendanceRecord;
+  const isDeadline = event.eventType === 'deadline';
+  const canMarkAttendance = userRole === 'member' && eventStatus === 'Ongoing' && !currentAttendanceRecord && !isDeadline;
   const isGeoRestrictionActive = typeof event.latitude === 'number' && typeof event.longitude === 'number';
 
   const handleMarkAttendance = async () => {
@@ -149,7 +150,6 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
     };
 
     const startDate = parseISO(event.startDate);
-    // Use end date if available, otherwise default to one hour after start
     const endDate = event.endDate ? parseISO(event.endDate) : new Date(startDate.getTime() + 60 * 60 * 1000);
 
     const googleCalendarUrl = new URL("https://www.google.com/calendar/render");
@@ -157,7 +157,9 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
     googleCalendarUrl.searchParams.append("text", event.name);
     googleCalendarUrl.searchParams.append("dates", `${formatGoogleCalendarDate(startDate)}/${formatGoogleCalendarDate(endDate)}`);
     googleCalendarUrl.searchParams.append("details", event.description);
-    googleCalendarUrl.searchParams.append("location", event.location);
+    if (event.location) {
+        googleCalendarUrl.searchParams.append("location", event.location);
+    }
 
     window.open(googleCalendarUrl.toString(), "_blank");
   };
@@ -183,11 +185,13 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
       </CardHeader>
       <CardContent className="flex-grow">
         <div className="space-y-3">
-          <div className="flex items-start text-sm">
-            <MapPin className="mr-2 h-4 w-4 mt-0.5 shrink-0 text-primary" />
-            <span className="text-muted-foreground">{event.location}</span>
-          </div>
-          {isGeoRestrictionActive && (
+          {!isDeadline && event.location && (
+            <div className="flex items-start text-sm">
+                <MapPin className="mr-2 h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                <span className="text-muted-foreground">{event.location}</span>
+            </div>
+          )}
+          {isGeoRestrictionActive && !isDeadline && (
              <div className="flex items-start text-xs text-muted-foreground">
                 <Navigation className="mr-2 h-3 w-3 mt-0.5 shrink-0 text-green-600" />
                 <span>Geo-restricted attendance enabled.</span>
@@ -200,7 +204,7 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
         </div>
       </CardContent>
       <CardFooter className="border-t pt-4 flex-col gap-3">
-        {userRole === 'member' && (
+        {userRole === 'member' && !isDeadline && (
           <div className="w-full">
             {currentAttendanceRecord && currentAttendanceRecord.status === 'present' ? (
               <div className="flex items-center justify-center p-2 rounded-md bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
@@ -219,7 +223,7 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
             )}
           </div>
         )}
-         {userRole === 'admin' && (
+         {userRole === 'admin' && !isDeadline && (
           <div className="text-xs text-muted-foreground w-full text-center">
             {isGeoRestrictionActive 
               ? "Geo-restricted attendance is enabled."
@@ -228,7 +232,7 @@ export function EventCard({ event, user, userRole, attendanceRecord: initialAtte
         )}
         {(userRole === 'member' || userRole === 'admin') && eventStatus !== 'Past' && (
             <>
-              {(userRole === 'member' && !currentAttendanceRecord) && <Separator />}
+              {((userRole === 'member' && !currentAttendanceRecord && !isDeadline) || isDeadline) && <Separator />}
               <Button onClick={handleAddToCalendar} variant="outline" className="w-full">
                   <CalendarPlus className="mr-2 h-4 w-4"/>
                   Add to Google Calendar
