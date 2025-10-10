@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/calendar/page.tsx
 "use client";
 
@@ -210,11 +211,11 @@ export default function CalendarPage() {
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-headline text-primary">{selectedEvent.name}</DialogTitle>
-                    <DialogDescription className="pt-2">
+                    <div className="pt-2">
                          <Badge style={{ backgroundColor: eventTypeColors[selectedEvent.eventType || 'other'].backgroundColor, color: '#fff', borderColor: eventTypeColors[selectedEvent.eventType || 'other'].borderColor }} className={cn("text-white")}>
                             {selectedEvent.eventType?.replace(/_/g, ' ') || 'Other'}
                         </Badge>
-                    </DialogDescription>
+                    </div>
                 </DialogHeader>
                  <div className="space-y-3 py-4">
                     <div className="flex items-center text-sm">
