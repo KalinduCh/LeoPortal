@@ -11,7 +11,6 @@ import { getEvents } from '@/services/eventService';
 import type { Event as MyEvent } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Calendar as CalendarIcon, MapPin, Info, Clock, Navigation, CalendarPlus } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +38,6 @@ export default function CalendarPage() {
   const [monthlyEvents, setMonthlyEvents] = useState<MyEvent[]>([]);
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
 
-  const [popoverTarget, setPopoverTarget] = useState<HTMLElement | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<MyEvent | null>(null);
   
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -90,22 +88,28 @@ export default function CalendarPage() {
 
   const handleEventClick = (clickInfo: any) => {
     setSelectedEvent(clickInfo.event.extendedProps as MyEvent);
-    setPopoverTarget(clickInfo.el);
+    setSheetOpen(true);
   };
   
   const handleDateClick = (arg: DateClickArg) => {
-    if(isMobile) {
-        const clickedDate = arg.date;
-        const eventsOnDate = events.filter(e => {
-            const eventStart = new Date(e.start);
-            const eventEnd = e.end ? new Date(e.end) : eventStart;
-            return clickedDate >= eventStart && clickedDate <= eventEnd;
-        }).map(e => e.extendedProps as MyEvent);
-        
-        setSheetEvents(eventsOnDate);
-        setSheetDate(clickedDate);
-        setSheetOpen(true);
-    }
+      const clickedDate = arg.date;
+      const eventsOnDate = events.filter(e => {
+          const eventStart = new Date(e.start);
+          const eventEnd = e.end ? new Date(e.end) : eventStart;
+          // Check if the clicked date falls within the event's start and end times
+          return isWithinInterval(clickedDate, { start: eventStart, end: eventEnd });
+      }).map(e => e.extendedProps as MyEvent);
+
+      if (eventsOnDate.length === 1) {
+          setSelectedEvent(eventsOnDate[0]);
+      } else {
+          // If multiple events or no events, let the sheet handle it
+          setSelectedEvent(null);
+      }
+
+      setSheetEvents(eventsOnDate);
+      setSheetDate(clickedDate);
+      setSheetOpen(true);
   };
 
   const handleDatesSet = (dateInfo: any) => {
@@ -141,7 +145,7 @@ export default function CalendarPage() {
             <div className="fc-theme">
               <FullCalendar
                 plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
-                initialView={isMobile ? 'dayGridMonth' : 'dayGridMonth'} // Default to month view on mobile too
+                initialView={isMobile ? 'dayGridMonth' : 'dayGridMonth'}
                 headerToolbar={{
                   left: 'prev,next today',
                   center: 'title',
@@ -203,7 +207,7 @@ export default function CalendarPage() {
                     </div>
                     <div className="flex items-center gap-2 mt-2 sm:mt-0 sm:ml-4 flex-shrink-0">
                        <Badge variant="outline" className={cn("capitalize", statusClass)}>{status}</Badge>
-                       <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(event)}>View</Button>
+                       <Button variant="ghost" size="sm" onClick={() => { setSelectedEvent(event); setSheetOpen(true); }}>View</Button>
                     </div>
                   </div>
                 );
@@ -215,23 +219,28 @@ export default function CalendarPage() {
         </CardContent>
       </Card>
       
-      <Popover open={!!(popoverTarget && selectedEvent)} onOpenChange={() => { setSelectedEvent(null); setPopoverTarget(null); }}>
-          <PopoverTrigger asChild><span /></PopoverTrigger>
-          <PopoverContent className="w-80" style={{position: 'absolute'}}>
-            {selectedEvent && <EventDetails event={selectedEvent} />}
-          </PopoverContent>
-      </Popover>
-      
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent>
+        <SheetContent className="w-full max-w-md sm:w-[400px]">
             <SheetHeader>
-                <SheetTitle>Events for {sheetDate ? format(sheetDate, 'MMMM d, yyyy') : ''}</SheetTitle>
-                <SheetDescription>Details for all events on this day.</SheetDescription>
+                <SheetTitle>
+                    {selectedEvent 
+                        ? 'Event Details' 
+                        : `Events for ${sheetDate ? format(sheetDate, 'MMMM d, yyyy') : ''}`
+                    }
+                </SheetTitle>
+                <SheetDescription>
+                    {selectedEvent 
+                        ? 'Details for the selected event.'
+                        : 'All events scheduled for this day.'
+                    }
+                </SheetDescription>
             </SheetHeader>
             <div className="space-y-4 py-4">
-                 {sheetEvents.length > 0 ? sheetEvents.map(event => (
-                    <EventDetails key={event.id} event={event} isSheetVersion/>
-                 )) : <p className="text-muted-foreground text-sm">No events scheduled for this day.</p>}
+                 {selectedEvent ? (
+                    <EventDetails event={selectedEvent} />
+                 ) : sheetEvents.length > 0 ? (
+                    sheetEvents.map(event => <EventDetails key={event.id} event={event}/>)
+                 ) : <p className="text-muted-foreground text-sm">No events scheduled for this day.</p>}
             </div>
         </SheetContent>
       </Sheet>
@@ -252,7 +261,7 @@ export default function CalendarPage() {
         .fc-theme a.fc-event {
             cursor: pointer;
         }
-        .fc-theme .fc-h-event {
+        .fc-theme .fc-h-event, .fc-theme .fc-v-event {
             border: 1px solid var(--fc-event-border-color) !important;
             background-color: var(--fc-event-bg-color) !important;
         }
@@ -273,7 +282,7 @@ export default function CalendarPage() {
 }
 
 
-function EventDetails({ event, isSheetVersion = false }: { event: MyEvent, isSheetVersion?: boolean }) {
+function EventDetails({ event }: { event: MyEvent }) {
   const handleAddToCalendar = () => {
     const formatGoogleCalendarDate = (date: Date): string => {
         return formatISO(date).replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -307,19 +316,15 @@ function EventDetails({ event, isSheetVersion = false }: { event: MyEvent, isShe
       }
   }
 
-  const Wrapper = isSheetVersion ? 'div' : Card;
-
   return (
-    <Wrapper className={isSheetVersion ? 'border-b pb-4 mb-4' : ''}>
-      <CardHeader className={isSheetVersion ? 'p-0 pb-3' : ''}>
-        <CardTitle className="text-xl font-headline text-primary">{event.name}</CardTitle>
-        <div className="pt-2">
-            <Badge style={{ backgroundColor: eventTypeColors[event.eventType || 'other'].backgroundColor, color: '#fff', borderColor: eventTypeColors[event.eventType || 'other'].borderColor }} className={cn("text-white capitalize")}>
-                {event.eventType?.replace(/_/g, ' ') || 'Other'}
-            </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className={isSheetVersion ? 'p-0 space-y-3' : 'space-y-3'}>
+    <div className='border-b pb-4 mb-4 last:border-b-0 last:pb-0 last:mb-0'>
+      <h3 className="text-xl font-headline text-primary font-semibold">{event.name}</h3>
+      <div className="pt-2">
+        <Badge style={{ backgroundColor: eventTypeColors[event.eventType || 'other'].backgroundColor, color: '#fff', borderColor: eventTypeColors[event.eventType || 'other'].borderColor }} className={cn("text-white capitalize")}>
+            {event.eventType?.replace(/_/g, ' ') || 'Other'}
+        </Badge>
+      </div>
+      <div className="space-y-3 mt-3">
         <div className="flex items-center text-sm">
             <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">{formattedDate}</span>
@@ -340,15 +345,11 @@ function EventDetails({ event, isSheetVersion = false }: { event: MyEvent, isShe
             <Info className="mr-2 h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
             <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{event.description}</p>
         </div>
-      </CardContent>
-       {!isSheetVersion && (
-        <CardContent>
-             <Button onClick={handleAddToCalendar} variant="outline" className="w-full">
-                <CalendarPlus className="mr-2 h-4 w-4"/>
-                Add to Google Calendar
-            </Button>
-        </CardContent>
-       )}
-    </Wrapper>
+      </div>
+      <Button onClick={handleAddToCalendar} variant="outline" className="w-full mt-4">
+          <CalendarPlus className="mr-2 h-4 w-4"/>
+          Add to Google Calendar
+      </Button>
+    </div>
   );
 }
