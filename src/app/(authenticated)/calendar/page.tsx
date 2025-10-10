@@ -89,7 +89,7 @@ export default function CalendarPage() {
       });
 
       const holidaySource = {
-        url: 'https://www.officeholidays.com/ics-clean/sri-lanka',
+        url: 'https://ics.calendarlabs.com/517/c62b9b29/Sri_Lanka_Holidays.ics',
         format: 'ics',
         color: '#FFEBEE', // light pink background
         borderColor: '#E57373',
