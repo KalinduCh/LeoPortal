@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/calendar/page.tsx
 "use client";
 
@@ -7,15 +6,16 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
-import interactionPlugin from '@fullcalendar/interaction';
+import interactionPlugin, { type DateClickArg } from '@fullcalendar/interaction';
 import { getEvents } from '@/services/eventService';
 import type { Event as MyEvent } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Calendar as CalendarIcon, MapPin, Info, Clock, Navigation } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Loader2, Calendar as CalendarIcon, MapPin, Info, Clock, Navigation, CalendarPlus } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO, isValid, isWithinInterval, isPast, isFuture, getMonth, getYear } from 'date-fns';
+import { format, parseISO, isValid, isWithinInterval, isPast, getMonth, getYear, formatISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -33,14 +33,18 @@ const eventTypeColors: Record<MyEvent['eventType'] & string, { backgroundColor: 
 export default function CalendarPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<MyEvent | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
-  const calendarRef = useRef<FullCalendar>(null);
   const isMobile = useIsMobile();
   
   const [monthlyEvents, setMonthlyEvents] = useState<MyEvent[]>([]);
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
+
+  const [popoverTarget, setPopoverTarget] = useState<HTMLElement | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<MyEvent | null>(null);
+  
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetEvents, setSheetEvents] = useState<MyEvent[]>([]);
+  const [sheetDate, setSheetDate] = useState<Date | null>(null);
 
 
   const fetchCalendarEvents = useCallback(async () => {
@@ -86,29 +90,30 @@ export default function CalendarPage() {
 
   const handleEventClick = (clickInfo: any) => {
     setSelectedEvent(clickInfo.event.extendedProps as MyEvent);
-    setIsModalOpen(true);
+    setPopoverTarget(clickInfo.el);
   };
   
+  const handleDateClick = (arg: DateClickArg) => {
+    if(isMobile) {
+        const clickedDate = arg.date;
+        const eventsOnDate = events.filter(e => {
+            const eventStart = new Date(e.start);
+            const eventEnd = e.end ? new Date(e.end) : eventStart;
+            return clickedDate >= eventStart && clickedDate <= eventEnd;
+        }).map(e => e.extendedProps as MyEvent);
+        
+        setSheetEvents(eventsOnDate);
+        setSheetDate(clickedDate);
+        setSheetOpen(true);
+    }
+  };
+
   const handleDatesSet = (dateInfo: any) => {
       const newDate = dateInfo.view.currentStart;
       setCurrentCalendarDate(newDate);
       const allEvents: MyEvent[] = events.map(e => e.extendedProps);
       updateMonthlyEvents(newDate, allEvents);
   };
-  
-  let formattedModalDate = "Date unavailable";
-  if (selectedEvent?.startDate && isValid(parseISO(selectedEvent.startDate))) {
-      const startDate = parseISO(selectedEvent.startDate);
-      formattedModalDate = format(startDate, "MMM d, yyyy 'at' h:mm a");
-      if (selectedEvent.endDate && isValid(parseISO(selectedEvent.endDate))) {
-          const endDate = parseISO(selectedEvent.endDate);
-          if (endDate.toDateString() !== startDate.toDateString()) {
-              formattedModalDate = `${format(startDate, "MMM d, h:mm a")} - ${format(endDate, "MMM d, h:mm a")}`;
-          } else {
-              formattedModalDate = `${format(startDate, "MMM d, yyyy, h:mm a")} - ${format(endDate, "h:mm a")}`;
-          }
-      }
-  }
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -135,9 +140,8 @@ export default function CalendarPage() {
           ) : (
             <div className="fc-theme">
               <FullCalendar
-                ref={calendarRef}
                 plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
-                initialView={isMobile ? 'listWeek' : 'dayGridMonth'}
+                initialView={isMobile ? 'dayGridMonth' : 'dayGridMonth'} // Default to month view on mobile too
                 headerToolbar={{
                   left: 'prev,next today',
                   center: 'title',
@@ -145,15 +149,15 @@ export default function CalendarPage() {
                 }}
                 events={events}
                 eventClick={handleEventClick}
+                dateClick={handleDateClick}
                 datesSet={handleDatesSet}
                 height="auto"
-                dayMaxEvents={true}
+                dayMaxEvents={2}
                 navLinks={true}
                 buttonText={{
                     today: 'Today',
                     month: 'Month',
                     week: 'Week',
-                    day: 'Day',
                     list: 'List',
                 }}
               />
@@ -194,7 +198,7 @@ export default function CalendarPage() {
                     </div>
                     <div className="flex items-center gap-2 mt-2 sm:mt-0">
                        <Badge variant="outline" className={cn("capitalize", statusClass)}>{status}</Badge>
-                       <Button variant="ghost" size="sm" onClick={() => { setSelectedEvent(event); setIsModalOpen(true);}}>View Details</Button>
+                       <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(event)}>View</Button>
                     </div>
                   </div>
                 );
@@ -206,66 +210,39 @@ export default function CalendarPage() {
         </CardContent>
       </Card>
       
-      {selectedEvent && (
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle className="text-2xl font-headline text-primary">{selectedEvent.name}</DialogTitle>
-                    <div className="pt-2">
-                         <Badge style={{ backgroundColor: eventTypeColors[selectedEvent.eventType || 'other'].backgroundColor, color: '#fff', borderColor: eventTypeColors[selectedEvent.eventType || 'other'].borderColor }} className={cn("text-white")}>
-                            {selectedEvent.eventType?.replace(/_/g, ' ') || 'Other'}
-                        </Badge>
-                    </div>
-                </DialogHeader>
-                 <div className="space-y-3 py-4">
-                    <div className="flex items-center text-sm">
-                        <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">{formattedModalDate}</span>
-                    </div>
-                    {selectedEvent.location && selectedEvent.eventType !== 'deadline' && (
-                        <div className="flex items-center text-sm">
-                            <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">{selectedEvent.location}</span>
-                        </div>
-                    )}
-                    {typeof selectedEvent.latitude === 'number' && typeof selectedEvent.longitude === 'number' && (
-                        <div className="flex items-start text-xs text-green-600 mt-2">
-                            <Navigation className="mr-2 h-3 w-3 mt-0.5 shrink-0" />
-                            <span>Geo-restricted attendance enabled.</span>
-                        </div>
-                    )}
-                    <div className="flex items-start text-sm">
-                        <Info className="mr-2 h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
-                        <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{selectedEvent.description}</p>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
-      )}
+      <Popover open={!!(popoverTarget && selectedEvent)} onOpenChange={() => { setSelectedEvent(null); setPopoverTarget(null); }}>
+          <PopoverTrigger asChild><span /></PopoverTrigger>
+          <PopoverContent className="w-80" style={{position: 'absolute'}}>
+            {selectedEvent && <EventDetails event={selectedEvent} />}
+          </PopoverContent>
+      </Popover>
+      
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent>
+            <SheetHeader>
+                <SheetTitle>Events for {sheetDate ? format(sheetDate, 'MMMM d, yyyy') : ''}</SheetTitle>
+                <SheetDescription>Details for all events on this day.</SheetDescription>
+            </SheetHeader>
+            <div className="space-y-4 py-4">
+                 {sheetEvents.length > 0 ? sheetEvents.map(event => (
+                    <EventDetails key={event.id} event={event} isSheetVersion/>
+                 )) : <p className="text-muted-foreground text-sm">No events scheduled for this day.</p>}
+            </div>
+        </SheetContent>
+      </Sheet>
 
       <style jsx global>{`
+        .fc-theme {
+            --fc-button-bg-color: hsl(var(--primary));
+            --fc-button-border-color: hsl(var(--primary));
+            --fc-button-hover-bg-color: hsl(var(--primary) / 0.9);
+            --fc-button-hover-border-color: hsl(var(--primary) / 0.9);
+            --fc-button-active-bg-color: hsl(var(--accent));
+            --fc-button-active-border-color: hsl(var(--accent));
+            --fc-today-bg-color: hsl(var(--accent) / 0.1);
+        }
         .fc-theme .fc-button-primary {
-          background-color: hsl(var(--primary));
-          border-color: hsl(var(--primary));
           color: hsl(var(--primary-foreground));
-        }
-        .fc-theme .fc-button-primary:not(:disabled):hover, .fc-theme .fc-button-primary:not(:disabled):active {
-          background-color: hsl(var(--primary) / 0.9);
-          border-color: hsl(var(--primary) / 0.9);
-        }
-        .fc-theme .fc-button-primary:disabled {
-          background-color: hsl(var(--primary));
-          opacity: 0.5;
-        }
-        .fc-theme .fc-button-primary.fc-button-active {
-            background-color: hsl(var(--accent));
-            border-color: hsl(var(--accent));
-        }
-        .fc-theme .fc-daygrid-day.fc-day-today {
-          background-color: hsl(var(--accent) / 0.1);
-        }
-        .fc-theme .fc-list-event-dot {
-            border-color: var(--fc-event-border-color) !important;
         }
         .fc-theme a.fc-event {
             cursor: pointer;
@@ -274,10 +251,10 @@ export default function CalendarPage() {
             border: 1px solid var(--fc-event-border-color) !important;
             background-color: var(--fc-event-bg-color) !important;
         }
-        /* Make header responsive */
         .fc-toolbar.fc-header-toolbar {
             flex-direction: column;
             gap: 1rem;
+            align-items: center;
         }
         @media (min-width: 768px) {
             .fc-toolbar.fc-header-toolbar {
@@ -287,5 +264,86 @@ export default function CalendarPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+
+function EventDetails({ event, isSheetVersion = false }: { event: MyEvent, isSheetVersion?: boolean }) {
+  const handleAddToCalendar = () => {
+    const formatGoogleCalendarDate = (date: Date): string => {
+        return formatISO(date).replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    const startDate = parseISO(event.startDate);
+    const endDate = event.endDate ? parseISO(event.endDate) : new Date(startDate.getTime() + 60 * 60 * 1000);
+
+    const googleCalendarUrl = new URL("https://www.google.com/calendar/render");
+    googleCalendarUrl.searchParams.append("action", "TEMPLATE");
+    googleCalendarUrl.searchParams.append("text", event.name);
+    googleCalendarUrl.searchParams.append("dates", `${formatGoogleCalendarDate(startDate)}/${formatGoogleCalendarDate(endDate)}`);
+    googleCalendarUrl.searchParams.append("details", event.description);
+    if (event.location) {
+        googleCalendarUrl.searchParams.append("location", event.location);
+    }
+    window.open(googleCalendarUrl.toString(), "_blank");
+  };
+
+  let formattedDate = "Date unavailable";
+  if (event?.startDate && isValid(parseISO(event.startDate))) {
+      const startDate = parseISO(event.startDate);
+      formattedDate = format(startDate, "MMM d, yyyy 'at' h:mm a");
+      if (event.endDate && isValid(parseISO(event.endDate))) {
+          const endDate = parseISO(event.endDate);
+          if (endDate.toDateString() !== startDate.toDateString()) {
+              formattedDate = `${format(startDate, "MMM d, h:mm a")} - ${format(endDate, "MMM d, h:mm a")}`;
+          } else {
+              formattedDate = `${format(startDate, "MMM d, yyyy, h:mm a")} - ${format(endDate, "h:mm a")}`;
+          }
+      }
+  }
+
+  const Wrapper = isSheetVersion ? 'div' : Card;
+
+  return (
+    <Wrapper className={isSheetVersion ? 'border-b pb-4 mb-4' : ''}>
+      <CardHeader className={isSheetVersion ? 'p-0 pb-3' : ''}>
+        <CardTitle className="text-xl font-headline text-primary">{event.name}</CardTitle>
+        <div className="pt-2">
+            <Badge style={{ backgroundColor: eventTypeColors[event.eventType || 'other'].backgroundColor, color: '#fff', borderColor: eventTypeColors[event.eventType || 'other'].borderColor }} className={cn("text-white capitalize")}>
+                {event.eventType?.replace(/_/g, ' ') || 'Other'}
+            </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className={isSheetVersion ? 'p-0 space-y-3' : 'space-y-3'}>
+        <div className="flex items-center text-sm">
+            <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">{formattedDate}</span>
+        </div>
+        {event.location && event.eventType !== 'deadline' && (
+            <div className="flex items-center text-sm">
+                <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">{event.location}</span>
+            </div>
+        )}
+        {typeof event.latitude === 'number' && typeof event.longitude === 'number' && (
+            <div className="flex items-start text-xs text-green-600">
+                <Navigation className="mr-2 h-3 w-3 mt-0.5 shrink-0" />
+                <span>Geo-restricted attendance enabled.</span>
+            </div>
+        )}
+        <div className="flex items-start text-sm">
+            <Info className="mr-2 h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+            <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{event.description}</p>
+        </div>
+      </CardContent>
+       {!isSheetVersion && (
+        <CardContent>
+             <Button onClick={handleAddToCalendar} variant="outline" className="w-full">
+                <CalendarPlus className="mr-2 h-4 w-4"/>
+                Add to Google Calendar
+            </Button>
+        </CardContent>
+       )}
+    </Wrapper>
   );
 }
