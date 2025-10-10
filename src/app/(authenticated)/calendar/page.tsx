@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/calendar/page.tsx
 "use client";
 
@@ -254,9 +255,6 @@ export default function CalendarPage() {
             --fc-button-active-bg-color: hsl(var(--accent));
             --fc-button-active-border-color: hsl(var(--accent));
             --fc-today-bg-color: hsl(var(--accent) / 0.1);
-        }
-        .fc-theme .fc-button-primary {
-          color: hsl(var(--primary-foreground));
         }
         .fc-theme a.fc-event {
             cursor: pointer;
