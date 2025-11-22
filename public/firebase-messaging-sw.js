@@ -1,15 +1,10 @@
+// This file should be in the public folder
 
-// This file needs to be in the public directory
+// Scripts for firebase and firebase messaging
+importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
-// In order for Firebase Messaging to work in the background, this file must be called firebase-messaging-sw.js
-// and be located in the public folder.
-
-// Import and initialize the Firebase SDK
-// It's important to import the sw.js build of the SDK
-import { initializeApp } from "firebase/app";
-import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
-
-// Get your Firebase configuration object from the Firebase console
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBf_kQkSkomBserNaNZYaF2TkE6qObD36U",
   authDomain: "leoathugal.firebaseapp.com",
@@ -21,18 +16,17 @@ const firebaseConfig = {
 };
 
 
-const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
+// Initialize Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const messaging = firebase.messaging();
 
-// This handler will be called when a push notification is received while the service worker is in the background.
-onBackgroundMessage(messaging, (payload) => {
-    console.log('[firebase-messaging-sw.js] Received background message ', payload);
+messaging.onBackgroundMessage((payload) => {
+  console.log('[firebase-messaging-sw.js] Received background message ', payload);
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
+    body: payload.notification.body,
+    icon: payload.notification.icon || '/icon-192x192.png'
+  };
 
-    const notificationTitle = payload.notification?.title || 'New LEO Portal Notification';
-    const notificationOptions = {
-        body: payload.notification?.body || 'You have a new update.',
-        icon: payload.notification?.icon || '/icons/icon-192x192.png' // Default icon
-    };
-
-    self.registration.showNotification(notificationTitle, notificationOptions);
+  self.registration.showNotification(notificationTitle, notificationOptions);
 });
