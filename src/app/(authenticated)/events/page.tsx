@@ -177,8 +177,8 @@ export default function EventManagementPage() {
   );
 
   const getEventUrl = (eventId: string) => {
-      if (typeof window === 'undefined') return '';
-      return `${window.location.origin}/attendance-scanner?eventId=${eventId}`;
+    // Always use the production URL for the QR code
+    return `https://leoathugal.web.app/attendance-scanner?eventId=${eventId}`;
   };
 
   return (
