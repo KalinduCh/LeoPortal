@@ -1,22 +1,19 @@
 // src/app/attendance-scanner/page.tsx
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import type { Event, User } from '@/types';
 import { getEvent } from '@/services/eventService';
 import { markUserAttendance } from '@/services/attendanceService';
 import { getCurrentPosition, calculateDistanceInMeters, MAX_ATTENDANCE_DISTANCE_METERS } from '@/lib/geolocation';
-import { Loader2, CameraOff, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { cn } from '@/lib/utils';
 
-type ScanStatus = 'idle' | 'scanning' | 'processing' | 'success' | 'error';
+type ScanStatus = 'initializing' | 'processing' | 'success' | 'error' | 'redirecting';
 
 export default function AttendanceScannerPage() {
     const router = useRouter();
@@ -24,51 +21,13 @@ export default function AttendanceScannerPage() {
     const { user, isLoading: authLoading } = useAuth();
     const { toast } = useToast();
 
-    const [status, setStatus] = useState<ScanStatus>('idle');
+    const [status, setStatus] = useState<ScanStatus>('initializing');
     const [statusMessage, setStatusMessage] = useState('Initializing...');
-    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-    const scannerRef = useRef<Html5Qrcode | null>(null);
+    const eventId = searchParams.get('eventId');
 
-    const eventIdFromUrl = searchParams.get('eventId');
-
-    const onScanSuccess = useCallback(async (decodedText: string, decodedResult: any) => {
-        if (status !== 'scanning') return;
-        
+    const processMemberAttendance = useCallback(async (eventId: string, member: User) => {
         setStatus('processing');
-        setStatusMessage('QR Code detected. Processing attendance...');
-
-        try {
-            const url = new URL(decodedText);
-            const eventId = url.searchParams.get('eventId');
-            
-            if (!eventId) {
-                throw new Error("Invalid QR Code: Event ID not found.");
-            }
-
-            if (scannerRef.current) {
-                await scannerRef.current.stop();
-            }
-
-            // If user is logged in, mark their attendance directly.
-            if (user) {
-                await processMemberAttendance(eventId, user);
-            } else {
-                // If not logged in, redirect to the visitor page for that event.
-                toast({
-                    title: "Visitor Detected",
-                    description: "Redirecting you to the visitor attendance form...",
-                });
-                router.push(`/visiting-leo?eventId=${eventId}`);
-            }
-
-        } catch (error: any) {
-            console.error("Scan processing error:", error);
-            setStatus('error');
-            setStatusMessage(error.message || "Failed to process QR Code. Please try again.");
-        }
-    }, [status, user, router, toast]);
-
-    const processMemberAttendance = async (eventId: string, member: User) => {
+        setStatusMessage('Event link detected. Processing your attendance...');
         try {
             const event = await getEvent(eventId);
             if (!event) {
@@ -105,109 +64,66 @@ export default function AttendanceScannerPage() {
             setStatus('error');
             setStatusMessage(error.message || "An unexpected error occurred while marking attendance.");
         }
-    };
+    }, []);
 
     useEffect(() => {
-        const startScanner = async () => {
-            if (authLoading) return;
-            // If eventId is in URL and user is logged in, process immediately without scanning
-            if (eventIdFromUrl && user) {
-                setStatus('processing');
-                setStatusMessage('Event link detected. Processing attendance...');
-                await processMemberAttendance(eventIdFromUrl, user);
-                return;
-            }
-            if (eventIdFromUrl && !user) {
-                setStatus('processing');
-                setStatusMessage('Redirecting to visitor form...');
-                router.push(`/visiting-leo?eventId=${eventIdFromUrl}`);
-                return;
-            }
+        if (authLoading) {
+            return; // Wait until auth state is confirmed
+        }
 
+        if (!eventId) {
+            setStatus('error');
+            setStatusMessage("No Event ID provided in the link. Please scan a valid QR code.");
+            return;
+        }
+        
+        if (user) {
+            // User is logged in, process their attendance
+            processMemberAttendance(eventId, user);
+        } else {
+            // User is not logged in (visitor), redirect to the visitor form
+            setStatus('redirecting');
+            setStatusMessage("You are not logged in. Redirecting to visitor attendance form...");
+            toast({
+                title: "Visitor Detected",
+                description: "Please fill out the form to mark your attendance.",
+            });
+            router.replace(`/visiting-leo?eventId=${eventId}`);
+        }
 
-            // Otherwise, start the scanner
-            if (scannerRef.current) return;
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                supportedformats: [Html5QrcodeSupportedFormats.QR_CODE]
-            };
-            const html5QrCode = new Html5Qrcode("qr-reader");
-            scannerRef.current = html5QrCode;
-
-            try {
-                await html5QrCode.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    (errorMessage) => { /* Ignore scan errors */ }
-                );
-                setStatus('scanning');
-                setStatusMessage('Point your camera at an event QR Code.');
-                setHasCameraPermission(true);
-            } catch (err) {
-                console.error("Failed to start QR scanner:", err);
-                setStatus('error');
-                setStatusMessage("Could not access camera. Please grant permission and refresh the page.");
-                setHasCameraPermission(false);
-            }
-        };
-        startScanner();
-
-        return () => {
-            if (scannerRef.current && scannerRef.current.isScanning) {
-                scannerRef.current.stop().catch(err => console.error("Failed to stop scanner on cleanup:", err));
-            }
-        };
-    }, [authLoading, user, eventIdFromUrl, onScanSuccess, router]);
+    }, [authLoading, user, eventId, router, toast, processMemberAttendance]);
     
     const renderStatusIcon = () => {
         switch (status) {
-            case 'idle':
+            case 'initializing':
             case 'processing':
+            case 'redirecting':
                 return <Loader2 className="h-16 w-16 animate-spin text-primary" />;
-            case 'scanning':
-                return null; // The video feed is the main content
             case 'success':
                 return <CheckCircle className="h-16 w-16 text-green-500" />;
             case 'error':
                  return <XCircle className="h-16 w-16 text-destructive" />;
-            case 'camera_denied':
-                return <CameraOff className="h-16 w-16 text-muted-foreground" />;
             default:
                 return null;
         }
     };
 
-
     return (
         <div className="container mx-auto py-8 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
             <Card className="w-full max-w-md shadow-2xl">
                 <CardHeader className="text-center">
-                    <CardTitle className="text-2xl font-headline">Scan Attendance QR Code</CardTitle>
+                    <CardTitle className="text-2xl font-headline">Processing Attendance</CardTitle>
                     <CardDescription>{statusMessage}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center p-4 min-h-[300px]">
-                    <div id="qr-reader" className={cn("w-full max-w-[300px]", status !== 'scanning' && 'hidden')}></div>
-                     {status !== 'scanning' && (
-                        <div className="flex flex-col items-center justify-center text-center">
-                            {renderStatusIcon()}
-                            {hasCameraPermission === false && (
-                                 <Alert variant="destructive" className="mt-4">
-                                  <AlertTitle>Camera Access Required</AlertTitle>
-                                  <AlertDescription>
-                                    Please allow camera access in your browser settings to use the scanner.
-                                  </AlertDescription>
-                                </Alert>
-                            )}
-                            {status === 'success' && (
-                                <Button onClick={() => router.push('/dashboard')} className="mt-6">Back to Dashboard</Button>
-                            )}
-                             {status === 'error' && (
-                                <Button variant="outline" onClick={() => window.location.reload()} className="mt-6">Try Again</Button>
-                            )}
-                        </div>
-                    )}
+                <CardContent className="flex flex-col items-center justify-center p-4 min-h-[200px]">
+                    <div className="flex flex-col items-center justify-center text-center">
+                        {renderStatusIcon()}
+                        {(status === 'success' || status === 'error') && (
+                            <Button onClick={() => router.push('/dashboard')} className="mt-6">
+                                Back to Dashboard
+                            </Button>
+                        )}
+                    </div>
                 </CardContent>
             </Card>
         </div>

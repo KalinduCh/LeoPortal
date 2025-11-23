@@ -171,7 +171,7 @@ export default function EventManagementPage() {
   );
 
   const getEventUrl = (eventId: string) => {
-    // Always use the production URL and point to the scanner page
+    // Point to the new central scanner page
     return `https://leoportal.netlify.app/attendance-scanner?eventId=${eventId}`;
   };
 
@@ -229,7 +229,6 @@ export default function EventManagementPage() {
                 </div>
                 <div className="flex items-center gap-2 mt-6">
                     <Button onClick={handleDownloadQrCode} variant="outline"><Download className="mr-2 h-4 w-4" /> Download</Button>
-                    <Button variant="outline" onClick={() => toast({title: "Print Not Implemented", description:"Please use the Download button for now."})}>Print QR Code</Button>
                 </div>
             </div>
         </DialogContent>
