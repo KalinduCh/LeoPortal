@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/events/page.tsx
 "use client";
 
@@ -7,7 +6,7 @@ import type { Event, EventType } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
-import { PlusCircle, Edit, Eye, CalendarDays, Loader2, MapPin, Trash2, QrCode } from "lucide-react";
+import { PlusCircle, Edit, Eye, CalendarDays, Loader2, MapPin, Trash2, QrCode, Download } from "lucide-react";
 import { format, parseISO, isPast, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { getEvents, deleteEvent as deleteEventService } from '@/services/eventService';
@@ -28,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { cn } from '@/lib/utils';
 import QRCode from "react-qr-code";
 import { useReactToPrint } from 'react-to-print';
+import html2canvas from 'html2canvas';
 
 const eventTypeColors: Record<EventType, string> = {
   club_project: 'bg-teal-500',
@@ -57,6 +57,17 @@ export default function EventManagementPage() {
       content: () => qrCodePrintRef.current,
       documentTitle: `QR_Code_${qrCodeEvent?.name.replace(/\s+/g, '_')}`,
   });
+  
+  const handleDownloadQrCode = () => {
+    if (!qrCodePrintRef.current || !qrCodeEvent) return;
+
+    html2canvas(qrCodePrintRef.current, { backgroundColor: null }).then((canvas) => {
+      const link = document.createElement('a');
+      link.download = `QR_Code_${qrCodeEvent.name.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  };
 
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
@@ -222,7 +233,10 @@ export default function EventManagementPage() {
                     {qrCodeEvent && <QRCode value={getEventUrl(qrCodeEvent.id)} size={256} />}
                      <p className="text-xs text-gray-500 mt-4">LEO Portal</p>
                 </div>
-                <Button onClick={handlePrint} className="mt-6">Print QR Code</Button>
+                <div className="flex items-center gap-2 mt-6">
+                    <Button onClick={handleDownloadQrCode} variant="outline"><Download className="mr-2 h-4 w-4" /> Download</Button>
+                    <Button onClick={handlePrint}>Print QR Code</Button>
+                </div>
             </div>
         </DialogContent>
       </Dialog>
