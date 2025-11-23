@@ -1,4 +1,3 @@
-
 // src/app/attendance-scanner/page.tsx
 "use client";
 
@@ -15,6 +14,7 @@ import { Loader2, CameraOff, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 type ScanStatus = 'idle' | 'scanning' | 'processing' | 'success' | 'error';
 
@@ -25,7 +25,7 @@ export default function AttendanceScannerPage() {
     const { toast } = useToast();
 
     const [status, setStatus] = useState<ScanStatus>('idle');
-    const [statusMessage, setStatusMessage] = useState('Initializing scanner...');
+    const [statusMessage, setStatusMessage] = useState('Initializing...');
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const scannerRef = useRef<Html5Qrcode | null>(null);
 
