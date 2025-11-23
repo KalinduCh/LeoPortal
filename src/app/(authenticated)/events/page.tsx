@@ -172,7 +172,8 @@ export default function EventManagementPage() {
   );
 
   const getEventUrl = (eventId: string) => {
-    return `https://leoportal.netlify.app/login?eventId=${eventId}`;
+    // This now points to the new unified check-in page
+    return `https://leoportal.netlify.app/check-in/${eventId}`;
   };
 
   return (
