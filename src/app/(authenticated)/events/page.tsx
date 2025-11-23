@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/events/page.tsx
 "use client";
 
@@ -177,8 +178,8 @@ export default function EventManagementPage() {
   );
 
   const getEventUrl = (eventId: string) => {
-    // Always use the production URL for the QR code
-    return `https://leoportal.netlify.app/attendance-scanner?eventId=${eventId}`;
+    // Always use the production URL for the QR code and point to the correct visitor page
+    return `https://leoportal.netlify.app/visiting-leo?eventId=${eventId}`;
   };
 
   return (
