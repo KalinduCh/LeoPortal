@@ -12,7 +12,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Mail, UserCircle, Briefcase, Star, MessageSquare, ClipboardCopy } from 'lucide-react';
+import { Loader2, CalendarDays, MapPin, Info, Users, Printer, ArrowLeft, Mail, UserCircle, Briefcase, Star, MessageSquare, ClipboardCopy, FileDown } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 import { useToast } from '@/hooks/use-toast';
@@ -151,12 +151,13 @@ export default function EventSummaryPage() {
   let formattedEventDate = "Date unavailable";
   if (event?.startDate && isValid(parseISO(event.startDate))) {
     const eventStartDateObj = parseISO(event.startDate);
-    formattedEventDate = format(eventStartDateObj, "MMMM d, yyyy 'at' h:mm a");
+    formattedEventDate = format(eventStartDateObj, "MMMM d, yyyy, h:mm a");
     if (event.endDate && isValid(parseISO(event.endDate))) {
         const eventEndDateObj = parseISO(event.endDate);
-        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString() || 
-            (eventEndDateObj.getHours() !== eventStartDateObj.getHours() || eventEndDateObj.getMinutes() !== eventStartDateObj.getMinutes())) {
-             formattedEventDate += ` - ${format(eventEndDateObj, "h:mm a")}`;
+        if (eventEndDateObj.toDateString() !== eventStartDateObj.toDateString()) {
+             formattedEventDate = `${format(eventStartDateObj, "MMM d, h:mm a")} - ${format(eventEndDateObj, "MMM d, h:mm a")}`;
+        } else {
+             formattedEventDate = `${format(eventStartDateObj, "MMM d, yyyy, h:mm a")} - ${format(eventEndDateObj, "h:mm a")}`;
         }
     }
   }
@@ -266,13 +267,13 @@ export default function EventSummaryPage() {
         </div>
         <div className="flex flex-col sm:flex-row gap-2 print:hidden w-full sm:w-auto">
             <button onClick={handleCopySummary} className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
-              <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Summary
+              <ClipboardCopy className="mr-2 h-4 w-4" /> Copy
             </button>
             <button onClick={handlePrint} className={cn(buttonVariants({}), "w-full sm:w-auto")}>
               <Printer className="mr-2 h-4 w-4" /> Print
             </button>
             <button onClick={handleDownloadPDF} className={cn(buttonVariants({}), "w-full sm:w-auto")}>
-              <Printer className="mr-2 h-4 w-4" /> PDF
+              <FileDown className="mr-2 h-4 w-4" /> PDF
             </button>
         </div>
       </div>
