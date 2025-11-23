@@ -171,8 +171,8 @@ export default function EventManagementPage() {
   );
 
   const getEventUrl = (eventId: string) => {
-    // Point to the new central scanner page
-    return `https://leoportal.netlify.app/attendance-scanner?eventId=${eventId}`;
+    // Point to the login page with the eventId as a query parameter
+    return `https://leoportal.netlify.app/login?eventId=${eventId}`;
   };
 
   return (
