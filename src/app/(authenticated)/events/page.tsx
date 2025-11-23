@@ -178,7 +178,7 @@ export default function EventManagementPage() {
 
   const getEventUrl = (eventId: string) => {
     // Always use the production URL for the QR code
-    return `https://leoathugal.web.app/attendance-scanner?eventId=${eventId}`;
+    return `https://leoportal.netlify.app/attendance-scanner?eventId=${eventId}`;
   };
 
   return (
