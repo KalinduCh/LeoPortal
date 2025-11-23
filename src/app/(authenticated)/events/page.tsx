@@ -172,7 +172,7 @@ export default function EventManagementPage() {
   );
 
   const getEventUrl = (eventId: string) => {
-    return `https://leoportal.netlify.app/mark-attendance/${eventId}`;
+    return `https://leoportal.netlify.app/login?eventId=${eventId}`;
   };
 
   return (
