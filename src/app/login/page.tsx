@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, UserCheck, AlertTriangle, Info, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { markUserAttendance } from "@/services/attendanceService";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,10 +24,13 @@ export default function LoginPage() {
   const eventId = searchParams.get('eventId');
 
   React.useEffect(() => {
+    // This effect handles redirection *after* the user state is confirmed.
+    // It does not handle the initial login logic.
     if (user && !authLoading) {
-      router.replace("/dashboard");
+      const destination = eventId ? `/dashboard` : "/dashboard"; // Always go to dashboard after attendance is marked.
+      router.replace(destination);
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, eventId]);
 
   const handleSubmit = async (values: any) => {
     setFormLoading(true);
@@ -36,12 +40,25 @@ export default function LoginPage() {
     if (result.success && result.user) {
         toast({ title: "Login Successful", description: `Welcome back, ${result.user.name}!` });
         
-        // After successful login, redirect to the new attendance page if an eventId is present
+        // If an eventId is present in the URL, attempt to mark attendance automatically
         if (eventId) {
-            router.replace(`/mark-attendance/${eventId}`);
-        } else {
-            router.replace("/dashboard");
+            try {
+                toast({ title: "Marking Attendance...", description: "Please wait.", duration: 3000 });
+                const attendanceResult = await markUserAttendance(eventId, result.user.id);
+                if (attendanceResult.status === 'success' || attendanceResult.status === 'already_marked') {
+                    toast({ title: "Attendance Marked", description: attendanceResult.message, duration: 5000 });
+                } else {
+                    toast({ title: "Attendance Error", description: attendanceResult.message, variant: "destructive", duration: 8000 });
+                }
+            } catch (error: any) {
+                toast({ title: "Attendance Failed", description: error.message || "An unexpected error occurred while marking attendance.", variant: "destructive", duration: 8000 });
+            }
         }
+
+        // The useEffect hook will now handle the redirection to the dashboard.
+        // setFormLoading will be false after redirection anyway, but good practice to keep it.
+        setFormLoading(false);
+
     } else {
       if (result.reason === 'pending') {
           setLoginMessage({ 
