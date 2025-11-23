@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/events/page.tsx
 "use client";
 
@@ -27,7 +26,6 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import QRCode from "react-qr-code";
-import { useReactToPrint } from 'react-to-print';
 import html2canvas from 'html2canvas';
 
 const eventTypeColors: Record<EventType, string> = {
@@ -53,11 +51,6 @@ export default function EventManagementPage() {
 
   const [qrCodeEvent, setQrCodeEvent] = useState<Event | null>(null);
   const qrCodePrintRef = useRef<HTMLDivElement>(null);
-
-  const handlePrint = useReactToPrint({
-      content: () => qrCodePrintRef.current,
-      documentTitle: `QR_Code_${qrCodeEvent?.name.replace(/\s+/g, '_')}`,
-  });
   
   const handleDownloadQrCode = () => {
     if (!qrCodePrintRef.current || !qrCodeEvent) return;
@@ -178,8 +171,8 @@ export default function EventManagementPage() {
   );
 
   const getEventUrl = (eventId: string) => {
-    // Always use the production URL for the QR code and point to the correct visitor page
-    return `https://leoportal.netlify.app/visiting-leo?eventId=${eventId}`;
+    // Always use the production URL and point to the scanner page
+    return `https://leoportal.netlify.app/attendance-scanner?eventId=${eventId}`;
   };
 
   return (
@@ -236,7 +229,7 @@ export default function EventManagementPage() {
                 </div>
                 <div className="flex items-center gap-2 mt-6">
                     <Button onClick={handleDownloadQrCode} variant="outline"><Download className="mr-2 h-4 w-4" /> Download</Button>
-                    <Button onClick={handlePrint}>Print QR Code</Button>
+                    <Button variant="outline" onClick={() => toast({title: "Print Not Implemented", description:"Please use the Download button for now."})}>Print QR Code</Button>
                 </div>
             </div>
         </DialogContent>
