@@ -2,12 +2,12 @@
 // src/app/(authenticated)/events/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Event, EventType } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
-import { PlusCircle, Edit, Eye, CalendarDays, Loader2, MapPin, Trash2 } from "lucide-react";
+import { PlusCircle, Edit, Eye, CalendarDays, Loader2, MapPin, Trash2, QrCode } from "lucide-react";
 import { format, parseISO, isPast, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { getEvents, deleteEvent as deleteEventService } from '@/services/eventService';
@@ -24,7 +24,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import QRCode from "react-qr-code";
+import { useReactToPrint } from 'react-to-print';
 
 const eventTypeColors: Record<EventType, string> = {
   club_project: 'bg-teal-500',
@@ -46,6 +49,14 @@ export default function EventManagementPage() {
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [qrCodeEvent, setQrCodeEvent] = useState<Event | null>(null);
+  const qrCodePrintRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = useReactToPrint({
+      content: () => qrCodePrintRef.current,
+      documentTitle: `QR_Code_${qrCodeEvent?.name.replace(/\s+/g, '_')}`,
+  });
 
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
@@ -94,7 +105,7 @@ export default function EventManagementPage() {
     setEventToDelete(null);
   };
 
-  const { upcomingEvents, pastEvents } = useMemo(() => {
+  const { upcomingEvents, pastEvents } = React.useMemo(() => {
     const upcoming: Event[] = [];
     const past: Event[] = [];
 
@@ -140,7 +151,8 @@ export default function EventManagementPage() {
             event={event} 
             onEdit={() => router.push(`/events/${event.id}`)}
             onDelete={() => handleDeleteClick(event)} 
-            onViewSummary={() => router.push(`/admin/event-summary/${event.id}`)} 
+            onViewSummary={() => router.push(`/admin/event-summary/${event.id}`)}
+            onShowQrCode={() => setQrCodeEvent(event)}
           />
         ))}
       </div>
@@ -152,6 +164,11 @@ export default function EventManagementPage() {
       </div>
     )
   );
+
+  const getEventUrl = (eventId: string) => {
+      if (typeof window === 'undefined') return '';
+      return `${window.location.origin}/attendance-scanner?eventId=${eventId}`;
+  };
 
   return (
     <>
@@ -193,6 +210,22 @@ export default function EventManagementPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={!!qrCodeEvent} onOpenChange={(isOpen) => !isOpen && setQrCodeEvent(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Attendance QR Code for: {qrCodeEvent?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="p-4 flex flex-col items-center justify-center">
+                <div ref={qrCodePrintRef} className="bg-white p-6 rounded-lg text-center">
+                    <h3 className="text-xl font-bold text-black mb-2">{qrCodeEvent?.name}</h3>
+                    <p className="text-sm text-gray-600 mb-4">Scan to mark attendance</p>
+                    {qrCodeEvent && <QRCode value={getEventUrl(qrCodeEvent.id)} size={256} />}
+                     <p className="text-xs text-gray-500 mt-4">LEO Portal</p>
+                </div>
+                <Button onClick={handlePrint} className="mt-6">Print QR Code</Button>
+            </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -202,9 +235,10 @@ interface EventListItemProps {
   onEdit: () => void;
   onDelete: () => void;
   onViewSummary: () => void;
+  onShowQrCode: () => void;
 }
 
-const EventListItem = ({ event, onEdit, onDelete, onViewSummary }: EventListItemProps) => {
+const EventListItem = ({ event, onEdit, onDelete, onViewSummary, onShowQrCode }: EventListItemProps) => {
     let formattedDate = { day: 'N/A', month: 'N/A' };
     if(event.startDate && isValid(parseISO(event.startDate))) {
         const dateObj = parseISO(event.startDate);
@@ -243,6 +277,9 @@ const EventListItem = ({ event, onEdit, onDelete, onViewSummary }: EventListItem
             </div>
         </div>
         <CardFooter className="flex justify-end gap-2 border-t pt-3 pb-3 px-4 bg-muted/20">
+            <Button variant="outline" size="sm" onClick={onShowQrCode}>
+                <QrCode className="mr-1.5 h-3.5 w-3.5" /> QR Code
+            </Button>
             <Button variant="outline" size="sm" onClick={onViewSummary}>
                 <Eye className="mr-1.5 h-3.5 w-3.5" /> Summary
             </Button>
