@@ -205,7 +205,7 @@ export default function TasksPage() {
                 <DragDropContext onDragEnd={onDragEnd}>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {(Object.keys(columns) as TaskStatus[]).map(status => (
-                            <Droppable key={status} droppableId={status} isDropDisabled={false}>
+                            <Droppable key={status} droppableId={status} isDropDisabled={false} isCombineEnabled={false}>
                                 {(provided, snapshot) => (
                                     <Card
                                         ref={provided.innerRef}
