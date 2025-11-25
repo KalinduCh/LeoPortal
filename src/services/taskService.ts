@@ -16,6 +16,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import type { Task, TaskStatus, TaskComment, TaskChecklistItem } from '@/types';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const tasksCollection = collection(db, 'tasks');
 
@@ -30,19 +32,32 @@ const docToTask = (docSnap: any): Task => {
     } as Task;
 };
 
-export async function createTask(data: Omit<Task, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'checklist'> & { eventId?: string }): Promise<string> {
-  const taskData: any = {
-    ...data,
-    status: 'todo',
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    checklist: [],
-  };
-  if (data.dueDate) {
-      taskData.dueDate = Timestamp.fromDate(new Date(data.dueDate));
-  }
-  const docRef = await addDoc(tasksCollection, taskData);
-  return docRef.id;
+export function createTask(data: Omit<Task, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'checklist'> & { eventId?: string }): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+      const taskData: any = {
+        ...data,
+        status: 'todo',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        checklist: [],
+      };
+      if (data.dueDate) {
+          taskData.dueDate = Timestamp.fromDate(new Date(data.dueDate));
+      }
+      
+      const docRef = doc(tasksCollection); // Create a ref with an ID first
+      setDoc(docRef, taskData)
+        .then(() => resolve(docRef.id))
+        .catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'create',
+                requestResourceData: taskData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            reject(permissionError);
+        });
+  });
 }
 
 export async function getTasks(): Promise<Task[]> {
@@ -60,23 +75,61 @@ export async function getTask(taskId: string): Promise<Task | null> {
     return null;
 }
 
-export async function updateTask(taskId: string, updates: Partial<Task>): Promise<void> {
-    const docRef = doc(db, 'tasks', taskId);
-    const updateData: any = { ...updates, updatedAt: serverTimestamp() };
-    if (updates.dueDate) {
-        updateData.dueDate = Timestamp.fromDate(new Date(updates.dueDate));
-    }
-    await updateDoc(docRef, updateData);
+export function updateTask(taskId: string, updates: Partial<Task>): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+        const docRef = doc(db, 'tasks', taskId);
+        const updateData: any = { ...updates, updatedAt: serverTimestamp() };
+        if (updates.dueDate) {
+            updateData.dueDate = Timestamp.fromDate(new Date(updates.dueDate));
+        }
+        delete updateData.id;
+
+        updateDoc(docRef, updateData)
+            .then(() => resolve())
+            .catch(async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'update',
+                    requestResourceData: updateData
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                reject(permissionError);
+            });
+    });
 }
 
-export async function updateTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
-    const docRef = doc(db, 'tasks', taskId);
-    await updateDoc(docRef, { status, updatedAt: serverTimestamp() });
+export function updateTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+        const docRef = doc(db, 'tasks', taskId);
+        const updateData = { status, updatedAt: serverTimestamp() };
+        updateDoc(docRef, updateData)
+            .then(() => resolve())
+            .catch(async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'update',
+                    requestResourceData: updateData
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                reject(permissionError);
+            });
+    });
 }
 
-export async function deleteTask(taskId: string): Promise<void> {
-    const docRef = doc(db, 'tasks', taskId);
-    await deleteDoc(docRef);
+export function deleteTask(taskId: string): Promise<void> {
+     return new Promise(async (resolve, reject) => {
+        const docRef = doc(db, 'tasks', taskId);
+        deleteDoc(docRef)
+            .then(() => resolve())
+            .catch(async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'delete',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                reject(permissionError);
+            });
+    });
 }
 
 // --- Comments ---
@@ -91,11 +144,24 @@ export async function getTaskComments(taskId: string): Promise<TaskComment[]> {
     } as TaskComment));
 }
 
-export async function addTaskComment(taskId: string, commentData: Omit<TaskComment, 'id' | 'createdAt'>): Promise<string> {
-    const commentsRef = collection(db, `tasks/${taskId}/comments`);
-    const docRef = await addDoc(commentsRef, {
-        ...commentData,
-        createdAt: serverTimestamp(),
+export function addTaskComment(taskId: string, commentData: Omit<TaskComment, 'id' | 'createdAt'>): Promise<string> {
+    return new Promise(async (resolve, reject) => {
+        const commentsRef = collection(db, `tasks/${taskId}/comments`);
+        const finalCommentData = {
+             ...commentData,
+             createdAt: serverTimestamp(),
+        };
+
+        addDoc(commentsRef, finalCommentData)
+            .then((docRef) => resolve(docRef.id))
+            .catch(async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: `tasks/${taskId}/comments/`, // Path to the collection
+                    operation: 'create',
+                    requestResourceData: finalCommentData
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                reject(permissionError);
+            });
     });
-    return docRef.id;
 }
