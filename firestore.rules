@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -128,6 +129,35 @@ service cloud.firestore {
     match /dailyTasks/{taskId} {
         // Only cloud functions should write to this (simulated by admin-only write access)
         allow read, write: if isAdmin();
+    }
+
+    // =========================
+    // 📋 Tasks Collection
+    // =========================
+    match /tasks/{taskId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.assigneeIds || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // 💬 Task Comments Sub-Collection
+    // =========================
+    match /tasks/{taskId}/comments/{commentId} {
+        allow read, list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update, delete: if isSignedIn() && isOwner(resource.data.authorId);
+    }
+    
+    // =========================
+    // 📝 Task Activity Sub-Collection
+    // =========================
+     match /tasks/{taskId}/activity/{activityId} {
+        allow read, list: if isSignedIn();
+        allow create: if isSignedIn() || isAdmin(); // Allow system/functions to log
+        allow update, delete: if isAdmin();
     }
   }
 }

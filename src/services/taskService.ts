@@ -1,0 +1,101 @@
+
+// src/services/taskService.ts
+import {
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  Timestamp,
+  query,
+  orderBy,
+  serverTimestamp,
+  writeBatch
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase/clientApp';
+import type { Task, TaskStatus, TaskComment, TaskChecklistItem } from '@/types';
+
+const tasksCollection = collection(db, 'tasks');
+
+const docToTask = (docSnap: any): Task => {
+    const data = docSnap.data();
+    return {
+        id: docSnap.id,
+        ...data,
+        dueDate: data.dueDate ? (data.dueDate as Timestamp).toDate().toISOString() : undefined,
+        createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+        updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
+    } as Task;
+};
+
+export async function createTask(data: Omit<Task, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'checklist'> & { eventId?: string }): Promise<string> {
+  const taskData: any = {
+    ...data,
+    status: 'todo',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    checklist: [],
+  };
+  if (data.dueDate) {
+      taskData.dueDate = Timestamp.fromDate(new Date(data.dueDate));
+  }
+  const docRef = await addDoc(tasksCollection, taskData);
+  return docRef.id;
+}
+
+export async function getTasks(): Promise<Task[]> {
+    const q = query(tasksCollection, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docToTask);
+}
+
+export async function getTask(taskId: string): Promise<Task | null> {
+    const docRef = doc(db, 'tasks', taskId);
+    const docSnap = await getDoc(docRef);
+    if(docSnap.exists()){
+        return docToTask(docSnap);
+    }
+    return null;
+}
+
+export async function updateTask(taskId: string, updates: Partial<Task>): Promise<void> {
+    const docRef = doc(db, 'tasks', taskId);
+    const updateData: any = { ...updates, updatedAt: serverTimestamp() };
+    if (updates.dueDate) {
+        updateData.dueDate = Timestamp.fromDate(new Date(updates.dueDate));
+    }
+    await updateDoc(docRef, updateData);
+}
+
+export async function updateTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
+    const docRef = doc(db, 'tasks', taskId);
+    await updateDoc(docRef, { status, updatedAt: serverTimestamp() });
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+    const docRef = doc(db, 'tasks', taskId);
+    await deleteDoc(docRef);
+}
+
+// --- Comments ---
+export async function getTaskComments(taskId: string): Promise<TaskComment[]> {
+    const commentsRef = collection(db, `tasks/${taskId}/comments`);
+    const q = query(commentsRef, orderBy('createdAt', 'asc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+        createdAt: (docSnap.data().createdAt as Timestamp).toDate().toISOString(),
+    } as TaskComment));
+}
+
+export async function addTaskComment(taskId: string, commentData: Omit<TaskComment, 'id' | 'createdAt'>): Promise<string> {
+    const commentsRef = collection(db, `tasks/${taskId}/comments`);
+    const docRef = await addDoc(commentsRef, {
+        ...commentData,
+        createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+}
