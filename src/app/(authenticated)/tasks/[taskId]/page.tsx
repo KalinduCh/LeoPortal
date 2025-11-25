@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ArrowLeft, Calendar, User as UserIcon, Tag, Flag, CheckSquare, MessageSquare, Paperclip, Send, Trash2, Edit, X } from 'lucide-react';
+import { Loader2, ArrowLeft, Calendar, User as UserIcon, Tag, Flag, CheckSquare, MessageSquare, Paperclip, Send, Trash2, Edit, X, PlusCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 export default function TaskDetailsPage() {
@@ -283,4 +283,3 @@ const InfoItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label
         <div className="text-sm text-muted-foreground pl-6">{value}</div>
     </div>
 );
-
