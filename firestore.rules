@@ -18,7 +18,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && (getUserData().role == 'admin' || getUserData().role == 'super_admin');
+      return isSignedIn() && getUserData().role in ['admin', 'super_admin'];
     }
     
     function isSuperAdmin() {
@@ -41,7 +41,7 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
     
-    // =========================
+    // =_=_=_=_=_=_=_=_=_=_=_=_=_=
     // 📅 Events Collection
     // =========================
     match /events/{eventId} {
