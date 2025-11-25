@@ -21,6 +21,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+
 
 export default function AuthenticatedLayout({
   children,
@@ -143,9 +146,11 @@ export default function AuthenticatedLayout({
   
   return (
     <>
-      <AppShell>
-        {children}
-      </AppShell>
+      <DndProvider backend={HTML5Backend}>
+        <AppShell>
+          {children}
+        </AppShell>
+      </DndProvider>
       <AlertDialog open={isPermissionDialogOpen} onOpenChange={setIsPermissionDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
