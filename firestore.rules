@@ -29,8 +29,9 @@ service cloud.firestore {
     // 🔐 Users Collection
     // =========================
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isAdmin();
+      // Allow any signed-in user to read any user's profile.
+      // This is needed for resolving user names, avatars, and for permission checks.
+      allow read: if isSignedIn();
       
       // Allow user to create/update their own profile.
       // Allow admins to update any user profile.
