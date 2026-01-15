@@ -23,34 +23,17 @@ export function useFcm(user: User | null) {
   useEffect(() => {
     const retrieveToken = async () => {
       if (typeof window !== 'undefined' && user) {
-        // 1. Check if the VAPID key has been set by the developer
-        if (!VAPID_KEY || VAPID_KEY === "PASTE_YOUR_FIREBASE_VAPID_KEY_HERE") {
-            console.error("FCM Error: VAPID key is not set. Please paste your key into `src/hooks/use-fcm.ts`.");
-            // This toast is a fallback, but we should not hit it now.
-            toast({
-                title: "Push Notification Setup Error",
-                description: "VAPID key is missing from configuration.",
-                variant: "destructive",
-                duration: 15000
-            });
-            return;
-        }
-
-        // 2. Check if permission is already granted
         if (Notification.permission !== 'granted') {
           console.log("FCM: Notification permission not granted yet.");
           return;
         }
         
-        // 3. Get messaging instance
         const messaging = getMessaging(app);
 
-        // 4. Retrieve the token
         try {
           const currentToken = await getToken(messaging, { vapidKey: VAPID_KEY });
           if (currentToken) {
             console.log('FCM token:', currentToken);
-            // 5. Check if token needs to be updated in Firestore
             if (user.fcmToken !== currentToken) {
                 console.log("FCM: New or updated token found. Updating in Firestore.");
                 await updateFcmToken(user.id, currentToken);
@@ -70,7 +53,7 @@ export function useFcm(user: User | null) {
     };
 
     retrieveToken();
-  }, [user, toast]);
+  }, [user, toast, notificationPermissionStatus]);
 
   const requestPermission = async (): Promise<boolean> => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
