@@ -1,3 +1,4 @@
+
 # LeoPortal - Leo Club Management System
 
 ![LeoPortal Logo](https://i.imgur.com/aRktweQ.png)
@@ -77,16 +78,21 @@ npm install
 - Go to the **Rules** tab in the **Firestore Database** section, paste the contents of `firestore.rules`, and publish.
 
 ### 3. Set up Credentials (`.env` file)
-- Create a `.env` file in the root of your project.
-- Follow the **Email Setup** and **AI Setup** instructions below to get your credentials.
-- Add them to your `.env` file like this:
+- Create a `.env` file in the root of your project by copying the `.env.example` file.
+- Follow the **Credential Setup** instructions below to get your keys and service account details.
+- Add them to your `.env` file. A complete `.env` file will look like this:
   ```env
-  # For sending emails from the Communication page (via Next.js API route)
+  # For sending emails from Communication page & functions
   GMAIL_EMAIL=your-email@gmail.com
   GMAIL_APP_PASSWORD=your-16-character-app-password
 
-  # For the AI Content Assistant on the Communication page
+  # For the AI Content Assistant
   GEMINI_API_KEY=your-google-ai-studio-api-key
+
+  # For Google Sheets Integration (Firebase Functions)
+  GOOGLE_SHEET_ID=your-google-sheet-id
+  GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account-email@your-project.iam.gserviceaccount.com
+  GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY_HERE\n-----END PRIVATE KEY-----\n"
   ```
 
 ### 4. Run the Development Server
@@ -115,23 +121,28 @@ Open [http://localhost:3000](http://localhost:3000) to see the result.
 ### How to Add Environment Variables on Netlify:
 1.  Log in to your **Netlify account**.
 2.  Go to **Site settings** > **Build & deploy** > **Environment**.
-3.  Click **"Edit variables"** and add the following key-value pairs one by one:
+3.  Click **"Edit variables"** and add the following key-value pairs one by one.
 
-    -   **Key**: `GMAIL_EMAIL`
-        -   **Value**: `your-email@gmail.com`
-    -   **Key**: `GMAIL_APP_PASSWORD`
-        -   **Value**: `your-16-character-app-password`
-    -   **Key**: `GEMINI_API_KEY`
-        -   **Value**: `your-google-ai-studio-api-key`
+    -   **For the main application:**
+        -   `GMAIL_EMAIL`: `your-email@gmail.com`
+        -   `GMAIL_APP_PASSWORD`: `your-16-character-app-password`
+        -   `GEMINI_API_KEY`: `your-google-ai-studio-api-key`
 
-4.  **Redeploy your site** for the changes to take effect. This will make the variables available to your application, fixing the AI and email features.
+    -   **For Firebase Functions:** You must set these variables for your functions to work in the deployed environment. In Netlify, these are the same as regular variables. If deploying functions separately (e.g., via Firebase CLI), you would set them using `firebase functions:config:set`.
+        -   `GMAIL_EMAIL`: `your-email@gmail.com`
+        -   `GMAIL_APP_PASSWORD`: `your-16-character-app-password`
+        -   `GOOGLE_SHEET_ID`: `your-google-sheet-id`
+        -   `GOOGLE_SERVICE_ACCOUNT_EMAIL`: `your-service-account-email`
+        -   `GOOGLE_PRIVATE_KEY`: Copy the full key, including the start/end markers. In Netlify, you can paste the multi-line key directly.
+
+4.  **Redeploy your site** for the changes to take effect. This will make the variables available to your application and functions, fixing the AI, email, and Google Sheet features.
 
 ---
 
 ## 🔑 Credential Setup
 
 ### Email Setup (Nodemailer & Gmail)
-This application uses a secure backend API route with Nodemailer to send emails.
+This application uses a secure backend to send emails via Nodemailer.
 
 1.  **Generate a Google App Password**:
     - Go to your Google Account: [myaccount.google.com](https://myaccount.google.com/).
@@ -149,4 +160,23 @@ The AI Content Assistant uses Google's Generative AI.
 
 1.  Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).
 2.  Click **"Create API key"** and copy the generated key.
-3.  This is your `GEMINI_API_KEY`. Add it to your `.env` file for local development or your hosting provider's settings for deployment.
+3.  This is your `GEMINI_API_KEY`. Add it to your `.env` file or hosting provider's settings.
+
+### Google Sheets Integration Setup
+This feature requires a Google Service Account to interact with your Google Sheet.
+
+1. **Create a Google Sheet**: Create a new sheet and note its ID from the URL (`.../spreadsheets/d/SHEET_ID/edit`).
+2. **Enable Google Sheets API**: In the Google Cloud Console for your Firebase project, enable the "Google Sheets API".
+3. **Create a Service Account**:
+    - In Google Cloud Console, go to **IAM & Admin > Service Accounts**.
+    - Click **Create Service Account**, give it a name (e.g., "leo-portal-sheets"), and click **Create and Continue**.
+    - Grant it the "Editor" role, then click **Done**.
+    - Find the created account, click the three dots under "Actions", and select **Manage keys**.
+    - Click **Add Key > Create new key**, choose **JSON**, and click **Create**. A JSON file will download.
+4. **Share the Sheet**: Open your Google Sheet and share it with the `client_email` found in the downloaded JSON file, giving it "Editor" permissions.
+5. **Set Environment Variables**:
+    - `GOOGLE_SHEET_ID`: The ID of your Google Sheet.
+    - `GOOGLE_SERVICE_ACCOUNT_EMAIL`: The `client_email` from the JSON file.
+    - `GOOGLE_PRIVATE_KEY`: The `private_key` from the JSON file. **Copy the entire key, including the `-----BEGIN...` and `-----END...` markers.** When adding to your `.env` file, wrap it in double quotes.
+
+    
