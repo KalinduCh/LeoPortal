@@ -10,8 +10,8 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-const GMAIL_EMAIL = "athugalpuraleoclub306d9@gmail.com";
-const GMAIL_APP_PASSWORD = "osng xjdz lhwu movh";
+const GMAIL_EMAIL = process.env.GMAIL_EMAIL;
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
 const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -68,6 +68,10 @@ const createEmailHtml = (bodyContent: string) => {
  * Sends a transactional email.
  */
 const sendEmail = async (to: string, subject: string, htmlBody: string) => {
+    if (!GMAIL_EMAIL || !GMAIL_APP_PASSWORD) {
+        console.error("GMAIL_EMAIL or GMAIL_APP_PASSWORD not set in environment variables. Email will not be sent.");
+        return;
+    }
     const fullHtml = createEmailHtml(htmlBody);
     const mailOptions = {
         from: `"LEO CLUB OF ATHUGALPURA" <${GMAIL_EMAIL}>`,
@@ -490,3 +494,4 @@ export const onAttendanceCreated = functions.firestore
   });
     
 
+    
