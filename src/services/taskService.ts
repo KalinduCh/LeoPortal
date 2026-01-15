@@ -1,4 +1,3 @@
-
 // src/services/taskService.ts
 import {
   collection,
@@ -35,13 +34,19 @@ const docToTask = (docSnap: any): Task => {
 
 export function createTask(data: Omit<Task, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'checklist'> & { eventId?: string }): Promise<string> {
   return new Promise(async (resolve, reject) => {
+      const { eventId, ...restOfData } = data;
       const taskData: any = {
-        ...data,
+        ...restOfData,
         status: 'todo',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         checklist: [],
       };
+
+      if (eventId) {
+        taskData.eventId = eventId;
+      }
+
       if (data.dueDate) {
           taskData.dueDate = Timestamp.fromDate(new Date(data.dueDate));
       }
