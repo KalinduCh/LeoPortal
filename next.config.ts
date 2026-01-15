@@ -11,9 +11,6 @@ const withPWA = require('next-pwa')({
     skipWaiting: true,
     disable: process.env.NODE_ENV === 'development',
     sw: 'firebase-messaging-sw.js',
-    fallbacks: {
-        document: '/_offline', // Fallback for document/pages
-    },
 });
 
 const nextConfig: NextConfig = {
@@ -35,6 +32,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'i.imgur.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.postimg.cc',
         port: '',
         pathname: '/**',
       }
