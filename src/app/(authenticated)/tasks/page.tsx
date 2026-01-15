@@ -20,6 +20,7 @@ import { TaskCard } from '@/components/tasks/task-card';
 import { TaskForm, type TaskFormValues } from '@/components/tasks/task-form';
 import { createTask } from '@/services/taskService';
 import { cn } from '@/lib/utils';
+import { produce } from 'immer';
 
 const ItemTypes = {
     TASK: 'task',
@@ -37,21 +38,14 @@ interface TaskColumnProps {
   tasks: Task[];
   users: User[];
   events: Event[];
+  onDropTask: (taskId: string, newStatus: TaskStatus) => void;
 }
 
-const TaskColumn: React.FC<TaskColumnProps> = ({ status, tasks, users, events }) => {
-    const { toast } = useToast();
+const TaskColumn: React.FC<TaskColumnProps> = ({ status, tasks, users, events, onDropTask }) => {
     const [{ isOver }, drop] = useDrop(() => ({
         accept: ItemTypes.TASK,
         drop: (item: { id: string }) => {
-            updateTaskStatus(item.id, status)
-                .then(() => toast({ title: "Task Updated", description: "Task status changed successfully." }))
-                .catch(error => {
-                    console.error("Failed to update task status:", error);
-                    toast({ title: "Update Failed", description: "Could not update task status.", variant: "destructive" });
-                    // NOTE: Reverting UI state would be complex here without a global state manager.
-                    // The optimistic update will remain until next data fetch.
-                });
+            onDropTask(item.id, status);
         },
         collect: monitor => ({
             isOver: !!monitor.isOver(),
@@ -132,6 +126,31 @@ export default function TasksPage() {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    const handleUpdateTaskStatus = useCallback((taskId: string, newStatus: TaskStatus) => {
+        // Optimistic update
+        setTasks(prevTasks =>
+            produce(prevTasks, draft => {
+                const task = draft.find(t => t.id === taskId);
+                if (task) {
+                    task.status = newStatus;
+                }
+            })
+        );
+        
+        // Update in backend
+        updateTaskStatus(taskId, newStatus)
+            .then(() => {
+                toast({ title: "Task Updated", description: "Task status changed successfully." });
+            })
+            .catch(error => {
+                console.error("Failed to update task status:", error);
+                toast({ title: "Update Failed", description: "Could not update task status.", variant: "destructive" });
+                // Revert UI on failure
+                fetchData();
+            });
+    }, [toast, fetchData]);
+
 
     const filteredTasks = useMemo(() => {
         let filtered = tasks;
@@ -249,6 +268,7 @@ export default function TasksPage() {
                             }
                             users={allUsers}
                             events={allEvents}
+                            onDropTask={handleUpdateTaskStatus}
                         />
                     ))}
                 </div>
