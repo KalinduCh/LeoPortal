@@ -1,4 +1,3 @@
-
 // src/components/tasks/task-card.tsx
 "use client";
 
@@ -35,7 +34,7 @@ export function TaskCard({ task, users, events }: TaskCardProps) {
 
     return (
         <Link href={`/tasks/${task.id}`}>
-            <Card className="mb-3 hover:shadow-lg transition-shadow cursor-pointer group">
+            <Card className="mb-3 hover:shadow-lg transition-shadow cursor-grab group active:cursor-grabbing">
                 <CardContent className="p-3">
                     <div className="flex justify-between items-start">
                         <p className="font-semibold text-md group-hover:text-primary">{task.title}</p>
@@ -71,4 +70,3 @@ export function TaskCard({ task, users, events }: TaskCardProps) {
         </Link>
     );
 }
-

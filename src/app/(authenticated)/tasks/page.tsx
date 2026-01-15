@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { DragDropContext, Droppable, Draggable, type DropResult } from 'react-beautiful-dnd';
+import { useDrop, useDrag } from 'react-dnd';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import type { Task, TaskStatus, TaskPriority, User, Event } from '@/types';
@@ -15,16 +15,87 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, PlusCircle, Filter, ListChecks, GripVertical } from 'lucide-react';
+import { Loader2, PlusCircle, Filter, ListChecks } from 'lucide-react';
 import { TaskCard } from '@/components/tasks/task-card';
 import { TaskForm, type TaskFormValues } from '@/components/tasks/task-form';
 import { createTask } from '@/services/taskService';
+import { cn } from '@/lib/utils';
+
+const ItemTypes = {
+    TASK: 'task',
+};
 
 const columns: Record<TaskStatus, string> = {
     todo: 'To Do',
     in_progress: 'In Progress',
     review: 'In Review',
     done: 'Done',
+};
+
+interface TaskColumnProps {
+  status: TaskStatus;
+  tasks: Task[];
+  users: User[];
+  events: Event[];
+}
+
+const TaskColumn: React.FC<TaskColumnProps> = ({ status, tasks, users, events }) => {
+    const { toast } = useToast();
+    const [{ isOver }, drop] = useDrop(() => ({
+        accept: ItemTypes.TASK,
+        drop: (item: { id: string }) => {
+            updateTaskStatus(item.id, status)
+                .then(() => toast({ title: "Task Updated", description: "Task status changed successfully." }))
+                .catch(error => {
+                    console.error("Failed to update task status:", error);
+                    toast({ title: "Update Failed", description: "Could not update task status.", variant: "destructive" });
+                    // NOTE: Reverting UI state would be complex here without a global state manager.
+                    // The optimistic update will remain until next data fetch.
+                });
+        },
+        collect: monitor => ({
+            isOver: !!monitor.isOver(),
+        }),
+    }));
+
+    return (
+        <Card
+            ref={drop}
+            className={cn("min-h-[200px] transition-colors", isOver ? 'bg-muted/50' : 'bg-card')}
+        >
+            <CardHeader>
+                <CardTitle>{columns[status]}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {tasks.map((task) => (
+                    <DraggableTaskCard key={task.id} task={task} users={users} events={events} />
+                ))}
+                {tasks.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">No tasks in this column.</p>}
+            </CardContent>
+        </Card>
+    );
+};
+
+interface DraggableTaskCardProps {
+    task: Task;
+    users: User[];
+    events: Event[];
+}
+
+const DraggableTaskCard: React.FC<DraggableTaskCardProps> = ({ task, users, events }) => {
+    const [{ isDragging }, drag] = useDrag(() => ({
+        type: ItemTypes.TASK,
+        item: { id: task.id },
+        collect: monitor => ({
+            isDragging: !!monitor.isDragging(),
+        }),
+    }));
+
+    return (
+        <div ref={drag} style={{ opacity: isDragging ? 0.5 : 1 }}>
+            <TaskCard task={task} users={users} events={events} />
+        </div>
+    );
 };
 
 export default function TasksPage() {
@@ -84,41 +155,6 @@ export default function TasksPage() {
         return filtered;
     }, [tasks, filter, user, searchTerm, eventFilter]);
     
-    const onDragEnd = (result: DropResult) => {
-        const { source, destination, draggableId } = result;
-
-        if (!destination) {
-            return;
-        }
-
-        if (source.droppableId === destination.droppableId && source.index === destination.index) {
-            return;
-        }
-
-        const newStatus = destination.droppableId as TaskStatus;
-
-        // Optimistically update UI
-        const updatedTasks = tasks.map(t => {
-            if (t.id === draggableId) {
-                return { ...t, status: newStatus };
-            }
-            return t;
-        });
-        setTasks(updatedTasks);
-
-        // Update Firestore
-        updateTaskStatus(draggableId, newStatus)
-            .then(() => {
-                toast({ title: "Task Updated", description: "Task status changed successfully." });
-            })
-            .catch(error => {
-                console.error("Failed to update task status:", error);
-                toast({ title: "Update Failed", description: "Could not update task status.", variant: "destructive" });
-                // Revert UI on failure
-                setTasks(tasks);
-            });
-    };
-
     const handleCreateTask = async (data: TaskFormValues) => {
         if (!user) return;
         try {
@@ -202,45 +238,20 @@ export default function TasksPage() {
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 </div>
             ) : (
-                <DragDropContext onDragEnd={onDragEnd}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                        {(Object.keys(columns) as TaskStatus[]).map(status => (
-                            <Droppable key={status} droppableId={status} isDropDisabled={false} isCombineEnabled={false}>
-                                {(provided, snapshot) => (
-                                    <Card
-                                        ref={provided.innerRef}
-                                        {...provided.droppableProps}
-                                        className={`min-h-[200px] transition-colors ${snapshot.isDraggingOver ? 'bg-muted/50' : 'bg-card'}`}
-                                    >
-                                        <CardHeader>
-                                            <CardTitle>{columns[status]}</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            {filteredTasks
-                                                .filter(task => task.status === status)
-                                                .sort((a, b) => (a.priority === 'high' ? -1 : 1) - (b.priority === 'high' ? -1 : 1))
-                                                .map((task, index) => (
-                                                    <Draggable key={task.id} draggableId={task.id} index={index}>
-                                                        {(provided, snapshot) => (
-                                                            <div
-                                                                ref={provided.innerRef}
-                                                                {...provided.draggableProps}
-                                                                {...provided.dragHandleProps}
-                                                            >
-                                                                <TaskCard task={task} users={allUsers} events={allEvents} />
-                                                            </div>
-                                                        )}
-                                                    </Draggable>
-                                                ))}
-                                            {provided.placeholder}
-                                            {filteredTasks.filter(t => t.status === status).length === 0 && <p className="text-sm text-center text-muted-foreground py-4">No tasks in this column.</p>}
-                                        </CardContent>
-                                    </Card>
-                                )}
-                            </Droppable>
-                        ))}
-                    </div>
-                </DragDropContext>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                    {(Object.keys(columns) as TaskStatus[]).map(status => (
+                        <TaskColumn
+                            key={status}
+                            status={status}
+                            tasks={filteredTasks
+                                .filter(task => task.status === status)
+                                .sort((a, b) => (a.priority === 'high' ? -1 : 1) - (b.priority === 'high' ? -1 : 1))
+                            }
+                            users={allUsers}
+                            events={allEvents}
+                        />
+                    ))}
+                </div>
             )}
         </div>
     );
