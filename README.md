@@ -35,7 +35,14 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
 - **Dynamic Member Profiles**:
     - Members can update their personal information and profile picture.
     - **Achievement Badges** are automatically awarded for participation and leadership roles.
-- **PWA & Push Notifications**: Installable app experience with push notifications for new events, approvals, and **24-hour event reminders**.
+- **PWA & Push Notifications**: 
+    - **Installable App**: The portal can be installed on desktop and mobile devices for a native-like experience.
+    - **Automated Alerts**: Members receive automatic push notifications for:
+        - **New Events**: When an admin publishes a new event.
+        - **Event Reminders**: Alerts for events happening today and in two days.
+        - **Account Approval**: When their membership registration is approved.
+        - **Birthday Wishes**: A personalized greeting on their birthday.
+        - **Fee Reminders**: Friendly reminders for pending membership fees.
 
 ### Project & Idea Management
 - **AI-Powered Project Proposals**: Members can submit a simple project idea, and an AI assistant will generate a complete, structured project proposal based on a club template.
