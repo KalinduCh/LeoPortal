@@ -12,7 +12,8 @@ import {
   query,
   orderBy,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  setDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import type { Task, TaskStatus, TaskComment, TaskChecklistItem } from '@/types';
