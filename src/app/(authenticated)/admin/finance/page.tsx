@@ -14,9 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, ExternalLink, Calendar, Filter, HandCoins, FileDown, FileText } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-// import { FinanceForm, type FinanceFormValues } from '@/components/finance/finance-form'; // Lazy loaded
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/financeService';
-import { format, parseISO, isValid, startOfMonth, endOfMonth, startOfYear, endOfYear, getYear, getMonth, eachMonthOfInterval } from 'date-fns';
+import { format, parseISO, isValid, startOfMonth, endOfMonth, startOfYear, endOfYear, getYear, getMonth, eachMonthOfInterval, subYears, eachYearOfInterval } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
@@ -54,6 +53,8 @@ export default function FinancePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
   
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
     return transactions.slice(startIndex, startIndex + rowsPerPage);
@@ -85,6 +86,12 @@ export default function FinancePage() {
       fetchTransactions();
     }
   }, [user, fetchTransactions, isSuperOrAdmin]);
+
+  const availableYears = useMemo(() => {
+    if (transactions.length === 0) return [new Date().getFullYear().toString()];
+    const years = new Set(transactions.map(t => getYear(parseISO(t.date)).toString()));
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [transactions]);
   
   const handleOpenForm = (transaction?: Transaction) => {
     setSelectedTransaction(transaction || null);
@@ -126,43 +133,45 @@ export default function FinancePage() {
   };
   
   const financialSummary = useMemo(() => {
+    const yearNum = parseInt(selectedYear);
+    const yearStart = startOfYear(new Date(yearNum, 0, 1));
+    const yearEnd = endOfYear(new Date(yearNum, 11, 31));
+
     const now = new Date();
     const thisMonthStart = startOfMonth(now);
-    const thisYearStart = startOfYear(now);
 
-    return transactions.reduce((acc, t) => {
+    const filteredTransactions = transactions.filter(t => {
+      const transactionDate = parseISO(t.date);
+      return transactionDate >= yearStart && transactionDate <= yearEnd;
+    });
+
+    return filteredTransactions.reduce((acc, t) => {
         const transactionDate = parseISO(t.date);
         const isThisMonth = transactionDate >= thisMonthStart;
-        const isThisYear = transactionDate >= thisYearStart;
 
         if(t.type === 'income') {
-            acc.totalIncome += t.amount;
+            acc.yearIncome += t.amount;
             if(isThisMonth) acc.monthIncome += t.amount;
-            if(isThisYear) acc.yearIncome += t.amount;
         } else { // expense
-            acc.totalExpenses += t.amount;
+            acc.yearExpenses += t.amount;
             if(isThisMonth) acc.monthExpenses += t.amount;
-            if(isThisYear) acc.yearExpenses += t.amount;
         }
         return acc;
     }, {
-        totalIncome: 0,
-        totalExpenses: 0,
-        monthIncome: 0,
-        monthExpenses: 0,
         yearIncome: 0,
         yearExpenses: 0,
+        monthIncome: 0,
+        monthExpenses: 0,
     });
-  }, [transactions]);
+  }, [transactions, selectedYear]);
   
-  const netBalance = financialSummary.totalIncome - financialSummary.totalExpenses;
+  const netBalance = financialSummary.yearIncome - financialSummary.yearExpenses;
 
   const monthlyChartData = useMemo(() => {
-    const now = new Date();
-    const currentYear = getYear(now);
+    const yearNum = parseInt(selectedYear);
     const months = eachMonthOfInterval({
-        start: startOfYear(now),
-        end: endOfYear(now)
+        start: startOfYear(new Date(yearNum, 0, 1)),
+        end: endOfYear(new Date(yearNum, 11, 31))
     });
     
     const data = months.map(month => ({
@@ -173,7 +182,7 @@ export default function FinancePage() {
 
     transactions.forEach(t => {
         const transactionDate = parseISO(t.date);
-        if(getYear(transactionDate) === currentYear) {
+        if(getYear(transactionDate) === yearNum) {
             const monthIndex = getMonth(transactionDate);
             if(t.type === 'income') {
                 data[monthIndex].income += t.amount;
@@ -184,7 +193,7 @@ export default function FinancePage() {
     });
 
     return data;
-  }, [transactions]);
+  }, [transactions, selectedYear]);
 
   const handleExportCSV = () => {
     const dataToExport = transactions.map(t => ({
@@ -241,31 +250,46 @@ export default function FinancePage() {
     <div className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h1 className="text-2xl sm:text-3xl font-bold font-headline">Finance Dashboard</h1>
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto">
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{selectedTransaction ? "Edit" : "Add"} Transaction</DialogTitle>
-            </DialogHeader>
-            <FinanceForm
-              transaction={selectedTransaction}
-              onSubmit={handleFormSubmit}
-              onCancel={() => setIsFormOpen(false)}
-              isLoading={isSubmitting}
-            />
-          </DialogContent>
-        </Dialog>
+         <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className="flex-grow sm:flex-grow-0">
+                <Label htmlFor="year-select" className="sr-only">Select Year</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger id="year-select" className="w-full sm:w-[120px]">
+                        <SelectValue placeholder="Select Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableYears.map(year => (
+                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+            <DialogTrigger asChild>
+                <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                <DialogTitle>{selectedTransaction ? "Edit" : "Add"} Transaction</DialogTitle>
+                </DialogHeader>
+                <FinanceForm
+                transaction={selectedTransaction}
+                onSubmit={handleFormSubmit}
+                onCancel={() => setIsFormOpen(false)}
+                isLoading={isSubmitting}
+                />
+            </DialogContent>
+            </Dialog>
+        </div>
       </div>
       
       {/* Summary Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Income ({selectedYear})</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground text-green-500" />
             </CardHeader>
             <CardContent>
@@ -275,7 +299,7 @@ export default function FinancePage() {
         </Card>
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Expenses ({selectedYear})</CardTitle>
                 <TrendingDown className="h-4 w-4 text-muted-foreground text-red-500" />
             </CardHeader>
             <CardContent>
@@ -285,7 +309,7 @@ export default function FinancePage() {
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+                <CardTitle className="text-sm font-medium">Net Balance ({selectedYear})</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -311,7 +335,7 @@ export default function FinancePage() {
       <div className="grid gap-6 md:grid-cols-5">
         <Card className="md:col-span-3">
              <CardHeader>
-                <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Income vs. Expenses ({getYear(new Date())})</CardTitle>
+                <CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary"/>Income vs. Expenses ({selectedYear})</CardTitle>
              </CardHeader>
             <CardContent>
                 <ChartContainer config={chartConfig} className="h-[200px] sm:h-[250px] w-full">

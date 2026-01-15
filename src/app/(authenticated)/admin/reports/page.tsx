@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/reports/page.tsx
 "use client";
 
@@ -17,13 +16,17 @@ import { getAllUsers } from '@/services/userService';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
 import { getTransactions } from '@/services/financeService';
-import { format, parseISO, isValid, getYear, getMonth } from 'date-fns';
+import { format, parseISO, isValid, getYear, getMonth, startOfYear, endOfYear, startOfMonth, endOfMonth } from 'date-fns';
 import Papa from 'papaparse';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+
 
 interface MemberStat {
   userId: string;
@@ -36,6 +39,16 @@ interface MemberStat {
 
 const PIE_CHART_COLORS = ["#2563eb", "#14b8a6", "#ef4444", "#f97316", "#8b5cf6", "#3b82f6"];
 
+const months = [
+    { value: 'all', label: 'All Months' },
+    { value: '0', label: 'January' }, { value: '1', label: 'February' },
+    { value: '2', label: 'March' }, { value: '3', label: 'April' },
+    { value: '4', label: 'May' }, { value: '5', label: 'June' },
+    { value: '6', label: 'July' }, { value: '7', label: 'August' },
+    { value: '8', label: 'September' }, { value: '9', label: 'October' },
+    { value: '10', label: 'November' }, { value: '11', label: 'December' },
+];
+
 export default function ReportsPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -47,6 +60,9 @@ export default function ReportsPage() {
   const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
@@ -82,6 +98,12 @@ export default function ReportsPage() {
     }
   }, [user, fetchData, isSuperOrAdmin]);
 
+  const availableYears = useMemo(() => {
+    if (allTransactions.length === 0) return [new Date().getFullYear().toString()];
+    const years = new Set(allTransactions.map(t => getYear(parseISO(t.date)).toString()));
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [allTransactions]);
+
   const getInitials = (name?: string) => {
     if (!name) return "??";
     const names = name.split(' ');
@@ -93,7 +115,6 @@ export default function ReportsPage() {
     const stats: Record<string, { count: number; user: User | undefined }> = {};
     
     allUsers.forEach(u => {
-      // Initialize stats for all members and admins (but not super admins)
       if (u.status === 'approved' && (u.role === 'member' || u.role === 'admin')) {
         stats[u.id] = { count: 0, user: u };
       }
@@ -128,23 +149,39 @@ export default function ReportsPage() {
     });
   }, [allAttendance, allUsers]);
 
-  const { incomePieData, expensePieData } = useMemo(() => {
+  const { incomePieData, expensePieData, financialPeriodSummary } = useMemo(() => {
+    const yearNum = parseInt(selectedYear);
+    const monthNum = selectedMonth === 'all' ? -1 : parseInt(selectedMonth);
+
+    const periodStart = monthNum === -1 ? startOfYear(new Date(yearNum, 0, 1)) : startOfMonth(new Date(yearNum, monthNum, 1));
+    const periodEnd = monthNum === -1 ? endOfYear(new Date(yearNum, 11, 31)) : endOfMonth(new Date(yearNum, monthNum, 1));
+
+    const filteredTransactions = allTransactions.filter(t => {
+      const transactionDate = parseISO(t.date);
+      return transactionDate >= periodStart && transactionDate <= periodEnd;
+    });
+
     const incomeByCategory: { [key: string]: number } = {};
     const expenseByCategory: { [key: string]: number } = {};
+    let totalIncome = 0;
+    let totalExpenses = 0;
 
-    allTransactions.forEach(t => {
+    filteredTransactions.forEach(t => {
       if (t.type === 'income') {
         incomeByCategory[t.category] = (incomeByCategory[t.category] || 0) + t.amount;
+        totalIncome += t.amount;
       } else {
         expenseByCategory[t.category] = (expenseByCategory[t.category] || 0) + t.amount;
+        totalExpenses += t.amount;
       }
     });
 
-    const incomeData = Object.entries(incomeByCategory).map(([name, value]) => ({ name, value }));
-    const expenseData = Object.entries(expenseByCategory).map(([name, value]) => ({ name, value }));
-    
-    return { incomePieData: incomeData, expensePieData: expenseData };
-  }, [allTransactions]);
+    return {
+      incomePieData: Object.entries(incomeByCategory).map(([name, value]) => ({ name, value })),
+      expensePieData: Object.entries(expenseByCategory).map(([name, value]) => ({ name, value })),
+      financialPeriodSummary: { totalIncome, totalExpenses, netBalance: totalIncome - totalExpenses }
+    };
+  }, [allTransactions, selectedYear, selectedMonth]);
   
   const eventReportsData = useMemo(() => {
     if (!allEvents.length) return [];
@@ -355,46 +392,72 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="financial-reports" className="mt-6 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center"><PieChartIcon className="mr-2 h-5 w-5 text-green-600"/>Income by Category</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {isLoadingData ? ( <div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                    ) : incomePieData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={250}>
-                            <PieChart>
-                                <Pie data={incomePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                                    {incomePieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />))}
-                                </Pie>
-                                <Tooltip content={<CustomPieTooltip />} />
-                                <Legend />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    ) : (<p className="text-center text-muted-foreground py-8 h-[250px] flex items-center justify-center">No income data available.</p>)}
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center"><PieChartIcon className="mr-2 h-5 w-5 text-red-600"/>Expenses by Category</CardTitle>
-                </CardHeader>
-                <CardContent>
-                     {isLoadingData ? ( <div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                    ) : expensePieData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={250}>
-                            <PieChart>
-                                <Pie data={expensePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+          <Card>
+            <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <CardTitle>Financial Summary</CardTitle>
+                        <CardDescription>Breakdown of income and expenses for the selected period.</CardDescription>
+                    </div>
+                    <div className="flex items-end gap-2 w-full sm:w-auto">
+                        <div className="flex-1 sm:flex-none">
+                            <Label htmlFor="report-month">Month</Label>
+                            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                                <SelectTrigger id="report-month"><SelectValue/></SelectTrigger>
+                                <SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex-1 sm:flex-none">
+                            <Label htmlFor="report-year">Year</Label>
+                            <Select value={selectedYear} onValueChange={setSelectedYear}>
+                                <SelectTrigger id="report-year"><SelectValue/></SelectTrigger>
+                                <SelectContent>{availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm font-medium text-muted-foreground">Total Income</p>
+                        <p className="text-2xl font-bold text-green-600">LKR {financialPeriodSummary.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    </div>
+                     <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
+                        <p className="text-2xl font-bold text-red-600">LKR {financialPeriodSummary.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    </div>
+                     <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm font-medium text-muted-foreground">Net Balance</p>
+                        <p className={cn("text-2xl font-bold", financialPeriodSummary.netBalance >= 0 ? "text-primary" : "text-destructive")}>LKR {financialPeriodSummary.netBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h3 className="font-semibold flex items-center mb-2"><PieChartIcon className="mr-2 h-5 w-5 text-green-600"/>Income by Category</h3>
+                        {isLoadingData ? ( <div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                        ) : incomePieData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <PieChart><Pie data={incomePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                                        {incomePieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />))}
+                                </Pie><Tooltip content={<CustomPieTooltip />} /><Legend /></PieChart>
+                            </ResponsiveContainer>
+                        ) : (<p className="text-center text-muted-foreground py-8 h-[250px] flex items-center justify-center">No income data available for this period.</p>)}
+                    </div>
+                    <div>
+                        <h3 className="font-semibold flex items-center mb-2"><PieChartIcon className="mr-2 h-5 w-5 text-red-600"/>Expenses by Category</h3>
+                        {isLoadingData ? ( <div className="flex items-center justify-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                        ) : expensePieData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <PieChart><Pie data={expensePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
                                     {expensePieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />))}
-                                </Pie>
-                                <Tooltip content={<CustomPieTooltip />} />
-                                <Legend />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    ) : (<p className="text-center text-muted-foreground py-8 h-[250px] flex items-center justify-center">No expense data available.</p>)}
-                </CardContent>
-            </Card>
-          </div>
+                                </Pie><Tooltip content={<CustomPieTooltip />} /><Legend /></PieChart>
+                            </ResponsiveContainer>
+                        ) : (<p className="text-center text-muted-foreground py-8 h-[250px] flex items-center justify-center">No expense data available for this period.</p>)}
+                    </div>
+                </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="data-exports" className="mt-6">
