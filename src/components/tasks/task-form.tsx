@@ -54,9 +54,17 @@ export function TaskForm({ task, users, events, onSubmit, onCancel, isLoading }:
 
     const approvedMembers = users.filter(u => u.status === 'approved');
 
+    const handleFormSubmit = async (values: TaskFormValues) => {
+        const submissionValues = { ...values };
+        if (submissionValues.eventId === 'standalone') {
+            submissionValues.eventId = undefined;
+        }
+        await onSubmit(submissionValues);
+    };
+
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
                 <FormField control={form.control} name="title" render={({ field }) => (
                     <FormItem><FormLabel>Title *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )}/>
@@ -98,7 +106,7 @@ export function TaskForm({ task, users, events, onSubmit, onCancel, isLoading }:
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select an event..."/></SelectTrigger></FormControl>
                                 <SelectContent>
-                                    <SelectItem value="">Standalone Task</SelectItem>
+                                    <SelectItem value="standalone">Standalone Task</SelectItem>
                                     {events.map(event => <SelectItem key={event.id} value={event.id}>{event.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -158,4 +166,3 @@ export function TaskForm({ task, users, events, onSubmit, onCancel, isLoading }:
         </Form>
     );
 }
-
