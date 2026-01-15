@@ -1,11 +1,11 @@
-
 // public/firebase-messaging-sw.js
+// This file must be in the public directory to be served at the root of the domain.
 
-// Scripts for Firebase
+// Scripts for firebase and firebase messaging
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
-// Initialize the Firebase app in the service worker
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBf_kQkSkomBserNaNZYaF2TkE6qObD36U",
   authDomain: "leoathugal.firebaseapp.com",
@@ -16,17 +16,21 @@ const firebaseConfig = {
   measurementId: "G-Q8PYQMFSCD"
 };
 
+// Initialize the Firebase app in the service worker
+// by passing in the messagingSenderId.
 firebase.initializeApp(firebaseConfig);
+
+// Retrieve an instance of Firebase Messaging so that it can handle background
+// messages.
 const messaging = firebase.messaging();
 
-// If you want to handle background notifications here, you can do so
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  
-  const notificationTitle = payload.notification?.title || 'New Notification';
+  // Customize notification here
+  const notificationTitle = payload.notification.title;
   const notificationOptions = {
-    body: payload.notification?.body || '',
-    icon: payload.notification?.icon || '/icons/icon-192x192.png' // Ensure you have this icon
+    body: payload.notification.body,
+    icon: payload.notification.icon || '/icon-192x192.png',
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);

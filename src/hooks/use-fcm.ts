@@ -1,4 +1,3 @@
-
 // src/hooks/use-fcm.ts
 import { useEffect, useState } from 'react';
 import { getMessaging, getToken } from 'firebase/messaging';
@@ -9,6 +8,17 @@ import { useToast } from './use-toast';
 
 // VAPID key from Firebase Console
 const VAPID_KEY = "BIc9bH71DzSMqmg3pBlve0gm14FLcVAh4EacFVw4Ovg4uEd3k11ETlLIimkEinqQgObmFoOLWdKb4ZKCN1Nn-oM";
+
+async function getServiceWorkerRegistration() {
+    if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.active) {
+            return registration;
+        }
+    }
+    return null;
+}
+
 
 export function useFcm(user: User | null) {
   const { toast } = useToast();
@@ -27,11 +37,26 @@ export function useFcm(user: User | null) {
           console.log("FCM: Notification permission not granted yet.");
           return;
         }
+
+        const registration = await getServiceWorkerRegistration();
+        if (!registration) {
+            console.error("FCM: No active service worker found. Cannot get token.");
+            toast({
+              title: "Push Notification Error",
+              description: "Could not find an active service worker. Notifications may not work.",
+              variant: "destructive"
+            });
+            return;
+        }
         
         const messaging = getMessaging(app);
 
         try {
-          const currentToken = await getToken(messaging, { vapidKey: VAPID_KEY });
+          const currentToken = await getToken(messaging, { 
+              vapidKey: VAPID_KEY,
+              serviceWorkerRegistration: registration 
+          });
+
           if (currentToken) {
             console.log('FCM token:', currentToken);
             if (user.fcmToken !== currentToken) {
@@ -52,7 +77,9 @@ export function useFcm(user: User | null) {
       }
     };
 
-    retrieveToken();
+    if (notificationPermissionStatus === 'granted') {
+      retrieveToken();
+    }
   }, [user, toast, notificationPermissionStatus]);
 
   const requestPermission = async (): Promise<boolean> => {
