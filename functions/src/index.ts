@@ -3,7 +3,6 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
 import * as nodemailer from "nodemailer";
-import type { Event, PointsEntry } from "../../types";
 
 admin.initializeApp();
 

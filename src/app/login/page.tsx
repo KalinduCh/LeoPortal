@@ -12,8 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, UserCheck, AlertTriangle, Info, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { markUserAttendance } from "@/services/attendanceService";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isLoading: authLoading, user } = useAuth();
@@ -119,5 +120,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen flex-col items-center justify-center p-4"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

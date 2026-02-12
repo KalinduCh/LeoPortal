@@ -71,6 +71,8 @@ Follow these steps to get a local copy running.
 
 ### 1. Clone & Install
 
+Ensure you have **Node.js 20** or later installed.
+
 ```sh
 git clone https://github.com/your-username/leoportal.git
 cd leoportal
