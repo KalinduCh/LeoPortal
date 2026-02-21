@@ -1,48 +1,39 @@
-
 // public/firebase-messaging-sw.js
-importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
+// Standard Service Worker for handling Push Notifications (Web Push API)
 
-// Standard Firebase config from your clientApp.ts
-firebase.initializeApp({
-  apiKey: "AIzaSyBf_kQkSkomBserNaNZYaF2TkE6qObD36U",
-  authDomain: "leoathugal.firebaseapp.com",
-  projectId: "leoathugal",
-  storageBucket: "leoathugal.appspot.com",
-  messagingSenderId: "340503925043",
-  appId: "1:340503925043:web:26922db31c6a8b69cdee46",
-  measurementId: "G-Q8PYQMFSCD"
+self.addEventListener('push', function(event) {
+  if (event.data) {
+    const data = event.data.json();
+    const options = {
+      body: data.notification.body,
+      icon: data.notification.icon || '/icon-192x192.png',
+      badge: '/badge-72x72.png',
+      vibrate: [100, 50, 100],
+      data: {
+        url: data.notification.data?.url || '/dashboard'
+      }
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(data.notification.title, options)
+    );
+  }
 });
 
-const messaging = firebase.messaging();
-
-// Handle background messages
-messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  
-  const notificationTitle = payload.notification.title || "Leo Club Update";
-  const notificationOptions = {
-    body: payload.notification.body,
-    icon: 'https://i.imgur.com/MP1YFNf.png',
-    data: payload.data, // For handling clicks
-  };
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
-});
-
-// Handle notification click
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  const urlToOpen = event.notification.data?.link || '/dashboard';
-  
+  const urlToOpen = event.notification.data.url;
+
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (var i = 0; i < windowClients.length; i++) {
-        var client = windowClients[i];
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
+      // If we have a matching window, focus it
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
         if (client.url === urlToOpen && 'focus' in client) {
           return client.focus();
         }
       }
+      // If not, open a new window
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }

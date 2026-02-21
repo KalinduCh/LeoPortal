@@ -1,22 +1,23 @@
-
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
+import * as webPush from "web-push";
 
 admin.initializeApp();
 
 const db = admin.firestore();
-const messaging = admin.messaging();
 
-// Local definition of Task to avoid relative path issues during build
-interface Task {
-    id: string;
-    title: string;
-    assigneeIds: string[];
-    status: string;
-}
+// VAPID Configuration - Use environment variables for production
+const VAPID_PUBLIC_KEY = "BIc9bH71DzSMqmg3pBlve0gm14FLcVAh4EacFVw4Ovg4uEd3k11ETlLIimkEinqQgObmFoOLWdKb4ZKCN1Nn-oM";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "YOUR_GENERATED_PRIVATE_KEY_HERE"; // Generate using npx web-push generate-vapid-keys
 
-// Configuration from environment variables
+webPush.setVapidDetails(
+    "mailto:athugalpuraleoclub306d9@gmail.com",
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+);
+
+// Email Configuration
 const GMAIL_EMAIL = process.env.GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
 const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
 
@@ -77,7 +78,11 @@ const sendEmail = async (to: string, subject: string, htmlBody: string) => {
     }
 };
 
-const sendPushToUsers = async (
+/**
+ * Sends standard Web Push notifications using the web-push library.
+ * Supported on iOS 16.4+ PWAs.
+ */
+const sendWebPushToUsers = async (
   userIds: string[],
   title: string,
   body: string,
@@ -85,43 +90,43 @@ const sendPushToUsers = async (
 ) => {
   if (!userIds || userIds.length === 0) return;
 
-  const tokens: string[] = [];
-  // Use chunks if userIds is very large (Firestore limit is 10 in 'in' queries, 
-  // but for a club this size it's likely fine or we can use separate lookups)
   const usersSnapshot = await db.collection("users").where(
     admin.firestore.FieldPath.documentId(),
     "in",
     userIds.slice(0, 10), // Firestore 'in' limit
   ).get();
 
-  usersSnapshot.forEach((doc) => {
-    const user = doc.data();
-    if (user.fcmToken) {
-      tokens.push(user.fcmToken);
+  const payload = JSON.stringify({
+    notification: {
+      title,
+      body,
+      icon: "https://i.imgur.com/MP1YFNf.png",
+      data: {
+        url: link || "/dashboard"
+      }
     }
   });
 
-  if (tokens.length === 0) return;
+  const pushPromises = [];
 
-  const message: admin.messaging.MulticastMessage = {
-    tokens,
-    notification: { title, body },
-    webpush: {
-      fcmOptions: {
-        link: link || "https://leoathugal.web.app/dashboard",
-      },
-      notification: {
-        icon: "https://i.imgur.com/MP1YFNf.png",
-      },
-    },
-  };
-
-  try {
-    const response = await messaging.sendEachForMulticast(message);
-    console.log("Push notifications status:", response);
-  } catch (error) {
-    console.error("Error sending push notifications:", error);
+  for (const userDoc of usersSnapshot.docs) {
+    const userData = userDoc.data();
+    if (userData.pushSubscription) {
+      // Use web-push library to send to standard Push Services (APNs, FCM, etc.)
+      const promise = webPush.sendNotification(userData.pushSubscription, payload)
+        .catch(err => {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            console.log(`Subscription for user ${userDoc.id} has expired or is no longer valid. Removing...`);
+            return userDoc.ref.update({ pushSubscription: admin.firestore.FieldValue.delete() });
+          }
+          console.error(`Error sending push to user ${userDoc.id}:`, err);
+          return null;
+        });
+      pushPromises.push(promise);
+    }
   }
+
+  await Promise.all(pushPromises);
 };
 
 export const onUserStatusChange = functions.firestore
@@ -135,7 +140,7 @@ export const onUserStatusChange = functions.firestore
       const userEmail = after.email;
       const userName = after.name || "Leo";
 
-      await sendPushToUsers(
+      await sendWebPushToUsers(
         [userId],
         "Account Approved!",
         `Welcome, ${userName}! Your account has been approved.`,
@@ -143,11 +148,7 @@ export const onUserStatusChange = functions.firestore
       );
 
       const subject = "Your LEO Portal Account has been Approved!";
-      const htmlBody = `
-        <p>Dear ${userName},</p>
-        <p>Congratulations! Your membership for the LEO Portal has been approved.</p>
-        <p>Welcome to the club!</p>
-      `;
+      const htmlBody = `<p>Dear ${userName},</p><p>Congratulations! Your membership for the LEO Portal has been approved.</p><p>Welcome to the club!</p>`;
       if (userEmail) {
         await sendEmail(userEmail, subject, htmlBody);
       }
@@ -161,7 +162,9 @@ export const onEventCreated = functions.firestore
     const usersSnapshot = await db.collection("users")
       .where("status", "==", "approved").get();
     const userIds = usersSnapshot.docs.map((doc) => doc.id);
-    await sendPushToUsers(
+    
+    // Web Push to all approved users
+    await sendWebPushToUsers(
       userIds,
       "New Event Published!",
       `A new event has been scheduled: ${event.name}`,
@@ -172,9 +175,9 @@ export const onEventCreated = functions.firestore
 export const onTaskCreated = functions.firestore
   .document("tasks/{taskId}")
   .onCreate(async (snap, context) => {
-    const task = snap.data() as Task;
+    const task = snap.data();
     if (task.assigneeIds && task.assigneeIds.length > 0) {
-      await sendPushToUsers(
+      await sendWebPushToUsers(
         task.assigneeIds,
         "New Task Assigned!",
         `You have been assigned to: ${task.title}`,
@@ -186,14 +189,13 @@ export const onTaskCreated = functions.firestore
 export const onTaskUpdated = functions.firestore
   .document("tasks/{taskId}")
   .onUpdate(async (change, context) => {
-    const before = change.before.data() as Task;
-    const after = change.after.data() as Task;
+    const before = change.before.data();
+    const after = change.after.data();
     
-    // Notify only if new assignees are added
-    const newAssignees = after.assigneeIds.filter(id => !before.assigneeIds.includes(id));
+    const newAssignees = after.assigneeIds.filter((id: string) => !before.assigneeIds.includes(id));
     
     if (newAssignees.length > 0) {
-      await sendPushToUsers(
+      await sendWebPushToUsers(
         newAssignees,
         "New Task Assigned!",
         `You have been assigned to: ${after.title}`,

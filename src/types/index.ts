@@ -1,4 +1,3 @@
-
 import type { ReactElement, ElementType } from 'react';
 
 export type UserRole = 'super_admin' | 'admin' | 'member';
@@ -15,20 +14,21 @@ export interface Badge {
 export type AdminPermission = 'members' | 'events' | 'finance' | 'communication' | 'project_ideas' | 'reports' | 'leaderboard';
 
 export interface User {
-  id: string; // This will be the Firebase Auth UID
+  id: string; 
   name: string;
   email: string;
   photoUrl?: string;
   role: UserRole;
   status: 'pending' | 'approved' | 'rejected';
-  createdAt?: string; // ISO string of when user was created
+  createdAt?: string; 
   designation?: string;
   nic?: string;
-  dateOfBirth?: string; // Stored as "YYYY-MM-DD" string
+  dateOfBirth?: string; 
   gender?: string;
   mobileNumber?: string;
   badges?: BadgeId[];
-  fcmToken?: string; // For Push Notifications
+  fcmToken?: string; // Kept for backward compatibility
+  pushSubscription?: any; // Standard PushSubscription JSON object
   membershipFeeStatus?: 'paid' | 'pending' | 'partial';
   membershipFeeAmountPaid?: number;
   permissions?: Partial<Record<AdminPermission, boolean>>;
@@ -37,15 +37,15 @@ export interface User {
 export type EventType = 'club_project' | 'district_project' | 'joint_project' | 'official_visit' | 'deadline' | 'other';
 
 export interface Event {
-  id: string; // Firestore document ID
+  id: string; 
   name: string;
-  startDate: string; // Primary date field: ISO string (converted from Firestore Timestamp)
-  endDate?: string; // Optional: ISO string for multi-day or timed events
+  startDate: string; 
+  endDate?: string; 
   description: string;
-  location: string; // Textual location
-  latitude?: number;  // For geolocation
-  longitude?: number; // For geolocation
-  reminderSent: boolean; // To track if a reminder has been sent;
+  location: string; 
+  latitude?: number;  
+  longitude?: number; 
+  reminderSent: boolean; 
   eventType?: EventType;
   points?: number;
 }
@@ -54,68 +54,39 @@ export interface PointsEntry {
   id: string;
   userId: string;
   userName: string;
-  date: string; // ISO string for the date the points apply to
+  date: string; 
   description: string;
   points: number;
   category: 'role' | 'participation' | 'other';
-  projectName?: string; // Optional project name
-  addedBy: string; // Admin's user ID or 'system'
-  createdAt: string; // ISO string
-  eventId?: string; // Link to the event if applicable
+  projectName?: string; 
+  addedBy: string; 
+  createdAt: string; 
+  eventId?: string; 
 }
-
-// DEPRECATED data structure - no longer in use
-export interface MonthlyPoints {
-    id?: string;
-    userId: string;
-    userName: string;
-    photoUrl?: string;
-    month: number;
-    year: number;
-    chairSecTrePoints: number;
-    ocPoints: number;
-    meetingPoints: number;
-    clubProjectPoints: number;
-    districtProjectPoints: number;
-    multipleProjectPoints: number;
-    totalPoints: number;
-    updatedAt: string;
-}
-
 
 export interface AttendanceRecord {
-  id: string; // Firestore document ID
+  id: string; 
   eventId: string;
-  timestamp: string; // ISO string of when attendance was marked
+  timestamp: string; 
   status: 'present'; 
-
   attendanceType: 'member' | 'visitor';
-
-  // For members
-  userId?: string; // Firebase Auth UID of the member
-
-  // For visitors
+  userId?: string; 
   visitorName?: string;
   visitorDesignation?: string;
   visitorClub?: string;
   visitorComment?: string;
-
-  // Optional: store location where attendance was marked for audit
   markedLatitude?: number;
   markedLongitude?: number;
 }
 
-// This represents the full, detailed project proposal after AI generation and before saving to Firestore.
 export interface ProjectIdea {
-    id: string; // Firestore Document ID
+    id: string; 
     projectName: string;
     goal: string;
     targetAudience: string;
     budget: string;
     timeline: string;
     specialConsiderations?: string;
-
-    // Generated Fields from the new template
     projectIdea: string;
     proposedActionPlan: {
         objective: string;
@@ -136,76 +107,53 @@ export interface ProjectIdea {
         cost: string;
     }[];
     resourcePersonals: string[];
-
-    // Metadata
     status: 'draft' | 'pending_review' | 'needs_revision' | 'approved' | 'declined';
     authorId: string;
     authorName: string;
-    createdAt: string; // ISO string
-    updatedAt: string; // ISO string
-    adminFeedback?: string; // New field for admin comments
+    createdAt: string; 
+    updatedAt: string; 
+    adminFeedback?: string; 
 }
 
-
-// This summary type is used for displaying participants on the admin event summary page.
 export interface EventParticipantSummary {
-  id: string; // For members: userId. For visitors: attendanceRecordId.
-  attendanceTimestamp: string; // ISO string
+  id: string; 
+  attendanceTimestamp: string; 
   type: 'member' | 'visitor';
-
-  // Member specific details (populated if type is 'member' by fetching User profile)
   userName?: string; 
   userEmail?: string;
   userRole?: UserRole;
   userDesignation?: string;
   userPhotoUrl?: string;
   userNic?: string; 
-
-  // Visitor specific details (taken directly from AttendanceRecord if type is 'visitor')
   visitorName?: string;
   visitorDesignation?: string;
   visitorClub?: string;
   visitorComment?: string;
 }
 
-export interface ContactInfo {
-    name: string;
-    email: string;
-    phone: string;
-}
-
-export interface ContactSettings {
-    president: ContactInfo;
-    support: ContactInfo;
-}
-
 export interface CommunicationGroup {
   id: string;
   name: string;
   memberIds: string[];
-  createdAt: string; // ISO string
-  color?: string; // Optional: hex color code for the group button
+  createdAt: string; 
+  color?: string; 
 }
 
 export interface Transaction {
     id: string;
     type: 'income' | 'expense';
-    date: string; // ISO string
+    date: string; 
     amount: number;
     category: string;
-    source: string; // e.g., 'Membership Dues', 'Venue Rental'
+    source: string; 
     notes?: string;
-    createdAt: string; // ISO string
+    createdAt: string; 
 }
 
 export interface FinancialCategory {
     id: string;
     name: string;
 }
-
-// ===================================
-// Task & Project Management Types
-// ===================================
 
 export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
@@ -214,14 +162,6 @@ export interface TaskChecklistItem {
     id: string;
     text: string;
     completed: boolean;
-}
-
-export interface TaskAttachment {
-    id: string;
-    name: string;
-    url: string; // e.g., Google Drive link
-    type: 'google_drive' | 'file' | 'link';
-    uploadedAt: string;
 }
 
 export interface TaskComment {
@@ -233,14 +173,6 @@ export interface TaskComment {
     createdAt: string;
 }
 
-export interface TaskActivity {
-    id: string;
-    actorId: string;
-    actorName: string;
-    action: string; // e.g., "created the task", "changed status to In Progress"
-    timestamp: string;
-}
-
 export interface Task {
     id: string;
     title: string;
@@ -249,15 +181,9 @@ export interface Task {
     priority: TaskPriority;
     dueDate?: string;
     assigneeIds: string[];
-    
-    // Linking
-    eventId?: string; // Link to an event
-    eventName?: string; // Denormalized for easy display
-
-    // Sub-components
+    eventId?: string; 
+    eventName?: string; 
     checklist: TaskChecklistItem[];
-    
-    // Metadata
     createdBy: string;
     createdAt: string;
     updatedAt: string;
