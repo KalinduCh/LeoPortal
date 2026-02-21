@@ -1,3 +1,4 @@
+
 // src/hooks/use-fcm.ts
 import { useEffect, useState } from 'react';
 import { getMessaging, getToken } from 'firebase/messaging';
@@ -24,7 +25,8 @@ export function useFcm(user: User | null) {
       if (typeof window === 'undefined' || !user || !('serviceWorker' in navigator)) return;
 
       try {
-        // Wait until the service worker is ready
+        // CRITICAL FIX: Wait until the service worker is active and ready.
+        // This resolves the "No active service worker" error.
         const registration = await navigator.serviceWorker.ready;
         
         if (!registration) {
@@ -42,6 +44,7 @@ export function useFcm(user: User | null) {
 
         if (currentToken) {
           console.log('FCM token retrieved:', currentToken);
+          // Only update if the token has changed to minimize Firestore writes
           if (user.fcmToken !== currentToken) {
               await updateFcmToken(user.id, currentToken);
           }
@@ -57,14 +60,19 @@ export function useFcm(user: User | null) {
   const requestPermission = async (): Promise<boolean> => {
     if (typeof window === 'undefined' || !('Notification' in window)) return false;
     
-    const permission = await Notification.requestPermission();
-    setNotificationPermissionStatus(permission);
+    try {
+        const permission = await Notification.requestPermission();
+        setNotificationPermissionStatus(permission);
 
-    if (permission === 'granted') {
-      return true;
-    } else {
-      toast({ title: "Permission Denied", description: "You will not receive push notifications." });
-      return false;
+        if (permission === 'granted') {
+          return true;
+        } else {
+          toast({ title: "Permission Denied", description: "You will not receive push notifications." });
+          return false;
+        }
+    } catch (error) {
+        console.error("Error requesting notification permission:", error);
+        return false;
     }
   };
 

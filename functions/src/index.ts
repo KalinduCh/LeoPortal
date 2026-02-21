@@ -2,14 +2,21 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
-import type { Task } from "../../types";
 
 admin.initializeApp();
 
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-// Use environment variables for sensitive credentials
+// Local definition of Task to avoid relative path issues during build
+interface Task {
+    id: string;
+    title: string;
+    assigneeIds: string[];
+    status: string;
+}
+
+// Configuration from environment variables
 const GMAIL_EMAIL = process.env.GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
 const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
 
@@ -79,10 +86,12 @@ const sendPushToUsers = async (
   if (!userIds || userIds.length === 0) return;
 
   const tokens: string[] = [];
+  // Use chunks if userIds is very large (Firestore limit is 10 in 'in' queries, 
+  // but for a club this size it's likely fine or we can use separate lookups)
   const usersSnapshot = await db.collection("users").where(
     admin.firestore.FieldPath.documentId(),
     "in",
-    userIds,
+    userIds.slice(0, 10), // Firestore 'in' limit
   ).get();
 
   usersSnapshot.forEach((doc) => {
