@@ -1,34 +1,38 @@
-// public/firebase-messaging-sw.js
-// Standard Service Worker for handling Push Notifications (Web Push API)
+// Standard Web Push Service Worker for LEO Portal
+// Compatible with iOS 16.4+ and all standard browser push protocols
 
 self.addEventListener('push', function(event) {
   if (event.data) {
-    const data = event.data.json();
-    const options = {
-      body: data.notification.body,
-      icon: data.notification.icon || '/icon-192x192.png',
-      badge: '/badge-72x72.png',
-      vibrate: [100, 50, 100],
-      data: {
-        url: data.notification.data?.url || '/dashboard'
-      }
-    };
+    try {
+      const payload = event.data.json();
+      const options = {
+        body: payload.notification.body,
+        icon: payload.notification.icon || 'https://i.imgur.com/MP1YFNf.png',
+        badge: 'https://i.imgur.com/MP1YFNf.png',
+        vibrate: [100, 50, 100],
+        data: payload.notification.data || { url: '/dashboard' },
+      };
 
-    event.waitUntil(
-      self.registration.showNotification(data.notification.title, options)
-    );
+      event.waitUntil(
+        self.registration.showNotification(payload.notification.title, options)
+      );
+    } catch (e) {
+      console.error('Error handling push event:', e);
+    }
   }
 });
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  const urlToOpen = event.notification.data.url;
+  
+  // Extract the URL from the notification data
+  const urlToOpen = event.notification.data ? event.notification.data.url : '/dashboard';
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
-      // If we have a matching window, focus it
-      for (let i = 0; i < windowClients.length; i++) {
-        const client = windowClients[i];
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      // Check if a window with the target URL is already open
+      for (let i = 0; i < clientList.length; i++) {
+        let client = clientList[i];
         if (client.url === urlToOpen && 'focus' in client) {
           return client.focus();
         }
