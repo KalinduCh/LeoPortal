@@ -3,7 +3,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
 import * as nodemailer from "nodemailer";
-import type { Event, Task } from "../../types";
+import type { Event, Task, PointsEntry } from "../../types";
 
 admin.initializeApp();
 
@@ -199,7 +199,6 @@ export const onTaskUpdated = functions.firestore
     const before = change.before.data() as Task;
     const after = change.after.data() as Task;
     
-    // Check if new assignees were added
     const newAssignees = after.assigneeIds.filter(id => !before.assigneeIds.includes(id));
     
     if (newAssignees.length > 0) {
