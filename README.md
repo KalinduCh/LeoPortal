@@ -38,7 +38,7 @@ npm install
 
 ### 2. Environment Setup
 Create a `.env` file and add:
-- `GEMINI_API_KEY`: Your Generative Language API Key.
+- `GOOGLE_GENAI_API_KEY`: Your Generative Language API Key.
 - `GMAIL_EMAIL`: System email for notifications.
 - `GMAIL_APP_PASSWORD`: App password for Gmail SMTP.
 - `GOOGLE_SHEET_ID`: ID of the sheet for member sync.
