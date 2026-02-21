@@ -48,7 +48,7 @@ export default function FinancePage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   
-  // Year and Month selection state
+  // Year filter - 'all' or specific year string
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   
   const [currentPage, setCurrentPage] = useState(1);
@@ -82,12 +82,13 @@ export default function FinancePage() {
   const availableYears = useMemo(() => {
     const years = new Set<string>();
     transactions.forEach(t => years.add(getYear(parseISO(t.date)).toString()));
-    // Always include current year
     years.add(new Date().getFullYear().toString());
-    return Array.from(years).sort((a, b) => b.localeCompare(a));
+    const sortedYears = Array.from(years).sort((a, b) => b.localeCompare(a));
+    return ['all', ...sortedYears];
   }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
+    if (selectedYear === 'all') return transactions;
     return transactions.filter(t => getYear(parseISO(t.date)).toString() === selectedYear);
   }, [transactions, selectedYear]);
 
@@ -99,60 +100,55 @@ export default function FinancePage() {
   const totalPages = useMemo(() => Math.ceil(filteredTransactions.length / rowsPerPage), [filteredTransactions.length]);
 
   const financialSummary = useMemo(() => {
-    const yearInt = parseInt(selectedYear);
-    
-    return transactions.reduce((acc, t) => {
-        const tDate = parseISO(t.date);
-        const tYear = getYear(tDate);
-        const tMonth = getMonth(tDate);
-        const now = new Date();
-        const isCurrentMonth = tYear === getYear(now) && tMonth === getMonth(now);
-
-        if (tYear === yearInt) {
-            if(t.type === 'income') {
-                acc.yearIncome += t.amount;
-                if(isCurrentMonth) acc.monthIncome += t.amount;
-            } else {
-                acc.yearExpenses += t.amount;
-                if(isCurrentMonth) acc.monthExpenses += t.amount;
-            }
-        }
+    return filteredTransactions.reduce((acc, t) => {
+        if(t.type === 'income') acc.income += t.amount;
+        else acc.expenses += t.amount;
         return acc;
-    }, {
-        monthIncome: 0,
-        monthExpenses: 0,
-        yearIncome: 0,
-        yearExpenses: 0,
-    });
-  }, [transactions, selectedYear]);
-  
-  const netBalance = financialSummary.yearIncome - financialSummary.yearExpenses;
+    }, { income: 0, expenses: 0 });
+  }, [filteredTransactions]);
 
-  const monthlyChartData = useMemo(() => {
-    const yearInt = parseInt(selectedYear);
-    const startDate = startOfYear(new Date(yearInt, 0, 1));
-    const endDate = endOfYear(new Date(yearInt, 0, 1));
-    const months = eachMonthOfInterval({ start: startDate, end: endDate });
-    
-    const data = months.map(month => ({
-        name: format(month, 'MMM'),
-        income: 0,
-        expenses: 0
-    }));
+  const lifetimeBalance = useMemo(() => {
+    return transactions.reduce((acc, t) => {
+        return t.type === 'income' ? acc + t.amount : acc - t.amount;
+    }, 0);
+  }, [transactions]);
 
-    transactions.forEach(t => {
-        const transactionDate = parseISO(t.date);
-        if(getYear(transactionDate) === yearInt) {
-            const monthIndex = getMonth(transactionDate);
-            if(t.type === 'income') {
-                data[monthIndex].income += t.amount;
-            } else {
-                data[monthIndex].expenses += t.amount;
+  const chartData = useMemo(() => {
+    if (selectedYear === 'all') {
+        // Group by year
+        const yearGroups: Record<string, { income: number, expenses: number }> = {};
+        transactions.forEach(t => {
+            const y = getYear(parseISO(t.date)).toString();
+            if (!yearGroups[y]) yearGroups[y] = { income: 0, expenses: 0 };
+            if (t.type === 'income') yearGroups[y].income += t.amount;
+            else yearGroups[y].expenses += t.amount;
+        });
+        return Object.entries(yearGroups)
+            .map(([name, data]) => ({ name, ...data }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+        // Group by month for specific year
+        const yearInt = parseInt(selectedYear);
+        const startDate = startOfYear(new Date(yearInt, 0, 1));
+        const endDate = endOfYear(new Date(yearInt, 0, 1));
+        const months = eachMonthOfInterval({ start: startDate, end: endDate });
+        
+        const data = months.map(month => ({
+            name: format(month, 'MMM'),
+            income: 0,
+            expenses: 0
+        }));
+
+        transactions.forEach(t => {
+            const transactionDate = parseISO(t.date);
+            if(getYear(transactionDate) === yearInt) {
+                const monthIndex = getMonth(transactionDate);
+                if(t.type === 'income') data[monthIndex].income += t.amount;
+                else data[monthIndex].expenses += t.amount;
             }
-        }
-    });
-
-    return data;
+        });
+        return data;
+    }
   }, [transactions, selectedYear]);
 
   const handleOpenForm = (transaction?: Transaction) => {
@@ -232,7 +228,7 @@ export default function FinancePage() {
     });
 
     doc.setFontSize(18);
-    doc.text(`Leo Club Financial Report - ${selectedYear}`, 14, 15);
+    doc.text(`Leo Club Financial Report - ${selectedYear === 'all' ? 'Lifetime' : selectedYear}`, 14, 15);
     doc.setFontSize(11);
     doc.text(`Generated on ${format(new Date(), 'PPP')}`, 14, 22);
     
@@ -260,14 +256,18 @@ export default function FinancePage() {
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
             <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Label htmlFor="year-select" className="sr-only">Year</Label>
+                <Label htmlFor="year-select" className="sr-only">Filter Year</Label>
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
-                    <SelectTrigger id="year-select" className="w-[120px]">
+                    <SelectTrigger id="year-select" className="w-[140px]">
                         <Calendar className="mr-2 h-4 w-4 opacity-50" />
                         <SelectValue placeholder="Year" />
                     </SelectTrigger>
                     <SelectContent>
-                        {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                        {availableYears.map(y => (
+                            <SelectItem key={y} value={y}>
+                                {y === 'all' ? 'All Balances' : y}
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>
@@ -296,38 +296,34 @@ export default function FinancePage() {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-l-4 border-l-green-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Income ({selectedYear})</CardTitle>
+                <CardTitle className="text-sm font-medium">Income ({selectedYear === 'all' ? 'All Time' : selectedYear})</CardTitle>
                 <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold text-green-600">LKR {financialSummary.yearIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">
-                    {selectedYear === new Date().getFullYear().toString() ? `+LKR ${financialSummary.monthIncome.toLocaleString()} this month` : `Total for ${selectedYear}`}
-                </p>
+                <div className="text-2xl font-bold text-green-600">LKR {financialSummary.income.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total Revenue</p>
             </CardContent>
         </Card>
          <Card className="border-l-4 border-l-red-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Expenses ({selectedYear})</CardTitle>
+                <CardTitle className="text-sm font-medium">Expenses ({selectedYear === 'all' ? 'All Time' : selectedYear})</CardTitle>
                 <TrendingDown className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold text-red-600">LKR {financialSummary.yearExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">
-                    {selectedYear === new Date().getFullYear().toString() ? `+LKR ${financialSummary.monthExpenses.toLocaleString()} this month` : `Total for ${selectedYear}`}
-                </p>
+                <div className="text-2xl font-bold text-red-600">LKR {financialSummary.expenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total Costs</p>
             </CardContent>
         </Card>
-        <Card className={cn("border-l-4", netBalance >= 0 ? "border-l-primary" : "border-l-destructive")}>
+        <Card className={cn("border-l-4", lifetimeBalance >= 0 ? "border-l-primary" : "border-l-destructive")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+                <CardTitle className="text-sm font-medium">Net Balance (All Time)</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                <div className={cn("text-2xl font-bold", netBalance >= 0 ? "text-primary" : "text-destructive")}>
-                    LKR {netBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <div className={cn("text-2xl font-bold", lifetimeBalance >= 0 ? "text-primary" : "text-destructive")}>
+                    LKR {lifetimeBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </div>
-                <p className="text-xs text-muted-foreground">Yearly Profit / Loss</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Cash on Hand</p>
             </CardContent>
         </Card>
          <Card>
@@ -337,7 +333,7 @@ export default function FinancePage() {
             </CardHeader>
             <CardContent>
                  <div className="text-2xl font-bold">{filteredTransactions.length}</div>
-                <p className="text-xs text-muted-foreground">Transactions in {selectedYear}</p>
+                <p className="text-xs text-muted-foreground">Transactions in view</p>
             </CardContent>
         </Card>
       </div>
@@ -345,12 +341,12 @@ export default function FinancePage() {
       <div className="grid gap-6 md:grid-cols-5">
         <Card className="md:col-span-3 shadow-md">
              <CardHeader>
-                <CardTitle className="flex items-center text-lg"><BarChart className="mr-2 h-5 w-5 text-primary"/>Monthly Breakdown - {selectedYear}</CardTitle>
+                <CardTitle className="flex items-center text-lg"><BarChart className="mr-2 h-5 w-5 text-primary"/>{selectedYear === 'all' ? 'Yearly Overview' : `Monthly Breakdown - ${selectedYear}`}</CardTitle>
              </CardHeader>
             <CardContent>
                 <ChartContainer config={chartConfig} className="h-[250px] w-full">
                     <ResponsiveContainer>
-                        <RechartsBarChart accessibilityLayer data={monthlyChartData}>
+                        <RechartsBarChart accessibilityLayer data={chartData}>
                             <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.5} />
                             <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} fontSize={12} />
                             <YAxis tickFormatter={(value) => `${Number(value) >= 1000 ? `${(Number(value) / 1000).toFixed(0)}k` : value}`} fontSize={12} width={40}/>
@@ -365,7 +361,7 @@ export default function FinancePage() {
          <Card className="md:col-span-2 shadow-md">
              <CardHeader>
                 <CardTitle className="text-lg">Recent Activities</CardTitle>
-                <CardDescription>Latest entries for {selectedYear}.</CardDescription>
+                <CardDescription>Latest entries recorded.</CardDescription>
              </CardHeader>
             <CardContent>
                 <ScrollArea className="h-[250px]">
@@ -377,7 +373,7 @@ export default function FinancePage() {
                                 </div>
                                 <div className="flex-grow min-w-0">
                                     <p className="font-medium text-sm truncate">{t.source}</p>
-                                    <p className="text-xs text-muted-foreground">{t.category} • {format(parseISO(t.date), 'MMM dd')}</p>
+                                    <p className="text-xs text-muted-foreground">{t.category} • {format(parseISO(t.date), 'MMM dd, yy')}</p>
                                 </div>
                                 <div className={cn("font-semibold text-sm ml-2 shrink-0", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
                                     {t.type === 'income' ? '+' : '-'}LKR {t.amount.toLocaleString()}
@@ -385,7 +381,7 @@ export default function FinancePage() {
                             </div>
                         ))}
                         {filteredTransactions.length === 0 && (
-                            <div className="text-center py-10 text-muted-foreground italic text-sm">No entries found for this year.</div>
+                            <div className="text-center py-10 text-muted-foreground italic text-sm">No entries found for this selection.</div>
                         )}
                     </div>
                 </ScrollArea>
@@ -396,7 +392,7 @@ export default function FinancePage() {
        <Card className="shadow-lg">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-                <CardTitle className="text-xl">Transaction Ledger - {selectedYear}</CardTitle>
+                <CardTitle className="text-xl">Transaction Ledger - {selectedYear === 'all' ? 'All Balances' : selectedYear}</CardTitle>
                 <CardDescription>Full history of financial records for the selected period.</CardDescription>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -475,7 +471,7 @@ export default function FinancePage() {
           {filteredTransactions.length === 0 && !isLoading && (
             <div className="text-center py-16 text-muted-foreground">
                 <HandCoins className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                <p>No financial records found for {selectedYear}.</p>
+                <p>No financial records found for the selected period.</p>
                 <Button variant="link" className="mt-2" onClick={() => handleOpenForm()}>Record your first transaction</Button>
             </div>
           )}

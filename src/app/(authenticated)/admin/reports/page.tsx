@@ -99,13 +99,14 @@ export default function ReportsPage() {
     const years = new Set<string>();
     allTransactions.forEach(t => years.add(getYear(parseISO(t.date)).toString()));
     years.add(new Date().getFullYear().toString());
-    return Array.from(years).sort((a, b) => b.localeCompare(a));
+    const sortedYears = Array.from(years).sort((a, b) => b.localeCompare(a));
+    return ['all', ...sortedYears];
   }, [allTransactions]);
 
   const filteredFinanceTransactions = useMemo(() => {
     return allTransactions.filter(t => {
         const tDate = parseISO(t.date);
-        const yearMatch = getYear(tDate).toString() === financeYear;
+        const yearMatch = financeYear === 'all' || getYear(tDate).toString() === financeYear;
         const monthMatch = financeMonth === "all" || getMonth(tDate).toString() === financeMonth;
         return yearMatch && monthMatch;
     });
@@ -386,11 +387,15 @@ export default function ReportsPage() {
                     <CardDescription>Filtered breakdown of income and expenses by category.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-[120px]">
+                    <div className="w-[140px]">
                         <Select value={financeYear} onValueChange={setFinanceYear}>
                             <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Year"/></SelectTrigger>
                             <SelectContent>
-                                {availableFinanceYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                {availableFinanceYears.map(y => (
+                                    <SelectItem key={y} value={y}>
+                                        {y === 'all' ? 'All Balances' : y}
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -407,11 +412,11 @@ export default function ReportsPage() {
             <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                     <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-100 dark:border-green-900/50">
-                        <p className="text-xs text-green-600 dark:text-green-400 font-medium uppercase tracking-wider mb-1">Total Income</p>
+                        <p className="text-xs text-green-600 dark:text-green-400 font-medium uppercase tracking-wider mb-1">Total Income ({financeYear === 'all' ? 'Lifetime' : financeYear})</p>
                         <p className="text-2xl font-bold text-green-700 dark:text-green-300">LKR {totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
                     <div className="bg-red-50 dark:bg-red-950/20 p-4 rounded-lg border border-red-100 dark:border-red-900/50">
-                        <p className="text-xs text-red-600 dark:text-red-400 font-medium uppercase tracking-wider mb-1">Total Expense</p>
+                        <p className="text-xs text-red-600 dark:text-red-400 font-medium uppercase tracking-wider mb-1">Total Expense ({financeYear === 'all' ? 'Lifetime' : financeYear})</p>
                         <p className="text-2xl font-bold text-red-700 dark:text-red-300">LKR {totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
                 </div>
