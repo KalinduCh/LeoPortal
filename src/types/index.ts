@@ -202,3 +202,63 @@ export interface FinancialCategory {
     id: string;
     name: string;
 }
+
+// ===================================
+// Task & Project Management Types
+// ===================================
+
+export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
+export type TaskPriority = 'low' | 'medium' | 'high';
+
+export interface TaskChecklistItem {
+    id: string;
+    text: string;
+    completed: boolean;
+}
+
+export interface TaskAttachment {
+    id: string;
+    name: string;
+    url: string; // e.g., Google Drive link
+    type: 'google_drive' | 'file' | 'link';
+    uploadedAt: string;
+}
+
+export interface TaskComment {
+    id: string;
+    authorId: string;
+    authorName: string;
+    authorPhotoUrl?: string;
+    content: string;
+    createdAt: string;
+}
+
+export interface TaskActivity {
+    id: string;
+    actorId: string;
+    actorName: string;
+    action: string; // e.g., "created the task", "changed status to In Progress"
+    timestamp: string;
+}
+
+export interface Task {
+    id: string;
+    title: string;
+    description: string;
+    status: TaskStatus;
+    priority: TaskPriority;
+    dueDate?: string;
+    assigneeIds: string[];
+    
+    // Linking
+    eventId?: string; // Link to an event
+    eventName?: string; // Denormalized for easy display
+
+    // Sub-components
+    checklist: TaskChecklistItem[];
+    
+    // Metadata
+    createdBy: string;
+    createdAt: string;
+    updatedAt: string;
+}
