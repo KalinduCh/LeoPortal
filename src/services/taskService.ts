@@ -11,11 +11,10 @@ import {
   query,
   orderBy,
   serverTimestamp,
-  writeBatch,
   setDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
-import type { Task, TaskStatus, TaskComment, TaskChecklistItem } from '@/types';
+import type { Task, TaskStatus, TaskComment } from '@/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -43,7 +42,7 @@ export function createTask(data: Omit<Task, 'id' | 'status' | 'createdAt' | 'upd
         checklist: [],
       };
 
-      if (eventId) {
+      if (eventId && eventId !== 'standalone') {
         taskData.eventId = eventId;
       }
 
@@ -51,7 +50,7 @@ export function createTask(data: Omit<Task, 'id' | 'status' | 'createdAt' | 'upd
           taskData.dueDate = Timestamp.fromDate(new Date(data.dueDate));
       }
       
-      const docRef = doc(tasksCollection); // Create a ref with an ID first
+      const docRef = doc(tasksCollection);
       setDoc(docRef, taskData)
         .then(() => resolve(docRef.id))
         .catch(async (serverError) => {
@@ -138,7 +137,6 @@ export function deleteTask(taskId: string): Promise<void> {
     });
 }
 
-// --- Comments ---
 export async function getTaskComments(taskId: string): Promise<TaskComment[]> {
     const commentsRef = collection(db, `tasks/${taskId}/comments`);
     const q = query(commentsRef, orderBy('createdAt', 'asc'));
@@ -162,7 +160,7 @@ export function addTaskComment(taskId: string, commentData: Omit<TaskComment, 'i
             .then((docRef) => resolve(docRef.id))
             .catch(async (serverError) => {
                 const permissionError = new FirestorePermissionError({
-                    path: `tasks/${taskId}/comments/`, // Path to the collection
+                    path: `tasks/${taskId}/comments/`,
                     operation: 'create',
                     requestResourceData: finalCommentData
                 });
