@@ -11,12 +11,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, ExternalLink, Calendar, Filter, HandCoins, FileDown, FileText, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, Calendar, HandCoins, FileDown, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/financeService';
-import { format, parseISO, isValid, startOfMonth, endOfMonth, startOfYear, endOfYear, getYear, getMonth, eachMonthOfInterval, isSameYear } from 'date-fns';
+import { format, parseISO, getYear, getMonth, eachMonthOfInterval, startOfYear, endOfYear } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from '@/components/ui/label';
+import { Label } from '@/components/label';
 import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { cn } from '@/lib/utils';
@@ -47,8 +47,7 @@ export default function FinancePage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   
-  const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString());
-  
+  const [selectedYear, setSelectedYear] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
@@ -76,7 +75,7 @@ export default function FinancePage() {
       fetchTransactions();
     }
   }, [user, fetchTransactions, isSuperOrAdmin]);
-  
+
   const availableYears = useMemo(() => {
     const years = new Set<string>();
     transactions.forEach(t => years.add(getYear(parseISO(t.date)).toString()));

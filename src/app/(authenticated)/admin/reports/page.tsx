@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, LineChart as LineChartIcon, HandCoins, PieChart as PieChartIcon, Filter, TrendingUp, TrendingDown } from "lucide-react";
+import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, HandCoins, PieChart as PieChartIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { getAllUsers } from '@/services/userService';
 import { getEvents } from '@/services/eventService';
@@ -23,18 +23,19 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/comp
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-
-interface MemberStat {
-  userId: string;
-  name: string;
-  email: string;
-  attendanceCount: number;
-  badges: BadgeId[];
-  photoUrl?: string;
-}
+import { Label } from '@/components/label';
 
 const PIE_CHART_COLORS = ["#2563eb", "#14b8a6", "#ef4444", "#f97316", "#8b5cf6", "#3b82f6", "#06b6d4", "#ec4899", "#84cc16"];
+
+const months = [
+    { value: 'all', label: 'All Months' },
+    { value: '0', label: 'January' }, { value: '1', label: 'February' },
+    { value: '2', label: 'March' }, { value: '3', label: 'April' },
+    { value: '4', label: 'May' }, { value: '5', label: 'June' },
+    { value: '6', label: 'July' }, { value: '7', label: 'August' },
+    { value: '8', label: 'September' }, { value: '9', label: 'October' },
+    { value: '10', label: 'November' }, { value: '11', label: 'December' },
+];
 
 export default function ReportsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -84,13 +85,6 @@ export default function ReportsPage() {
       fetchData();
     }
   }, [user, fetchData, isSuperOrAdmin]);
-
-  const getInitials = (name?: string) => {
-    if (!name) return "??";
-    const names = name.split(' ');
-    if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
-    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
-  };
 
   const availableFinanceYears = useMemo(() => {
     const years = new Set<string>();
@@ -247,16 +241,13 @@ export default function ReportsPage() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-  
-  const months = [
-    { value: 'all', label: 'All Months' },
-    { value: '0', label: 'January' }, { value: '1', label: 'February' },
-    { value: '2', label: 'March' }, { value: '3', label: 'April' },
-    { value: '4', label: 'May' }, { value: '5', label: 'June' },
-    { value: '6', label: 'July' }, { value: '7', label: 'August' },
-    { value: '8', label: 'September' }, { value: '9', label: 'October' },
-    { value: '10', label: 'November' }, { value: '11', label: 'December' },
-  ];
+
+  const getInitials = (name?: string) => {
+    if (!name) return "??";
+    const names = name.split(' ');
+    if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+  };
 
   if (authLoading || isLoadingData || !user || !isSuperOrAdmin) {
     return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
