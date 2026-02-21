@@ -10,9 +10,8 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-// SECURE: Use environment variables instead of hardcoded strings
-const GMAIL_EMAIL = process.env.GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
-const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
+const GMAIL_EMAIL = process.env.GMAIL_EMAIL;
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
 const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -65,6 +64,10 @@ const createEmailHtml = (bodyContent: string) => {
 };
 
 const sendEmail = async (to: string, subject: string, htmlBody: string) => {
+    if (!GMAIL_EMAIL || !GMAIL_APP_PASSWORD) {
+        console.error("GMAIL_EMAIL or GMAIL_APP_PASSWORD not set in environment variables.");
+        return;
+    }
     const fullHtml = createEmailHtml(htmlBody);
     const mailOptions = {
         from: `"LEO CLUB OF ATHUGALPURA" <${GMAIL_EMAIL}>`,
@@ -75,7 +78,7 @@ const sendEmail = async (to: string, subject: string, htmlBody: string) => {
 
     try {
         await transporter.sendMail(mailOptions);
-        console.log(`Email sent to ${to} with subject: ${subject}`);
+        console.log(`Email sent to ${to}`);
     } catch (error) {
         console.error(`Failed to send email to ${to}:`, error);
     }
@@ -87,10 +90,7 @@ const sendPushToUsers = async (
   body: string,
   link?: string,
 ) => {
-  if (!userIds || userIds.length === 0) {
-    console.log("No user IDs provided, skipping notification.");
-    return;
-  }
+  if (!userIds || userIds.length === 0) return;
 
   const tokens: string[] = [];
   const usersSnapshot = await db.collection("users").where(
@@ -106,17 +106,11 @@ const sendPushToUsers = async (
     }
   });
 
-  if (tokens.length === 0) {
-    console.log("No valid FCM tokens found for the users.");
-    return;
-  }
+  if (tokens.length === 0) return;
 
   const message: admin.messaging.MulticastMessage = {
     tokens,
-    notification: {
-      title,
-      body,
-    },
+    notification: { title, body },
     webpush: {
       fcmOptions: {
         link: link || "https://leoathugal.web.app/dashboard",
@@ -129,9 +123,9 @@ const sendPushToUsers = async (
 
   try {
     const response = await messaging.sendEachForMulticast(message);
-    console.log("Successfully sent message:", response);
+    console.log("Successfully sent push notifications:", response);
   } catch (error) {
-    console.error("Error sending message:", error);
+    console.error("Error sending push notifications:", error);
   }
 };
 
@@ -200,7 +194,6 @@ export const onTaskUpdated = functions.firestore
     const before = change.before.data() as Task;
     const after = change.after.data() as Task;
     
-    // Notify if assignees changed or task status was set to a specific value
     const newAssignees = after.assigneeIds.filter(id => !before.assigneeIds.includes(id));
     
     if (newAssignees.length > 0) {

@@ -18,10 +18,16 @@ LeoPortal is a fully functional Progressive Web App.
 - **Role-Based Access Control**: Dashboards for Admins and Members.
 - **Granular Permissions**: Assign module-specific access to other admins.
 
-### Event & Tasks
-- **Smart Attendance**: Geolocation-restricted attendance tracking.
+### Event & Attendance
+- **Event Management**: Admins can create, update, and delete club events.
 - **Interactive Calendar**: Color-coded year plan visualization.
-- **Task Management**: Kanban board for organizing club activities.
+- **Smart Attendance Tracking**: Geolocation-restricted attendance for ongoing events.
+- **Post-Event Summaries**: View detailed post-event summaries with participant lists.
+
+### Communication & Project Management
+- **AI-Powered Communication**: Generate professional emails with attachments.
+- **AI-Powered Project Proposals**: Transform member ideas into structured proposals using AI.
+- **Task Management**: Kanban board for organizing club activities with automated alerts.
 
 ## 🛠️ Tech Stack
 - **Framework**: Next.js 15 (Node 18 compatible)
