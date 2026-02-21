@@ -32,8 +32,8 @@ const FinanceForm = dynamic(() => import('@/components/finance/finance-form').th
 });
 
 const chartConfig = {
-  income: { label: "Income", color: "#22c55e" },
-  expenses: { label: "Expenses", color: "#ef4444" },
+  income: { label: "Income", color: "#15803d" }, // Darker Green-700
+  expenses: { label: "Expenses", color: "#b91c1c" }, // Darker Red-700
 } satisfies ChartConfig;
 
 export default function FinancePage() {
