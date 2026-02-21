@@ -79,7 +79,7 @@ npm install
 
 ### 2. Set up Firebase
 - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com/).
-- In your project, go to **Project Settings** -> **General**.
+- In your project, go to **Project Settings** > **General**.
 - Click the **Web** icon (</>) to create a new Web App.
 - Copy the `firebaseConfig` object and paste it into `src/lib/firebase/clientApp.ts`.
 - Go to the **Rules** tab in the **Firestore Database** section, paste the contents of `firestore.rules`, and publish.
@@ -93,7 +93,7 @@ npm install
   GMAIL_EMAIL=your-email@gmail.com
   GMAIL_APP_PASSWORD=your-16-character-app-password
 
-  # For the AI Content Assistant
+  # For the AI Content Assistant (Gemini)
   GEMINI_API_KEY=your-google-ai-studio-api-key
 
   # For Google Sheets Integration (Firebase Functions)
@@ -162,7 +162,7 @@ This application uses a secure backend to send emails via Nodemailer.
     - For local development, add your Gmail and App Password to the `.env` file.
     - For deployment, add them to your hosting provider's environment variables (see Deployment section).
 
-### AI Setup (Google AI & Genkit)
+### AI Setup (Google AI & Gemini)
 The AI Content Assistant uses Google's Generative AI.
 
 1.  Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).
@@ -185,5 +185,3 @@ This feature requires a Google Service Account to interact with your Google Shee
     - `GOOGLE_SHEET_ID`: The ID of your Google Sheet.
     - `GOOGLE_SERVICE_ACCOUNT_EMAIL`: The `client_email` from the JSON file.
     - `GOOGLE_PRIVATE_KEY`: The `private_key` from the JSON file. **Copy the entire key, including the `-----BEGIN...` and `-----END...` markers.** When adding to your `.env` file, wrap it in double quotes.
-
-    
