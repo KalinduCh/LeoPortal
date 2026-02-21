@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/finance/page.tsx
 "use client";
 
@@ -48,8 +47,8 @@ export default function FinancePage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   
-  // Year filter - 'all' or specific year string
-  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  // Period filter - 'all' or specific year string
+  const [selectedYear, setSelectedYear] = useState<string>('all');
   
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
@@ -115,7 +114,7 @@ export default function FinancePage() {
 
   const chartData = useMemo(() => {
     if (selectedYear === 'all') {
-        // Group by year
+        // Group by year for "All Balances" view
         const yearGroups: Record<string, { income: number, expenses: number }> = {};
         transactions.forEach(t => {
             const y = getYear(parseISO(t.date)).toString();
@@ -252,15 +251,15 @@ export default function FinancePage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
             <h1 className="text-2xl sm:text-3xl font-bold font-headline">Finance Dashboard</h1>
-            <p className="text-muted-foreground">Manage and track club income and expenses.</p>
+            <p className="text-muted-foreground">Manage and track club income and expenses across years.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
             <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Label htmlFor="year-select" className="sr-only">Filter Year</Label>
+                <Label htmlFor="year-select" className="sr-only">Select Period</Label>
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
-                    <SelectTrigger id="year-select" className="w-[140px]">
+                    <SelectTrigger id="year-select" className="w-[180px]">
                         <Calendar className="mr-2 h-4 w-4 opacity-50" />
-                        <SelectValue placeholder="Year" />
+                        <SelectValue placeholder="Period" />
                     </SelectTrigger>
                     <SelectContent>
                         {availableYears.map(y => (
@@ -316,14 +315,14 @@ export default function FinancePage() {
         </Card>
         <Card className={cn("border-l-4", lifetimeBalance >= 0 ? "border-l-primary" : "border-l-destructive")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Net Balance (All Time)</CardTitle>
+                <CardTitle className="text-sm font-medium">Overall Net Balance</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
                 <div className={cn("text-2xl font-bold", lifetimeBalance >= 0 ? "text-primary" : "text-destructive")}>
                     LKR {lifetimeBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Cash on Hand</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Overall Cash on Hand</p>
             </CardContent>
         </Card>
          <Card>
@@ -333,7 +332,7 @@ export default function FinancePage() {
             </CardHeader>
             <CardContent>
                  <div className="text-2xl font-bold">{filteredTransactions.length}</div>
-                <p className="text-xs text-muted-foreground">Transactions in view</p>
+                <p className="text-xs text-muted-foreground">Transactions in selection</p>
             </CardContent>
         </Card>
       </div>
@@ -341,7 +340,7 @@ export default function FinancePage() {
       <div className="grid gap-6 md:grid-cols-5">
         <Card className="md:col-span-3 shadow-md">
              <CardHeader>
-                <CardTitle className="flex items-center text-lg"><BarChart className="mr-2 h-5 w-5 text-primary"/>{selectedYear === 'all' ? 'Yearly Overview' : `Monthly Breakdown - ${selectedYear}`}</CardTitle>
+                <CardTitle className="flex items-center text-lg"><BarChart className="mr-2 h-5 w-5 text-primary"/>{selectedYear === 'all' ? 'Year-over-Year Overview' : `Monthly Breakdown - ${selectedYear}`}</CardTitle>
              </CardHeader>
             <CardContent>
                 <ChartContainer config={chartConfig} className="h-[250px] w-full">
@@ -361,12 +360,12 @@ export default function FinancePage() {
          <Card className="md:col-span-2 shadow-md">
              <CardHeader>
                 <CardTitle className="text-lg">Recent Activities</CardTitle>
-                <CardDescription>Latest entries recorded.</CardDescription>
+                <CardDescription>Latest entries for selected period.</CardDescription>
              </CardHeader>
             <CardContent>
                 <ScrollArea className="h-[250px]">
                     <div className="space-y-4 pr-3">
-                        {filteredTransactions.slice(0, 8).map((t) => (
+                        {filteredTransactions.slice(0, 10).map((t) => (
                             <div key={t.id} className="flex items-center border-b pb-3 last:border-0 last:pb-0">
                                 <div className={cn("p-2 rounded-full mr-3", t.type === 'income' ? 'bg-green-50' : 'bg-red-50')}>
                                     {t.type === 'income' ? <TrendingUp className="h-4 w-4 text-green-600"/> : <TrendingDown className="h-4 w-4 text-red-600" />}
