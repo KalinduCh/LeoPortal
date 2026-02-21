@@ -90,7 +90,6 @@ const sendWebPushToUsers = async (
 ) => {
   if (!userIds || userIds.length === 0) return;
 
-  // Split userIds into chunks of 30 due to Firestore 'in' query limits
   const chunks = [];
   for (let i = 0; i < userIds.length; i += 30) {
     chunks.push(userIds.slice(i, i + 30));
@@ -270,10 +269,7 @@ export const onUserDocumentChanged = functions.firestore
     const sheets = google.sheets({ version: "v4", auth });
     const userId = context.params.userId;
 
-    if (!change.after.exists) {
-      // Logic to remove from sheet...
-      return;
-    }
+    if (!change.after.exists) return;
 
     const userData = change.after.data();
     if (!userData) return;

@@ -1,43 +1,47 @@
-// Standard Web Push Service Worker for LEO Portal
-// Compatible with iOS 16.4+ and all standard browser push protocols
+/*
+ * Service Worker for standard Web Push notifications.
+ * Optimized for iOS 16.4+ and modern mobile browsers.
+ */
 
-self.addEventListener('push', function(event) {
-  if (event.data) {
-    try {
-      const payload = event.data.json();
-      const options = {
-        body: payload.notification.body,
-        icon: payload.notification.icon || 'https://i.imgur.com/MP1YFNf.png',
-        badge: 'https://i.imgur.com/MP1YFNf.png',
-        vibrate: [100, 50, 100],
-        data: payload.notification.data || { url: '/dashboard' },
-      };
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
 
-      event.waitUntil(
-        self.registration.showNotification(payload.notification.title, options)
-      );
-    } catch (e) {
-      console.error('Error handling push event:', e);
-    }
+  try {
+    const payload = event.data.json();
+    const notification = payload.notification || {};
+    
+    const title = notification.title || 'New Update';
+    const options = {
+      body: notification.body || '',
+      icon: notification.icon || '/icon-192x192.png',
+      badge: notification.badge || '/icon-192x192.png',
+      data: notification.data || { url: '/dashboard' },
+      vibrate: [100, 50, 100],
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+  } catch (err) {
+    console.error('Error handling push event:', err);
   }
 });
 
-self.addEventListener('notificationclick', function(event) {
+self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
-  // Extract the URL from the notification data
-  const urlToOpen = event.notification.data ? event.notification.data.url : '/dashboard';
+  const urlToOpen = (event.notification.data && event.notification.data.url) 
+    ? event.notification.data.url 
+    : '/dashboard';
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
-      // Check if a window with the target URL is already open
-      for (let i = 0; i < clientList.length; i++) {
-        let client = clientList[i];
-        if (client.url === urlToOpen && 'focus' in client) {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // If a window is already open, focus it
+      for (var i = 0; i < windowClients.length; i++) {
+        var client = windowClients[i];
+        if (client.url.includes(urlToOpen) && 'focus' in client) {
           return client.focus();
         }
       }
-      // If not, open a new window
+      // If no window is open, open a new one
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }

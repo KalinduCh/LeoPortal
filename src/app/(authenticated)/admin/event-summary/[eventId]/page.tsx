@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { useReactToPrint } from 'react-to-print'
 
 export default function EventSummaryPage() {
   const params = useParams();
