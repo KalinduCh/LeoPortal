@@ -2,14 +2,15 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
 import * as webPush from "web-push";
+import { google } from "googleapis";
 
 admin.initializeApp();
 
 const db = admin.firestore();
 
-// VAPID Configuration - Use environment variables for production
+// VAPID Configuration for Standard Web Push (iOS 16.4+ Compatible)
 const VAPID_PUBLIC_KEY = "BIc9bH71DzSMqmg3pBlve0gm14FLcVAh4EacFVw4Ovg4uEd3k11ETlLIimkEinqQgObmFoOLWdKb4ZKCN1Nn-oM";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "YOUR_GENERATED_PRIVATE_KEY_HERE"; // Generate using npx web-push generate-vapid-keys
+const VAPID_PRIVATE_KEY = "BBszIDGEDxUIu89QjvAH3Ocep5ifNG39cH8aII8yf8CZ_84N2l8hkVbcLuIzEMfz-aRP4REm_ly4hbOCpah2bbw";
 
 webPush.setVapidDetails(
     "mailto:athugalpuraleoclub306d9@gmail.com",
@@ -80,7 +81,6 @@ const sendEmail = async (to: string, subject: string, htmlBody: string) => {
 
 /**
  * Sends standard Web Push notifications using the web-push library.
- * Supported on iOS 16.4+ PWAs.
  */
 const sendWebPushToUsers = async (
   userIds: string[],
@@ -90,11 +90,11 @@ const sendWebPushToUsers = async (
 ) => {
   if (!userIds || userIds.length === 0) return;
 
-  const usersSnapshot = await db.collection("users").where(
-    admin.firestore.FieldPath.documentId(),
-    "in",
-    userIds.slice(0, 10), // Firestore 'in' limit
-  ).get();
+  // Split userIds into chunks of 30 due to Firestore 'in' query limits
+  const chunks = [];
+  for (let i = 0; i < userIds.length; i += 30) {
+    chunks.push(userIds.slice(i, i + 30));
+  }
 
   const payload = JSON.stringify({
     notification: {
@@ -107,27 +107,33 @@ const sendWebPushToUsers = async (
     }
   });
 
-  const pushPromises = [];
+  for (const chunk of chunks) {
+    const usersSnapshot = await db.collection("users")
+      .where(admin.firestore.FieldPath.documentId(), "in", chunk)
+      .get();
 
-  for (const userDoc of usersSnapshot.docs) {
-    const userData = userDoc.data();
-    if (userData.pushSubscription) {
-      // Use web-push library to send to standard Push Services (APNs, FCM, etc.)
-      const promise = webPush.sendNotification(userData.pushSubscription, payload)
-        .catch(err => {
-          if (err.statusCode === 410 || err.statusCode === 404) {
-            console.log(`Subscription for user ${userDoc.id} has expired or is no longer valid. Removing...`);
-            return userDoc.ref.update({ pushSubscription: admin.firestore.FieldValue.delete() });
-          }
-          console.error(`Error sending push to user ${userDoc.id}:`, err);
-          return null;
-        });
-      pushPromises.push(promise);
+    const pushPromises = [];
+
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      if (userData.pushSubscription) {
+        const promise = webPush.sendNotification(userData.pushSubscription, payload)
+          .catch(err => {
+            if (err.statusCode === 410 || err.statusCode === 404) {
+              console.log(`Subscription for user ${userDoc.id} has expired. Removing...`);
+              return userDoc.ref.update({ pushSubscription: admin.firestore.FieldValue.delete() });
+            }
+            console.error(`Error sending push to user ${userDoc.id}:`, err);
+            return null;
+          });
+        pushPromises.push(promise);
+      }
     }
+    await Promise.all(pushPromises);
   }
-
-  await Promise.all(pushPromises);
 };
+
+// --- Triggers ---
 
 export const onUserStatusChange = functions.firestore
   .document("users/{userId}")
@@ -153,6 +159,15 @@ export const onUserStatusChange = functions.firestore
         await sendEmail(userEmail, subject, htmlBody);
       }
     }
+
+    if (before.status === "pending" && after.status === "rejected") {
+        const userEmail = after.email;
+        const userName = after.name || "Leo";
+        const subject = "Update on Your LEO Portal Registration";
+        const htmlBody = `<p>Dear ${userName},</p><p>Thank you for your interest. Unfortunately, your registration could not be approved at this time.</p>`;
+        if (userEmail) await sendEmail(userEmail, subject, htmlBody);
+        await db.collection("users").doc(userId).delete();
+    }
   });
 
 export const onEventCreated = functions.firestore
@@ -163,7 +178,6 @@ export const onEventCreated = functions.firestore
       .where("status", "==", "approved").get();
     const userIds = usersSnapshot.docs.map((doc) => doc.id);
     
-    // Web Push to all approved users
     await sendWebPushToUsers(
       userIds,
       "New Event Published!",
@@ -202,4 +216,74 @@ export const onTaskUpdated = functions.firestore
         `/tasks/${context.params.taskId}`
       );
     }
+  });
+
+// --- Scheduled Tasks ---
+
+export const sendBirthdayWishes = functions.pubsub.schedule("0 9 * * *")
+  .timeZone("Asia/Colombo")
+  .onRun(async () => {
+    const today = new Date();
+    const monthDay = `${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+    
+    const usersSnapshot = await db.collection("users").where("status", "==", "approved").get();
+    
+    const birthdayUserIds = usersSnapshot.docs
+      .filter(doc => doc.data().dateOfBirth && doc.data().dateOfBirth.endsWith(monthDay))
+      .map(doc => doc.id);
+
+    if (birthdayUserIds.length > 0) {
+      await sendWebPushToUsers(
+        birthdayUserIds,
+        "Happy Birthday!",
+        "Wishing you a fantastic day from the Leo Club of Athugalpura! 🎉",
+        "/profile"
+      );
+    }
+  });
+
+export const sendMonthlyReports = functions.pubsub.schedule("0 9 1 * *")
+    .timeZone("Asia/Colombo")
+    .onRun(async () => {
+        const adminsSnapshot = await db.collection("users").where("role", "in", ["admin", "super_admin"]).get();
+        const adminEmails = adminsSnapshot.docs.map(doc => doc.data().email).filter(Boolean);
+
+        for (const email of adminEmails) {
+            await sendEmail(email, "Monthly Portal Report Ready", "<p>Your monthly summary report is now available in the portal dashboard.</p>");
+        }
+    });
+
+export const onUserDocumentChanged = functions.firestore
+  .document("users/{userId}")
+  .onWrite(async (change, context) => {
+    const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
+    const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+
+    if (!GOOGLE_SHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) return;
+
+    const auth = new google.auth.GoogleAuth({
+      credentials: { client_email: GOOGLE_SERVICE_ACCOUNT_EMAIL, private_key: GOOGLE_PRIVATE_KEY },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+
+    const sheets = google.sheets({ version: "v4", auth });
+    const userId = context.params.userId;
+
+    if (!change.after.exists) {
+      // Logic to remove from sheet...
+      return;
+    }
+
+    const userData = change.after.data();
+    if (!userData) return;
+
+    const values = [userId, userData.name || "", userData.email || "", userData.role || "member", new Date().toISOString()];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: "Sheet1!A1",
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [values] },
+    });
   });
