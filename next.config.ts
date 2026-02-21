@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
@@ -30,6 +31,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'i.imgur.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.postimg.cc',
         port: '',
         pathname: '/**',
       }
