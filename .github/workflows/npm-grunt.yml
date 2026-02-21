@@ -1,4 +1,4 @@
-name: NodeJS with Grunt
+name: CI/CD Build Verification
 
 on:
   push:
@@ -13,12 +13,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Use Node.js 20
+    - name: Use Node.js 18
       uses: actions/setup-node@v4
       with:
-        node-version: 20
+        node-version: 18
+        cache: 'npm'
 
-    - name: Build
+    - name: Build and Lint
       run: |
         npm install
-        npx grunt
+        npm run build
