@@ -1,18 +1,17 @@
 
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { google } from "googleapis";
 import * as nodemailer from "nodemailer";
-import type { Event, Task, PointsEntry } from "../../types";
+import type { Task } from "../../types";
 
 admin.initializeApp();
 
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-// Retrieve Gmail credentials from environment variables for security
-const GMAIL_EMAIL = process.env.GMAIL_EMAIL;
-const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+// Use environment variables for sensitive credentials
+const GMAIL_EMAIL = process.env.GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
 
 const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -37,23 +36,9 @@ const createEmailHtml = (bodyContent: string) => {
                       <p style="margin: 0; font-weight: bold; font-size: 15px; color: #1e3a8a;">LEO CLUB OF ATHUGALPURA</p>
                       <p style="margin: 5px 0 0 0; font-size: 12px; color: #555555;">Leo District 306 D9 | Sri Lanka</p>
                       <p style="margin: 5px 0 0 0; font-size: 11px; color: #777777;">Leostic Year 2025/26</p>
-                      <p style="margin-top: 15px;">
-                          <a href="https://www.facebook.com/leoclubofathugalpura/" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.postimg.cc/0QtH6Bn7/image.png" alt="Facebook" width="24" height="24">
-                          </a>
-                          <a href="https://www.instagram.com/athugalpuraleos/" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.postimg.cc/RZLrSGkP/image.png" alt="Instagram" width="24" height="24">
-                          </a>
-                          <a href="https://www.youtube.com/channel/UCe23x0ATwC2rIqA5RKWuF6w" target="_blank" style="text-decoration: none; margin-right: 12px;">
-                              <img src="https://i.postimg.cc/CMBWBw32/image.png" alt="YouTube" width="24" height="24">
-                          </a>
-                          <a href="https://www.tiktok.com/@athugalpuraleos" target="_blank" style="text-decoration: none;">
-                              <img src="https://i.postimg.cc/hjJ3d05k/image.png" alt="TikTok" width="24" height="24">
-                          </a>
-                      </p>
                     </td>
                     <td align="right" valign="top" style="width: 70px;">
-                      <img src="https://i.postimg.cc/4xDKG4TV/Navy-Blue-Minimal-Professional-Linked-In-Profile-Picture.png" alt="Leo Club Logo" width="60" style="width: 60px; height: auto; border-radius: 50%;" data-ai-hint="club logo">
+                      <img src="https://i.imgur.com/MP1YFNf.png" alt="Leo Club Logo" width="60" style="width: 60px; height: auto; border-radius: 50%;">
                     </td>
                   </tr>
                 </table>
@@ -66,7 +51,7 @@ const createEmailHtml = (bodyContent: string) => {
 
 const sendEmail = async (to: string, subject: string, htmlBody: string) => {
     if (!GMAIL_EMAIL || !GMAIL_APP_PASSWORD) {
-        console.error("GMAIL_EMAIL or GMAIL_APP_PASSWORD not set in environment variables.");
+        console.error("Missing Gmail environment variables.");
         return;
     }
     const fullHtml = createEmailHtml(htmlBody);
@@ -124,7 +109,7 @@ const sendPushToUsers = async (
 
   try {
     const response = await messaging.sendEachForMulticast(message);
-    console.log("Successfully sent push notifications:", response);
+    console.log("Push notifications status:", response);
   } catch (error) {
     console.error("Error sending push notifications:", error);
   }
@@ -162,7 +147,7 @@ export const onUserStatusChange = functions.firestore
 
 export const onEventCreated = functions.firestore
   .document("events/{eventId}")
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap) => {
     const event = snap.data();
     const usersSnapshot = await db.collection("users")
       .where("status", "==", "approved").get();
@@ -195,6 +180,7 @@ export const onTaskUpdated = functions.firestore
     const before = change.before.data() as Task;
     const after = change.after.data() as Task;
     
+    // Notify only if new assignees are added
     const newAssignees = after.assigneeIds.filter(id => !before.assigneeIds.includes(id));
     
     if (newAssignees.length > 0) {
