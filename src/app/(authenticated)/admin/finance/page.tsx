@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Transaction, FinancialCategory, User } from '@/types';
+import type { Transaction, User } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/financeService';
 import { format, parseISO, getYear, getMonth, eachMonthOfInterval, startOfYear, endOfYear } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from '@/components/label';
+import { Label } from '@/components/ui/label';
 import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { cn } from '@/lib/utils';
@@ -32,8 +32,8 @@ const FinanceForm = dynamic(() => import('@/components/finance/finance-form').th
 });
 
 const chartConfig = {
-  income: { label: "Income", color: "#15803d" }, // Darker Green-700
-  expenses: { label: "Expenses", color: "#b91c1c" }, // Darker Red-700
+  income: { label: "Income", color: "#15803d" }, // Dark Green-700
+  expenses: { label: "Expenses", color: "#b91c1c" }, // Dark Red-700
 } satisfies ChartConfig;
 
 export default function FinancePage() {
@@ -287,7 +287,6 @@ export default function FinancePage() {
         </div>
       </div>
       
-      {/* Summary Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-l-4 border-l-green-500 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -339,7 +338,7 @@ export default function FinancePage() {
                 <CardTitle className="flex items-center text-lg text-primary"><BarChart className="mr-2 h-5 w-5"/>{selectedYear === 'all' ? 'Year-over-Year Overview' : `Monthly Breakdown - ${selectedYear}`}</CardTitle>
              </CardHeader>
             <CardContent>
-                <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                <ChartContainer config={chartConfig} className="h-[300px] w-full">
                     <ResponsiveContainer>
                         <RechartsBarChart accessibilityLayer data={chartData}>
                             <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.5} />
@@ -356,10 +355,10 @@ export default function FinancePage() {
          <Card className="md:col-span-2 shadow-md">
              <CardHeader>
                 <CardTitle className="text-lg">Recent Transactions</CardTitle>
-                <CardDescription>Latest 5 global entries.</CardDescription>
+                <CardDescription>Latest 5 absolute entries.</CardDescription>
              </CardHeader>
             <CardContent>
-                <ScrollArea className="h-[250px]">
+                <ScrollArea className="h-[300px]">
                     <div className="space-y-4 pr-3">
                         {transactions.slice(0, 5).map((t) => (
                             <div key={t.id} className="flex items-center border-b pb-3 last:border-0 last:pb-0 hover:bg-muted/30 transition-colors rounded-sm px-1">

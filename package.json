@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
@@ -54,13 +54,13 @@
     "genkit": "^1.29.0",
     "html2canvas": "^1.4.1",
     "immer": "^10.1.1",
-    "jspdf": "^2.5.1",
-    "jspdf-autotable": "^3.8.2",
+    "jspdf": "^4.2.0",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.475.0",
-    "next": "15.1.11",
+    "next": "^15.1.7",
     "next-pwa": "^5.6.0",
     "next-themes": "^0.3.0",
-    "nodemailer": "^6.9.14",
+    "nodemailer": "^8.0.1",
     "papaparse": "^5.4.1",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -69,6 +69,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.54.2",
     "react-qr-code": "^2.0.15",
+    "react-to-print": "^3.2.0",
     "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
@@ -84,12 +85,12 @@
     "@types/react-dom": "^18",
     "cross-env": "^7.0.3",
     "firebase-functions": "^5.0.1",
-    "genkit-cli": "^1.0.0",
+    "genkit-cli": "^0.0.2",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   },
   "engines": {
-    "node": "18"
+    "node": ">=18"
   }
 }
