@@ -1,5 +1,7 @@
-importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+
+// public/firebase-messaging-sw.js
+importScripts('https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.22.1/firebase-messaging-compat.js');
 
 firebase.initializeApp({
   apiKey: "AIzaSyBf_kQkSkomBserNaNZYaF2TkE6qObD36U",
@@ -8,7 +10,6 @@ firebase.initializeApp({
   storageBucket: "leoathugal.appspot.com",
   messagingSenderId: "340503925043",
   appId: "1:340503925043:web:26922db31c6a8b69cdee46",
-  measurementId: "G-Q8PYQMFSCD"
 });
 
 const messaging = firebase.messaging();
@@ -18,7 +19,7 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,
-    icon: 'https://i.imgur.com/MP1YFNf.png'
+    icon: '/icons/icon-192x192.png'
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
