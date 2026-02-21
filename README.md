@@ -43,7 +43,7 @@ npm install
 ```
 
 ### 2. Environment Setup
-Create a `.env` file and add:
+Create a `.env` file and add your credentials. Key variables include:
 - `GOOGLE_GENAI_API_KEY`: Your Generative Language API Key.
 - `GMAIL_EMAIL`: System email for notifications.
 - `GMAIL_APP_PASSWORD`: App password for Gmail SMTP.

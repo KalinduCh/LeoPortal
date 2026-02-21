@@ -1,4 +1,3 @@
-
 // src/hooks/use-fcm.ts
 import { useEffect, useState } from 'react';
 import { getMessaging, getToken } from 'firebase/messaging';
@@ -25,12 +24,11 @@ export function useFcm(user: User | null) {
       if (typeof window === 'undefined' || !user || !('serviceWorker' in navigator)) return;
 
       try {
-        // WAIT for the service worker to be fully registered and active
-        // This prevents the "no active Service Worker" error during getToken subscription
+        // Wait until the service worker is ready
         const registration = await navigator.serviceWorker.ready;
         
-        if (!registration.active) {
-            console.warn("FCM: Service worker found but not active yet.");
+        if (!registration) {
+            console.warn("FCM: Service worker registration not found.");
             return;
         }
 
