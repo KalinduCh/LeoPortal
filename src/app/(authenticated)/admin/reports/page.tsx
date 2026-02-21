@@ -48,7 +48,6 @@ export default function ReportsPage() {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Filters for Financial Reports
   const [financeYear, setFinanceYear] = useState<string>("all");
   const [financeMonth, setFinanceMonth] = useState<string>("all");
 
@@ -210,7 +209,7 @@ export default function ReportsPage() {
           ID: t.id, Type: t.type, Date: t.date, Amount: t.amount, Category: t.category, Source: t.source, Notes: t.notes
         }));
         fileName = `leo-portal_all_transactions.csv`;
-      } else { // attendance
+      } else {
         const eventMap = new Map(allEvents.map(e => [e.id, e.name]));
         data = allAttendance.map(record => ({
           RecordID: record.id,
