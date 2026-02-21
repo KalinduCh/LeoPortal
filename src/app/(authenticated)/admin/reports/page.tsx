@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/reports/page.tsx
 "use client";
 
@@ -51,7 +50,7 @@ export default function ReportsPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Filters for Financial Reports
-  const [financeYear, setFinanceYear] = useState<string>(new Date().getFullYear().toString());
+  const [financeYear, setFinanceYear] = useState<string>("all");
   const [financeMonth, setFinanceMonth] = useState<string>("all");
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
@@ -387,7 +386,7 @@ export default function ReportsPage() {
                     <CardDescription>Filtered breakdown of income and expenses by category.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-[140px]">
+                    <div className="w-[160px]">
                         <Select value={financeYear} onValueChange={setFinanceYear}>
                             <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Year"/></SelectTrigger>
                             <SelectContent>
@@ -436,7 +435,7 @@ export default function ReportsPage() {
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
-                        ) : (<p className="text-center text-muted-foreground py-12 text-xs italic">No income data for this period.</p>)}
+                        ) : (<p className="text-center text-muted-foreground py-12 text-xs italic">No income data for this selection.</p>)}
                     </div>
                     <div className="space-y-4">
                         <h3 className="text-sm font-semibold flex items-center text-red-600"><TrendingDown className="mr-2 h-4 w-4"/>Expense by Category</h3>
@@ -452,7 +451,7 @@ export default function ReportsPage() {
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
-                        ) : (<p className="text-center text-muted-foreground py-12 text-xs italic">No expense data for this period.</p>)}
+                        ) : (<p className="text-center text-muted-foreground py-12 text-xs italic">No expense data for this selection.</p>)}
                     </div>
                 </div>
             </CardContent>
