@@ -22,35 +22,35 @@ LeoPortal is a fully functional Progressive Web App.
 - **Event Management**: Admins can create, update, and delete club events.
 - **Interactive Calendar**: Color-coded year plan visualization.
 - **Smart Attendance Tracking**: Geolocation-restricted attendance for ongoing events.
-- **Post-Event Summaries**: View detailed post-event summaries with participant lists.
-
-### Communication & Project Management
-- **AI-Powered Communication**: Generate professional emails with attachments.
-- **AI-Powered Project Proposals**: Transform member ideas into structured proposals using AI.
-- **Task Management**: Kanban board for organizing club activities with automated alerts.
 
 ## 🛠️ Tech Stack
 - **Framework**: Next.js 15 (Node 18 compatible)
 - **Backend**: Firebase (Auth, Firestore, Functions)
-- **AI**: Google Gemini 1.5 Flash (via Genkit 1.x)
+- **AI**: Google Gemini 1.5 Flash (Efficient & Compatible)
 - **UI**: Shadcn/UI, Tailwind CSS, Lucide icons
 
 ## 🚀 Getting Started
 
 ### 1. Install Dependencies
-```sh
+```bash
 npm install
 ```
 
 ### 2. Environment Setup
-Create a `.env` file and add your credentials. Key variables include:
-- `GOOGLE_GENAI_API_KEY`: Your Generative Language API Key.
+Create a `.env` file in the root and `functions/` directory.
+- `GOOGLE_GENAI_API_KEY`: Your Gemini API Key.
 - `GMAIL_EMAIL`: System email for notifications.
 - `GMAIL_APP_PASSWORD`: App password for Gmail SMTP.
-- `GOOGLE_SHEET_ID`: ID of the sheet for member sync.
 
-### 3. Run Development
-```sh
+### 3. Deploy Backend
+To activate push notifications and automated emails:
+```bash
+firebase deploy --only functions
+```
+See [DEPLOY.md](./DEPLOY.md) for detailed instructions.
+
+### 4. Run Development
+```bash
 npm run dev
 ```
 
