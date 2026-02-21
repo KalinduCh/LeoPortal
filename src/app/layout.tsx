@@ -1,4 +1,3 @@
-
 import type {Metadata, Viewport} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -9,6 +8,11 @@ export const metadata: Metadata = {
   title: 'LEO Portal | Athugalpura',
   description: 'Leo Club Member Portal',
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'LeoPortal',
+  },
   icons: {
     icon: 'https://i.imgur.com/MP1YFNf.png',
     apple: 'https://i.imgur.com/MP1YFNf.png',
