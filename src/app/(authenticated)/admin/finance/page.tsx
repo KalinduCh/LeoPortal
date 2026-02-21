@@ -32,8 +32,8 @@ const FinanceForm = dynamic(() => import('@/components/finance/finance-form').th
 });
 
 const chartConfig = {
-  income: { label: "Income", color: "hsl(var(--chart-2))" },
-  expenses: { label: "Expenses", color: "hsl(var(--chart-1))" },
+  income: { label: "Income", color: "hsl(var(--primary))" },
+  expenses: { label: "Expenses", color: "hsl(var(--destructive))" },
 } satisfies ChartConfig;
 
 export default function FinancePage() {
@@ -48,7 +48,7 @@ export default function FinancePage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   
   // Period filter - 'all' or specific year string
-  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString());
   
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
@@ -257,8 +257,8 @@ export default function FinancePage() {
             <div className="flex items-center gap-2 w-full sm:w-auto">
                 <Label htmlFor="year-select" className="sr-only">Select Period</Label>
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
-                    <SelectTrigger id="year-select" className="w-[180px]">
-                        <Calendar className="mr-2 h-4 w-4 opacity-50" />
+                    <SelectTrigger id="year-select" className="w-[180px] bg-primary/5 border-primary/20 text-primary font-medium">
+                        <Calendar className="mr-2 h-4 w-4 opacity-70" />
                         <SelectValue placeholder="Period" />
                     </SelectTrigger>
                     <SelectContent>
@@ -272,7 +272,7 @@ export default function FinancePage() {
             </div>
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                 <DialogTrigger asChild>
-                    <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto">
+                    <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto shadow-sm">
                     <PlusCircle className="mr-2 h-4 w-4" /> Add Entry
                     </Button>
                 </DialogTrigger>
@@ -293,7 +293,7 @@ export default function FinancePage() {
       
       {/* Summary Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-green-500">
+        <Card className="border-l-4 border-l-green-500 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Income ({selectedYear === 'all' ? 'All Time' : selectedYear})</CardTitle>
                 <TrendingUp className="h-4 w-4 text-green-500" />
@@ -303,7 +303,7 @@ export default function FinancePage() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total Revenue</p>
             </CardContent>
         </Card>
-         <Card className="border-l-4 border-l-red-500">
+         <Card className="border-l-4 border-l-red-500 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Expenses ({selectedYear === 'all' ? 'All Time' : selectedYear})</CardTitle>
                 <TrendingDown className="h-4 w-4 text-red-500" />
@@ -313,19 +313,19 @@ export default function FinancePage() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total Costs</p>
             </CardContent>
         </Card>
-        <Card className={cn("border-l-4", lifetimeBalance >= 0 ? "border-l-primary" : "border-l-destructive")}>
+        <Card className={cn("border-l-4 shadow-md bg-primary/5", lifetimeBalance >= 0 ? "border-l-primary" : "border-l-destructive")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Overall Net Balance</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <DollarSign className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
                 <div className={cn("text-2xl font-bold", lifetimeBalance >= 0 ? "text-primary" : "text-destructive")}>
                     LKR {lifetimeBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Overall Cash on Hand</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Total Cash on Hand</p>
             </CardContent>
         </Card>
-         <Card>
+         <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
                 <HandCoins className="h-4 w-4 text-muted-foreground" />
@@ -340,7 +340,7 @@ export default function FinancePage() {
       <div className="grid gap-6 md:grid-cols-5">
         <Card className="md:col-span-3 shadow-md">
              <CardHeader>
-                <CardTitle className="flex items-center text-lg"><BarChart className="mr-2 h-5 w-5 text-primary"/>{selectedYear === 'all' ? 'Year-over-Year Overview' : `Monthly Breakdown - ${selectedYear}`}</CardTitle>
+                <CardTitle className="flex items-center text-lg text-primary"><BarChart className="mr-2 h-5 w-5"/>{selectedYear === 'all' ? 'Year-over-Year Overview' : `Monthly Breakdown - ${selectedYear}`}</CardTitle>
              </CardHeader>
             <CardContent>
                 <ChartContainer config={chartConfig} className="h-[250px] w-full">
@@ -366,7 +366,7 @@ export default function FinancePage() {
                 <ScrollArea className="h-[250px]">
                     <div className="space-y-4 pr-3">
                         {filteredTransactions.slice(0, 10).map((t) => (
-                            <div key={t.id} className="flex items-center border-b pb-3 last:border-0 last:pb-0">
+                            <div key={t.id} className="flex items-center border-b pb-3 last:border-0 last:pb-0 hover:bg-muted/30 transition-colors rounded-sm px-1">
                                 <div className={cn("p-2 rounded-full mr-3", t.type === 'income' ? 'bg-green-50' : 'bg-red-50')}>
                                     {t.type === 'income' ? <TrendingUp className="h-4 w-4 text-green-600"/> : <TrendingDown className="h-4 w-4 text-red-600" />}
                                 </div>
@@ -388,15 +388,15 @@ export default function FinancePage() {
         </Card>
       </div>
 
-       <Card className="shadow-lg">
+       <Card className="shadow-lg border-t-4 border-t-primary">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-                <CardTitle className="text-xl">Transaction Ledger - {selectedYear === 'all' ? 'All Balances' : selectedYear}</CardTitle>
+                <CardTitle className="text-xl text-primary">Transaction Ledger - {selectedYear === 'all' ? 'All Balances' : selectedYear}</CardTitle>
                 <CardDescription>Full history of financial records for the selected period.</CardDescription>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Button onClick={handleExportCSV} variant="outline" size="sm" className="flex-1 sm:flex-none"><FileText className="mr-2 h-4 w-4" /> CSV</Button>
-                <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="flex-1 sm:flex-none"><FileDown className="mr-2 h-4 w-4" /> PDF</Button>
+                <Button onClick={handleExportCSV} variant="outline" size="sm" className="flex-1 sm:flex-none hover:bg-primary/5 hover:text-primary"><FileText className="mr-2 h-4 w-4" /> CSV</Button>
+                <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="flex-1 sm:flex-none hover:bg-primary/5 hover:text-primary"><FileDown className="mr-2 h-4 w-4" /> PDF</Button>
             </div>
         </CardHeader>
         <CardContent>
@@ -415,7 +415,7 @@ export default function FinancePage() {
                 </TableHeader>
                 <TableBody>
                   {paginatedTransactions.map((t) => (
-                    <TableRow key={t.id}>
+                    <TableRow key={t.id} className="hover:bg-primary/5 transition-colors">
                       <TableCell className="text-xs whitespace-nowrap">{format(parseISO(t.date), 'MMM dd, yyyy')}</TableCell>
                       <TableCell>
                         <Badge variant={t.type === 'income' ? 'secondary' : 'destructive'} className={cn("capitalize px-2 py-0 h-5", t.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
@@ -429,10 +429,10 @@ export default function FinancePage() {
                       </TableCell>
                       <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenForm(t)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-primary/10 hover:text-primary" onClick={() => handleOpenForm(t)}>
                                 <Edit className="h-3.5 w-3.5" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTransaction(t.id)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTransaction(t.id)}>
                                 <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -445,7 +445,7 @@ export default function FinancePage() {
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
               {paginatedTransactions.map((t) => (
-                  <Card key={t.id} className={cn("shadow-sm border-l-4", t.type === 'income' ? 'border-l-green-500' : 'border-l-red-500')}>
+                  <Card key={t.id} className={cn("shadow-sm border-l-4 hover:shadow-md transition-shadow", t.type === 'income' ? 'border-l-green-500' : 'border-l-red-500')}>
                       <CardHeader className="p-3 pb-1 flex flex-row items-center justify-between">
                           <p className="text-xs text-muted-foreground font-medium">{format(parseISO(t.date), 'MMMM dd, yyyy')}</p>
                           <Badge variant="outline" className="text-[10px] uppercase h-4">{t.category}</Badge>
@@ -457,7 +457,7 @@ export default function FinancePage() {
                           </p>
                       </CardContent>
                       <CardFooter className="p-2 border-t flex justify-end gap-2 bg-muted/10">
-                          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleOpenForm(t)}>
+                          <Button variant="ghost" size="sm" className="h-8 text-xs hover:bg-primary/10" onClick={() => handleOpenForm(t)}>
                               <Edit className="mr-1 h-3 w-3"/> Edit
                           </Button>
                           <Button variant="ghost" size="sm" className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTransaction(t.id)}>
@@ -480,8 +480,8 @@ export default function FinancePage() {
                 <div className="flex items-center justify-between w-full">
                     <p className="text-xs text-muted-foreground">Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredTransactions.length)} of {filteredTransactions.length} entries</p>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-                        <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}><ChevronRight className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="sm" className="h-8 hover:bg-primary/5" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="sm" className="h-8 hover:bg-primary/5" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}><ChevronRight className="h-4 w-4" /></Button>
                     </div>
                 </div>
             </CardFooter>

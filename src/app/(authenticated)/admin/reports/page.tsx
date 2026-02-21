@@ -21,8 +21,7 @@ import Papa from 'papaparse';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts"
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
@@ -250,19 +249,6 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
   
-  const CustomPieTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="p-2 text-sm bg-background border rounded-md shadow-lg">
-          <p className="font-bold">{`${payload[0].name}`}</p>
-          <p className="text-muted-foreground">{`LKR ${payload[0].value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}</p>
-          <p className="text-primary font-medium">{`${(payload[0].percent * 100).toFixed(1)}%`}</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   const months = [
     { value: 'all', label: 'All Months' },
     { value: '0', label: 'January' }, { value: '1', label: 'February' },
@@ -293,9 +279,9 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="member-reports" className="space-y-6">
-          <Card className="shadow-md">
+          <Card className="shadow-md border-t-4 border-t-primary">
             <CardHeader>
-              <CardTitle className="flex items-center text-lg"><Award className="mr-2 h-5 w-5 text-accent"/>Attendance Leaderboard</CardTitle>
+              <CardTitle className="flex items-center text-lg text-primary"><Award className="mr-2 h-5 w-5"/>Attendance Leaderboard</CardTitle>
               <CardDescription>Members and Admins ranked by participation count.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -306,7 +292,7 @@ export default function ReportsPage() {
                       <TableHeader><TableRow><TableHead className="w-[80px]">Rank</TableHead><TableHead>Member</TableHead><TableHead className="text-right">Events Attended</TableHead></TableRow></TableHeader>
                       <TableBody>
                         {memberLeaderboard.slice(0, 20).map((stat, index) => (
-                          <TableRow key={stat.userId}>
+                          <TableRow key={stat.userId} className="hover:bg-primary/5 transition-colors">
                             <TableCell><Badge variant={index < 3 ? "default" : "secondary"} className={index < 3 ? "bg-primary/80" : ""}>{index + 1}</Badge></TableCell>
                             <TableCell className="font-semibold flex items-center gap-3">
                                 <Avatar className="h-8 w-8"><AvatarImage src={stat.photoUrl} alt={stat.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">{getInitials(stat.name)}</AvatarFallback></Avatar>
@@ -330,7 +316,7 @@ export default function ReportsPage() {
                   </div>
                   <div className="block md:hidden space-y-3">
                     {memberLeaderboard.slice(0, 15).map((stat, index) => (
-                      <div key={stat.userId} className="flex items-center justify-between p-3 border rounded-lg bg-card shadow-sm">
+                      <div key={stat.userId} className="flex items-center justify-between p-3 border rounded-lg bg-card shadow-sm hover:bg-primary/5 transition-colors">
                           <div className="flex items-center gap-3">
                               <Badge variant={index < 3 ? "default" : "secondary"} className="h-6 w-6 flex items-center justify-center p-0 rounded-full">{index + 1}</Badge>
                               <div>
@@ -351,9 +337,9 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="event-reports">
-            <Card className="shadow-md">
+            <Card className="shadow-md border-t-4 border-t-primary">
                 <CardHeader>
-                <CardTitle className="flex items-center text-lg"><BarChart className="mr-2 h-5 w-5 text-primary"/>Past Events Ledger</CardTitle>
+                <CardTitle className="flex items-center text-lg text-primary"><BarChart className="mr-2 h-5 w-5"/>Past Events Ledger</CardTitle>
                 <CardDescription>Historical list of all club activities. Click to view detailed participant summaries.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -363,12 +349,12 @@ export default function ReportsPage() {
                         <Table>
                           <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Date</TableHead><TableHead>Location</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                           <TableBody>
-                            {eventReportsData.map((ev) => (<TableRow key={ev.id}><TableCell className="font-medium text-sm">{ev.name}</TableCell><TableCell className="text-xs">{ev.startDate && isValid(parseISO(ev.startDate)) ? format(parseISO(ev.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell><TableCell className="text-xs text-muted-foreground">{ev.location}</TableCell><TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => router.push(`/admin/event-summary/${ev.id}`)}>Summary <ExternalLink className="ml-1.5 h-3 w-3" /></Button></TableCell></TableRow>))}
+                            {eventReportsData.map((ev) => (<TableRow key={ev.id} className="hover:bg-primary/5 transition-colors"><TableCell className="font-medium text-sm">{ev.name}</TableCell><TableCell className="text-xs">{ev.startDate && isValid(parseISO(ev.startDate)) ? format(parseISO(ev.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell><TableCell className="text-xs text-muted-foreground">{ev.location}</TableCell><TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => router.push(`/admin/event-summary/${ev.id}`)} className="hover:bg-primary/10 hover:text-primary">Summary <ExternalLink className="ml-1.5 h-3 w-3" /></Button></TableCell></TableRow>))}
                           </TableBody>
                         </Table>
                       </div>
                       <div className="block md:hidden space-y-3">
-                        {eventReportsData.map((ev) => (<Card key={ev.id} className="shadow-sm"><CardHeader className="p-3 pb-1"><CardTitle className="text-sm font-semibold text-primary">{ev.name}</CardTitle></CardHeader><CardContent className="p-3 pt-0 pb-2"><p className="text-[10px] text-muted-foreground">{ev.startDate && isValid(parseISO(ev.startDate)) ? format(parseISO(ev.startDate), 'PPP') : 'N/A'}</p><p className="text-[10px] truncate">{ev.location}</p></CardContent><CardFooter className="p-2 border-t"><Button variant="ghost" className="w-full h-7 text-[10px]" onClick={() => router.push(`/admin/event-summary/${ev.id}`)}>View Summary</Button></CardFooter></Card>))}
+                        {eventReportsData.map((ev) => (<Card key={ev.id} className="shadow-sm hover:shadow-md transition-shadow"><CardHeader className="p-3 pb-1"><CardTitle className="text-sm font-semibold text-primary">{ev.name}</CardTitle></CardHeader><CardContent className="p-3 pt-0 pb-2"><p className="text-[10px] text-muted-foreground">{ev.startDate && isValid(parseISO(ev.startDate)) ? format(parseISO(ev.startDate), 'PPP') : 'N/A'}</p><p className="text-[10px] truncate">{ev.location}</p></CardContent><CardFooter className="p-2 border-t"><Button variant="ghost" className="w-full h-7 text-[10px] hover:bg-primary/10 hover:text-primary" onClick={() => router.push(`/admin/event-summary/${ev.id}`)}>View Summary</Button></CardFooter></Card>))}
                       </div>
                     </div>
                 ) : (
@@ -379,16 +365,16 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="financial-reports" className="space-y-6">
-          <Card className="shadow-md">
+          <Card className="shadow-md border-t-4 border-t-primary">
             <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <CardTitle className="flex items-center text-lg"><HandCoins className="mr-2 h-5 w-5 text-primary"/>Financial Summary Report</CardTitle>
+                    <CardTitle className="flex items-center text-lg text-primary"><HandCoins className="mr-2 h-5 w-5"/>Financial Summary Report</CardTitle>
                     <CardDescription>Filtered breakdown of income and expenses by category.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-[160px]">
                         <Select value={financeYear} onValueChange={setFinanceYear}>
-                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Year"/></SelectTrigger>
+                            <SelectTrigger className="h-9 text-xs bg-primary/5 border-primary/20 text-primary"><SelectValue placeholder="Year"/></SelectTrigger>
                             <SelectContent>
                                 {availableFinanceYears.map(y => (
                                     <SelectItem key={y} value={y}>
@@ -400,7 +386,7 @@ export default function ReportsPage() {
                     </div>
                     <div className="w-[140px]">
                         <Select value={financeMonth} onValueChange={setFinanceMonth}>
-                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Month"/></SelectTrigger>
+                            <SelectTrigger className="h-9 text-xs bg-primary/5 border-primary/20 text-primary"><SelectValue placeholder="Month"/></SelectTrigger>
                             <SelectContent>
                                 {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                             </SelectContent>
@@ -422,7 +408,7 @@ export default function ReportsPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="space-y-4">
-                        <h3 className="text-sm font-semibold flex items-center text-green-600"><TrendingUp className="mr-2 h-4 w-4"/>Income by Category</h3>
+                        <h3 className="text-sm font-bold flex items-center text-green-600"><TrendingUp className="mr-2 h-4 w-4"/>Income by Category</h3>
                         {incomePieData.length > 0 ? (
                             <div className="h-[250px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -430,7 +416,6 @@ export default function ReportsPage() {
                                         <Pie data={incomePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} paddingAngle={2}>
                                             {incomePieData.map((_, index) => (<Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />))}
                                         </Pie>
-                                        <Tooltip content={<CustomPieTooltip />} />
                                         <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '10px' }} />
                                     </PieChart>
                                 </ResponsiveContainer>
@@ -438,7 +423,7 @@ export default function ReportsPage() {
                         ) : (<p className="text-center text-muted-foreground py-12 text-xs italic">No income data for this selection.</p>)}
                     </div>
                     <div className="space-y-4">
-                        <h3 className="text-sm font-semibold flex items-center text-red-600"><TrendingDown className="mr-2 h-4 w-4"/>Expense by Category</h3>
+                        <h3 className="text-sm font-bold flex items-center text-red-600"><TrendingDown className="mr-2 h-4 w-4"/>Expense by Category</h3>
                         {expensePieData.length > 0 ? (
                             <div className="h-[250px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -446,7 +431,6 @@ export default function ReportsPage() {
                                         <Pie data={expensePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} paddingAngle={2}>
                                             {expensePieData.map((_, index) => (<Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />))}
                                         </Pie>
-                                        <Tooltip content={<CustomPieTooltip />} />
                                         <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '10px' }} />
                                     </PieChart>
                                 </ResponsiveContainer>
@@ -473,16 +457,16 @@ export default function ReportsPage() {
 
 function ExportCard({ title, icon: Icon, type, isExporting, onExport }: any) {
     return (
-        <Card className="hover:shadow-lg transition-shadow">
+        <Card className="hover:shadow-lg transition-all duration-300 group border-t-2 hover:border-t-primary">
             <CardHeader className="pb-3">
-                <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+                <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <Icon className="h-5 w-5 text-primary" />
                 </div>
                 <CardTitle className="text-base">{title}</CardTitle>
                 <CardDescription className="text-xs">Download full {title.toLowerCase()} CSV dataset.</CardDescription>
             </CardHeader>
             <CardFooter>
-                <Button variant="outline" size="sm" onClick={onExport} disabled={isExporting} className="w-full">
+                <Button variant="outline" size="sm" onClick={onExport} disabled={isExporting} className="w-full hover:bg-primary hover:text-white">
                     {isExporting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Download className="mr-2 h-3 w-3" />}
                     {isExporting ? 'Exporting...' : 'Download CSV'}
                 </Button>
