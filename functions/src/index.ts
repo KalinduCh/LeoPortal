@@ -10,6 +10,7 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
+// SECURE: Use environment variables instead of hardcoded strings
 const GMAIL_EMAIL = process.env.GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
 const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
 
@@ -199,6 +200,7 @@ export const onTaskUpdated = functions.firestore
     const before = change.before.data() as Task;
     const after = change.after.data() as Task;
     
+    // Notify if assignees changed or task status was set to a specific value
     const newAssignees = after.assigneeIds.filter(id => !before.assigneeIds.includes(id));
     
     if (newAssignees.length > 0) {

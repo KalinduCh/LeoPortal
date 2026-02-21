@@ -26,7 +26,7 @@ LeoPortal is a fully functional Progressive Web App.
 ## 🛠️ Tech Stack
 - **Framework**: Next.js 15 (Node 18 compatible)
 - **Backend**: Firebase (Auth, Firestore, Functions)
-- **AI**: Google Gemini (via Genkit 1.x)
+- **AI**: Google Gemini 1.5 Flash (via Genkit 1.x)
 - **UI**: Shadcn/UI, Tailwind CSS, Lucide icons
 
 ## 🚀 Getting Started

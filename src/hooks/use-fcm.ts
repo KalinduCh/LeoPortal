@@ -25,12 +25,12 @@ export function useFcm(user: User | null) {
       if (typeof window === 'undefined' || !user || !('serviceWorker' in navigator)) return;
 
       try {
-        // CRITICAL FIX: Wait for the service worker to be ready before subscribing
-        // This prevents the "no active Service Worker" error
+        // WAIT for the service worker to be fully registered and active
+        // This prevents the "no active Service Worker" error during getToken subscription
         const registration = await navigator.serviceWorker.ready;
         
         if (!registration.active) {
-            console.log("FCM: Service worker is not active yet.");
+            console.warn("FCM: Service worker found but not active yet.");
             return;
         }
 
