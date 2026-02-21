@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, ExternalLink, Calendar, Filter, HandCoins, FileDown, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, ExternalLink, Calendar, Filter, HandCoins, FileDown, FileText, ChevronLeft, ChevronRight, List } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/financeService';
 import { format, parseISO, isValid, startOfMonth, endOfMonth, startOfYear, endOfYear, getYear, getMonth, eachMonthOfInterval, isSameYear } from 'date-fns';
@@ -32,8 +32,8 @@ const FinanceForm = dynamic(() => import('@/components/finance/finance-form').th
 });
 
 const chartConfig = {
-  income: { label: "Income", color: "hsl(var(--primary))" },
-  expenses: { label: "Expenses", color: "hsl(var(--destructive))" },
+  income: { label: "Income", color: "#22c55e" },
+  expenses: { label: "Expenses", color: "#ef4444" },
 } satisfies ChartConfig;
 
 export default function FinancePage() {
@@ -47,7 +47,6 @@ export default function FinancePage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   
-  // Period filter - 'all' or specific year string
   const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString());
   
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,7 +113,6 @@ export default function FinancePage() {
 
   const chartData = useMemo(() => {
     if (selectedYear === 'all') {
-        // Group by year for "All Balances" view
         const yearGroups: Record<string, { income: number, expenses: number }> = {};
         transactions.forEach(t => {
             const y = getYear(parseISO(t.date)).toString();
@@ -126,7 +124,6 @@ export default function FinancePage() {
             .map(([name, data]) => ({ name, ...data }))
             .sort((a, b) => a.name.localeCompare(b.name));
     } else {
-        // Group by month for specific year
         const yearInt = parseInt(selectedYear);
         const startDate = startOfYear(new Date(yearInt, 0, 1));
         const endDate = endOfYear(new Date(yearInt, 0, 1));
@@ -315,14 +312,14 @@ export default function FinancePage() {
         </Card>
         <Card className={cn("border-l-4 shadow-md bg-primary/5", lifetimeBalance >= 0 ? "border-l-primary" : "border-l-destructive")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Overall Net Balance</CardTitle>
+                <CardTitle className="text-sm font-medium">Global Cash on Hand</CardTitle>
                 <DollarSign className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
                 <div className={cn("text-2xl font-bold", lifetimeBalance >= 0 ? "text-primary" : "text-destructive")}>
                     LKR {lifetimeBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Total Cash on Hand</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Total Lifetime Balance</p>
             </CardContent>
         </Card>
          <Card className="shadow-sm">
@@ -359,28 +356,28 @@ export default function FinancePage() {
         </Card>
          <Card className="md:col-span-2 shadow-md">
              <CardHeader>
-                <CardTitle className="text-lg">Recent Activities</CardTitle>
-                <CardDescription>Latest entries for selected period.</CardDescription>
+                <CardTitle className="text-lg">Recent Transactions</CardTitle>
+                <CardDescription>Latest 5 global entries.</CardDescription>
              </CardHeader>
             <CardContent>
                 <ScrollArea className="h-[250px]">
                     <div className="space-y-4 pr-3">
-                        {filteredTransactions.slice(0, 10).map((t) => (
+                        {transactions.slice(0, 5).map((t) => (
                             <div key={t.id} className="flex items-center border-b pb-3 last:border-0 last:pb-0 hover:bg-muted/30 transition-colors rounded-sm px-1">
                                 <div className={cn("p-2 rounded-full mr-3", t.type === 'income' ? 'bg-green-50' : 'bg-red-50')}>
                                     {t.type === 'income' ? <TrendingUp className="h-4 w-4 text-green-600"/> : <TrendingDown className="h-4 w-4 text-red-600" />}
                                 </div>
                                 <div className="flex-grow min-w-0">
-                                    <p className="font-medium text-sm truncate">{t.source}</p>
-                                    <p className="text-xs text-muted-foreground">{t.category} • {format(parseISO(t.date), 'MMM dd, yy')}</p>
+                                    <p className="font-bold text-sm text-primary leading-tight">{t.category}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{t.source}</p>
                                 </div>
-                                <div className={cn("font-semibold text-sm ml-2 shrink-0", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                                <div className={cn("font-bold text-sm ml-2 shrink-0 text-right", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
                                     {t.type === 'income' ? '+' : '-'}LKR {t.amount.toLocaleString()}
                                 </div>
                             </div>
                         ))}
-                        {filteredTransactions.length === 0 && (
-                            <div className="text-center py-10 text-muted-foreground italic text-sm">No entries found for this selection.</div>
+                        {transactions.length === 0 && (
+                            <div className="text-center py-10 text-muted-foreground italic text-sm">No transactions found.</div>
                         )}
                     </div>
                 </ScrollArea>
@@ -400,7 +397,6 @@ export default function FinancePage() {
             </div>
         </CardHeader>
         <CardContent>
-          {/* Desktop Table View */}
           <div className="hidden md:block">
               <Table>
                 <TableHeader className="bg-muted/50">
@@ -442,7 +438,6 @@ export default function FinancePage() {
                 </TableBody>
               </Table>
           </div>
-          {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
               {paginatedTransactions.map((t) => (
                   <Card key={t.id} className={cn("shadow-sm border-l-4 hover:shadow-md transition-shadow", t.type === 'income' ? 'border-l-green-500' : 'border-l-red-500')}>
