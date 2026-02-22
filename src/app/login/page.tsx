@@ -13,7 +13,7 @@ import { Loader2, UserCheck, AlertTriangle, Info, CheckCircle } from "lucide-rea
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { markUserAttendance } from "@/services/attendanceService";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isLoading: authLoading, user } = useAuth();
@@ -120,4 +120,17 @@ export default function LoginPage() {
       </div>
     </div>
   );
+}
+
+export default function LoginPage() {
+    return (
+        <React.Suspense fallback={
+            <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="mt-4 text-muted-foreground">Loading...</p>
+            </div>
+        }>
+            <LoginContent />
+        </React.Suspense>
+    );
 }
