@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-export default function ViewProjectProposalPage() {
+function ViewProjectProposalContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user } = useAuth();
@@ -531,5 +531,17 @@ export default function ViewProjectProposalPage() {
                 </Card>
             )}
         </div>
+    );
+}
+
+export default function ViewProjectProposalPage() {
+    return (
+        <React.Suspense fallback={
+            <div className="flex justify-center items-center h-[calc(100vh-10rem)]">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+        }>
+            <ViewProjectProposalContent />
+        </React.Suspense>
     );
 }
