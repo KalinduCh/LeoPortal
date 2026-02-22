@@ -20,7 +20,7 @@ import Image from 'next/image';
 import { getCurrentPosition, calculateDistanceInMeters, MAX_ATTENDANCE_DISTANCE_METERS } from '@/lib/geolocation';
 import { Badge } from '@/components/ui/badge';
 
-export default function VisitingLeoPage() {
+function VisitingLeoContent() {
   const searchParams = useSearchParams();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -286,4 +286,16 @@ export default function VisitingLeoPage() {
       </div>
     </div>
   );
+}
+
+export default function VisitingLeoPage() {
+    return (
+        <React.Suspense fallback={
+            <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-background py-8 px-4 flex justify-center items-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+        }>
+            <VisitingLeoContent />
+        </React.Suspense>
+    );
 }
