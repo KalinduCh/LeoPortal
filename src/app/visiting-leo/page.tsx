@@ -2,7 +2,7 @@
 // src/app/visiting-leo/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { Event } from '@/types';
 import { getEvents, getEvent } from '@/services/eventService';
@@ -290,12 +290,12 @@ function VisitingLeoContent() {
 
 export default function VisitingLeoPage() {
     return (
-        <React.Suspense fallback={
+        <Suspense fallback={
             <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-background py-8 px-4 flex justify-center items-center">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
         }>
             <VisitingLeoContent />
-        </React.Suspense>
+        </Suspense>
     );
 }

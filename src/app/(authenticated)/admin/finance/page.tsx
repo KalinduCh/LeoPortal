@@ -310,14 +310,14 @@ export default function FinancePage() {
         </Card>
         <Card className={cn("border-l-4 shadow-md bg-primary/5", lifetimeBalance >= 0 ? "border-l-primary" : "border-l-destructive")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Global Cash on Hand</CardTitle>
+                <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
                 <DollarSign className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
                 <div className={cn("text-2xl font-bold", lifetimeBalance >= 0 ? "text-primary" : "text-destructive")}>
                     LKR {lifetimeBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Total Lifetime Balance</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Total of all years</p>
             </CardContent>
         </Card>
          <Card className="shadow-sm">

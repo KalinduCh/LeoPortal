@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/label';
+import { cn } from '@/lib/utils';
 
 const PIE_CHART_COLORS = ["#2563eb", "#14b8a6", "#ef4444", "#f97316", "#8b5cf6", "#3b82f6", "#06b6d4", "#ec4899", "#84cc16"];
 
@@ -129,6 +130,12 @@ export default function ReportsPage() {
         totalExpense: tExpense
     };
   }, [filteredFinanceTransactions]);
+
+  const lifetimeBalance = useMemo(() => {
+    return allTransactions.reduce((acc, t) => {
+        return t.type === 'income' ? acc + t.amount : acc - t.amount;
+    }, 0);
+  }, [allTransactions]);
 
   const memberLeaderboard = useMemo(() => {
     const stats: Record<string, { count: number; user: User | undefined }> = {};
@@ -385,7 +392,7 @@ export default function ReportsPage() {
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                     <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-100 dark:border-green-900/50">
                         <p className="text-xs text-green-600 dark:text-green-400 font-medium uppercase tracking-wider mb-1">Total Income ({financeYear === 'all' ? 'Lifetime' : financeYear})</p>
                         <p className="text-2xl font-bold text-green-700 dark:text-green-300">LKR {totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
@@ -393,6 +400,10 @@ export default function ReportsPage() {
                     <div className="bg-red-50 dark:bg-red-950/20 p-4 rounded-lg border border-red-100 dark:border-red-900/50">
                         <p className="text-xs text-red-600 dark:text-red-400 font-medium uppercase tracking-wider mb-1">Total Expense ({financeYear === 'all' ? 'Lifetime' : financeYear})</p>
                         <p className="text-2xl font-bold text-red-700 dark:text-red-300">LKR {totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    </div>
+                    <div className={cn("p-4 rounded-lg border", lifetimeBalance >= 0 ? "bg-primary/5 border-primary/20" : "bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/50")}>
+                        <p className={cn("text-xs font-medium uppercase tracking-wider mb-1", lifetimeBalance >= 0 ? "text-primary" : "text-red-600 dark:text-red-400")}>Net Balance (Total of all years)</p>
+                        <p className={cn("text-2xl font-bold", lifetimeBalance >= 0 ? "text-primary" : "text-red-700 dark:text-red-300")}>LKR {lifetimeBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
                 </div>
 
