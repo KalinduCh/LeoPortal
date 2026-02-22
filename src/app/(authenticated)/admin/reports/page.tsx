@@ -268,12 +268,14 @@ export default function ReportsPage() {
       </div>
 
       <Tabs defaultValue="member-reports" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto bg-muted/50 p-1 mb-6">
-          <TabsTrigger value="member-reports" className="py-2.5"><Users2 className="mr-2 h-4 w-4"/>Members</TabsTrigger>
-          <TabsTrigger value="event-reports" className="py-2.5"><Calendar className="mr-2 h-4 w-4"/>Events</TabsTrigger>
-          <TabsTrigger value="financial-reports" className="py-2.5"><HandCoins className="mr-2 h-4 w-4"/>Financials</TabsTrigger>
-          <TabsTrigger value="data-exports" className="py-2.5"><Download className="mr-2 h-4 w-4"/>Exports</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-2 -mx-1 px-1 no-scrollbar">
+            <TabsList className="flex w-max md:grid md:w-full md:grid-cols-4 h-auto bg-muted/50 p-1 mb-2 md:mb-6">
+                <TabsTrigger value="member-reports" className="py-2 px-3 md:py-2.5"><Users2 className="mr-2 h-4 w-4"/>Members</TabsTrigger>
+                <TabsTrigger value="event-reports" className="py-2 px-3 md:py-2.5"><Calendar className="mr-2 h-4 w-4"/>Events</TabsTrigger>
+                <TabsTrigger value="financial-reports" className="py-2 px-3 md:py-2.5"><HandCoins className="mr-2 h-4 w-4"/>Financials</TabsTrigger>
+                <TabsTrigger value="data-exports" className="py-2 px-3 md:py-2.5"><Download className="mr-2 h-4 w-4"/>Exports</TabsTrigger>
+            </TabsList>
+        </div>
 
         <TabsContent value="member-reports" className="space-y-6">
           <Card className="shadow-md border-t-4 border-t-primary">
@@ -391,19 +393,19 @@ export default function ReportsPage() {
                     </div>
                 </div>
             </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-100 dark:border-green-900/50">
-                        <p className="text-xs text-green-600 dark:text-green-400 font-medium uppercase tracking-wider mb-1">Total Income ({financeYear === 'all' ? 'Lifetime' : financeYear})</p>
-                        <p className="text-2xl font-bold text-green-700 dark:text-green-300">LKR {totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+            <CardContent className="p-3 sm:p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+                    <div className="bg-green-50 dark:bg-green-950/20 p-3 sm:p-4 rounded-lg border border-green-100 dark:border-green-900/50">
+                        <p className="text-[10px] sm:text-xs text-green-600 dark:text-green-400 font-medium uppercase tracking-wider mb-1">Total Income ({financeYear === 'all' ? 'Lifetime' : financeYear})</p>
+                        <p className="text-lg sm:text-2xl font-bold text-green-700 dark:text-green-300">LKR {totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
-                    <div className="bg-red-50 dark:bg-red-950/20 p-4 rounded-lg border border-red-100 dark:border-red-900/50">
-                        <p className="text-xs text-red-600 dark:text-red-400 font-medium uppercase tracking-wider mb-1">Total Expense ({financeYear === 'all' ? 'Lifetime' : financeYear})</p>
-                        <p className="text-2xl font-bold text-red-700 dark:text-red-300">LKR {totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    <div className="bg-red-50 dark:bg-red-950/20 p-3 sm:p-4 rounded-lg border border-red-100 dark:border-red-900/50">
+                        <p className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 font-medium uppercase tracking-wider mb-1">Total Expense ({financeYear === 'all' ? 'Lifetime' : financeYear})</p>
+                        <p className="text-lg sm:text-2xl font-bold text-red-700 dark:text-red-300">LKR {totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
-                    <div className={cn("p-4 rounded-lg border", lifetimeBalance >= 0 ? "bg-primary/5 border-primary/20" : "bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/50")}>
-                        <p className={cn("text-xs font-medium uppercase tracking-wider mb-1", lifetimeBalance >= 0 ? "text-primary" : "text-red-600 dark:text-red-400")}>Net Balance (Total of all years)</p>
-                        <p className={cn("text-2xl font-bold", lifetimeBalance >= 0 ? "text-primary" : "text-red-700 dark:text-red-300")}>LKR {lifetimeBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    <div className={cn("p-3 sm:p-4 rounded-lg border", lifetimeBalance >= 0 ? "bg-primary/5 border-primary/20" : "bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/50")}>
+                        <p className={cn("text-[10px] sm:text-xs font-medium uppercase tracking-wider mb-1", lifetimeBalance >= 0 ? "text-primary" : "text-red-600 dark:text-red-400")}>Net Balance (Total of all years)</p>
+                        <p className={cn("text-lg sm:text-2xl font-bold", lifetimeBalance >= 0 ? "text-primary" : "text-red-700 dark:text-red-300")}>LKR {lifetimeBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
                 </div>
 

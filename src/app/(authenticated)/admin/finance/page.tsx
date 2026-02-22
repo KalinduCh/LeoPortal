@@ -334,11 +334,11 @@ export default function FinancePage() {
 
       <div className="grid gap-6 md:grid-cols-5">
         <Card className="md:col-span-3 shadow-md">
-             <CardHeader>
-                <CardTitle className="flex items-center text-lg text-primary"><BarChart className="mr-2 h-5 w-5"/>{selectedYear === 'all' ? 'Year-over-Year Overview' : `Monthly Breakdown - ${selectedYear}`}</CardTitle>
+             <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center text-base sm:text-lg text-primary"><BarChart className="mr-2 h-5 w-5"/>{selectedYear === 'all' ? 'Year-over-Year Overview' : `Monthly Breakdown - ${selectedYear}`}</CardTitle>
              </CardHeader>
-            <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <CardContent className="p-2 sm:p-6">
+                <ChartContainer config={chartConfig} className="h-[250px] md:h-[300px] w-full">
                     <ResponsiveContainer>
                         <RechartsBarChart accessibilityLayer data={chartData}>
                             <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.5} />
@@ -440,12 +440,12 @@ export default function FinancePage() {
               {paginatedTransactions.map((t) => (
                   <Card key={t.id} className={cn("shadow-sm border-l-4 hover:shadow-md transition-shadow", t.type === 'income' ? 'border-l-green-500' : 'border-l-red-500')}>
                       <CardHeader className="p-3 pb-1 flex flex-row items-center justify-between">
-                          <p className="text-xs text-muted-foreground font-medium">{format(parseISO(t.date), 'MMMM dd, yyyy')}</p>
-                          <Badge variant="outline" className="text-[10px] uppercase h-4">{t.category}</Badge>
+                          <p className="text-[10px] text-muted-foreground font-medium">{format(parseISO(t.date), 'MMM dd, yyyy')}</p>
+                          <Badge variant="outline" className="text-[9px] uppercase h-4 px-1">{t.category}</Badge>
                       </CardHeader>
                       <CardContent className="p-3 pt-0">
-                          <p className="text-sm font-semibold text-primary truncate mb-1">{t.source}</p>
-                          <p className={cn("text-lg font-bold font-mono", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                          <p className="text-xs font-semibold text-primary truncate mb-1">{t.source}</p>
+                          <p className={cn("text-base font-bold font-mono", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
                               {t.type === 'income' ? '+' : '-'} LKR {t.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </p>
                       </CardContent>
