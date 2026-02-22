@@ -3,6 +3,7 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -124,13 +125,13 @@ function LoginContent() {
 
 export default function LoginPage() {
     return (
-        <React.Suspense fallback={
+        <Suspense fallback={
             <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 <p className="mt-4 text-muted-foreground">Loading...</p>
             </div>
         }>
             <LoginContent />
-        </React.Suspense>
+        </Suspense>
     );
 }
