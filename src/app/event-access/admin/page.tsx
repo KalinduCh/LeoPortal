@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -10,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { PlusCircle, Calendar, MapPin, Settings, Loader2, ExternalLink, Activity, QrCode } from 'lucide-react';
+import { PlusCircle, Calendar, MapPin, Settings, Loader2, ExternalLink, Activity, QrCode, ShieldAlert } from 'lucide-react';
 import { getPlatformEvents, createPlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
@@ -40,18 +39,24 @@ export default function PlatformAdminOverview() {
       const data = await getPlatformEvents();
       setEvents(data);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to load event modules.", variant: "destructive" });
+      console.error("Failed to load events:", error);
+      toast({ title: "Error", description: "Could not load event modules. Please check your permissions.", variant: "destructive" });
     }
     setIsLoading(false);
   };
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/event-access/login');
-      return;
+    if (!authLoading) {
+      if (!user) {
+        router.push('/event-access/login');
+      } else if (user.role !== 'admin' && user.role !== 'super_admin') {
+        toast({ title: "Access Restricted", description: "This platform is for organizers only.", variant: "destructive" });
+        router.push('/dashboard');
+      } else {
+        fetchEvents();
+      }
     }
-    fetchEvents();
-  }, [user, authLoading]);
+  }, [user, authLoading, router, toast]);
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +102,7 @@ export default function PlatformAdminOverview() {
             <form onSubmit={handleCreateEvent} className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Event Name (e.g. District Installation)</Label>
-                <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Installation 2026" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -111,15 +116,15 @@ export default function PlatformAdminOverview() {
               </div>
               <div className="space-y-2">
                 <Label>Venue Location</Label>
-                <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} />
+                <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="City Hotel, Ballroom" />
               </div>
               <div className="space-y-2">
                 <Label>Description</Label>
-                <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} />
+                <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Brief overview for the registration page..." />
               </div>
               <div className="space-y-2">
                 <Label>Capacity (Optional)</Label>
-                <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} />
+                <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} placeholder="Unlimited if empty" />
               </div>
               <DialogFooter className="pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>

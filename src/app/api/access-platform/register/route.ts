@@ -1,10 +1,13 @@
-
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase/clientApp';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
 
+/**
+ * API route for public district event registration.
+ * Handles Ticket generation, Firestore storage, QR creation, and Email delivery.
+ */
 export async function POST(req: Request) {
   try {
     const data = await req.json();
@@ -14,10 +17,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // 1. Generate Ticket ID
+    // 1. Generate unique high-density Ticket ID
     const ticketId = `PASS-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
 
     // 2. Save Registration to Firestore
+    // Collection name matches accessPlatformService.ts
     const regRef = await addDoc(collection(db, 'accessRegistrations'), {
       eventId,
       name,
@@ -29,7 +33,7 @@ export async function POST(req: Request) {
       createdAt: serverTimestamp(),
     });
 
-    // 3. Generate QR Code
+    // 3. Generate Secure QR Code Pass
     const qrPayload = JSON.stringify({ ticketId, eventId });
     const qrBase64 = await QRCode.toDataURL(qrPayload, {
       color: { dark: '#1e3a8a', light: '#ffffff' },
@@ -37,7 +41,7 @@ export async function POST(req: Request) {
       width: 400
     });
 
-    // 4. Send Confirmation Email
+    // 4. Send Confirmation Email via SMTP
     const { GMAIL_EMAIL, GMAIL_APP_PASSWORD } = process.env;
     if (GMAIL_EMAIL && GMAIL_APP_PASSWORD) {
       const transporter = nodemailer.createTransport({
@@ -73,7 +77,7 @@ export async function POST(req: Request) {
       `;
 
       await transporter.sendMail({
-        from: `"Event Services" <${GMAIL_EMAIL}>`,
+        from: `"LEO Events" <${GMAIL_EMAIL}>`,
         to: email,
         subject: `Your Entry Pass for ${eventName}`,
         html: emailHtml,

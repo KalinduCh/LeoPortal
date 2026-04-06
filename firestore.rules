@@ -9,12 +9,10 @@ service cloud.firestore {
     }
 
     function getUserData(userId) {
-      // Correctly reference the user's data document.
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
     
     function isAdmin() {
-      // Use the corrected getUserData function with the requesting user's ID.
       return isSignedIn() && getUserData(request.auth.uid).role in ['admin', 'super_admin'];
     }
 
@@ -48,6 +46,19 @@ service cloud.firestore {
     }
 
     // =========================
+    // 🎟️ District Access Platform (Standalone)
+    // =========================
+    match /accessEvents/{eventId} {
+      allow read, list: if true; 
+      allow write: if isAdmin();
+    }
+    
+    match /accessRegistrations/{regId} {
+      allow create: if true;
+      allow read, list, update, delete: if isAdmin();
+    }
+
+    // =========================
     // 💬 Communication Groups
     // =========================
     match /communicationGroups/{groupId} {
@@ -75,7 +86,7 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     
-    // Daily Tasks Collection (For Birthday Trigger)
+    // Daily Tasks Collection
     match /dailyTasks/{taskId} {
       allow read, write: if isAdmin();
     }
@@ -105,7 +116,7 @@ service cloud.firestore {
     // =========================
      match /tasks/{taskId}/activity/{activityId} {
         allow read, list: if isSignedIn();
-        allow create: if isSignedIn() || isAdmin(); // Allow system/functions to log
+        allow create: if isSignedIn() || isAdmin();
         allow update, delete: if isAdmin();
     }
   }
