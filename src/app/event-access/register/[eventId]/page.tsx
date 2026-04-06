@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Calendar, MapPin, Loader2, CheckCircle, 
-  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2
+  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle
 } from 'lucide-react';
 import { getPlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
@@ -18,6 +19,8 @@ import { format } from 'date-fns';
 import Image from 'next/image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import Papa from 'papaparse';
+import { Progress } from '@/components/ui/progress';
 
 export default function PlatformPublicRegistration() {
   const params = useParams();
@@ -29,15 +32,20 @@ export default function PlatformPublicRegistration() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [bulkSuccessCount, setBulkSuccessCount] = useState(0);
 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     club: '',
     contactNumber: '',
-    role: 'Leo', // Member Type
+    role: 'Leo',
     foodPreference: 'non_veg' as 'veg' | 'non_veg'
   });
+
+  // Bulk processing state
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+  const [processProgress, setProcessProgress] = useState(0);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -74,6 +82,7 @@ export default function PlatformPublicRegistration() {
 
       if (response.ok) {
         setSuccess(true);
+        setBulkSuccessCount(0); // Reset bulk count for single success
         toast({ title: "Pass Generated", description: "Check your email for your entry pass." });
       } else {
         const errorData = await response.json();
@@ -83,6 +92,101 @@ export default function PlatformPublicRegistration() {
       toast({ title: "Error", description: err.message || "Submission failed. Please try again.", variant: "destructive" });
     }
     setIsSubmitting(false);
+  };
+
+  const handleDownloadSample = () => {
+    const sampleData = [
+      {
+        Name: "Leo Kavindya Gimhani",
+        Email: "kavindya@example.com",
+        Club: "Leo Club of Athugalpura",
+        Contact: "0712345678",
+        Type: "Leo",
+        Food: "non_veg"
+      },
+      {
+        Name: "Lion Menuka Wickramasinghe",
+        Email: "menuka@example.com",
+        Club: "Lions Club of Athugalpura",
+        Contact: "0771234567",
+        Type: "Lion",
+        Food: "veg"
+      }
+    ];
+    const csv = Papa.unparse(sampleData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = "District_Event_Bulk_Import_Sample.csv";
+    link.click();
+  };
+
+  const handleBulkCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !event) return;
+
+    setIsBulkProcessing(true);
+    setProcessProgress(0);
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const data = results.data as any[];
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (let i = 0; i < data.length; i++) {
+          const row = data[i];
+          setProcessProgress(Math.round(((i + 1) / data.length) * 100));
+
+          try {
+            if (!row.Name || !row.Email) continue;
+            
+            const response = await fetch('/api/access-platform/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                eventId,
+                eventName: event.name,
+                eventDate: event.date,
+                eventTime: event.time,
+                eventLocation: event.location,
+                name: row.Name,
+                email: row.Email,
+                club: row.Club || 'Individual',
+                contactNumber: row.Contact || '',
+                role: row.Type || 'Leo',
+                foodPreference: (row.Food?.toLowerCase().includes('veg') && !row.Food?.toLowerCase().includes('non')) ? 'veg' : 'non_veg'
+              }),
+            });
+
+            if (response.ok) successCount++;
+            else errorCount++;
+          } catch (err) {
+            errorCount++;
+          }
+        }
+
+        if (successCount > 0) {
+          setBulkSuccessCount(successCount);
+          setSuccess(true);
+          toast({
+            title: "Bulk Registration Complete",
+            description: `Successfully generated ${successCount} entry passes.`
+          });
+        } else {
+          toast({
+            title: "Import Failed",
+            description: "No registrations were successful. Please check the CSV format.",
+            variant: "destructive"
+          });
+        }
+        
+        setIsBulkProcessing(false);
+        e.target.value = '';
+      }
+    });
   };
 
   if (isLoading) {
@@ -127,89 +231,167 @@ export default function PlatformPublicRegistration() {
           <Card className="border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
             <div className="bg-emerald-600 p-10 text-white text-center">
               <CheckCircle className="h-20 w-16 mx-auto mb-4" />
-              <h2 className="text-3xl font-black font-headline">SEE YOU THERE!</h2>
-              <p className="opacity-90 font-medium">Your digital entry pass is on its way.</p>
+              <h2 className="text-3xl font-black font-headline">REGISTRATION SUCCESSFUL!</h2>
+              <p className="opacity-90 font-medium">
+                {bulkSuccessCount > 0 
+                  ? `${bulkSuccessCount} digital entry passes have been generated.` 
+                  : "Your digital entry pass is on its way."}
+              </p>
             </div>
             <CardContent className="p-10 text-center space-y-6">
               <p className="text-slate-600 text-lg leading-relaxed">
-                Thank you for registering. A unique QR entry pass has been sent to <strong>{formData.email}</strong>.
+                {bulkSuccessCount > 0 
+                  ? "We've sent unique QR passes to all the email addresses provided in the list." 
+                  : `Thank you for registering. A unique QR entry pass has been sent to ${formData.email}.`}
               </p>
               <div className="p-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-sm font-medium text-slate-500">
-                Please have your pass ready on your phone for scanning at the venue entrance.
+                Please ensure all guests have their passes ready on their phones for scanning at the venue entrance.
               </div>
-              <Button variant="link" className="text-primary font-bold" onClick={() => window.location.reload()}>Need to register another person?</Button>
+              <Button variant="link" className="text-primary font-bold" onClick={() => window.location.reload()}>Need to register more people?</Button>
             </CardContent>
           </Card>
         ) : (
           <Card className="shadow-2xl border-none rounded-3xl bg-white overflow-hidden">
             <CardHeader className="bg-slate-900 p-8 text-white">
               <CardTitle className="text-2xl font-headline">Request Access Pass</CardTitle>
-              <CardDescription className="text-slate-400">Please provide your details below to receive your digital ticket.</CardDescription>
+              <CardDescription className="text-slate-400">Choose your registration type below.</CardDescription>
             </CardHeader>
-            <CardContent className="p-8">
-              <form onSubmit={handleSubmit} className="space-y-8">
-                <div className="space-y-6">
-                    <div className="space-y-2">
-                        <Label className="flex items-center gap-2 font-bold text-slate-700"><User className="h-4 w-4 text-primary" /> Full Name</Label>
-                        <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Leo Kavindya Gimhani" className="h-12 rounded-xl" />
+            
+            <Tabs defaultValue="single" className="w-full">
+              <div className="px-8 pt-6">
+                <TabsList className="grid w-full grid-cols-2 h-12 bg-slate-100 rounded-xl p-1">
+                  <TabsTrigger value="single" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Single Entry</TabsTrigger>
+                  <TabsTrigger value="bulk" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Club Bulk Upload</TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="single">
+                <CardContent className="p-8">
+                  <form onSubmit={handleSubmit} className="space-y-8">
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2 font-bold text-slate-700"><User className="h-4 w-4 text-primary" /> Full Name</Label>
+                            <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Leo Kavindya Gimhani" className="h-12 rounded-xl" />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2 font-bold text-slate-700"><Mail className="h-4 w-4 text-primary" /> Email Address</Label>
+                                <Input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="you@example.com" className="h-12 rounded-xl" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2 font-bold text-slate-700"><Phone className="h-4 w-4 text-primary" /> Contact Number</Label>
+                                <Input required value={formData.contactNumber} onChange={e => setFormData({ ...formData, contactNumber: e.target.value })} placeholder="07X XXXXXXX" className="h-12 rounded-xl" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2 font-bold text-slate-700"><Building2 className="h-4 w-4 text-primary" /> Club Name</Label>
+                                <Input required value={formData.club} onChange={e => setFormData({ ...formData, club: e.target.value })} placeholder="Leo/Lions Club of..." className="h-12 rounded-xl" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2 font-bold text-slate-700"><Users2 className="h-4 w-4 text-primary" /> Member Type</Label>
+                                <Select value={formData.role} onValueChange={v => setFormData({...formData, role: v})}>
+                                    <SelectTrigger className="h-12 rounded-xl">
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Leo">Leo Member</SelectItem>
+                                        <SelectItem value="Lion">Lions Member</SelectItem>
+                                        <SelectItem value="Other">Other Guest</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 p-4 bg-slate-50 rounded-2xl ring-1 ring-slate-200">
+                            <Label className="flex items-center gap-2 font-bold text-slate-700"><Utensils className="h-4 w-4 text-primary" /> Food Preference</Label>
+                            <RadioGroup 
+                                value={formData.foodPreference} 
+                                onValueChange={(v: any) => setFormData({...formData, foodPreference: v})}
+                                className="flex gap-6"
+                            >
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="non_veg" id="non_veg" />
+                                    <Label htmlFor="non_veg" className="font-medium cursor-pointer">Non-Vegetarian</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="veg" id="veg" />
+                                    <Label htmlFor="veg" className="font-medium cursor-pointer">Vegetarian</Label>
+                                </div>
+                            </RadioGroup>
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2 font-bold text-slate-700"><Mail className="h-4 w-4 text-primary" /> Email Address</Label>
-                            <Input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="you@example.com" className="h-12 rounded-xl" />
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2 font-bold text-slate-700"><Phone className="h-4 w-4 text-primary" /> Contact Number</Label>
-                            <Input required value={formData.contactNumber} onChange={e => setFormData({ ...formData, contactNumber: e.target.value })} placeholder="07X XXXXXXX" className="h-12 rounded-xl" />
-                        </div>
-                    </div>
+                    <Button type="submit" size="lg" className="w-full h-16 text-xl font-black shadow-xl bg-primary hover:scale-[1.01] transition-transform rounded-2xl" disabled={isSubmitting}>
+                      {isSubmitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : "Request My Entry Pass"}
+                      {!isSubmitting && <ArrowRight className="ml-2 h-6 w-6" />}
+                    </Button>
+                  </form>
+                </CardContent>
+              </TabsContent>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2 font-bold text-slate-700"><Building2 className="h-4 w-4 text-primary" /> Club Name</Label>
-                            <Input required value={formData.club} onChange={e => setFormData({ ...formData, club: e.target.value })} placeholder="Leo/Lions Club of..." className="h-12 rounded-xl" />
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2 font-bold text-slate-700"><Users2 className="h-4 w-4 text-primary" /> Member Type</Label>
-                            <Select value={formData.role} onValueChange={v => setFormData({...formData, role: v})}>
-                                <SelectTrigger className="h-12 rounded-xl">
-                                    <SelectValue placeholder="Select type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Leo">Leo Member</SelectItem>
-                                    <SelectItem value="Lion">Lions Member</SelectItem>
-                                    <SelectItem value="Other">Other Guest</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+              <TabsContent value="bulk">
+                <CardContent className="p-8 space-y-8">
+                  <div className="bg-primary/5 border border-primary/10 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-3 text-primary">
+                      <FileSpreadsheet className="h-6 w-6" />
+                      <h3 className="font-bold text-lg">Club Officer Portal</h3>
                     </div>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Club Presidents or Secretaries can upload a member list to generate passes for the entire club at once. 
+                      Every member will receive their individual QR pass via their provided email address.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={handleDownloadSample} className="bg-white border-primary/20 text-primary hover:bg-primary/5 font-bold">
+                      <Download className="mr-2 h-4 w-4" /> Download Formatting Template
+                    </Button>
+                  </div>
 
-                    <div className="space-y-3 p-4 bg-slate-50 rounded-2xl ring-1 ring-slate-200">
-                        <Label className="flex items-center gap-2 font-bold text-slate-700"><Utensils className="h-4 w-4 text-primary" /> Food Preference</Label>
-                        <RadioGroup 
-                            value={formData.foodPreference} 
-                            onValueChange={(v: any) => setFormData({...formData, foodPreference: v})}
-                            className="flex gap-6"
+                  {isBulkProcessing ? (
+                    <div className="space-y-6 py-10 text-center animate-in fade-in">
+                      <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+                      <div className="space-y-2">
+                        <p className="font-black text-slate-900 uppercase tracking-widest">Generating Passes...</p>
+                        <p className="text-sm text-slate-500">{processProgress}% complete</p>
+                      </div>
+                      <Progress value={processProgress} className="h-2 rounded-full bg-slate-100" />
+                      <p className="text-xs text-slate-400 italic">Please do not close this window until finished.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="relative group">
+                        <Input 
+                          type="file" 
+                          accept=".csv" 
+                          onChange={handleBulkCsvUpload}
+                          className="hidden" 
+                          id="bulk-csv-input" 
+                        />
+                        <label 
+                          htmlFor="bulk-csv-input" 
+                          className="flex flex-col items-center justify-center gap-4 p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 hover:bg-slate-100 hover:border-primary/30 cursor-pointer transition-all duration-300"
                         >
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="non_veg" id="non_veg" />
-                                <Label htmlFor="non_veg" className="font-medium cursor-pointer">Non-Vegetarian</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="veg" id="veg" />
-                                <Label htmlFor="veg" className="font-medium cursor-pointer">Vegetarian</Label>
-                            </div>
-                        </RadioGroup>
-                    </div>
-                </div>
+                          <div className="h-16 w-16 rounded-full bg-white shadow-md flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                            <Upload className="h-8 w-8" />
+                          </div>
+                          <div className="text-center">
+                            <p className="font-black text-slate-900 uppercase tracking-tighter text-lg">Upload Club CSV List</p>
+                            <p className="text-sm text-slate-500">Tap to browse files</p>
+                          </div>
+                        </label>
+                      </div>
 
-                <Button type="submit" size="lg" className="w-full h-16 text-xl font-black shadow-xl bg-primary hover:scale-[1.01] transition-transform rounded-2xl" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : "Request My Entry Pass"}
-                  {!isSubmitting && <ArrowRight className="ml-2 h-6 w-6" />}
-                </Button>
-              </form>
-            </CardContent>
+                      <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-xs">
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <p>Ensure the CSV matches the template exactly. Duplicate emails will be skipped by the system to prevent spam.</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </TabsContent>
+            </Tabs>
+
             <CardFooter className="bg-slate-50 p-6 text-center justify-center">
               <p className="text-[10px] uppercase font-black text-slate-400 tracking-[0.3em]">District Access Platform &copy; 2026</p>
             </CardFooter>
