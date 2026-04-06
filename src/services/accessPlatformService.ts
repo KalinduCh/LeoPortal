@@ -60,17 +60,32 @@ export async function getPlatformEvent(id: string): Promise<AccessEvent | null> 
 
 /**
  * Listens to real-time registration and check-in updates for an event dashboard.
+ * Note: orderBy removed from query to avoid composite index requirement. 
+ * Sorting is handled in memory.
  */
 export function subscribeToPlatformRegistrations(eventId: string, callback: (registrations: AccessRegistration[]) => void) {
   const q = query(
     collection(db, PLATFORM_REGISTRATIONS),
-    where('eventId', '==', eventId),
-    orderBy('createdAt', 'desc')
+    where('eventId', '==', eventId)
   );
 
   return onSnapshot(q, (snapshot) => {
-    const registrations = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AccessRegistration));
-    callback(registrations);
+    const registrations = snapshot.docs.map(d => {
+        const data = d.data();
+        return { 
+            id: d.id, 
+            ...data,
+            // Fallback for missing createdAt to prevent sorting errors
+            createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString() 
+        } as AccessRegistration;
+    });
+    
+    // Sort by createdAt descending in memory
+    const sorted = registrations.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    
+    callback(sorted);
   });
 }
 
