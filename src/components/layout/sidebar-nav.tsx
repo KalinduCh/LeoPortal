@@ -1,3 +1,4 @@
+
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -11,9 +12,9 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { 
-  LayoutDashboard, CalendarDays, Users, FileText, Mail, 
+  LayoutDashboard, CalendarDays, Users, Mail, 
   Lightbulb, HandCoins, Settings, Trophy, BarChart, 
-  Calendar, ListChecks, QrCode 
+  Calendar, ListChecks, QrCode, ExternalLink 
 } from "lucide-react"; 
 import type { AdminPermission } from "@/types";
 
@@ -22,6 +23,7 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   permission?: AdminPermission;
+  external?: boolean;
 }
 
 const memberNavItems: NavItem[] = [
@@ -38,12 +40,12 @@ const adminNavItems: NavItem[] = [
   { href: "/tasks", label: "Tasks", icon: ListChecks },
   { href: "/members", label: "Members", icon: Users, permission: 'members' },
   { href: "/events", label: "Events", icon: CalendarDays, permission: 'events' },
-  { href: "/admin/access-management", label: "Event Access", icon: QrCode, permission: 'events' },
   { href: "/admin/finance", label: "Finance", icon: HandCoins, permission: 'finance' },
   { href: "/admin/leaderboard", label: "Leaderboard", icon: Trophy, permission: 'leaderboard' },
   { href: "/admin/communication", label: "Communication", icon: Mail, permission: 'communication' },
   { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, permission: 'project_ideas' },
   { href: "/admin/reports", label: "Reports", icon: BarChart, permission: 'reports' },
+  { href: "/event-access/admin", label: "District Access", icon: QrCode, external: true },
 ];
 
 const superAdminNavItems: NavItem[] = [
@@ -80,9 +82,10 @@ export function SidebarNav() {
             isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))}
             tooltip={{ children: item.label, className: "font-sans" }}
           >
-            <Link href={item.href}>
+            <Link href={item.href} target={item.external ? "_blank" : undefined}>
               <item.icon />
               <span>{item.label}</span>
+              {item.external && <ExternalLink className="ml-auto h-3 w-3 opacity-50" />}
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
