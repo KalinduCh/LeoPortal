@@ -1,4 +1,3 @@
-
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -45,7 +44,7 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/communication", label: "Communication", icon: Mail, permission: 'communication' },
   { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, permission: 'project_ideas' },
   { href: "/admin/reports", label: "Reports", icon: BarChart, permission: 'reports' },
-  { href: "/event-access/admin", label: "District Access", icon: QrCode, external: true },
+  { href: "/event-access/admin", label: "District Access", icon: QrCode },
 ];
 
 const superAdminNavItems: NavItem[] = [
