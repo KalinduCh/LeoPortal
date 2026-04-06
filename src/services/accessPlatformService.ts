@@ -16,6 +16,7 @@ import {
 import { db } from '@/lib/firebase/clientApp';
 import type { AccessEvent, AccessRegistration } from '@/types/access-platform';
 
+// These collection names MUST match firestore.rules exactly
 const PLATFORM_EVENTS = 'accessEvents';
 const PLATFORM_REGISTRATIONS = 'accessRegistrations';
 

@@ -4,6 +4,9 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
 
+// Consistent collection names matching service and rules
+const PLATFORM_REGISTRATIONS = 'accessRegistrations';
+
 /**
  * API route for public district event registration.
  * Handles Ticket generation, Firestore storage, QR creation, and Email delivery.
@@ -21,13 +24,12 @@ export async function POST(req: Request) {
     const ticketId = `PASS-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
 
     // 2. Save Registration to Firestore
-    // Collection name matches accessPlatformService.ts
-    const regRef = await addDoc(collection(db, 'accessRegistrations'), {
+    const regRef = await addDoc(collection(db, PLATFORM_REGISTRATIONS), {
       eventId,
       name,
       email,
-      club: club || 'Guest',
-      role: role || 'Member',
+      club: club || 'Individual',
+      role: role || 'Guest',
       ticketId,
       status: 'registered',
       createdAt: serverTimestamp(),
@@ -52,7 +54,7 @@ export async function POST(req: Request) {
       const emailHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
           <div style="background-color: #1e3a8a; padding: 30px; text-align: center; color: white;">
-            <h1 style="margin: 0; font-size: 24px;">Event Entry Pass</h1>
+            <h1 style="margin: 0; font-size: 24px;">District Entry Pass</h1>
             <p style="margin: 5px 0 0 0; opacity: 0.9;">Registration Confirmed</p>
           </div>
           <div style="padding: 30px; background-color: white;">
@@ -71,15 +73,15 @@ export async function POST(req: Request) {
             </div>
           </div>
           <div style="padding: 20px; text-align: center; background-color: #f1f5f9; color: #64748b; font-size: 11px;">
-            This entry pass is unique to you. Do not share it with others. &copy; 2026 District Event Platform.
+            This pass is unique. Please have it ready on your mobile for scanning. &copy; 2026 Access Platform.
           </div>
         </div>
       `;
 
       await transporter.sendMail({
-        from: `"LEO Events" <${GMAIL_EMAIL}>`,
+        from: `"Event Platform" <${GMAIL_EMAIL}>`,
         to: email,
-        subject: `Your Entry Pass for ${eventName}`,
+        subject: `Your Pass for ${eventName}: ${ticketId}`,
         html: emailHtml,
         attachments: [{
           filename: 'entry-pass.png',
