@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -25,10 +24,10 @@ export default function AccessLoginPage() {
     setIsLoading(true);
     const result = await login(email, password);
     if (result.success) {
-      toast({ title: "Welcome to Platform", description: "You are logged in as an event organizer." });
+      toast({ title: "Authorized", description: "Welcome to the LeoEntrivo management portal." });
       router.push('/event-access/admin');
     } else {
-      toast({ title: "Login Failed", description: "Invalid credentials or unauthorized access.", variant: "destructive" });
+      toast({ title: "Access Denied", description: "Invalid credentials or unauthorized account.", variant: "destructive" });
     }
     setIsLoading(false);
   };
@@ -37,38 +36,38 @@ export default function AccessLoginPage() {
     <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-2">
-          <Image src="https://i.imgur.com/MP1YFNf.png" alt="District Logo" width={80} height={80} className="mx-auto rounded-full shadow-lg mb-4" />
-          <h1 className="text-3xl font-bold font-headline text-primary tracking-tight">ORGANIZER LOGIN</h1>
-          <p className="text-muted-foreground text-sm uppercase tracking-widest">District Event Management System</p>
+          <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={80} height={80} className="mx-auto rounded-full shadow-lg mb-4" />
+          <h1 className="text-3xl font-black font-headline text-primary tracking-tight uppercase">LeoEntrivo</h1>
+          <p className="text-muted-foreground text-sm uppercase tracking-widest font-bold">Organizer Command Portal</p>
         </div>
 
-        <Card className="shadow-2xl border-primary/10">
-          <CardHeader className="bg-primary/5">
+        <Card className="shadow-2xl border-none ring-1 ring-slate-200">
+          <CardHeader className="bg-slate-50/50">
             <CardTitle className="text-xl flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" /> Admin Portal
+              <ShieldCheck className="h-5 w-5 text-primary" /> Security Gateway
             </CardTitle>
-            <CardDescription>Enter your credentials to manage district registrations.</CardDescription>
+            <CardDescription>Enter organizer credentials to manage district registrations.</CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label>Email Address</Label>
-                <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="organizer@distict.com" />
+                <Label>Admin Email</Label>
+                <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="organizer@leoentrivo.com" />
               </div>
               <div className="space-y-2">
-                <Label>Password</Label>
+                <Label>Secure Password</Label>
                 <Input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
               </div>
-              <Button type="submit" className="w-full h-12 text-lg shadow-lg" disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Access Platform"}
+              <Button type="submit" className="w-full h-14 text-lg font-black shadow-lg" disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Identity"}
                 {!isLoading && <ArrowRight className="ml-2 h-5 w-5" />}
               </Button>
             </form>
           </CardContent>
         </Card>
         
-        <p className="text-center text-xs text-muted-foreground">
-          This system is strictly for authorized District Event Organizers.
+        <p className="text-center text-[10px] text-slate-400 uppercase font-black tracking-widest">
+          Authorized Event Personnel Only
         </p>
       </div>
     </div>

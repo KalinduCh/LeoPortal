@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -48,7 +47,7 @@ export default function PlatformAdminOverview() {
       const data = await getPlatformEvents();
       setEvents(data);
     } catch (error: any) {
-      console.error("DISTRICT_ACCESS_ERROR: Failed to load events:", error);
+      console.error("LEOENTRIVO_ERROR: Failed to load events:", error);
       toast({ title: "Error", description: "Failed to load event modules.", variant: "destructive" });
     }
     setIsLoading(false);
@@ -105,13 +104,13 @@ export default function PlatformAdminOverview() {
           ...payload,
           organizerId: user.id,
         });
-        toast({ title: "Module Activated", description: "The district event registration pipeline is ready." });
+        toast({ title: "Module Activated", description: "The LeoEntrivo registration pipeline is ready." });
       }
       
       setIsDialogOpen(false);
       fetchEvents();
     } catch (error: any) {
-      console.error("DISTRICT_ACCESS_ERROR: Save failed:", error);
+      console.error("LEOENTRIVO_ERROR: Save failed:", error);
       toast({ 
         title: "Error", 
         description: error.message || "Could not save the event module.", 
@@ -129,11 +128,11 @@ export default function PlatformAdminOverview() {
     <div className="container mx-auto py-10 px-4 space-y-10">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b pb-8">
         <div>
-          <h1 className="text-4xl font-bold font-headline text-slate-900 tracking-tight uppercase">District Access</h1>
-          <p className="text-slate-500 mt-1">Manage registration and entry passes for district-level events.</p>
+          <h1 className="text-4xl font-bold font-headline text-slate-900 tracking-tight uppercase">LeoEntrivo Dashboard</h1>
+          <p className="text-slate-500 mt-1">Manage registration and entry passes for your district event modules.</p>
         </div>
         <Button size="lg" onClick={() => handleOpenDialog()} className="shadow-xl bg-primary hover:bg-primary/90 h-14 px-8 text-lg font-bold">
-          <PlusCircle className="mr-2 h-6 w-6" /> Create New Module
+          <PlusCircle className="mr-2 h-6 w-6" /> Deploy New Module
         </Button>
       </div>
 
@@ -166,7 +165,7 @@ export default function PlatformAdminOverview() {
                           <Edit3 className="mr-2 h-4 w-4" /> Edit Event Details
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => router.push(`/event-access/admin/${event.id}`)}>
-                          <Settings className="mr-2 h-4 w-4" /> Go to Dashboard
+                          <Settings className="mr-2 h-4 w-4" /> View Admin Dashboard
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -182,17 +181,17 @@ export default function PlatformAdminOverview() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2 p-4 border-t bg-white">
                   <Button 
-                    className="w-full h-11 font-bold" 
+                    className="w-full h-11 font-bold shadow-md" 
                     onClick={() => router.push(`/event-access/admin/${event.id}`)}
                   >
-                    Open Admin Dashboard
+                    Open Dashboard
                   </Button>
                   <Button 
                     variant="outline"
                     className="w-full h-11 border-primary text-primary hover:bg-primary/5 font-bold" 
                     onClick={() => window.open(`/event-access/register/${event.id}`, '_blank')}
                   >
-                    <Eye className="mr-2 h-4 w-4" /> View Public Reg Page
+                    <Eye className="mr-2 h-4 w-4" /> View Public Page
                   </Button>
                 </CardFooter>
               </Card>
@@ -201,8 +200,8 @@ export default function PlatformAdminOverview() {
         ) : (
           <div className="col-span-full py-32 flex flex-col items-center justify-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
             <QrCode className="h-16 w-16 text-slate-300 mb-4" />
-            <h3 className="text-xl font-bold text-slate-900">No Access Modules Yet</h3>
-            <p className="text-slate-500">Deploy your first district event registration system above.</p>
+            <h3 className="text-xl font-bold text-slate-900">No Active Modules</h3>
+            <p className="text-slate-500">Deploy your first LeoEntrivo module above.</p>
           </div>
         )}
       </div>
@@ -211,7 +210,7 @@ export default function PlatformAdminOverview() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-2xl font-headline">
-              {editingEvent ? 'Edit District Module' : 'Deploy New Module'}
+              {editingEvent ? 'Edit Module Details' : 'Deploy New Module'}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveEvent} className="space-y-4 py-4">
@@ -231,19 +230,19 @@ export default function PlatformAdminOverview() {
             </div>
             <div className="space-y-2">
               <Label>Venue Location</Label>
-              <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="Venue address" />
+              <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="e.g. Grand City Hall" />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
-              <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Registration page overview..." />
+              <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Provide a brief overview for the registration page..." />
             </div>
             <div className="space-y-2">
               <Label>Capacity (Optional)</Label>
-              <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} placeholder="Leave empty for unlimited" />
+              <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} placeholder="Unlimited if left empty" />
             </div>
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isProcessing} className="h-12 px-6">
+              <Button type="submit" disabled={isProcessing} className="h-12 px-6 shadow-lg">
                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Save Changes" : "Start Module")}
               </Button>
             </DialogFooter>
