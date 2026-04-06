@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, CheckCircle, Clock, Download, QrCode, Search, 
-  Loader2, Trash2, ArrowLeft, BarChart3, Upload, Mail, ShieldAlert, Phone, Utensils
+  Loader2, Trash2, ArrowLeft, BarChart3, Upload, Mail, ShieldAlert, Phone, Utensils, FileSpreadsheet
 } from 'lucide-react';
 import { getPlatformEvent, subscribeToPlatformRegistrations, deletePlatformRegistration } from '@/services/accessPlatformService';
 import type { AccessEvent, AccessRegistration, AccessPlatformStats } from '@/types/access-platform';
@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import Papa from 'papaparse';
 import { useAuth } from '@/hooks/use-auth';
+import { cn } from '@/lib/utils';
 
 export default function PlatformEventDashboard() {
   const params = useParams();
@@ -51,7 +52,7 @@ export default function PlatformEventDashboard() {
     });
 
     return () => unsubscribe();
-  }, [eventId, user, authLoading]);
+  }, [eventId, user, authLoading, router]);
 
   const stats: AccessPlatformStats = useMemo(() => {
     const total = registrations.length;
@@ -90,6 +91,33 @@ export default function PlatformEventDashboard() {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `${event?.name.replace(/\s+/g, '_')}_registrations.csv`;
+    link.click();
+  };
+
+  const downloadSampleCsv = () => {
+    const sampleData = [
+      {
+        Name: "Leo Kavindya Gimhani",
+        Email: "kavindya@example.com",
+        Club: "Leo Club of Athugalpura",
+        Contact: "0712345678",
+        Type: "Leo",
+        Food: "non_veg"
+      },
+      {
+        Name: "Lion Menuka Wickramasinghe",
+        Email: "menuka@example.com",
+        Club: "Lions Club of Athugalpura",
+        Contact: "0771234567",
+        Type: "Lion",
+        Food: "veg"
+      }
+    ];
+    const csv = Papa.unparse(sampleData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = "District_Event_Import_Sample.csv";
     link.click();
   };
 
@@ -196,7 +224,16 @@ export default function PlatformEventDashboard() {
                 <CardTitle className="text-lg">Attendee Registry</CardTitle>
                 <CardDescription>Search and manage all registrations.</CardDescription>
               </div>
-              <div className="flex gap-3 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={downloadSampleCsv}
+                  className="text-xs text-primary font-bold hover:bg-primary/5"
+                >
+                  <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
+                  Download Sample CSV
+                </Button>
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input placeholder="Search name, club, or phone..." className="pl-9 h-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
