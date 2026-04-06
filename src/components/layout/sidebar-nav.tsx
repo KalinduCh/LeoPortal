@@ -1,4 +1,3 @@
-
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -11,14 +10,18 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, HandCoins, Settings, Trophy, BarChart, Calendar, ListChecks } from "lucide-react"; 
+import { 
+  LayoutDashboard, CalendarDays, Users, FileText, Mail, 
+  Lightbulb, HandCoins, Settings, Trophy, BarChart, 
+  Calendar, ListChecks, QrCode 
+} from "lucide-react"; 
 import type { AdminPermission } from "@/types";
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  permission?: AdminPermission; // Add permission key
+  permission?: AdminPermission;
 }
 
 const memberNavItems: NavItem[] = [
@@ -35,6 +38,7 @@ const adminNavItems: NavItem[] = [
   { href: "/tasks", label: "Tasks", icon: ListChecks },
   { href: "/members", label: "Members", icon: Users, permission: 'members' },
   { href: "/events", label: "Events", icon: CalendarDays, permission: 'events' },
+  { href: "/admin/access-management", label: "Event Access", icon: QrCode, permission: 'events' },
   { href: "/admin/finance", label: "Finance", icon: HandCoins, permission: 'finance' },
   { href: "/admin/leaderboard", label: "Leaderboard", icon: Trophy, permission: 'leaderboard' },
   { href: "/admin/communication", label: "Communication", icon: Mail, permission: 'communication' },
@@ -43,7 +47,6 @@ const adminNavItems: NavItem[] = [
 ];
 
 const superAdminNavItems: NavItem[] = [
-    // super admin has all admin items plus settings
     ...adminNavItems,
     { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
@@ -60,14 +63,8 @@ export function SidebarNav() {
   if (user.role === 'super_admin') {
       itemsToShow = superAdminNavItems;
   } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
-      // Filter admin items based on user's permissions
       itemsToShow = adminNavItems.filter(item => {
-          // If an item doesn't require a specific permission, always show it (e.g., Dashboard).
-          if (!item.permission) {
-              return true;
-          }
-          // Otherwise, strictly check if the user has that specific permission set to true.
-          // If permissions are not defined or the specific permission is false/undefined, deny access.
+          if (!item.permission) return true;
           return user.permissions?.[item.permission] === true;
       });
   } else {

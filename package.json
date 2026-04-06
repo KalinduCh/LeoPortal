@@ -73,7 +73,9 @@
     "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "qrcode": "^1.5.4",
+    "html5-qrcode": "^2.3.8"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^14.2.4",
@@ -83,6 +85,7 @@
     "@types/papaparse": "^5.3.14",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/qrcode": "^1.5.5",
     "cross-env": "^7.0.3",
     "firebase-functions": "^5.0.1",
     "genkit-cli": "^0.0.2",
