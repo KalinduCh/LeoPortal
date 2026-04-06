@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { PlusCircle, Calendar, MapPin, Settings, Loader2, ExternalLink, Activity, QrCode, ShieldAlert } from 'lucide-react';
+import { PlusCircle, Calendar, MapPin, Settings, Loader2, ExternalLink, Activity, QrCode } from 'lucide-react';
 import { getPlatformEvents, createPlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
@@ -39,12 +39,16 @@ export default function PlatformAdminOverview() {
       const data = await getPlatformEvents();
       setEvents(data);
     } catch (error: any) {
-      console.error("Failed to load events:", error);
-      toast({ 
-        title: "Permission Error", 
-        description: "Could not load event modules. Ensure you have admin access in the database.", 
-        variant: "destructive" 
-      });
+      console.error("DISTRICT_ACCESS_ERROR: Failed to load events:", error);
+      if (error.code === 'permission-denied') {
+        toast({ 
+          title: "Access Restricted", 
+          description: "Insufficient permissions. Ensure your account is authorized in Firestore rules.", 
+          variant: "destructive" 
+        });
+      } else {
+        toast({ title: "Error", description: "Failed to load event modules.", variant: "destructive" });
+      }
     }
     setIsLoading(false);
   };
@@ -53,14 +57,11 @@ export default function PlatformAdminOverview() {
     if (!authLoading) {
       if (!user) {
         router.push('/event-access/login');
-      } else if (user.role !== 'admin' && user.role !== 'super_admin' && user.email !== 'check22@gmail.com') {
-        toast({ title: "Access Restricted", description: "This platform is for organizers only.", variant: "destructive" });
-        router.push('/dashboard');
       } else {
         fetchEvents();
       }
     }
-  }, [user, authLoading, router, toast]);
+  }, [user, authLoading, router]);
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,10 +78,10 @@ export default function PlatformAdminOverview() {
       setFormData({ name: '', date: '', time: '', location: '', description: '', capacity: '' });
       fetchEvents();
     } catch (error: any) {
-      console.error("Creation Error:", error);
+      console.error("DISTRICT_ACCESS_ERROR: Creation failed:", error);
       toast({ 
         title: "Creation Failed", 
-        description: error.message || "Could not create module. Check permissions.", 
+        description: error.message || "Insufficient permissions to write to accessEvents collection.", 
         variant: "destructive" 
       });
     }
@@ -88,7 +89,7 @@ export default function PlatformAdminOverview() {
   };
 
   if (authLoading || isLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
   return (
@@ -110,8 +111,8 @@ export default function PlatformAdminOverview() {
             </DialogHeader>
             <form onSubmit={handleCreateEvent} className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Event Name (e.g. District Installation)</Label>
-                <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Installation 2026" />
+                <Label>Event Name</Label>
+                <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. District Installation 2026" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -125,15 +126,11 @@ export default function PlatformAdminOverview() {
               </div>
               <div className="space-y-2">
                 <Label>Venue Location</Label>
-                <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="City Hotel, Ballroom" />
+                <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="Venue address" />
               </div>
               <div className="space-y-2">
                 <Label>Description</Label>
-                <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Brief overview for the registration page..." />
-              </div>
-              <div className="space-y-2">
-                <Label>Capacity (Optional)</Label>
-                <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} placeholder="Unlimited if empty" />
+                <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Public registration description..." />
               </div>
               <DialogFooter className="pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
@@ -163,7 +160,6 @@ export default function PlatformAdminOverview() {
                 <div className="flex items-start gap-2 text-sm text-slate-600">
                   <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" /> {event.location}
                 </div>
-                <p className="text-xs text-slate-500 line-clamp-2 italic">{event.description}</p>
               </CardContent>
               <CardFooter className="grid grid-cols-2 gap-2 border-t pt-4 bg-slate-50/30">
                 <Button variant="outline" size="sm" onClick={() => window.open(`/event-access/register/${event.id}`, '_blank')}>
@@ -178,8 +174,8 @@ export default function PlatformAdminOverview() {
         ) : (
           <div className="col-span-full py-32 flex flex-col items-center justify-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
             <QrCode className="h-16 w-16 text-slate-300 mb-4" />
-            <h3 className="text-xl font-bold text-slate-900">No Access Modules Yet</h3>
-            <p className="text-slate-500">Create your first district event module to start accepting registrations.</p>
+            <h3 className="text-xl font-bold text-slate-900">No Access Modules Found</h3>
+            <p className="text-slate-500">Deploy your first district event module to get started.</p>
           </div>
         )}
       </div>

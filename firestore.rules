@@ -14,8 +14,9 @@ service cloud.firestore {
     
     function isAdmin() {
       return isSignedIn() && (
-        getUserData(request.auth.uid).role in ['admin', 'super_admin'] ||
-        request.auth.token.email == 'check22@gmail.com'
+        request.auth.token.email == 'check22@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         getUserData(request.auth.uid).role in ['admin', 'super_admin'])
       );
     }
 
@@ -30,7 +31,7 @@ service cloud.firestore {
     }
     
     // =========================
-    // 📅 Events Collection
+    // 📅 Club Events Collection
     // =========================
     match /events/{eventId} {
       allow read: if true;
@@ -49,16 +50,16 @@ service cloud.firestore {
     }
 
     // =========================
-    // 🎟️ District Access Platform (Standalone)
+    // 🎟️ District Access Platform (Isolated Collections)
     // =========================
     match /accessEvents/{eventId} {
-      allow read, list: if true; 
-      allow write: if isAdmin();
+      allow read, get: if true; 
+      allow list, write, create, update, delete: if isAdmin();
     }
     
     match /accessRegistrations/{regId} {
       allow create: if true;
-      allow read, list, update, delete: if isAdmin();
+      allow read, get, list, update, delete: if isAdmin();
     }
 
     // =========================
