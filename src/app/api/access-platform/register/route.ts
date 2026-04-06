@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase/clientApp';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -14,7 +15,10 @@ const PLATFORM_REGISTRATIONS = 'accessRegistrations';
 export async function POST(req: Request) {
   try {
     const data = await req.json();
-    const { eventId, eventName, eventDate, eventTime, eventLocation, name, email, club, role } = data;
+    const { 
+        eventId, eventName, eventDate, eventTime, eventLocation, 
+        name, email, club, contactNumber, role, foodPreference 
+    } = data;
 
     if (!eventId || !name || !email) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -24,12 +28,14 @@ export async function POST(req: Request) {
     const ticketId = `PASS-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
 
     // 2. Save Registration to Firestore
-    const regRef = await addDoc(collection(db, PLATFORM_REGISTRATIONS), {
+    await addDoc(collection(db, PLATFORM_REGISTRATIONS), {
       eventId,
       name,
       email,
       club: club || 'Individual',
+      contactNumber: contactNumber || '',
       role: role || 'Guest',
+      foodPreference: foodPreference || 'non_veg',
       ticketId,
       status: 'registered',
       createdAt: serverTimestamp(),
@@ -51,6 +57,8 @@ export async function POST(req: Request) {
         auth: { user: GMAIL_EMAIL, pass: GMAIL_APP_PASSWORD },
       });
 
+      const foodLabel = foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian';
+
       const emailHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
           <div style="background-color: #1e3a8a; padding: 30px; text-align: center; color: white;">
@@ -66,8 +74,15 @@ export async function POST(req: Request) {
               <p style="font-family: monospace; font-weight: bold; font-size: 20px; margin: 10px 0 0 0; color: #1e3a8a;">${ticketId}</p>
             </div>
 
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Your Details</h3>
+              <p style="margin: 5px 0; font-size: 14px;">Club: <strong>${club}</strong></p>
+              <p style="margin: 5px 0; font-size: 14px;">Type: <strong>${role}</strong></p>
+              <p style="margin: 5px 0; font-size: 14px;">Food: <strong>${foodLabel}</strong></p>
+            </div>
+
             <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px;">
-              <h3 style="margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Venue Details</h3>
+              <h3 style="margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Event Logistics</h3>
               <p style="margin: 5px 0; font-size: 15px;">📅 <strong>${eventDate}</strong> at <strong>${eventTime}</strong></p>
               <p style="margin: 5px 0; font-size: 15px;">📍 <strong>${eventLocation}</strong></p>
             </div>
