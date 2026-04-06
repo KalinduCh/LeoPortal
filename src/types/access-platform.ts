@@ -23,6 +23,7 @@ export interface AccessRegistration {
   role: string; // Used for Member Type (Lions/Leo/Others)
   foodPreference: 'veg' | 'non_veg';
   status: AccessRegistrationStatus;
+  emailStatus: 'success' | 'failed' | 'pending';
   checkInTime?: string;
   ticketId: string;
   createdAt: string;
