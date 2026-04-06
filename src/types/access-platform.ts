@@ -19,7 +19,9 @@ export interface AccessRegistration {
   name: string;
   email: string;
   club: string;
-  role: string;
+  contactNumber: string;
+  role: string; // Used for Member Type (Lions/Leo/Others)
+  foodPreference: 'veg' | 'non_veg';
   status: AccessRegistrationStatus;
   checkInTime?: string;
   ticketId: string;

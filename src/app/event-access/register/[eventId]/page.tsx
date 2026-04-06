@@ -9,13 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
   Calendar, MapPin, Loader2, CheckCircle, 
-  User, Mail, Building2, Shield, ArrowRight, Clock
+  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2
 } from 'lucide-react';
 import { getPlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import Image from 'next/image';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export default function PlatformPublicRegistration() {
   const params = useParams();
@@ -32,7 +34,9 @@ export default function PlatformPublicRegistration() {
     name: '',
     email: '',
     club: '',
-    role: 'Member'
+    contactNumber: '',
+    role: 'Leo', // Member Type
+    foodPreference: 'non_veg' as 'veg' | 'non_veg'
   });
 
   useEffect(() => {
@@ -47,6 +51,12 @@ export default function PlatformPublicRegistration() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event) return;
+    
+    if (!formData.name || !formData.email || !formData.club || !formData.contactNumber) {
+        toast({ title: "Required Fields", description: "Please fill in all contact details.", variant: "destructive" });
+        return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await fetch('/api/access-platform/register', {
@@ -66,10 +76,11 @@ export default function PlatformPublicRegistration() {
         setSuccess(true);
         toast({ title: "Pass Generated", description: "Check your email for your entry pass." });
       } else {
-        throw new Error("Failed to register.");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to register.");
       }
-    } catch (err) {
-      toast({ title: "Error", description: "Submission failed. Please try again.", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Submission failed. Please try again.", variant: "destructive" });
     }
     setIsSubmitting(false);
   };
@@ -132,32 +143,69 @@ export default function PlatformPublicRegistration() {
         ) : (
           <Card className="shadow-2xl border-none rounded-3xl bg-white overflow-hidden">
             <CardHeader className="bg-slate-900 p-8 text-white">
-              <CardTitle className="text-2xl font-headline">Registration Pass</CardTitle>
-              <CardDescription className="text-slate-400">Complete your details to generate your unique access pass.</CardDescription>
+              <CardTitle className="text-2xl font-headline">Request Access Pass</CardTitle>
+              <CardDescription className="text-slate-400">Please provide your details below to receive your digital ticket.</CardDescription>
             </CardHeader>
             <CardContent className="p-8">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 font-bold text-slate-700"><User className="h-4 w-4 text-primary" /> Full Name</Label>
-                  <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Enter your full name" className="h-12 rounded-xl focus:ring-primary" />
+              <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        <Label className="flex items-center gap-2 font-bold text-slate-700"><User className="h-4 w-4 text-primary" /> Full Name</Label>
+                        <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Leo Kavindya Gimhani" className="h-12 rounded-xl" />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2 font-bold text-slate-700"><Mail className="h-4 w-4 text-primary" /> Email Address</Label>
+                            <Input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="you@example.com" className="h-12 rounded-xl" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2 font-bold text-slate-700"><Phone className="h-4 w-4 text-primary" /> Contact Number</Label>
+                            <Input required value={formData.contactNumber} onChange={e => setFormData({ ...formData, contactNumber: e.target.value })} placeholder="07X XXXXXXX" className="h-12 rounded-xl" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2 font-bold text-slate-700"><Building2 className="h-4 w-4 text-primary" /> Club Name</Label>
+                            <Input required value={formData.club} onChange={e => setFormData({ ...formData, club: e.target.value })} placeholder="Leo/Lions Club of..." className="h-12 rounded-xl" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2 font-bold text-slate-700"><Users2 className="h-4 w-4 text-primary" /> Member Type</Label>
+                            <Select value={formData.role} onValueChange={v => setFormData({...formData, role: v})}>
+                                <SelectTrigger className="h-12 rounded-xl">
+                                    <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Leo">Leo Member</SelectItem>
+                                    <SelectItem value="Lion">Lions Member</SelectItem>
+                                    <SelectItem value="Other">Other Guest</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 p-4 bg-slate-50 rounded-2xl ring-1 ring-slate-200">
+                        <Label className="flex items-center gap-2 font-bold text-slate-700"><Utensils className="h-4 w-4 text-primary" /> Food Preference</Label>
+                        <RadioGroup 
+                            value={formData.foodPreference} 
+                            onValueChange={(v: any) => setFormData({...formData, foodPreference: v})}
+                            className="flex gap-6"
+                        >
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="non_veg" id="non_veg" />
+                                <Label htmlFor="non_veg" className="font-medium cursor-pointer">Non-Vegetarian</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="veg" id="veg" />
+                                <Label htmlFor="veg" className="font-medium cursor-pointer">Vegetarian</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 font-bold text-slate-700"><Mail className="h-4 w-4 text-primary" /> Email Address</Label>
-                  <Input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="email@example.com" className="h-12 rounded-xl" />
-                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Your QR pass will be sent here</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 font-bold text-slate-700"><Building2 className="h-4 w-4 text-primary" /> Club Name</Label>
-                    <Input required value={formData.club} onChange={e => setFormData({ ...formData, club: e.target.value })} placeholder="Leo Club of..." className="h-12 rounded-xl" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 font-bold text-slate-700"><Shield className="h-4 w-4 text-primary" /> Designation</Label>
-                    <Input required value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} placeholder="Member / President" className="h-12 rounded-xl" />
-                  </div>
-                </div>
+
                 <Button type="submit" size="lg" className="w-full h-16 text-xl font-black shadow-xl bg-primary hover:scale-[1.01] transition-transform rounded-2xl" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : "Request Entry Pass"}
+                  {isSubmitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : "Request My Entry Pass"}
                   {!isSubmitting && <ArrowRight className="ml-2 h-6 w-6" />}
                 </Button>
               </form>

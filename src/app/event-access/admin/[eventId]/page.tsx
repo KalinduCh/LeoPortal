@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, CheckCircle, Clock, Download, QrCode, Search, 
-  Loader2, Trash2, ArrowLeft, BarChart3, Upload, Mail, ShieldAlert
+  Loader2, Trash2, ArrowLeft, BarChart3, Upload, Mail, ShieldAlert, Phone, Utensils
 } from 'lucide-react';
 import { getPlatformEvent, subscribeToPlatformRegistrations, deletePlatformRegistration } from '@/services/accessPlatformService';
 import type { AccessEvent, AccessRegistration, AccessPlatformStats } from '@/types/access-platform';
@@ -68,7 +68,8 @@ export default function PlatformEventDashboard() {
     return registrations.filter(r => 
       r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.club.toLowerCase().includes(searchTerm.toLowerCase())
+      r.club.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.contactNumber.includes(searchTerm)
     );
   }, [registrations, searchTerm]);
 
@@ -77,8 +78,10 @@ export default function PlatformEventDashboard() {
       'Ticket ID': r.ticketId,
       'Name': r.name,
       'Email': r.email,
+      'Contact': r.contactNumber,
       'Club': r.club,
-      'Role': r.role,
+      'Type': r.role,
+      'Food': r.foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian',
       'Status': r.status === 'checked_in' ? 'Checked In' : 'Registered',
       'Check-In Time': r.checkInTime ? format(parseISO(r.checkInTime), 'PPP p') : 'N/A'
     }));
@@ -118,7 +121,9 @@ export default function PlatformEventDashboard() {
                 name: row.Name,
                 email: row.Email,
                 club: row.Club || 'Individual',
-                role: row.Role || 'Member'
+                contactNumber: row.Contact || '',
+                role: row.Type || 'Leo',
+                foodPreference: (row.Food?.toLowerCase().includes('veg') && !row.Food?.toLowerCase().includes('non')) ? 'veg' : 'non_veg'
               }),
             });
 
@@ -161,40 +166,40 @@ export default function PlatformEventDashboard() {
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Modules
           </Button>
           <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900">{event.name}</h1>
-          <p className="text-slate-500 uppercase text-xs tracking-widest font-bold">Live Management Dashboard</p>
+          <p className="text-slate-500 uppercase text-xs tracking-widest font-bold">Logistics & Attendance</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
-          <Button variant="outline" onClick={handleExport} className="h-12"><Download className="mr-2 h-4 w-4" /> Export CSV</Button>
+          <Button variant="outline" onClick={handleExport} className="h-12"><Download className="mr-2 h-4 w-4" /> Export Full List</Button>
           <Button onClick={() => router.push(`/event-access/scan/${eventId}`)} className="h-12 bg-primary shadow-lg">
-            <QrCode className="mr-2 h-4 w-4" /> Start Entry Scanner
+            <QrCode className="mr-2 h-4 w-4" /> Open Entry Scanner
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <PlatformStatCard title="Total Registered" value={stats.total} icon={Users} color="text-blue-600" />
-        <PlatformStatCard title="Checked In" value={stats.checkedIn} icon={CheckCircle} color="text-emerald-600" />
+        <PlatformStatCard title="Total Registrations" value={stats.total} icon={Users} color="text-blue-600" />
+        <PlatformStatCard title="Arrivals Logged" value={stats.checkedIn} icon={CheckCircle} color="text-emerald-600" />
         <PlatformStatCard title="Still Expected" value={stats.remaining} icon={Clock} color="text-amber-600" />
         <PlatformStatCard title="Attendance Rate" value={`${stats.percentage}%`} icon={BarChart3} color="text-violet-600" />
       </div>
 
       <Tabs defaultValue="list" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:w-[400px] mb-8 h-12">
-          <TabsTrigger value="list" className="font-bold">Attendee List</TabsTrigger>
-          <TabsTrigger value="live" className="font-bold">Live Activity</TabsTrigger>
+          <TabsTrigger value="list" className="font-bold">Guest Register</TabsTrigger>
+          <TabsTrigger value="live" className="font-bold">Live Arrivals</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="space-y-6">
           <Card className="shadow-xl border-none ring-1 ring-slate-200 overflow-hidden">
             <CardHeader className="bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <CardTitle className="text-lg">Master Guest Register</CardTitle>
-                <CardDescription>Manage and filter all issued passes.</CardDescription>
+                <CardTitle className="text-lg">Attendee Registry</CardTitle>
+                <CardDescription>Search and manage all registrations.</CardDescription>
               </div>
               <div className="flex gap-3 w-full sm:w-auto">
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input placeholder="Search name or club..." className="pl-9 h-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                  <Input placeholder="Search name, club, or phone..." className="pl-9 h-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
                 <div className="relative">
                   <Input type="file" accept=".csv" className="hidden" id="bulk-import" onChange={handleBulkImport} disabled={isImporting} />
@@ -213,7 +218,8 @@ export default function PlatformEventDashboard() {
                   <TableHeader className="bg-slate-50">
                     <TableRow>
                       <TableHead className="font-bold">Guest Details</TableHead>
-                      <TableHead className="font-bold">Club & Role</TableHead>
+                      <TableHead className="font-bold">Club & Type</TableHead>
+                      <TableHead className="font-bold">Food</TableHead>
                       <TableHead className="font-bold">Ticket ID</TableHead>
                       <TableHead className="font-bold">Status</TableHead>
                       <TableHead className="text-right font-bold">Manage</TableHead>
@@ -224,11 +230,23 @@ export default function PlatformEventDashboard() {
                       <TableRow key={r.id} className="hover:bg-slate-50/50">
                         <TableCell>
                           <p className="font-bold text-slate-900">{r.name}</p>
-                          <p className="text-xs text-slate-500">{r.email}</p>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <Mail className="h-3 w-3" /> {r.email}
+                          </div>
+                          {r.contactNumber && (
+                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <Phone className="h-3 w-3" /> {r.contactNumber}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <p className="text-sm font-medium">{r.club}</p>
                           <Badge variant="outline" className="text-[10px] uppercase font-bold">{r.role}</Badge>
+                        </TableCell>
+                        <TableCell>
+                            <Badge variant={r.foodPreference === 'veg' ? 'outline' : 'secondary'} className={r.foodPreference === 'veg' ? 'border-emerald-500 text-emerald-600' : ''}>
+                                {r.foodPreference === 'veg' ? 'Veg' : 'Non-Veg'}
+                            </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-xs text-primary font-bold">{r.ticketId}</TableCell>
                         <TableCell>
@@ -242,7 +260,7 @@ export default function PlatformEventDashboard() {
                       </TableRow>
                     ))}
                     {filteredRegistrations.length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center py-20 text-slate-400 italic">No attendees match your search.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6} className="text-center py-20 text-slate-400 italic">No attendees match your search.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -254,8 +272,8 @@ export default function PlatformEventDashboard() {
         <TabsContent value="live" className="space-y-6">
           <Card className="shadow-xl border-none ring-1 ring-slate-200">
             <CardHeader className="bg-slate-50/50">
-              <CardTitle className="text-lg">Recent Arrivals</CardTitle>
-              <CardDescription>Real-time feed of scanned tickets at the entrance.</CardDescription>
+              <CardTitle className="text-lg">Real-Time Check-In Feed</CardTitle>
+              <CardDescription>Live updates from the entrance.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -267,7 +285,13 @@ export default function PlatformEventDashboard() {
                       </div>
                       <div>
                         <p className="font-bold text-sm text-slate-900">{r.name}</p>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-tighter">{r.club}</p>
+                        <div className="flex gap-1">
+                            <p className="text-[10px] text-slate-500 uppercase tracking-tighter">{r.role}</p>
+                            <span className="text-[10px] text-slate-300">•</span>
+                            <p className={cn("text-[10px] font-bold uppercase", r.foodPreference === 'veg' ? 'text-emerald-600' : 'text-slate-500')}>
+                                {r.foodPreference === 'veg' ? 'VEG' : 'NON-VEG'}
+                            </p>
+                        </div>
                       </div>
                     </div>
                     <p className="text-[10px] font-mono font-bold text-emerald-600 bg-white px-2 py-1 rounded shadow-sm border border-emerald-100">
@@ -278,7 +302,7 @@ export default function PlatformEventDashboard() {
                 {registrations.filter(r => r.status === 'checked_in').length === 0 && (
                   <div className="col-span-full py-20 text-center text-slate-400">
                     <ShieldAlert className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                    <p>Waiting for the first arrival...</p>
+                    <p>Entrance active. Waiting for first guest...</p>
                   </div>
                 )}
               </div>

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   CheckCircle2, XCircle, AlertTriangle, ArrowLeft, 
-  Loader2, Camera, User, Club, ShieldCheck
+  Loader2, Camera, User, Club, ShieldCheck, Utensils
 } from 'lucide-react';
 import { getPlatformEvent, getRegistrationByTicket, markPlatformCheckIn } from '@/services/accessPlatformService';
 import type { AccessEvent, AccessRegistration } from '@/types/access-platform';
@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
+import { Badge } from '@/components/ui/badge';
 
 type ScanStatus = 'idle' | 'processing' | 'valid' | 'already_scanned' | 'invalid' | 'wrong_event';
 
@@ -55,7 +56,7 @@ export default function PlatformQRScanner() {
         scannerRef.current.clear().catch(console.error);
       }
     };
-  }, [eventId, user, authLoading]);
+  }, [eventId, user, authLoading, router]);
 
   async function onScanSuccess(decodedText: string) {
     if (status === 'processing') return;
@@ -155,13 +156,25 @@ export default function PlatformQRScanner() {
               </div>
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Club</p>
-                  <p className="text-sm font-bold text-slate-700">{lastGuest.club}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Member Type</p>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    <p className="text-sm font-bold text-slate-700">{lastGuest.role}</p>
+                  </div>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</p>
-                  <p className="text-sm font-bold text-slate-700">{lastGuest.role}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Food Preference</p>
+                  <div className="flex items-center gap-2">
+                    <Utensils className={cn("h-4 w-4", lastGuest.foodPreference === 'veg' ? 'text-emerald-600' : 'text-slate-600')} />
+                    <p className={cn("text-sm font-bold", lastGuest.foodPreference === 'veg' ? 'text-emerald-700' : 'text-slate-700')}>
+                        {lastGuest.foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'}
+                    </p>
+                  </div>
                 </div>
+              </div>
+              <div className="pt-2 border-t border-slate-200">
+                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Club</p>
+                 <p className="text-sm font-bold text-slate-700">{lastGuest.club}</p>
               </div>
               {status === 'already_scanned' && (
                 <div className="p-3 bg-white rounded-lg text-center shadow-sm">
