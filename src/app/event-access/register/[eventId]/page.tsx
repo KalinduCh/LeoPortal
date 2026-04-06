@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -21,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Papa from 'papaparse';
 import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 
 export default function PlatformPublicRegistration() {
   const params = useParams();
@@ -43,7 +43,6 @@ export default function PlatformPublicRegistration() {
     foodPreference: 'non_veg' as 'veg' | 'non_veg'
   });
 
-  // Bulk processing state
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState(0);
 
@@ -82,7 +81,7 @@ export default function PlatformPublicRegistration() {
 
       if (response.ok) {
         setSuccess(true);
-        setBulkSuccessCount(0); // Reset bulk count for single success
+        setBulkSuccessCount(0);
         toast({ title: "Pass Generated", description: "Check your email for your entry pass." });
       } else {
         const errorData = await response.json();
@@ -97,17 +96,17 @@ export default function PlatformPublicRegistration() {
   const handleDownloadSample = () => {
     const sampleData = [
       {
-        Name: "Leo Kavindya Gimhani",
-        Email: "kavindya@example.com",
-        Club: "Leo Club of Athugalpura",
+        Name: "John Doe",
+        Email: "john.doe@sample.com",
+        Club: "Sample Leo Club",
         Contact: "0712345678",
         Type: "Leo",
         Food: "non_veg"
       },
       {
-        Name: "Lion Menuka Wickramasinghe",
-        Email: "menuka@example.com",
-        Club: "Lions Club of Athugalpura",
+        Name: "Jane Smith",
+        Email: "jane.smith@sample.com",
+        Club: "Sample Lions Club",
         Contact: "0771234567",
         Type: "Lion",
         Food: "veg"
@@ -117,7 +116,7 @@ export default function PlatformPublicRegistration() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = "District_Event_Bulk_Import_Sample.csv";
+    link.download = "LeoEntrivo_Bulk_Import_Sample.csv";
     link.click();
   };
 
@@ -213,12 +212,12 @@ export default function PlatformPublicRegistration() {
         <header className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="bg-white p-4 rounded-3xl shadow-xl ring-1 ring-slate-200">
-              <Image src="https://i.imgur.com/MP1YFNf.png" alt="Platform Logo" width={80} height={80} />
+              <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={80} height={80} />
             </div>
           </div>
           <div className="space-y-1">
             <h1 className="text-4xl font-black font-headline text-slate-900 tracking-tighter uppercase">{event.name}</h1>
-            <p className="text-primary font-bold tracking-[0.2em] text-xs uppercase">Official Entry Registration</p>
+            <p className="text-primary font-bold tracking-[0.2em] text-xs uppercase">LeoEntrivo Digital Pass System</p>
           </div>
           <div className="flex flex-wrap justify-center gap-6 text-sm text-slate-500 font-medium">
             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><Calendar className="h-4 w-4 text-primary" /> {format(new Date(event.date), 'PPP')}</div>
@@ -241,7 +240,7 @@ export default function PlatformPublicRegistration() {
             <CardContent className="p-10 text-center space-y-6">
               <p className="text-slate-600 text-lg leading-relaxed">
                 {bulkSuccessCount > 0 
-                  ? "We've sent unique QR passes to all the email addresses provided in the list." 
+                  ? "Unique QR passes have been sent to all email addresses provided." 
                   : `Thank you for registering. A unique QR entry pass has been sent to ${formData.email}.`}
               </p>
               <div className="p-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-sm font-medium text-slate-500">
@@ -254,14 +253,14 @@ export default function PlatformPublicRegistration() {
           <Card className="shadow-2xl border-none rounded-3xl bg-white overflow-hidden">
             <CardHeader className="bg-slate-900 p-8 text-white">
               <CardTitle className="text-2xl font-headline">Request Access Pass</CardTitle>
-              <CardDescription className="text-slate-400">Choose your registration type below.</CardDescription>
+              <CardDescription className="text-slate-400 text-sm">Please choose how you would like to register.</CardDescription>
             </CardHeader>
             
             <Tabs defaultValue="single" className="w-full">
               <div className="px-8 pt-6">
-                <TabsList className="grid w-full grid-cols-2 h-12 bg-slate-100 rounded-xl p-1">
-                  <TabsTrigger value="single" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Single Entry</TabsTrigger>
-                  <TabsTrigger value="bulk" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Club Bulk Upload</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 h-14 bg-slate-100 rounded-2xl p-1.5 ring-1 ring-slate-200">
+                  <TabsTrigger value="single" className="rounded-xl font-bold h-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">Single Entry</TabsTrigger>
+                  <TabsTrigger value="bulk" className="rounded-xl font-bold h-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">Club Bulk Upload</TabsTrigger>
                 </TabsList>
               </div>
 
@@ -271,13 +270,13 @@ export default function PlatformPublicRegistration() {
                     <div className="space-y-6">
                         <div className="space-y-2">
                             <Label className="flex items-center gap-2 font-bold text-slate-700"><User className="h-4 w-4 text-primary" /> Full Name</Label>
-                            <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Leo Kavindya Gimhani" className="h-12 rounded-xl" />
+                            <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. John Doe" className="h-12 rounded-xl" />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2 font-bold text-slate-700"><Mail className="h-4 w-4 text-primary" /> Email Address</Label>
-                                <Input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="you@example.com" className="h-12 rounded-xl" />
+                                <Input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="john.doe@sample.com" className="h-12 rounded-xl" />
                             </div>
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2 font-bold text-slate-700"><Phone className="h-4 w-4 text-primary" /> Contact Number</Label>
@@ -288,7 +287,7 @@ export default function PlatformPublicRegistration() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2 font-bold text-slate-700"><Building2 className="h-4 w-4 text-primary" /> Club Name</Label>
-                                <Input required value={formData.club} onChange={e => setFormData({ ...formData, club: e.target.value })} placeholder="Leo/Lions Club of..." className="h-12 rounded-xl" />
+                                <Input required value={formData.club} onChange={e => setFormData({ ...formData, club: e.target.value })} placeholder="Leo/Lions Club of Sample City" className="h-12 rounded-xl" />
                             </div>
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2 font-bold text-slate-700"><Users2 className="h-4 w-4 text-primary" /> Member Type</Label>
@@ -325,7 +324,7 @@ export default function PlatformPublicRegistration() {
                     </div>
 
                     <Button type="submit" size="lg" className="w-full h-16 text-xl font-black shadow-xl bg-primary hover:scale-[1.01] transition-transform rounded-2xl" disabled={isSubmitting}>
-                      {isSubmitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : "Request My Entry Pass"}
+                      {isSubmitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : "Request Entry Pass"}
                       {!isSubmitting && <ArrowRight className="ml-2 h-6 w-6" />}
                     </Button>
                   </form>
@@ -337,14 +336,14 @@ export default function PlatformPublicRegistration() {
                   <div className="bg-primary/5 border border-primary/10 rounded-2xl p-6 space-y-4">
                     <div className="flex items-center gap-3 text-primary">
                       <FileSpreadsheet className="h-6 w-6" />
-                      <h3 className="font-bold text-lg">Club Officer Portal</h3>
+                      <h3 className="font-bold text-lg">Club Officer Bulk Portal</h3>
                     </div>
                     <p className="text-sm text-slate-600 leading-relaxed">
-                      Club Presidents or Secretaries can upload a member list to generate passes for the entire club at once. 
-                      Every member will receive their individual QR pass via their provided email address.
+                      Presidents or Secretaries can upload a club list to generate passes for multiple members at once. 
+                      Every guest will receive their individual pass via their provided email address.
                     </p>
                     <Button variant="outline" size="sm" onClick={handleDownloadSample} className="bg-white border-primary/20 text-primary hover:bg-primary/5 font-bold">
-                      <Download className="mr-2 h-4 w-4" /> Download Formatting Template
+                      <Download className="mr-2 h-4 w-4" /> Download Format Template
                     </Button>
                   </div>
 
@@ -352,7 +351,7 @@ export default function PlatformPublicRegistration() {
                     <div className="space-y-6 py-10 text-center animate-in fade-in">
                       <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
                       <div className="space-y-2">
-                        <p className="font-black text-slate-900 uppercase tracking-widest">Generating Passes...</p>
+                        <p className="font-black text-slate-900 uppercase tracking-widest">Processing List...</p>
                         <p className="text-sm text-slate-500">{processProgress}% complete</p>
                       </div>
                       <Progress value={processProgress} className="h-2 rounded-full bg-slate-100" />
@@ -376,8 +375,8 @@ export default function PlatformPublicRegistration() {
                             <Upload className="h-8 w-8" />
                           </div>
                           <div className="text-center">
-                            <p className="font-black text-slate-900 uppercase tracking-tighter text-lg">Upload Club CSV List</p>
-                            <p className="text-sm text-slate-500">Tap to browse files</p>
+                            <p className="font-black text-slate-900 uppercase tracking-tighter text-lg">Upload Club Member List</p>
+                            <p className="text-sm text-slate-500">Tap to browse .CSV files</p>
                           </div>
                         </label>
                       </div>
@@ -393,7 +392,7 @@ export default function PlatformPublicRegistration() {
             </Tabs>
 
             <CardFooter className="bg-slate-50 p-6 text-center justify-center">
-              <p className="text-[10px] uppercase font-black text-slate-400 tracking-[0.3em]">District Access Platform &copy; 2026</p>
+              <p className="text-[10px] uppercase font-black text-slate-400 tracking-[0.3em]">LeoEntrivo Pass System &copy; 2026</p>
             </CardFooter>
           </Card>
         )}

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -90,24 +89,24 @@ export default function PlatformEventDashboard() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${event?.name.replace(/\s+/g, '_')}_registrations.csv`;
+    link.download = `${event?.name.replace(/\s+/g, '_')}_LeoEntrivo_Export.csv`;
     link.click();
   };
 
   const downloadSampleCsv = () => {
     const sampleData = [
       {
-        Name: "Leo Kavindya Gimhani",
-        Email: "kavindya@example.com",
-        Club: "Leo Club of Athugalpura",
+        Name: "John Doe",
+        Email: "john.doe@sample.com",
+        Club: "Sample Leo Club",
         Contact: "0712345678",
         Type: "Leo",
         Food: "non_veg"
       },
       {
-        Name: "Lion Menuka Wickramasinghe",
-        Email: "menuka@example.com",
-        Club: "Lions Club of Athugalpura",
+        Name: "Jane Smith",
+        Email: "jane.smith@sample.com",
+        Club: "Sample Lions Club",
         Contact: "0771234567",
         Type: "Lion",
         Food: "veg"
@@ -117,7 +116,7 @@ export default function PlatformEventDashboard() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = "District_Event_Import_Sample.csv";
+    link.download = "LeoEntrivo_Bulk_Import_Sample.csv";
     link.click();
   };
 
@@ -164,7 +163,7 @@ export default function PlatformEventDashboard() {
 
         toast({
           title: "Import Finished",
-          description: `Imported ${successCount} guests. ${errorCount > 0 ? `${errorCount} errors.` : ''}`
+          description: `Imported ${successCount} entries. ${errorCount > 0 ? `${errorCount} errors.` : ''}`
         });
         setIsImporting(false);
         e.target.value = '';
@@ -173,12 +172,12 @@ export default function PlatformEventDashboard() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Remove this registration pass permanently?")) return;
+    if (!confirm("Revoke this registration pass permanently?")) return;
     try {
       await deletePlatformRegistration(id);
       toast({ title: "Pass Revoked" });
     } catch (err) {
-      toast({ title: "Error", description: "Failed to delete.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to delete registration.", variant: "destructive" });
     }
   };
 
@@ -191,30 +190,30 @@ export default function PlatformEventDashboard() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
         <div className="space-y-1">
           <Button variant="ghost" size="sm" onClick={() => router.push('/event-access/admin')} className="pl-0 text-primary font-bold">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Modules
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
           </Button>
           <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900">{event.name}</h1>
-          <p className="text-slate-500 uppercase text-xs tracking-widest font-bold">Logistics & Attendance</p>
+          <p className="text-slate-500 uppercase text-xs tracking-widest font-black">LeoEntrivo Command Center</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
-          <Button variant="outline" onClick={handleExport} className="h-12"><Download className="mr-2 h-4 w-4" /> Export Full List</Button>
-          <Button onClick={() => router.push(`/event-access/scan/${eventId}`)} className="h-12 bg-primary shadow-lg">
-            <QrCode className="mr-2 h-4 w-4" /> Open Entry Scanner
+          <Button variant="outline" onClick={handleExport} className="h-12"><Download className="mr-2 h-4 w-4" /> Export Ledger</Button>
+          <Button onClick={() => router.push(`/event-access/scan/${eventId}`)} className="h-12 bg-primary shadow-lg font-bold">
+            <QrCode className="mr-2 h-4 w-4" /> Open Entrance Scanner
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <PlatformStatCard title="Total Registrations" value={stats.total} icon={Users} color="text-blue-600" />
-        <PlatformStatCard title="Arrivals Logged" value={stats.checkedIn} icon={CheckCircle} color="text-emerald-600" />
-        <PlatformStatCard title="Still Expected" value={stats.remaining} icon={Clock} color="text-amber-600" />
+        <PlatformStatCard title="Checked In" value={stats.checkedIn} icon={CheckCircle} color="text-emerald-600" />
+        <PlatformStatCard title="Remaining" value={stats.remaining} icon={Clock} color="text-amber-600" />
         <PlatformStatCard title="Attendance Rate" value={`${stats.percentage}%`} icon={BarChart3} color="text-violet-600" />
       </div>
 
       <Tabs defaultValue="list" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:w-[400px] mb-8 h-12">
-          <TabsTrigger value="list" className="font-bold">Guest Register</TabsTrigger>
-          <TabsTrigger value="live" className="font-bold">Live Arrivals</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 md:w-[400px] mb-8 h-12 bg-slate-100 p-1 rounded-xl">
+          <TabsTrigger value="list" className="font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Guest List</TabsTrigger>
+          <TabsTrigger value="live" className="font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Live Feed</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="space-y-6">
@@ -222,7 +221,7 @@ export default function PlatformEventDashboard() {
             <CardHeader className="bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="text-lg">Attendee Registry</CardTitle>
-                <CardDescription>Search and manage all registrations.</CardDescription>
+                <CardDescription>Search and manage all issued passes.</CardDescription>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
                 <Button 
@@ -232,11 +231,11 @@ export default function PlatformEventDashboard() {
                   className="text-xs text-primary font-bold hover:bg-primary/5"
                 >
                   <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
-                  Download Sample CSV
+                  Format Sample
                 </Button>
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input placeholder="Search name, club, or phone..." className="pl-9 h-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                  <Input placeholder="Search name, club..." className="pl-9 h-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
                 <div className="relative">
                   <Input type="file" accept=".csv" className="hidden" id="bulk-import" onChange={handleBulkImport} disabled={isImporting} />
@@ -254,12 +253,12 @@ export default function PlatformEventDashboard() {
                 <Table>
                   <TableHeader className="bg-slate-50">
                     <TableRow>
-                      <TableHead className="font-bold">Guest Details</TableHead>
+                      <TableHead className="font-bold">Guest Info</TableHead>
                       <TableHead className="font-bold">Club & Type</TableHead>
-                      <TableHead className="font-bold">Food</TableHead>
+                      <TableHead className="font-bold">Meal</TableHead>
                       <TableHead className="font-bold">Ticket ID</TableHead>
                       <TableHead className="font-bold">Status</TableHead>
-                      <TableHead className="text-right font-bold">Manage</TableHead>
+                      <TableHead className="text-right font-bold">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -267,14 +266,9 @@ export default function PlatformEventDashboard() {
                       <TableRow key={r.id} className="hover:bg-slate-50/50">
                         <TableCell>
                           <p className="font-bold text-slate-900">{r.name}</p>
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase tracking-tighter">
                             <Mail className="h-3 w-3" /> {r.email}
                           </div>
-                          {r.contactNumber && (
-                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <Phone className="h-3 w-3" /> {r.contactNumber}
-                            </div>
-                          )}
                         </TableCell>
                         <TableCell>
                           <p className="text-sm font-medium">{r.club}</p>
@@ -288,7 +282,7 @@ export default function PlatformEventDashboard() {
                         <TableCell className="font-mono text-xs text-primary font-bold">{r.ticketId}</TableCell>
                         <TableCell>
                           <Badge variant={r.status === 'checked_in' ? 'default' : 'secondary'} className={r.status === 'checked_in' ? 'bg-emerald-600 text-white' : ''}>
-                            {r.status === 'checked_in' ? 'Arrived' : 'Invited'}
+                            {r.status === 'checked_in' ? 'Arrived' : 'Registered'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -297,7 +291,7 @@ export default function PlatformEventDashboard() {
                       </TableRow>
                     ))}
                     {filteredRegistrations.length === 0 && (
-                      <TableRow><TableCell colSpan={6} className="text-center py-20 text-slate-400 italic">No attendees match your search.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6} className="text-center py-20 text-slate-400 italic">No guests found.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -307,39 +301,35 @@ export default function PlatformEventDashboard() {
         </TabsContent>
 
         <TabsContent value="live" className="space-y-6">
-          <Card className="shadow-xl border-none ring-1 ring-slate-200">
+          <Card className="shadow-xl border-none ring-1 ring-slate-200 bg-white">
             <CardHeader className="bg-slate-50/50">
-              <CardTitle className="text-lg">Real-Time Check-In Feed</CardTitle>
-              <CardDescription>Live updates from the entrance.</CardDescription>
+              <CardTitle className="text-lg">Real-Time Arrivals</CardTitle>
+              <CardDescription>Live check-in stream from entrance stations.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {registrations.filter(r => r.status === 'checked_in').slice(0, 15).map(r => (
-                  <div key={r.id} className="flex items-center justify-between p-4 border rounded-xl bg-emerald-50/30 border-emerald-100 animate-in fade-in slide-in-from-bottom-2">
+                {registrations.filter(r => r.status === 'checked_in').slice(0, 12).map(r => (
+                  <div key={r.id} className="flex items-center justify-between p-4 border rounded-xl bg-emerald-50/30 border-emerald-100">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
                         <CheckCircle className="h-5 w-5" />
                       </div>
                       <div>
                         <p className="font-bold text-sm text-slate-900">{r.name}</p>
-                        <div className="flex gap-1">
-                            <p className="text-[10px] text-slate-500 uppercase tracking-tighter">{r.role}</p>
-                            <span className="text-[10px] text-slate-300">•</span>
-                            <p className={cn("text-[10px] font-bold uppercase", r.foodPreference === 'veg' ? 'text-emerald-600' : 'text-slate-500')}>
-                                {r.foodPreference === 'veg' ? 'VEG' : 'NON-VEG'}
-                            </p>
-                        </div>
+                        <p className={cn("text-[10px] font-black uppercase tracking-widest", r.foodPreference === 'veg' ? 'text-emerald-600' : 'text-slate-400')}>
+                            {r.foodPreference === 'veg' ? 'Vegetarian' : 'Standard'}
+                        </p>
                       </div>
                     </div>
-                    <p className="text-[10px] font-mono font-bold text-emerald-600 bg-white px-2 py-1 rounded shadow-sm border border-emerald-100">
+                    <p className="text-[10px] font-mono font-bold text-emerald-600 bg-white px-2 py-1 rounded shadow-sm">
                       {r.checkInTime ? format(parseISO(r.checkInTime), 'h:mm a') : ''}
                     </p>
                   </div>
                 ))}
                 {registrations.filter(r => r.status === 'checked_in').length === 0 && (
-                  <div className="col-span-full py-20 text-center text-slate-400">
+                  <div className="col-span-full py-24 text-center text-slate-400">
                     <ShieldAlert className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                    <p>Entrance active. Waiting for first guest...</p>
+                    <p className="font-bold">Station Active. Waiting for entries...</p>
                   </div>
                 )}
               </div>
@@ -353,11 +343,11 @@ export default function PlatformEventDashboard() {
 
 function PlatformStatCard({ title, value, icon: Icon, color }: any) {
   return (
-    <Card className="shadow-lg border-none ring-1 ring-slate-200 bg-white hover:scale-[1.02] transition-transform">
+    <Card className="shadow-lg border-none ring-1 ring-slate-200 bg-white">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{title}</p>
+            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{title}</p>
             <p className={`text-3xl font-black ${color}`}>{value}</p>
           </div>
           <div className={`p-4 rounded-2xl bg-slate-50 ${color}`}>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -6,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, LogOut, LayoutDashboard } from 'lucide-react';
+import { LogOut, LayoutDashboard } from 'lucide-react';
 
 export default function AccessPlatformLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -16,8 +15,8 @@ export default function AccessPlatformLayout({ children }: { children: React.Rea
       <nav className="h-16 border-b bg-white shadow-sm sticky top-0 z-50">
         <div className="container mx-auto h-full flex items-center justify-between px-4">
           <Link href="/event-access/admin" className="flex items-center gap-2">
-            <Image src="https://i.imgur.com/MP1YFNf.png" alt="Platform Logo" width={32} height={32} />
-            <span className="font-bold text-lg text-primary font-headline tracking-tight uppercase">EventPlatform</span>
+            <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={32} height={32} />
+            <span className="font-bold text-lg text-primary font-headline tracking-tight uppercase">LeoEntrivo</span>
           </Link>
           
           {user && (
@@ -31,7 +30,7 @@ export default function AccessPlatformLayout({ children }: { children: React.Rea
               <div className="flex items-center gap-2">
                 <div className="text-right hidden sm:block">
                   <p className="text-xs font-bold leading-none">{user.name}</p>
-                  <p className="text-[10px] text-muted-foreground">Organizer</p>
+                  <p className="text-[10px] text-muted-foreground">Event Organizer</p>
                 </div>
                 <Button variant="outline" size="icon" onClick={logout} title="Log out">
                   <LogOut className="h-4 w-4" />

@@ -1,5 +1,3 @@
-
-// src/app/(authenticated)/admin/communication/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -20,7 +18,6 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Mail, Users, Send, Loader2, Sparkles, Search, Info, Edit, PlusCircle, Settings, Trash2, Paperclip, X } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { generateCommunication, type GenerateCommunicationInput } from '@/ai/flows/generate-communication-flow';
 import { getGroups, createGroup, updateGroup, deleteGroup } from '@/services/groupService';
 import { getAllUsers } from '@/services/userService';
@@ -62,8 +59,8 @@ type GroupFormState = { id?: string; name: string; memberIds: string[]; color?: 
 
 const SIGNATURE_TEMPLATES = {
     'none': { label: "No Signature", value: "\n\nBest Regards," },
-    'president': { label: "President's Signature", value: "\n\nBest Regards,\nLeo Menuka Wickramasinghe\nClub President\nLeo Club of Athugalpura" },
-    'secretary': { label: "Secretary's Signature", value: "\n\nBest Regards,\nLeo Kavindya Gimhani\nClub Secretary\nLeo Club of Athugalpura" },
+    'president': { label: "President's Signature", value: "\n\nBest Regards,\nJohn Doe\nClub President\nLeo Club of Athugalpura" },
+    'secretary': { label: "Secretary's Signature", value: "\n\nBest Regards,\nJane Smith\nClub Secretary\nLeo Club of Athugalpura" },
     'general': { label: "General Club Signature", value: "\n\nBest Regards,\nLeo Club of Athugalpura\nLEO District 306 D9" }
 };
 
@@ -163,10 +160,10 @@ export default function CommunicationPage() {
         const result = await generateCommunication(input);
         form.setValue("subject", result.subject, { shouldValidate: true });
         form.setValue("body", result.body, { shouldValidate: true });
-        toast({ title: "Content Generated", description: "The email subject and body have been populated." });
+        toast({ title: "Content Generated", description: "The email content has been generated." });
     } catch (error) {
         console.error("Error generating AI content:", error);
-        toast({ title: "AI Generation Failed", description: "Could not generate content. Please try again or check your API key.", variant: "destructive"});
+        toast({ title: "AI Generation Failed", description: "Could not generate content. Please try again.", variant: "destructive"});
     }
     setIsGenerating(false);
   }
@@ -239,7 +236,7 @@ export default function CommunicationPage() {
 
     } catch (error: any) {
       console.error("Failed to send email batch:", error);
-      toast({ title: "Email Send Error", description: `Failed to send emails: ${error.message}`, variant: "destructive", duration: 10000 });
+      toast({ title: "Email Send Error", description: `Failed to send emails: ${error.message}`, variant: "destructive" });
     } finally {
       setFormSubmitting(false);
     }
@@ -266,7 +263,6 @@ export default function CommunicationPage() {
   
   const watchedRecipients = form.watch("recipientUserIds");
 
-  // Group Management Functions
   const handleOpenGroupForm = (group?: CommunicationGroup) => {
     if (group) {
         setSelectedGroupForEdit({ id: group.id, name: group.name, memberIds: group.memberIds, color: group.color || '#cccccc' });
@@ -330,7 +326,7 @@ export default function CommunicationPage() {
   
   return (
     <div className="container mx-auto py-4 sm:py-8 space-y-6">
-      <div className="flex items-center justify-between"><h1 className="text-2xl sm:text-3xl font-bold font-headline">Send Communication</h1></div>
+      <div className="flex items-center justify-between"><h1 className="text-2xl sm:text-3xl font-bold font-headline">Member Communication</h1></div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card className="shadow-lg">
@@ -338,7 +334,7 @@ export default function CommunicationPage() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div>
                   <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary" /> Select Recipients</CardTitle>
-                  <CardDescription className="text-sm">Choose who will receive this email.</CardDescription>
+                  <CardDescription className="text-sm">Choose who will receive this official email.</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -346,7 +342,7 @@ export default function CommunicationPage() {
               {isLoadingData ? (<Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />) : members.length > 0 ? (
                 <>
                   <div className="mb-4">
-                      <Label>Select by Group</Label>
+                      <Label className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Quick Select Groups</Label>
                       <div className="flex flex-wrap items-center gap-2 pt-2">
                         {groups.map(group => (
                            <Button 
@@ -358,32 +354,32 @@ export default function CommunicationPage() {
                               style={{ 
                                   backgroundColor: group.color || 'hsl(var(--secondary))',
                                   color: getTextColorForBackground(group.color || '#ffffff'),
-                                  borderColor: getTextColorForBackground(group.color || '#ffffff')
+                                  borderColor: group.color
                               }}
-                              className="bg-secondary/20 text-secondary-foreground hover:opacity-80"
+                              className="bg-opacity-20 hover:opacity-80 shadow-sm font-bold"
                             >
                               {group.name} ({group.memberIds.length})
                             </Button>
                         ))}
                         <Dialog open={isGroupFormOpen} onOpenChange={setIsGroupFormOpen}>
                           <DialogTrigger asChild>
-                             <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => handleOpenGroupForm()}> <Settings className="mr-2 h-4 w-4"/>Manage Groups</Button>
+                             <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => handleOpenGroupForm()}> <Settings className="mr-2 h-4 w-4"/>Manage List Groups</Button>
                           </DialogTrigger>
                            <DialogContent className="sm:max-w-3xl">
-                             <DialogHeader><DialogTitle>Manage Communication Groups</DialogTitle></DialogHeader>
+                             <DialogHeader><DialogTitle>Communication Groups</DialogTitle></DialogHeader>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                                 <div className="space-y-4">
-                                  <h3 className="font-semibold">My Groups</h3>
-                                  <ScrollArea className="h-72 border rounded-md p-2">
+                                  <h3 className="font-semibold text-sm uppercase tracking-widest text-muted-foreground">Existing Groups</h3>
+                                  <ScrollArea className="h-72 border rounded-xl p-2 bg-slate-50/50">
                                     {groups.length > 0 ? (
                                         <div className="space-y-2">
                                           {groups.map(group => (
-                                            <div key={group.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30">
+                                            <div key={group.id} className="flex items-center justify-between p-3 rounded-lg bg-white border shadow-sm">
                                               <div className="flex items-center gap-2">
-                                                <div className="h-4 w-4 rounded-full" style={{backgroundColor: group.color || '#ccc'}}></div>
+                                                <div className="h-4 w-4 rounded-full shadow-inner" style={{backgroundColor: group.color || '#ccc'}}></div>
                                                 <div>
-                                                  <p className="font-medium">{group.name}</p>
-                                                  <p className="text-xs text-muted-foreground">{group.memberIds.length} member(s)</p>
+                                                  <p className="font-bold text-sm">{group.name}</p>
+                                                  <p className="text-[10px] text-muted-foreground uppercase">{group.memberIds.length} members</p>
                                                 </div>
                                               </div>
                                               <div className="flex items-center">
@@ -393,34 +389,34 @@ export default function CommunicationPage() {
                                             </div>
                                           ))}
                                         </div>
-                                    ) : (<p className="text-center text-sm text-muted-foreground py-4">No groups created yet.</p>)}
+                                    ) : (<p className="text-center text-sm text-muted-foreground py-10 italic">No custom groups created.</p>)}
                                   </ScrollArea>
                                 </div>
                                 <div className="space-y-4">
-                                  <h3 className="font-semibold">{selectedGroupForEdit?.id ? `Editing: ${selectedGroupForEdit.name}` : 'Create New Group'}</h3>
+                                  <h3 className="font-semibold text-sm uppercase tracking-widest text-primary">{selectedGroupForEdit?.id ? `Modify: ${selectedGroupForEdit.name}` : 'New Group Configuration'}</h3>
                                   {selectedGroupForEdit && (
-                                    <div className="space-y-4">
+                                    <div className="space-y-4 bg-white p-4 rounded-xl border shadow-sm">
                                       <div className="flex items-end gap-2">
-                                        <div className="flex-grow"><Label htmlFor="group-name">Group Name</Label><Input id="group-name" value={selectedGroupForEdit.name} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, name: e.target.value})} placeholder="e.g., Executive Committee"/></div>
-                                        <div><Label htmlFor="group-color">Color</Label><Input id="group-color" type="color" value={selectedGroupForEdit.color} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, color: e.target.value})} className="h-10 p-1"/></div>
+                                        <div className="flex-grow"><Label htmlFor="group-name">Group Label</Label><Input id="group-name" value={selectedGroupForEdit.name} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, name: e.target.value})} placeholder="e.g. Executive Board"/></div>
+                                        <div><Label htmlFor="group-color">Color</Label><Input id="group-color" type="color" value={selectedGroupForEdit.color} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, color: e.target.value})} className="h-10 w-12 p-1 cursor-pointer"/></div>
                                       </div>
-                                      <div><Label>Members</Label><div className="relative mt-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search members..." value={groupMemberSearchTerm} onChange={(e) => setGroupMemberSearchTerm(e.target.value)} className="pl-10"/></div>
-                                          <ScrollArea className="h-48 border rounded-md p-2 mt-2">
+                                      <div><Label>Add Members</Label><div className="relative mt-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search user list..." value={groupMemberSearchTerm} onChange={(e) => setGroupMemberSearchTerm(e.target.value)} className="pl-10"/></div>
+                                          <ScrollArea className="h-48 border rounded-md p-2 mt-2 bg-slate-50/30">
                                             {filteredGroupMembers.length > 0 ? (
-                                              <div className="space-y-2">{filteredGroupMembers.map(member => (<div key={member.id} className="flex items-center space-x-3 p-2 rounded hover:bg-muted/30"><Checkbox id={`member-${member.id}`} checked={selectedGroupForEdit.memberIds.includes(member.id)} onCheckedChange={(checked) => { const newMemberIds = checked ? [...selectedGroupForEdit.memberIds, member.id] : selectedGroupForEdit.memberIds.filter(id => id !== member.id); setSelectedGroupForEdit({...selectedGroupForEdit, memberIds: newMemberIds});}}/><Avatar className="h-8 w-8"><AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold text-xs">{getInitials(member.name)}</AvatarFallback></Avatar><label htmlFor={`member-${member.id}`} className="text-sm font-medium leading-none cursor-pointer">{member.name}<p className="text-xs text-muted-foreground">{member.email}</p></label></div>))}</div>
-                                            ) : (<p className="text-center text-sm text-muted-foreground py-4">No members found.</p>)}
-                                          </ScrollArea><Badge variant="secondary" className="mt-2">Selected: {selectedGroupForEdit.memberIds.length}</Badge>
+                                              <div className="space-y-2">{filteredGroupMembers.map(member => (<div key={member.id} className="flex items-center space-x-3 p-2 rounded hover:bg-white hover:shadow-sm transition-all"><Checkbox id={`member-${member.id}`} checked={selectedGroupForEdit.memberIds.includes(member.id)} onCheckedChange={(checked) => { const newMemberIds = checked ? [...selectedGroupForEdit.memberIds, member.id] : selectedGroupForEdit.memberIds.filter(id => id !== member.id); setSelectedGroupForEdit({...selectedGroupForEdit, memberIds: newMemberIds});}}/><Avatar className="h-8 w-8"><AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold text-xs">{getInitials(member.name)}</AvatarFallback></Avatar><label htmlFor={`member-${member.id}`} className="text-sm font-medium leading-none cursor-pointer">{member.name}<p className="text-[10px] text-muted-foreground">{member.email}</p></label></div>))}</div>
+                                            ) : (<p className="text-center text-sm text-muted-foreground py-4">No users found.</p>)}
+                                          </ScrollArea><Badge variant="secondary" className="mt-2 font-bold">{selectedGroupForEdit.memberIds.length} selected</Badge>
                                       </div>
-                                      <div className="flex justify-end gap-2">
-                                        <Button type="button" variant="outline" onClick={() => setSelectedGroupForEdit({ name: '', memberIds: [], color: '#cccccc' })}>Clear</Button>
-                                        <Button type="button" onClick={handleGroupFormSubmit} disabled={isGroupSubmitting || !selectedGroupForEdit?.name.trim()}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (selectedGroupForEdit?.id ? 'Save Changes' : 'Create Group')}</Button>
+                                      <div className="flex justify-end gap-2 border-t pt-4">
+                                        <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedGroupForEdit({ name: '', memberIds: [], color: '#cccccc' })}>Clear All</Button>
+                                        <Button type="button" size="sm" onClick={handleGroupFormSubmit} disabled={isGroupSubmitting || !selectedGroupForEdit?.name.trim()}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (selectedGroupForEdit?.id ? 'Save Changes' : 'Activate Group')}</Button>
                                       </div>
                                     </div>
                                   )}
                                 </div>
                               </div>
                               <DialogFooter>
-                                <DialogClose asChild><Button type="button" variant="outline" disabled={isGroupSubmitting}>Close</Button></DialogClose>
+                                <DialogClose asChild><Button type="button" variant="outline" disabled={isGroupSubmitting}>Close Manager</Button></DialogClose>
                               </DialogFooter>
                            </DialogContent>
                         </Dialog>
@@ -428,32 +424,32 @@ export default function CommunicationPage() {
                   </div>
                   
 
-                  <div className="relative mb-4"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search recipients by name or email..." value={recipientSearchTerm} onChange={(e) => setRecipientSearchTerm(e.target.value)} className="pl-10"/></div>
-                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-2 sm:space-y-0 mb-4 p-3 border rounded-md bg-muted/50">
-                    <div className="flex items-center space-x-2"><Checkbox id="select-all-members" onCheckedChange={(checked) => handleSelectAll(checked as boolean)} checked={filteredMembers.length > 0 && filteredMembers.every(m => watchedRecipients.includes(m.id))} disabled={filteredMembers.length === 0}/><Label htmlFor="select-all-members" className="font-medium text-sm cursor-pointer">Select All ({filteredMembers.length})</Label></div>
-                    <span className="text-xs text-muted-foreground sm:ml-auto">(Total Selected: {watchedRecipients.length} / {members.length})</span>
+                  <div className="relative mb-4"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Filter by user name or email address..." value={recipientSearchTerm} onChange={(e) => setRecipientSearchTerm(e.target.value)} className="pl-10"/></div>
+                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-2 sm:space-y-0 mb-4 p-3 border rounded-xl bg-muted/30">
+                    <div className="flex items-center space-x-2"><Checkbox id="select-all-members" onCheckedChange={(checked) => handleSelectAll(checked as boolean)} checked={filteredMembers.length > 0 && filteredMembers.every(m => watchedRecipients.includes(m.id))} disabled={filteredMembers.length === 0}/><Label htmlFor="select-all-members" className="font-bold text-sm cursor-pointer">Select All Visible ({filteredMembers.length})</Label></div>
+                    <span className="text-xs text-muted-foreground sm:ml-auto font-medium">Recipients: {watchedRecipients.length} / {members.length}</span>
                   </div>
-                  <ScrollArea className="h-60 border rounded-md p-2 sm:p-4">
-                    {filteredMembers.length > 0 ? (<FormField control={form.control} name="recipientUserIds" render={() => (<div className="space-y-2">{filteredMembers.map((member) => (<FormField key={member.id} control={form.control} name="recipientUserIds" render={({ field }) => (<FormItem key={member.id} className="flex flex-row items-center space-x-3 space-y-0 p-2 rounded hover:bg-muted/30"><FormControl><Checkbox checked={field.value?.includes(member.id)} onCheckedChange={(checked) => { return checked ? field.onChange([...(field.value || []), member.id]) : field.onChange((field.value || []).filter((value) => value !== member.id)) }}/></FormControl><FormLabel className="font-normal text-sm cursor-pointer flex-1">{member.name} <span className="text-xs text-muted-foreground">({member.email})</span></FormLabel></FormItem>)}/>))}</div>)}/>
-                    ) : (<p className="text-center text-sm text-muted-foreground py-4">No members match your search.</p>)}
+                  <ScrollArea className="h-60 border rounded-xl p-2 sm:p-4 bg-white">
+                    {filteredMembers.length > 0 ? (<FormField control={form.control} name="recipientUserIds" render={() => (<div className="space-y-2">{filteredMembers.map((member) => (<FormField key={member.id} control={form.control} name="recipientUserIds" render={({ field }) => (<FormItem key={member.id} className="flex flex-row items-center space-x-3 space-y-0 p-2 rounded-lg hover:bg-slate-50 transition-colors"><FormControl><Checkbox checked={field.value?.includes(member.id)} onCheckedChange={(checked) => { return checked ? field.onChange([...(field.value || []), member.id]) : field.onChange((field.value || []).filter((value) => value !== member.id)) }}/></FormControl><FormLabel className="font-normal text-sm cursor-pointer flex-1 font-medium">{member.name} <span className="text-[10px] text-muted-foreground uppercase ml-2 tracking-tighter">({member.email})</span></FormLabel></FormItem>)}/>))}</div>)}/>
+                    ) : (<p className="text-center text-sm text-muted-foreground py-10 italic">No users match your criteria.</p>)}
                   </ScrollArea><FormMessage className="mt-2">{form.formState.errors.recipientUserIds?.message}</FormMessage>
                 </>
-              ) : (<p className="text-center text-muted-foreground py-4">No approved members found.</p>)}
+              ) : (<p className="text-center text-muted-foreground py-10 italic">No approved member accounts available.</p>)}
             </CardContent>
           </Card>
           
-          <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Sparkles className="mr-2 h-5 w-5 text-primary" /> AI Content Assistant</CardTitle></CardHeader><CardContent className="space-y-3"><Alert><Info className="h-4 w-4" /><AlertTitle>How to use the Topic field</AlertTitle><AlertDescription className="text-xs leading-relaxed"><ol className="list-decimal list-inside space-y-1 mt-1"><li>Be specific. Instead of "meeting," try "Monthly meeting reminder for August".</li><li>Include key details if you have them, like "charity drive on Saturday at the main hall".</li><li>The AI will automatically write in a professional and friendly tone suitable for the club.</li></ol></AlertDescription></Alert><div><Label htmlFor="ai-topic">Email Topic</Label><div className="flex items-center gap-2 mt-1"><Input id="ai-topic" placeholder="e.g., Beach cleanup event this weekend" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} disabled={isGenerating || formSubmitting}/><Button type="button" onClick={handleGenerateContent} disabled={isGenerating || formSubmitting}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Generate</Button></div></div></CardContent></Card>
-          <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle><CardDescription className="text-sm">Write or edit the subject and body of your email.</CardDescription></CardHeader><CardContent className="space-y-4">
-            <FormField control={form.control} name="subject" render={({ field }) => (<FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="Important Update: Upcoming Event" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-            <FormField control={form.control} name="body" render={({ field }) => (<FormItem><FormLabel>Body</FormLabel><FormControl><Textarea placeholder="Dear members, ..." className="resize-y min-h-[150px] sm:min-h-[200px]" {...field}/></FormControl><FormMessage /></FormItem>)}/>
-            <FormItem><FormLabel className="flex items-center"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Signature</FormLabel><Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}><FormControl><SelectTrigger><SelectValue placeholder="Select a signature template" /></SelectTrigger></FormControl><SelectContent>{Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (<SelectItem key={key} value={key}>{template.label}</SelectItem>))}</SelectContent></Select><FormDescription className="text-xs">Select a signature to append to your email body.</FormDescription></FormItem>
+          <Card className="shadow-lg border-primary/10"><CardHeader className="bg-primary/5"><CardTitle className="flex items-center text-xl text-primary"><Sparkles className="mr-2 h-5 w-5" /> AI Content Assistant</CardTitle></CardHeader><CardContent className="space-y-4 pt-6"><Alert className="bg-blue-50 border-blue-100"><Info className="h-4 w-4 text-primary" /><AlertDescription className="text-xs leading-relaxed text-blue-800">Briefly describe the topic (e.g. "beach cleanup reminder") and the AI will draft a professional, engaging club email for you.</AlertDescription></Alert><div><Label htmlFor="ai-topic" className="font-bold">Topic for AI Draft</Label><div className="flex items-center gap-2 mt-1"><Input id="ai-topic" placeholder="e.g. Monthly meeting reminder for next Saturday at 10 AM" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} disabled={isGenerating || formSubmitting} className="rounded-xl"/><Button type="button" onClick={handleGenerateContent} disabled={isGenerating || formSubmitting} className="rounded-xl shadow-md">{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Draft Content</Button></div></div></CardContent></Card>
+          <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Official Email</CardTitle><CardDescription className="text-sm">Finalize the subject and body before sending.</CardDescription></CardHeader><CardContent className="space-y-4">
+            <FormField control={form.control} name="subject" render={({ field }) => (<FormItem><FormLabel className="font-bold">Subject Line</FormLabel><FormControl><Input placeholder="Important: Club Update Regarding..." {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>)}/>
+            <FormField control={form.control} name="body" render={({ field }) => (<FormItem><FormLabel className="font-bold">Message Body</FormLabel><FormControl><Textarea placeholder="Dear members, we are writing to inform you that..." className="resize-y min-h-[200px] rounded-xl" {...field}/></FormControl><FormMessage /></FormItem>)}/>
+            <FormItem><FormLabel className="flex items-center font-bold"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Append Signature</FormLabel><Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}><FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choose a signature template" /></SelectTrigger></FormControl><SelectContent>{Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (<SelectItem key={key} value={key}>{template.label}</SelectItem>))}</SelectContent></Select><FormDescription className="text-xs">This will be added to the end of your message.</FormDescription></FormItem>
             
             <FormField
               control={form.control}
               name="attachments"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center"><Paperclip className="mr-1.5 h-4 w-4 text-muted-foreground" /> Attachments</FormLabel>
+                  <FormLabel className="flex items-center font-bold"><Paperclip className="mr-1.5 h-4 w-4 text-muted-foreground" /> Add Attachments</FormLabel>
                   <FormControl>
                       <div>
                         <input
@@ -467,20 +463,20 @@ export default function CommunicationPage() {
                                 field.onChange([...currentFiles, ...newFiles]);
                             }}
                         />
-                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={formSubmitting}>
-                           <PlusCircle className="mr-2 h-4 w-4" /> Add Files
+                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={formSubmitting} className="rounded-xl">
+                           <PlusCircle className="mr-2 h-4 w-4" /> Choose Files
                         </Button>
                       </div>
                   </FormControl>
                   <FormDescription className="text-xs">
-                     Max file size: {MAX_FILE_SIZE_MB}MB. Total limit: {MAX_TOTAL_SIZE_MB}MB.
+                     Maximum total file size: {MAX_TOTAL_SIZE_MB}MB.
                   </FormDescription>
                   {watchedAttachments.length > 0 && (
                     <div className="space-y-2 pt-2">
                         {watchedAttachments.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 text-sm rounded-md border bg-muted/50">
-                                <span className="truncate pr-2">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                            <div key={index} className="flex items-center justify-between p-3 text-sm rounded-xl border bg-slate-50 shadow-sm">
+                                <span className="truncate pr-2 font-medium">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:bg-rose-50" onClick={() => {
                                     const newFiles = [...watchedAttachments];
                                     newFiles.splice(index, 1);
                                     field.onChange(newFiles);
@@ -489,8 +485,8 @@ export default function CommunicationPage() {
                                 </Button>
                             </div>
                         ))}
-                         <div className="text-xs font-medium text-muted-foreground pt-1">
-                            Total size: {(totalAttachmentSize / 1024 / 1024).toFixed(2)}MB / {MAX_TOTAL_SIZE_MB}MB
+                         <div className="text-[10px] font-bold text-muted-foreground pt-1 uppercase tracking-widest">
+                            Storage Used: {(totalAttachmentSize / 1024 / 1024).toFixed(2)}MB / {MAX_TOTAL_SIZE_MB}MB
                          </div>
                     </div>
                   )}
@@ -500,11 +496,11 @@ export default function CommunicationPage() {
             />
           </CardContent></Card>
           
-          <div className="flex justify-end"><Button type="submit" className="w-full sm:w-auto" disabled={formSubmitting || isLoadingData || watchedRecipients.length === 0} size="lg">{formSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}{formSubmitting ? "Sending..." : `Send Email to ${watchedRecipients.length} Member(s)`}</Button></div>
+          <div className="flex justify-end"><Button type="submit" className="w-full sm:w-auto h-14 px-10 text-lg font-black shadow-xl rounded-2xl" disabled={formSubmitting || isLoadingData || watchedRecipients.length === 0}>{formSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}{formSubmitting ? "Delivering..." : `Dispatch to ${watchedRecipients.length} Recipient(s)`}</Button></div>
         </form>
       </Form>
        <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
-        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the "{groupToDelete?.name}" group. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteGroup} className={cn(buttonVariants({ variant: "destructive" }))}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Delete'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl border-none shadow-2xl"><AlertDialogHeader><AlertDialogTitle>Delete Communication Group?</AlertDialogTitle><AlertDialogDescription>You are about to remove the "{groupToDelete?.name}" mailing group. This will not affect the user accounts, only the group list.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteGroup} className={cn(buttonVariants({ variant: "destructive" }), "rounded-xl")}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Delete Group'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
     </div>
   );
