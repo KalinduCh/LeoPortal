@@ -1,3 +1,4 @@
+
 import {
   collection,
   addDoc,
@@ -41,6 +42,22 @@ export async function createPlatformEvent(data: Omit<AccessEvent, 'id' | 'create
 }
 
 /**
+ * Updates an existing event module.
+ */
+export async function updatePlatformEvent(id: string, data: Partial<Omit<AccessEvent, 'id' | 'createdAt'>>): Promise<void> {
+  const docRef = doc(db, PLATFORM_EVENTS, id);
+  const cleanData: any = { ...data };
+  
+  Object.keys(cleanData).forEach(key => {
+    if (cleanData[key] === undefined || cleanData[key] === '') {
+      delete cleanData[key];
+    }
+  });
+
+  await updateDoc(docRef, cleanData);
+}
+
+/**
  * Fetches all available event modules for the organizer dashboard.
  */
 export async function getPlatformEvents(): Promise<AccessEvent[]> {
@@ -60,8 +77,6 @@ export async function getPlatformEvent(id: string): Promise<AccessEvent | null> 
 
 /**
  * Listens to real-time registration and check-in updates for an event dashboard.
- * Note: orderBy removed from query to avoid composite index requirement. 
- * Sorting is handled in memory.
  */
 export function subscribeToPlatformRegistrations(eventId: string, callback: (registrations: AccessRegistration[]) => void) {
   const q = query(
@@ -75,12 +90,10 @@ export function subscribeToPlatformRegistrations(eventId: string, callback: (reg
         return { 
             id: d.id, 
             ...data,
-            // Fallback for missing createdAt to prevent sorting errors
             createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString() 
         } as AccessRegistration;
     });
     
-    // Sort by createdAt descending in memory
     const sorted = registrations.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
@@ -90,7 +103,7 @@ export function subscribeToPlatformRegistrations(eventId: string, callback: (reg
 }
 
 /**
- * Searches for a registration by ticket ID (used by the entry scanner).
+ * Searches for a registration by ticket ID.
  */
 export async function getRegistrationByTicket(ticketId: string): Promise<AccessRegistration | null> {
   const q = query(collection(db, PLATFORM_REGISTRATIONS), where('ticketId', '==', ticketId));
@@ -99,7 +112,7 @@ export async function getRegistrationByTicket(ticketId: string): Promise<AccessR
 }
 
 /**
- * Marks a guest as checked-in with a timestamp.
+ * Marks a guest as checked-in.
  */
 export async function markPlatformCheckIn(registrationId: string): Promise<void> {
   const docRef = doc(db, PLATFORM_REGISTRATIONS, registrationId);
@@ -110,7 +123,7 @@ export async function markPlatformCheckIn(registrationId: string): Promise<void>
 }
 
 /**
- * Deletes a registration pass permanently.
+ * Deletes a registration pass.
  */
 export async function deletePlatformRegistration(id: string): Promise<void> {
   await deleteDoc(doc(db, PLATFORM_REGISTRATIONS, id));

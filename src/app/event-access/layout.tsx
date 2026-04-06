@@ -44,10 +44,14 @@ export default function AccessPlatformLayout({ children }: { children: React.Rea
       <main className="flex-1">
         {children}
       </main>
-      <footer className="py-6 border-t bg-white text-center text-xs text-muted-foreground">
+      <footer className="py-8 border-t bg-white text-center">
         <div className="container mx-auto px-4">
-          <p>&copy; 2026 District Event Registration & Access Management Platform.</p>
-          <p className="mt-1">A specialized module for large-scale LEO events.</p>
+          <p className="text-sm font-bold text-slate-900">
+            &copy; 2026 Leo District 306 D9 Event Management Platform
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Designed & Powered by <span className="text-primary font-semibold">Leo Club of Athugalpura</span>
+          </p>
         </div>
       </footer>
     </div>
