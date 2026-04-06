@@ -13,7 +13,7 @@ import { PlusCircle, Calendar, MapPin, Settings, Loader2, ExternalLink, Activity
 import { getPlatformEvents, createPlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 
 export default function PlatformAdminOverview() {
   const [events, setEvents] = useState<AccessEvent[]>([]);
@@ -43,7 +43,7 @@ export default function PlatformAdminOverview() {
       if (error.code === 'permission-denied') {
         toast({ 
           title: "Access Restricted", 
-          description: "Insufficient permissions. Ensure your account is authorized in Firestore rules.", 
+          description: "Insufficient permissions. Ensure your account is authorized.", 
           variant: "destructive" 
         });
       } else {
@@ -68,11 +68,19 @@ export default function PlatformAdminOverview() {
     if (!user) return;
     setIsCreating(true);
     try {
+      // Ensure capacity is either a valid number or completely omitted
+      const capacityValue = formData.capacity ? parseInt(formData.capacity) : undefined;
+      
       await createPlatformEvent({
-        ...formData,
+        name: formData.name,
+        date: formData.date,
+        time: formData.time,
+        location: formData.location,
+        description: formData.description,
+        capacity: isNaN(capacityValue as number) ? undefined : capacityValue,
         organizerId: user.id,
-        capacity: formData.capacity ? parseInt(formData.capacity) : undefined,
       });
+      
       toast({ title: "Module Activated", description: "The district event registration pipeline is ready." });
       setIsDialogOpen(false);
       setFormData({ name: '', date: '', time: '', location: '', description: '', capacity: '' });
@@ -81,7 +89,7 @@ export default function PlatformAdminOverview() {
       console.error("DISTRICT_ACCESS_ERROR: Creation failed:", error);
       toast({ 
         title: "Creation Failed", 
-        description: error.message || "Insufficient permissions to write to accessEvents collection.", 
+        description: error.message || "Could not save the event module.", 
         variant: "destructive" 
       });
     }
@@ -132,6 +140,10 @@ export default function PlatformAdminOverview() {
                 <Label>Description</Label>
                 <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Public registration description..." />
               </div>
+              <div className="space-y-2">
+                <Label>Capacity (Optional)</Label>
+                <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} placeholder="Leave empty for unlimited" />
+              </div>
               <DialogFooter className="pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={isCreating} className="h-12 px-6">
@@ -145,32 +157,37 @@ export default function PlatformAdminOverview() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {events.length > 0 ? (
-          events.map(event => (
-            <Card key={event.id} className="hover:shadow-2xl transition-all duration-300 border-none bg-white ring-1 ring-slate-200">
-              <CardHeader className="bg-slate-50/50 pb-4">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-xl font-bold text-slate-900">{event.name}</CardTitle>
-                  <Activity className="h-5 w-5 text-emerald-500 animate-pulse" />
-                </div>
-                <CardDescription className="flex items-center gap-2 font-medium">
-                  <Calendar className="h-4 w-4 text-primary" /> {format(new Date(event.date), 'PPP')} @ {event.time}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex items-start gap-2 text-sm text-slate-600">
-                  <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" /> {event.location}
-                </div>
-              </CardContent>
-              <CardFooter className="grid grid-cols-2 gap-2 border-t pt-4 bg-slate-50/30">
-                <Button variant="outline" size="sm" onClick={() => window.open(`/event-access/register/${event.id}`, '_blank')}>
-                  <ExternalLink className="mr-2 h-4 w-4" /> Reg Page
-                </Button>
-                <Button size="sm" onClick={() => router.push(`/event-access/admin/${event.id}`)}>
-                  <Settings className="mr-2 h-4 w-4" /> Dashboard
-                </Button>
-              </CardFooter>
-            </Card>
-          ))
+          events.map(event => {
+            const eventDate = parseISO(event.date);
+            const formattedDate = isValid(eventDate) ? format(eventDate, 'PPP') : event.date;
+            
+            return (
+              <Card key={event.id} className="hover:shadow-2xl transition-all duration-300 border-none bg-white ring-1 ring-slate-200">
+                <CardHeader className="bg-slate-50/50 pb-4">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-xl font-bold text-slate-900">{event.name}</CardTitle>
+                    <Activity className="h-5 w-5 text-emerald-500 animate-pulse" />
+                  </div>
+                  <CardDescription className="flex items-center gap-2 font-medium">
+                    <Calendar className="h-4 w-4 text-primary" /> {formattedDate} @ {event.time}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex items-start gap-2 text-sm text-slate-600">
+                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" /> {event.location}
+                  </div>
+                </CardContent>
+                <CardFooter className="grid grid-cols-2 gap-2 border-t pt-4 bg-slate-50/30">
+                  <Button variant="outline" size="sm" onClick={() => window.open(`/event-access/register/${event.id}`, '_blank')}>
+                    <ExternalLink className="mr-2 h-4 w-4" /> Reg Page
+                  </Button>
+                  <Button size="sm" onClick={() => router.push(`/event-access/admin/${event.id}`)}>
+                    <Settings className="mr-2 h-4 w-4" /> Dashboard
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })
         ) : (
           <div className="col-span-full py-32 flex flex-col items-center justify-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
             <QrCode className="h-16 w-16 text-slate-300 mb-4" />
