@@ -44,7 +44,7 @@ export default function AccessPlatformLayout({ children }: { children: React.Rea
       <main className="flex-1">
         {children}
       </main>
-      <footer className="py-8 border-t bg-white text-center">
+      <footer className="py-10 border-t bg-white text-center">
         <div className="container mx-auto px-4">
           <p className="text-sm font-bold text-slate-900">
             &copy; 2026 Leo District 306 D9 Event Management Platform

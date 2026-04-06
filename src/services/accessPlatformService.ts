@@ -17,7 +17,6 @@ import {
 import { db } from '@/lib/firebase/clientApp';
 import type { AccessEvent, AccessRegistration } from '@/types/access-platform';
 
-// These collection names MUST match firestore.rules exactly
 const PLATFORM_EVENTS = 'accessEvents';
 const PLATFORM_REGISTRATIONS = 'accessRegistrations';
 
@@ -77,6 +76,7 @@ export async function getPlatformEvent(id: string): Promise<AccessEvent | null> 
 
 /**
  * Listens to real-time registration and check-in updates for an event dashboard.
+ * Uses client-side sorting to avoid requiring manual Firestore composite indexes.
  */
 export function subscribeToPlatformRegistrations(eventId: string, callback: (registrations: AccessRegistration[]) => void) {
   const q = query(
@@ -94,6 +94,7 @@ export function subscribeToPlatformRegistrations(eventId: string, callback: (reg
         } as AccessRegistration;
     });
     
+    // Sort by createdAt descending in memory
     const sorted = registrations.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );

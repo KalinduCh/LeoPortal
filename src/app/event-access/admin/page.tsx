@@ -129,11 +129,11 @@ export default function PlatformAdminOverview() {
     <div className="container mx-auto py-10 px-4 space-y-10">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b pb-8">
         <div>
-          <h1 className="text-4xl font-bold font-headline text-slate-900 tracking-tight">DISTRICT ACCESS MODULES</h1>
-          <p className="text-slate-500 mt-1">Manage registration and entry passes for high-profile district events.</p>
+          <h1 className="text-4xl font-bold font-headline text-slate-900 tracking-tight uppercase">District Access</h1>
+          <p className="text-slate-500 mt-1">Manage registration and entry passes for district-level events.</p>
         </div>
         <Button size="lg" onClick={() => handleOpenDialog()} className="shadow-xl bg-primary hover:bg-primary/90 h-14 px-8 text-lg font-bold">
-          <PlusCircle className="mr-2 h-6 w-6" /> Create Event Module
+          <PlusCircle className="mr-2 h-6 w-6" /> Create New Module
         </Button>
       </div>
 
@@ -144,13 +144,13 @@ export default function PlatformAdminOverview() {
             const formattedDate = isValid(eventDate) ? format(eventDate, 'PPP') : event.date;
             
             return (
-              <Card key={event.id} className="hover:shadow-2xl transition-all duration-300 border-none bg-white ring-1 ring-slate-200">
+              <Card key={event.id} className="hover:shadow-xl transition-all duration-300 border-none bg-white ring-1 ring-slate-200 overflow-hidden">
                 <CardHeader className="bg-slate-50/50 pb-4">
                   <div className="flex justify-between items-start">
                     <div className="min-w-0 pr-4">
-                      <CardTitle className="text-xl font-bold text-slate-900 truncate">{event.name}</CardTitle>
+                      <CardTitle className="text-xl font-bold text-slate-900 truncate font-headline">{event.name}</CardTitle>
                       <CardDescription className="flex items-center gap-2 font-medium mt-1">
-                        <Calendar className="h-4 w-4 text-primary" /> {formattedDate} @ {event.time}
+                        <Calendar className="h-4 w-4 text-primary" /> {formattedDate}
                       </CardDescription>
                     </div>
                     <DropdownMenu>
@@ -160,22 +160,19 @@ export default function PlatformAdminOverview() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuLabel>Event Options</DropdownMenuLabel>
+                        <DropdownMenuLabel>Module Options</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => router.push(`/event-access/admin/${event.id}`)}>
-                          <Settings className="mr-2 h-4 w-4" /> Manage Dashboard
-                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenDialog(event)}>
-                          <Edit3 className="mr-2 h-4 w-4" /> Edit Details
+                          <Edit3 className="mr-2 h-4 w-4" /> Edit Event Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => window.open(`/event-access/register/${event.id}`, '_blank')}>
-                          <Eye className="mr-2 h-4 w-4" /> View Reg Page
+                        <DropdownMenuItem onClick={() => router.push(`/event-access/admin/${event.id}`)}>
+                          <Settings className="mr-2 h-4 w-4" /> Go to Dashboard
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-6 space-y-4">
+                <CardContent className="pt-6 space-y-4 pb-6">
                   <div className="flex items-start gap-2 text-sm text-slate-600">
                     <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" /> {event.location}
                   </div>
@@ -183,12 +180,19 @@ export default function PlatformAdminOverview() {
                     <Activity className="h-3 w-3 animate-pulse" /> Live Module Active
                   </div>
                 </CardContent>
-                <CardFooter className="pt-4 border-t bg-slate-50/30">
+                <CardFooter className="flex flex-col gap-2 p-4 border-t bg-white">
                   <Button 
-                    className="w-full bg-slate-900 hover:bg-slate-800" 
+                    className="w-full h-11 font-bold" 
                     onClick={() => router.push(`/event-access/admin/${event.id}`)}
                   >
                     Open Admin Dashboard
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="w-full h-11 border-primary text-primary hover:bg-primary/5 font-bold" 
+                    onClick={() => window.open(`/event-access/register/${event.id}`, '_blank')}
+                  >
+                    <Eye className="mr-2 h-4 w-4" /> View Public Reg Page
                   </Button>
                 </CardFooter>
               </Card>
@@ -197,8 +201,8 @@ export default function PlatformAdminOverview() {
         ) : (
           <div className="col-span-full py-32 flex flex-col items-center justify-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
             <QrCode className="h-16 w-16 text-slate-300 mb-4" />
-            <h3 className="text-xl font-bold text-slate-900">No Access Modules Found</h3>
-            <p className="text-slate-500">Deploy your first district event module to get started.</p>
+            <h3 className="text-xl font-bold text-slate-900">No Access Modules Yet</h3>
+            <p className="text-slate-500">Deploy your first district event registration system above.</p>
           </div>
         )}
       </div>
@@ -207,7 +211,7 @@ export default function PlatformAdminOverview() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-2xl font-headline">
-              {editingEvent ? 'Edit District Module' : 'Setup District Module'}
+              {editingEvent ? 'Edit District Module' : 'Deploy New Module'}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveEvent} className="space-y-4 py-4">
@@ -231,7 +235,7 @@ export default function PlatformAdminOverview() {
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
-              <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Public registration description..." />
+              <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Registration page overview..." />
             </div>
             <div className="space-y-2">
               <Label>Capacity (Optional)</Label>
@@ -240,7 +244,7 @@ export default function PlatformAdminOverview() {
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={isProcessing} className="h-12 px-6">
-                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Save Changes" : "Deploy Module")}
+                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Save Changes" : "Start Module")}
               </Button>
             </DialogFooter>
           </form>
