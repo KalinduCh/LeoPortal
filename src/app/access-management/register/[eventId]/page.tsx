@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -139,7 +139,7 @@ export default function PublicRegistration() {
                   </div>
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> Current Role</Label>
-                    <Input required value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} placeholder="e.g. Member / IPP" className="h-12" />
+                    <Input required value={formData.role} onChange={setFormData as any} placeholder="e.g. Member / IPP" className="h-12" />
                   </div>
                 </div>
                 <Button type="submit" size="lg" className="w-full h-14 text-lg font-bold shadow-lg" disabled={isSubmitting}>
