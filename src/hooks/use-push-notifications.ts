@@ -7,12 +7,15 @@ const VAPID_PUBLIC_KEY = "BIc9bH71DzSMqmg3pBlve0gm14FLcVAh4EacFVw4Ovg4uEd3k11ETl
 
 /**
  * Hook to manage standard Web Push subscriptions.
- * Optimized for iOS 16.4+ PWAs.
+ * Optimized for iOS 16.4+ PWAs with robust feature detection.
  */
 export function usePushNotifications(user: User | null) {
-  const [permission, setPermission] = useState<NotificationPermission | 'default'>(
-    typeof window !== 'undefined' ? Notification.permission : 'default'
-  );
+  const [permission, setPermission] = useState<NotificationPermission | 'default'>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'default';
+  });
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   const urlBase64ToUint8Array = (base64String: string) => {
@@ -27,7 +30,8 @@ export function usePushNotifications(user: User | null) {
   };
 
   const subscribeUser = useCallback(async () => {
-    if (typeof window === 'undefined' || !user || !('serviceWorker' in navigator)) {
+    if (typeof window === 'undefined' || !user || !('serviceWorker' in navigator) || !('Notification' in window)) {
+        console.warn('Push notifications are not supported in this environment.');
         return false;
     }
 
