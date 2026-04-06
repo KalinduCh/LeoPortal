@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -10,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, CheckCircle, Clock, Download, QrCode, Search, 
-  Loader2, Trash2, ArrowLeft, BarChart3, Upload, Mail, ShieldAlert, Phone, Utensils, FileSpreadsheet
+  Loader2, Trash2, ArrowLeft, BarChart3, Upload, Mail, ShieldAlert, Phone, Utensils, FileSpreadsheet,
+  AlertCircle
 } from 'lucide-react';
 import { getPlatformEvent, subscribeToPlatformRegistrations, deletePlatformRegistration } from '@/services/accessPlatformService';
 import type { AccessEvent, AccessRegistration, AccessPlatformStats } from '@/types/access-platform';
@@ -97,16 +99,16 @@ export default function PlatformEventDashboard() {
     const sampleData = [
       {
         Name: "John Doe",
-        Email: "john.doe@sample.com",
-        Club: "Sample Leo Club",
+        Email: "john.doe@example.com",
+        Club: "Leo Club of Athugalpura",
         Contact: "0712345678",
         Type: "Leo",
         Food: "non_veg"
       },
       {
         Name: "Jane Smith",
-        Email: "jane.smith@sample.com",
-        Club: "Sample Lions Club",
+        Email: "jane.smith@example.com",
+        Club: "Lions Club of Athugalpura",
         Contact: "0771234567",
         Type: "Lion",
         Food: "veg"
@@ -192,7 +194,7 @@ export default function PlatformEventDashboard() {
           <Button variant="ghost" size="sm" onClick={() => router.push('/event-access/admin')} className="pl-0 text-primary font-bold">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
           </Button>
-          <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900">{event.name}</h1>
+          <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900 uppercase">{event.name}</h1>
           <p className="text-slate-500 uppercase text-xs tracking-widest font-black">LeoEntrivo Command Center</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
@@ -211,9 +213,9 @@ export default function PlatformEventDashboard() {
       </div>
 
       <Tabs defaultValue="list" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:w-[400px] mb-8 h-12 bg-slate-100 p-1 rounded-xl">
-          <TabsTrigger value="list" className="font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Guest List</TabsTrigger>
-          <TabsTrigger value="live" className="font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Live Feed</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 md:w-[400px] mb-8 h-12 bg-slate-100 p-1.5 rounded-xl ring-1 ring-slate-200">
+          <TabsTrigger value="list" className="font-bold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">Guest List</TabsTrigger>
+          <TabsTrigger value="live" className="font-bold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">Live Feed</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="space-y-6">
@@ -257,7 +259,8 @@ export default function PlatformEventDashboard() {
                       <TableHead className="font-bold">Club & Type</TableHead>
                       <TableHead className="font-bold">Meal</TableHead>
                       <TableHead className="font-bold">Ticket ID</TableHead>
-                      <TableHead className="font-bold">Status</TableHead>
+                      <TableHead className="font-bold">Email Status</TableHead>
+                      <TableHead className="font-bold">Entry Status</TableHead>
                       <TableHead className="text-right font-bold">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -281,6 +284,14 @@ export default function PlatformEventDashboard() {
                         </TableCell>
                         <TableCell className="font-mono text-xs text-primary font-bold">{r.ticketId}</TableCell>
                         <TableCell>
+                            <Badge 
+                                variant={r.emailStatus === 'success' ? 'outline' : 'destructive'} 
+                                className={cn("text-[10px] font-bold uppercase", r.emailStatus === 'success' ? 'text-emerald-600 border-emerald-500' : '')}
+                            >
+                                {r.emailStatus === 'success' ? 'Delivered' : r.emailStatus === 'failed' ? 'Failed' : 'Sending...'}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>
                           <Badge variant={r.status === 'checked_in' ? 'default' : 'secondary'} className={r.status === 'checked_in' ? 'bg-emerald-600 text-white' : ''}>
                             {r.status === 'checked_in' ? 'Arrived' : 'Registered'}
                           </Badge>
@@ -291,7 +302,7 @@ export default function PlatformEventDashboard() {
                       </TableRow>
                     ))}
                     {filteredRegistrations.length === 0 && (
-                      <TableRow><TableCell colSpan={6} className="text-center py-20 text-slate-400 italic">No guests found.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center py-20 text-slate-400 italic">No guests found.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
