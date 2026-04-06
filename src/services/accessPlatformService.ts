@@ -24,10 +24,19 @@ const PLATFORM_REGISTRATIONS = 'accessRegistrations';
  * Creates a new standalone district event module.
  */
 export async function createPlatformEvent(data: Omit<AccessEvent, 'id' | 'createdAt'>): Promise<string> {
-  const docRef = await addDoc(collection(db, PLATFORM_EVENTS), {
+  const cleanData: any = {
     ...data,
     createdAt: serverTimestamp(),
+  };
+
+  // Remove undefined fields to prevent Firebase errors
+  Object.keys(cleanData).forEach(key => {
+    if (cleanData[key] === undefined || cleanData[key] === '') {
+      delete cleanData[key];
+    }
   });
+
+  const docRef = await addDoc(collection(db, PLATFORM_EVENTS), cleanData);
   return docRef.id;
 }
 
