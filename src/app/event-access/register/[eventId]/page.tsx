@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -9,10 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Calendar, MapPin, Loader2, CheckCircle, 
-  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle
+  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck, Briefcase
 } from 'lucide-react';
 import { getPlatformEvent } from '@/services/accessPlatformService';
-import type { AccessEvent } from '@/types/access-platform';
+import type { AccessEvent, RegistrationSubmitter } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import Image from 'next/image';
@@ -21,6 +22,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Papa from 'papaparse';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+
+const CLUBS = ["Athugalpura", "UOP", "Kandy", "Kandy ESU", "Others"];
 
 export default function PlatformPublicRegistration() {
   const params = useParams();
@@ -38,9 +41,18 @@ export default function PlatformPublicRegistration() {
     name: '',
     email: '',
     club: '',
+    otherClubName: '',
     contactNumber: '',
     role: 'Leo',
     foodPreference: 'non_veg' as 'veg' | 'non_veg'
+  });
+
+  const [submitterData, setSubmitterData] = useState<RegistrationSubmitter>({
+    name: '',
+    designation: '',
+    club: '',
+    email: '',
+    contact: ''
   });
 
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
@@ -59,7 +71,9 @@ export default function PlatformPublicRegistration() {
     e.preventDefault();
     if (!event) return;
     
-    if (!formData.name || !formData.email || !formData.club || !formData.contactNumber) {
+    const finalClub = formData.club === 'Others' ? formData.otherClubName : formData.club;
+
+    if (!formData.name || !formData.email || !finalClub || !formData.contactNumber) {
         toast({ title: "Required Fields", description: "Please fill in all contact details.", variant: "destructive" });
         return;
     }
@@ -71,6 +85,7 @@ export default function PlatformPublicRegistration() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           ...formData, 
+          club: finalClub,
           eventId,
           eventName: event.name,
           eventDate: event.date,
@@ -98,31 +113,34 @@ export default function PlatformPublicRegistration() {
       {
         Name: "John Doe",
         Email: "john.doe@sample.com",
-        Club: "Sample Leo Club",
+        Club: "Leo Club of Athugalpura",
         Contact: "0712345678",
         Type: "Leo",
         Food: "non_veg"
-      },
-      {
-        Name: "Jane Smith",
-        Email: "jane.smith@sample.com",
-        Club: "Sample Lions Club",
-        Contact: "0771234567",
-        Type: "Lion",
-        Food: "veg"
       }
     ];
     const csv = Papa.unparse(sampleData);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = "LeoEntrivo_Bulk_Import_Sample.csv";
+    link.download = "LeoEntrivo_Bulk_Template.csv";
     link.click();
   };
 
   const handleBulkCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !event) return;
+
+    // Check submitter data
+    if (!submitterData.name || !submitterData.email || !submitterData.contact || !submitterData.club) {
+        toast({ 
+            title: "Submitter Identity Required", 
+            description: "Please fill in your (the officer's) details before uploading the list.", 
+            variant: "destructive" 
+        });
+        e.target.value = '';
+        return;
+    }
 
     setIsBulkProcessing(true);
     setProcessProgress(0);
@@ -156,7 +174,8 @@ export default function PlatformPublicRegistration() {
                 club: row.Club || 'Individual',
                 contactNumber: row.Contact || '',
                 role: row.Type || 'Leo',
-                foodPreference: (row.Food?.toLowerCase().includes('veg') && !row.Food?.toLowerCase().includes('non')) ? 'veg' : 'non_veg'
+                foodPreference: (row.Food?.toLowerCase().includes('veg') && !row.Food?.toLowerCase().includes('non')) ? 'veg' : 'non_veg',
+                submitterInfo: submitterData // Link guest to the registering officer
               }),
             });
 
@@ -286,8 +305,24 @@ export default function PlatformPublicRegistration() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <Label className="flex items-center gap-2 font-bold text-slate-700"><Building2 className="h-4 w-4 text-primary" /> Club Name</Label>
-                                <Input required value={formData.club} onChange={e => setFormData({ ...formData, club: e.target.value })} placeholder="Leo/Lions Club of Sample City" className="h-12 rounded-xl" />
+                                <Label className="flex items-center gap-2 font-bold text-slate-700"><Building2 className="h-4 w-4 text-primary" /> Select Club</Label>
+                                <Select value={formData.club} onValueChange={v => setFormData({...formData, club: v})}>
+                                    <SelectTrigger className="h-12 rounded-xl">
+                                        <SelectValue placeholder="Choose your club" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {CLUBS.map(club => <SelectItem key={club} value={club}>{club}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                {formData.club === 'Others' && (
+                                    <Input 
+                                        required 
+                                        placeholder="Type your club name..." 
+                                        className="mt-2 h-12 rounded-xl animate-in slide-in-from-top-2"
+                                        value={formData.otherClubName}
+                                        onChange={e => setFormData({...formData, otherClubName: e.target.value})}
+                                    />
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2 font-bold text-slate-700"><Users2 className="h-4 w-4 text-primary" /> Member Type</Label>
@@ -333,17 +368,55 @@ export default function PlatformPublicRegistration() {
 
               <TabsContent value="bulk">
                 <CardContent className="p-8 space-y-8">
+                  {/* Identification for Security */}
+                  <div className="bg-slate-50 ring-1 ring-slate-200 rounded-3xl p-6 space-y-6">
+                    <div className="flex items-center gap-3 text-slate-900 border-b pb-4">
+                      <ShieldCheck className="h-6 w-6 text-primary" />
+                      <h3 className="font-black uppercase tracking-tight">Submitter Identification</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Your Name</Label>
+                            <Input placeholder="John Doe" className="h-11 rounded-xl bg-white" value={submitterData.name} onChange={e => setSubmitterData({...submitterData, name: e.target.value})} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Designation</Label>
+                            <Input placeholder="Club President" className="h-11 rounded-xl bg-white" value={submitterData.designation} onChange={e => setSubmitterData({...submitterData, designation: e.target.value})} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Select Club</Label>
+                            <Select value={submitterData.club} onValueChange={v => setSubmitterData({...submitterData, club: v})}>
+                                <SelectTrigger className="h-11 rounded-xl bg-white">
+                                    <SelectValue placeholder="Choose club" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {CLUBS.map(club => <SelectItem key={club} value={club}>{club}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Contact Number</Label>
+                            <Input placeholder="07X XXXXXXX" className="h-11 rounded-xl bg-white" value={submitterData.contact} onChange={e => setSubmitterData({...submitterData, contact: e.target.value})} />
+                        </div>
+                        <div className="space-y-2 sm:col-span-2">
+                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Email Address</Label>
+                            <Input type="email" placeholder="officer@sample.com" className="h-11 rounded-xl bg-white" value={submitterData.email} onChange={e => setSubmitterData({...submitterData, email: e.target.value})} />
+                        </div>
+                    </div>
+                  </div>
+
                   <div className="bg-primary/5 border border-primary/10 rounded-2xl p-6 space-y-4">
                     <div className="flex items-center gap-3 text-primary">
                       <FileSpreadsheet className="h-6 w-6" />
-                      <h3 className="font-bold text-lg">Club Officer Bulk Portal</h3>
+                      <h3 className="font-bold text-lg">Member List Portal</h3>
                     </div>
                     <p className="text-sm text-slate-600 leading-relaxed">
-                      Presidents or Secretaries can upload a club list to generate passes for multiple members at once. 
-                      Every guest will receive their individual pass via their provided email address.
+                      Upload your club list to generate passes for multiple members at once. 
+                      Each guest will receive their pass individually.
                     </p>
                     <Button variant="outline" size="sm" onClick={handleDownloadSample} className="bg-white border-primary/20 text-primary hover:bg-primary/5 font-bold">
-                      <Download className="mr-2 h-4 w-4" /> Download Format Template
+                      <Download className="mr-2 h-4 w-4" /> Download Formatting Sample
                     </Button>
                   </div>
 
@@ -351,11 +424,10 @@ export default function PlatformPublicRegistration() {
                     <div className="space-y-6 py-10 text-center animate-in fade-in">
                       <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
                       <div className="space-y-2">
-                        <p className="font-black text-slate-900 uppercase tracking-widest">Processing List...</p>
+                        <p className="font-black text-slate-900 uppercase tracking-widest">Processing District List...</p>
                         <p className="text-sm text-slate-500">{processProgress}% complete</p>
                       </div>
                       <Progress value={processProgress} className="h-2 rounded-full bg-slate-100" />
-                      <p className="text-xs text-slate-400 italic">Please do not close this window until finished.</p>
                     </div>
                   ) : (
                     <div className="space-y-6">
@@ -383,7 +455,7 @@ export default function PlatformPublicRegistration() {
 
                       <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-xs">
                         <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                        <p>Ensure the CSV matches the template exactly. Duplicate emails will be skipped by the system to prevent spam.</p>
+                        <p>Security Note: Your identification details will be logged as the registrant for this list.</p>
                       </div>
                     </div>
                   )}

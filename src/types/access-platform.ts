@@ -13,6 +13,14 @@ export interface AccessEvent {
   createdAt: string;
 }
 
+export interface RegistrationSubmitter {
+  name: string;
+  designation: string;
+  club: string;
+  email: string;
+  contact: string;
+}
+
 export interface AccessRegistration {
   id: string;
   eventId: string;
@@ -27,6 +35,7 @@ export interface AccessRegistration {
   checkInTime?: string;
   ticketId: string;
   createdAt: string;
+  registeredBy?: RegistrationSubmitter; // Metadata for who performed the registration
 }
 
 export interface AccessPlatformStats {

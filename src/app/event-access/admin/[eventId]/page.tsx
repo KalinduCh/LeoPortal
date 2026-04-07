@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, CheckCircle, Clock, Download, QrCode, Search, 
   Loader2, Trash2, ArrowLeft, BarChart3, Upload, Mail, ShieldAlert, Phone, Utensils, FileSpreadsheet,
-  AlertCircle
+  AlertCircle, ShieldCheck
 } from 'lucide-react';
 import { getPlatformEvent, subscribeToPlatformRegistrations, deletePlatformRegistration } from '@/services/accessPlatformService';
 import type { AccessEvent, AccessRegistration, AccessPlatformStats } from '@/types/access-platform';
@@ -21,6 +21,7 @@ import { format, parseISO } from 'date-fns';
 import Papa from 'papaparse';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function PlatformEventDashboard() {
   const params = useParams();
@@ -85,7 +86,8 @@ export default function PlatformEventDashboard() {
       'Type': r.role,
       'Food': r.foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian',
       'Status': r.status === 'checked_in' ? 'Checked In' : 'Registered',
-      'Check-In Time': r.checkInTime ? format(parseISO(r.checkInTime), 'PPP p') : 'N/A'
+      'Check-In Time': r.checkInTime ? format(parseISO(r.checkInTime), 'PPP p') : 'N/A',
+      'Registered By': r.registeredBy ? `${r.registeredBy.name} (${r.registeredBy.club})` : 'Self'
     }));
     const csv = Papa.unparse(data);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -93,84 +95,6 @@ export default function PlatformEventDashboard() {
     link.href = URL.createObjectURL(blob);
     link.download = `${event?.name.replace(/\s+/g, '_')}_LeoEntrivo_Export.csv`;
     link.click();
-  };
-
-  const downloadSampleCsv = () => {
-    const sampleData = [
-      {
-        Name: "John Doe",
-        Email: "john.doe@example.com",
-        Club: "Leo Club of Athugalpura",
-        Contact: "0712345678",
-        Type: "Leo",
-        Food: "non_veg"
-      },
-      {
-        Name: "Jane Smith",
-        Email: "jane.smith@example.com",
-        Club: "Lions Club of Athugalpura",
-        Contact: "0771234567",
-        Type: "Lion",
-        Food: "veg"
-      }
-    ];
-    const csv = Papa.unparse(sampleData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = "LeoEntrivo_Bulk_Import_Sample.csv";
-    link.click();
-  };
-
-  const handleBulkImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsImporting(true);
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        let successCount = 0;
-        let errorCount = 0;
-
-        for (const row of results.data as any[]) {
-          try {
-            if (!row.Name || !row.Email) continue;
-            
-            const response = await fetch('/api/access-platform/register', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                eventId,
-                eventName: event?.name,
-                eventDate: event?.date,
-                eventTime: event?.time,
-                eventLocation: event?.location,
-                name: row.Name,
-                email: row.Email,
-                club: row.Club || 'Individual',
-                contactNumber: row.Contact || '',
-                role: row.Type || 'Leo',
-                foodPreference: (row.Food?.toLowerCase().includes('veg') && !row.Food?.toLowerCase().includes('non')) ? 'veg' : 'non_veg'
-              }),
-            });
-
-            if (response.ok) successCount++;
-            else errorCount++;
-          } catch (err) {
-            errorCount++;
-          }
-        }
-
-        toast({
-          title: "Import Finished",
-          description: `Imported ${successCount} entries. ${errorCount > 0 ? `${errorCount} errors.` : ''}`
-        });
-        setIsImporting(false);
-        e.target.value = '';
-      }
-    });
   };
 
   const handleDelete = async (id: string) => {
@@ -225,29 +149,9 @@ export default function PlatformEventDashboard() {
                 <CardTitle className="text-lg">Attendee Registry</CardTitle>
                 <CardDescription>Search and manage all issued passes.</CardDescription>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={downloadSampleCsv}
-                  className="text-xs text-primary font-bold hover:bg-primary/5"
-                >
-                  <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
-                  Format Sample
-                </Button>
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input placeholder="Search name, club..." className="pl-9 h-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                </div>
-                <div className="relative">
-                  <Input type="file" accept=".csv" className="hidden" id="bulk-import" onChange={handleBulkImport} disabled={isImporting} />
-                  <Button variant="secondary" asChild disabled={isImporting} className="h-10">
-                    <label htmlFor="bulk-import" className="cursor-pointer">
-                      {isImporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-                      Bulk CSV
-                    </label>
-                  </Button>
-                </div>
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input placeholder="Search name, club..." className="pl-9 h-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -268,7 +172,22 @@ export default function PlatformEventDashboard() {
                     {filteredRegistrations.map(r => (
                       <TableRow key={r.id} className="hover:bg-slate-50/50">
                         <TableCell>
-                          <p className="font-bold text-slate-900">{r.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900">{r.name}</p>
+                            {r.registeredBy && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">Bulk Registered by: {r.registeredBy.name}</p>
+                                    <p className="text-[10px] opacity-70">{r.registeredBy.designation} • {r.registeredBy.club}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase tracking-tighter">
                             <Mail className="h-3 w-3" /> {r.email}
                           </div>
