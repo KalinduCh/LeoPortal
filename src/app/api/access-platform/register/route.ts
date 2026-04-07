@@ -12,7 +12,8 @@ export async function POST(req: Request) {
     const data = await req.json();
     const { 
         eventId, eventName, eventDate, eventTime, eventLocation, 
-        name, email, club, contactNumber, role, foodPreference 
+        name, email, club, contactNumber, role, foodPreference,
+        submitterInfo // New field for bulk registration security
     } = data;
 
     if (!eventId || !name || !email) {
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
 
     const ticketId = `ENT-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
 
-    const docRef = await addDoc(collection(db, PLATFORM_REGISTRATIONS), {
+    const registrationData: any = {
       eventId,
       name,
       email,
@@ -33,7 +34,14 @@ export async function POST(req: Request) {
       status: 'registered',
       emailStatus: 'pending',
       createdAt: serverTimestamp(),
-    });
+    };
+
+    // Store submitter info if provided (for bulk registrations)
+    if (submitterInfo) {
+      registrationData.registeredBy = submitterInfo;
+    }
+
+    const docRef = await addDoc(collection(db, PLATFORM_REGISTRATIONS), registrationData);
 
     const qrPayload = JSON.stringify({ ticketId, eventId });
     const qrBase64 = await QRCode.toDataURL(qrPayload, {
