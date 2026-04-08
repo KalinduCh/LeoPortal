@@ -7,6 +7,15 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
 
 ## ✨ Key Features
 
+### 🎟️ LeoEntrivo - District Access Platform
+A professional-grade event ticketing and entrance management system tailored for District 306 D9 events.
+- **Dual Registration Engine**: Supports seamless single-entry registrations and high-volume Club Bulk Uploads via CSV.
+- **Officer Security Layer**: Mandatory identification for bulk submittals (President/Secretary details) to ensure a secure audit trail.
+- **Participation Analytics**: Standardized club selection system (Athugalpura, UOP, Kandy, etc.) to track attendance density and generate club-wise reports.
+- **Digital QR Passes**: Automated generation and email delivery of unique entry tickets with built-in delivery status tracking (Delivered/Failed).
+- **Ground Command Center**: Real-time dashboard for organizers with a live arrival feed and attendee registry management.
+- **Pro Entrance Scanner**: Mobile-optimized, transactional QR scanner featuring haptic feedback and explicit verification states (Access Granted, Already Entered, Invalid).
+
 ### PWA & Push Notifications
 LeoPortal is a fully functional Progressive Web App.
 - **Service Worker**: Robust background messaging for reliable push notifications.
@@ -55,4 +64,5 @@ npm run dev
 ```
 
 ---
-© 2026 Leo Club of Athugalpura.
+© 2026 Leo District 306 D9 Event Management Platform.
+Designed & Powered by Leo Club of Athugalpura.
