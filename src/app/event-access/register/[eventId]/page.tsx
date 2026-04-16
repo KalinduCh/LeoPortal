@@ -90,7 +90,10 @@ export default function PlatformPublicRegistration() {
           eventName: event.name,
           eventDate: event.date,
           eventTime: event.time,
-          eventLocation: event.location
+          eventLocation: event.location,
+          customEmailBody: event.customEmailBody,
+          attachmentUrl: event.attachmentUrl,
+          attachmentName: event.attachmentName,
         }),
       });
 
@@ -131,7 +134,6 @@ export default function PlatformPublicRegistration() {
     const file = e.target.files?.[0];
     if (!file || !event) return;
 
-    // Check submitter data
     if (!submitterData.name || !submitterData.email || !submitterData.contact || !submitterData.club) {
         toast({ 
             title: "Submitter Identity Required", 
@@ -151,7 +153,6 @@ export default function PlatformPublicRegistration() {
       complete: async (results) => {
         const data = results.data as any[];
         let successCount = 0;
-        let errorCount = 0;
 
         for (let i = 0; i < data.length; i++) {
           const row = data[i];
@@ -169,20 +170,22 @@ export default function PlatformPublicRegistration() {
                 eventDate: event.date,
                 eventTime: event.time,
                 eventLocation: event.location,
+                customEmailBody: event.customEmailBody,
+                attachmentUrl: event.attachmentUrl,
+                attachmentName: event.attachmentName,
                 name: row.Name,
                 email: row.Email,
                 club: row.Club || 'Individual',
                 contactNumber: row.Contact || '',
                 role: row.Type || 'Leo',
                 foodPreference: (row.Food?.toLowerCase().includes('veg') && !row.Food?.toLowerCase().includes('non')) ? 'veg' : 'non_veg',
-                submitterInfo: submitterData // Link guest to the registering officer
+                submitterInfo: submitterData
               }),
             });
 
             if (response.ok) successCount++;
-            else errorCount++;
           } catch (err) {
-            errorCount++;
+            console.error("Bulk Item Error:", err);
           }
         }
 
@@ -228,16 +231,24 @@ export default function PlatformPublicRegistration() {
   return (
     <div className="min-h-screen bg-[#f8fafc] py-12 px-4">
       <div className="max-w-2xl mx-auto space-y-10">
-        <header className="text-center space-y-4">
+        <header className="text-center space-y-6">
           <div className="flex justify-center">
             <div className="bg-white p-4 rounded-3xl shadow-xl ring-1 ring-slate-200">
               <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={80} height={80} />
             </div>
           </div>
+          
           <div className="space-y-1">
             <h1 className="text-4xl font-black font-headline text-slate-900 tracking-tighter uppercase">{event.name}</h1>
             <p className="text-primary font-bold tracking-[0.2em] text-xs uppercase">LeoEntrivo Digital Pass System</p>
           </div>
+
+          {event.imageUrl && (
+            <div className="w-full h-48 sm:h-64 rounded-[2.5rem] overflow-hidden shadow-2xl ring-1 ring-slate-200 bg-white p-2">
+                <img src={event.imageUrl} alt="Event Branding" className="w-full h-full object-cover rounded-[2rem]" />
+            </div>
+          )}
+
           <div className="flex flex-wrap justify-center gap-6 text-sm text-slate-500 font-medium">
             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><Calendar className="h-4 w-4 text-primary" /> {format(new Date(event.date), 'PPP')}</div>
             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><Clock className="h-4 w-4 text-primary" /> {event.time}</div>
@@ -368,7 +379,6 @@ export default function PlatformPublicRegistration() {
 
               <TabsContent value="bulk">
                 <CardContent className="p-8 space-y-8">
-                  {/* Identification for Security */}
                   <div className="bg-slate-50 ring-1 ring-slate-200 rounded-3xl p-6 space-y-6">
                     <div className="flex items-center gap-3 text-slate-900 border-b pb-4">
                       <ShieldCheck className="h-6 w-6 text-primary" />
