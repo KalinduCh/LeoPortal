@@ -1,7 +1,7 @@
 // src/app/(authenticated)/project-ideas/view/page.tsx
 "use client";
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -536,12 +536,12 @@ function ViewProjectProposalContent() {
 
 export default function ViewProjectProposalPage() {
     return (
-        <React.Suspense fallback={
+        <Suspense fallback={
             <div className="flex justify-center items-center h-[calc(100vh-10rem)]">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
         }>
             <ViewProjectProposalContent />
-        </React.Suspense>
+        </Suspense>
     );
 }
