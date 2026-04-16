@@ -233,8 +233,12 @@ export default function PlatformPublicRegistration() {
       <div className="max-w-2xl mx-auto space-y-10">
         <header className="text-center space-y-6">
           <div className="flex justify-center">
-            <div className="bg-white p-4 rounded-3xl shadow-xl ring-1 ring-slate-200">
-              <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={80} height={80} />
+            <div className="bg-white p-2 rounded-3xl shadow-xl ring-1 ring-slate-200 w-24 h-24 sm:w-32 sm:h-32 flex items-center justify-center overflow-hidden">
+              {event.imageUrl ? (
+                <img src={event.imageUrl} alt="Event Branding" className="w-full h-full object-cover" />
+              ) : (
+                <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={80} height={80} className="object-contain" />
+              )}
             </div>
           </div>
           
@@ -242,12 +246,6 @@ export default function PlatformPublicRegistration() {
             <h1 className="text-4xl font-black font-headline text-slate-900 tracking-tighter uppercase">{event.name}</h1>
             <p className="text-primary font-bold tracking-[0.2em] text-xs uppercase">LeoEntrivo Digital Pass System</p>
           </div>
-
-          {event.imageUrl && (
-            <div className="w-full h-48 sm:h-64 rounded-[2.5rem] overflow-hidden shadow-2xl ring-1 ring-slate-200 bg-white p-2">
-                <img src={event.imageUrl} alt="Event Branding" className="w-full h-full object-cover rounded-[2rem]" />
-            </div>
-          )}
 
           <div className="flex flex-wrap justify-center gap-6 text-sm text-slate-500 font-medium">
             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><Calendar className="h-4 w-4 text-primary" /> {format(new Date(event.date), 'PPP')}</div>
