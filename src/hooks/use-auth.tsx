@@ -1,3 +1,4 @@
+
 // src/hooks/use-auth.tsx
 "use client";
 
@@ -17,7 +18,7 @@ import { useToast } from './use-toast';
 import { useRouter } from 'next/navigation';
 
 export type AdminViewMode = 'admin_view' | 'member_view';
-const SUPER_ADMIN_EMAILS = ["check22@gmail.com", "chamikarakc@gmail.com"];
+const SUPER_ADMIN_EMAILS = ["check22@gmail.com"];
 
 export interface LoginResult {
   user: User | null;

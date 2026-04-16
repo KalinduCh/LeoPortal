@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -46,10 +47,14 @@ export default function AccessLoginPage() {
   return (
     <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-2">
-          <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={80} height={80} className="mx-auto rounded-full shadow-lg mb-4" />
-          <h1 className="text-3xl font-black font-headline text-primary tracking-tight uppercase">LeoEntrivo</h1>
-          <p className="text-muted-foreground text-sm uppercase tracking-widest font-bold">Organizer Command Portal</p>
+        <div className="text-center space-y-4">
+          <div className="h-24 w-24 mx-auto rounded-full bg-white shadow-xl ring-4 ring-primary/10 flex items-center justify-center overflow-hidden border-2 border-slate-50">
+            <Image src="https://i.imgur.com/j53LmxF.png" alt="Leo Logo" width={70} height={70} className="object-contain" />
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-3xl font-black font-headline text-primary tracking-tight uppercase">LeoEntrivo</h1>
+            <p className="text-muted-foreground text-xs uppercase tracking-[0.3em] font-black">Organizer Command Portal</p>
+          </div>
         </div>
 
         <Card className="shadow-2xl border-none ring-1 ring-slate-200 rounded-[2rem] overflow-hidden bg-white">
@@ -57,27 +62,27 @@ export default function AccessLoginPage() {
             <CardTitle className="text-xl flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" /> Security Gateway
             </CardTitle>
-            <CardDescription className="text-slate-400">Enter organizer credentials to manage district registrations.</CardDescription>
+            <CardDescription className="text-slate-400">Enter organizer credentials to manage registrations.</CardDescription>
           </CardHeader>
           <CardContent className="p-8">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label>Admin Email</Label>
-                <Input type="email" required className="h-12 rounded-xl" value={email} onChange={e => setEmail(e.target.value)} placeholder="organizer@leoentrivo.com" />
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Admin Email</Label>
+                <Input type="email" required className="h-12 rounded-xl bg-slate-50 border-slate-200" value={email} onChange={e => setEmail(e.target.value)} placeholder="organizer@leoentrivo.com" />
               </div>
               <div className="space-y-2">
-                <Label>Secure Password</Label>
-                <Input type="password" required className="h-12 rounded-xl" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Secure Password</Label>
+                <Input type="password" required className="h-12 rounded-xl bg-slate-50 border-slate-200" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
               </div>
-              <Button type="submit" className="w-full h-14 text-lg font-black shadow-lg rounded-xl bg-primary" disabled={isLoading}>
+              <Button type="submit" className="w-full h-14 text-lg font-black shadow-lg rounded-xl bg-primary hover:scale-[1.02] transition-transform" disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Identity"}
                 {!isLoading && <ArrowRight className="ml-2 h-5 w-5" />}
               </Button>
             </form>
             
             <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-                <p className="text-sm text-slate-500 mb-4">New organizer for a district event?</p>
-                <Button asChild variant="outline" className="w-full h-12 rounded-xl border-dashed">
+                <p className="text-sm text-slate-500 mb-4 font-medium">New organizer for a district event?</p>
+                <Button asChild variant="outline" className="w-full h-12 rounded-xl border-dashed border-primary/40 text-primary font-bold hover:bg-primary/5">
                     <Link href="/event-access/signup">
                         <UserPlus className="mr-2 h-4 w-4" /> Request Access Pass
                     </Link>
@@ -86,8 +91,8 @@ export default function AccessLoginPage() {
           </CardContent>
         </Card>
         
-        <p className="text-center text-[10px] text-slate-400 uppercase font-black tracking-widest">
-          Authorized Event Personnel Only
+        <p className="text-center text-[10px] text-slate-400 uppercase font-black tracking-widest opacity-50">
+          Authorized District Personnel Only
         </p>
       </div>
     </div>

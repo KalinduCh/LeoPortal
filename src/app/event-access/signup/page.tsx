@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -37,7 +38,6 @@ export default function EntrivoSignupPage() {
 
   const onSubmit = async (values: z.infer<typeof signupSchema>) => {
     setFormLoading(true);
-    // Source: 'entrivo' marks this user for organizer access
     const result = await signup(values.name, values.email, values.password, 'entrivo');
     
     if (result) {
@@ -55,10 +55,14 @@ export default function EntrivoSignupPage() {
   return (
     <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-            <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={80} height={80} className="mx-auto rounded-full shadow-lg mb-4" />
+        <div className="text-center space-y-4">
+           <div className="h-24 w-24 mx-auto rounded-full bg-white shadow-xl ring-4 ring-primary/10 flex items-center justify-center overflow-hidden border-2 border-slate-50">
+            <Image src="https://i.imgur.com/j53LmxF.png" alt="Leo Logo" width={70} height={70} className="object-contain" />
+          </div>
+          <div className="space-y-1">
             <h1 className="text-3xl font-black font-headline text-primary tracking-tight uppercase">LeoEntrivo</h1>
-            <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">Register as Organizer</p>
+            <p className="text-slate-500 text-xs font-black uppercase tracking-[0.2em]">Register as Organizer</p>
+          </div>
         </div>
 
         {signupSuccess ? (
@@ -68,19 +72,19 @@ export default function EntrivoSignupPage() {
               <CardTitle className="text-2xl font-black">Application Received</CardTitle>
             </div>
             <CardContent className="p-8 text-center space-y-6">
-              <p className="text-slate-600 font-medium">
+              <p className="text-slate-600 font-medium leading-relaxed">
                 Your request to join the <strong>District Access Platform</strong> has been submitted.
               </p>
-              <div className="p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-sm text-slate-500 italic">
+              <div className="p-5 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-sm text-slate-500 italic">
                 A Super Admin will review your credentials and grant access shortly. You will receive an email once approved.
               </div>
-              <Button asChild className="w-full h-12 rounded-xl">
+              <Button asChild className="w-full h-14 rounded-xl text-lg font-bold shadow-lg">
                 <Link href="/event-access/login">Return to Login</Link>
               </Button>
             </CardContent>
           </Card>
         ) : (
-          <Card className="shadow-2xl border-none ring-1 ring-slate-200 rounded-[2rem] overflow-hidden">
+          <Card className="shadow-2xl border-none ring-1 ring-slate-200 rounded-[2rem] overflow-hidden bg-white">
             <CardHeader className="bg-slate-900 p-8 text-white">
               <CardTitle className="text-xl flex items-center gap-2">
                 <ShieldPlus className="h-5 w-5 text-primary" /> Create Account
@@ -95,8 +99,8 @@ export default function EntrivoSignupPage() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Full Name</FormLabel>
-                        <FormControl><Input placeholder="John Doe" {...field} className="rounded-xl h-12" /></FormControl>
+                        <FormLabel className="text-xs font-bold uppercase tracking-wider text-slate-500">Full Name</FormLabel>
+                        <FormControl><Input placeholder="John Doe" {...field} className="rounded-xl h-12 bg-slate-50 border-slate-200" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -106,8 +110,8 @@ export default function EntrivoSignupPage() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Professional Email</FormLabel>
-                        <FormControl><Input placeholder="john@example.com" {...field} className="rounded-xl h-12" /></FormControl>
+                        <FormLabel className="text-xs font-bold uppercase tracking-wider text-slate-500">Professional Email</FormLabel>
+                        <FormControl><Input placeholder="john@example.com" {...field} className="rounded-xl h-12 bg-slate-50 border-slate-200" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -117,20 +121,20 @@ export default function EntrivoSignupPage() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secure Password</FormLabel>
-                        <FormControl><Input type="password" placeholder="••••••••" {...field} className="rounded-xl h-12" /></FormControl>
+                        <FormLabel className="text-xs font-bold uppercase tracking-wider text-slate-500">Secure Password</FormLabel>
+                        <FormControl><Input type="password" placeholder="••••••••" {...field} className="rounded-xl h-12 bg-slate-50 border-slate-200" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full h-14 text-lg font-black shadow-lg rounded-xl mt-4" disabled={formLoading}>
-                    {formLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Request Organizer Access"}
+                  <Button type="submit" className="w-full h-14 text-lg font-black shadow-lg rounded-xl mt-4 bg-primary hover:scale-[1.02] transition-transform" disabled={formLoading}>
+                    {formLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Request Access"}
                   </Button>
                 </form>
               </Form>
               
               <div className="mt-6 text-center">
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-slate-500 font-medium">
                     Already an organizer?{" "}
                     <Link href="/event-access/login" className="text-primary font-bold hover:underline">Log in</Link>
                   </p>
