@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -10,15 +11,22 @@ import { LogOut, LayoutDashboard, Users, ShieldCheck } from 'lucide-react';
 export default function AccessPlatformLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   
-  const isSuperAdmin = user?.email === 'chamikarakc@gmail.com' || user?.email === 'check22@gmail.com';
+  const isSuperAdmin = user?.role === 'super_admin';
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <nav className="h-16 border-b bg-white shadow-sm sticky top-0 z-50">
+      <nav className="h-20 border-b bg-white shadow-sm sticky top-0 z-50">
         <div className="container mx-auto h-full flex items-center justify-between px-4">
-          <Link href="/event-access/admin" className="flex items-center gap-2">
-            <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={32} height={32} />
-            <span className="font-bold text-lg text-primary font-headline tracking-tight uppercase">LeoEntrivo</span>
+          <Link href="/event-access/admin" className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+                <Image src="https://i.imgur.com/j53LmxF.png" alt="Leo Logo" width={40} height={40} className="object-contain" />
+                <Image src="https://i.imgur.com/2MRr4iB.png" alt="Lion Logo" width={40} height={40} className="object-contain" />
+                <Image src="https://i.imgur.com/d7gk61F.png" alt="District Logo" width={44} height={44} className="object-contain" />
+            </div>
+            <div className="hidden lg:block">
+                <span className="font-bold text-xl text-primary font-headline tracking-tight uppercase">LeoEntrivo</span>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">D306 D9 Event Platform</p>
+            </div>
           </Link>
           
           {user && (
@@ -32,7 +40,7 @@ export default function AccessPlatformLayout({ children }: { children: React.Rea
                 {isSuperAdmin && (
                    <Link href="/event-access/admin/users">
                     <Button variant="ghost" size="sm" className="font-bold">
-                      <Users className="mr-2 h-4 w-4" /> Manage Admins
+                      <Users className="mr-2 h-4 w-4" /> Manage Organizers
                     </Button>
                   </Link>
                 )}
