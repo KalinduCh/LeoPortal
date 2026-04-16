@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from "@/components/ui/badge";
 import { 
   CheckCircle2, XCircle, AlertTriangle, ArrowLeft, 
   Loader2, Camera, User, Club, ShieldCheck
