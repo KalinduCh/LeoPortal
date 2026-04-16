@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -15,12 +16,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { 
   PlusCircle, Calendar, MapPin, Settings, Loader2, 
-  ExternalLink, Activity, QrCode, MoreVertical, Edit3, Eye
+  ExternalLink, Activity, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X
 } from 'lucide-react';
 import { getPlatformEvents, createPlatformEvent, updatePlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
 import { format, isValid, parseISO } from 'date-fns';
+import { Separator } from '@/components/ui/separator';
+
+const MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024; // 2MB
 
 export default function PlatformAdminOverview() {
   const [events, setEvents] = useState<AccessEvent[]>([]);
@@ -30,6 +34,8 @@ export default function PlatformAdminOverview() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
 
   const [editingEvent, setEditingEvent] = useState<AccessEvent | null>(null);
   const [formData, setFormData] = useState({
@@ -39,6 +45,10 @@ export default function PlatformAdminOverview() {
     location: '',
     description: '',
     capacity: '',
+    imageUrl: '',
+    customEmailBody: '',
+    attachmentUrl: '',
+    attachmentName: '',
   });
 
   const fetchEvents = async () => {
@@ -73,12 +83,40 @@ export default function PlatformAdminOverview() {
         location: event.location,
         description: event.description || '',
         capacity: event.capacity?.toString() || '',
+        imageUrl: event.imageUrl || '',
+        customEmailBody: event.customEmailBody || '',
+        attachmentUrl: event.attachmentUrl || '',
+        attachmentName: event.attachmentName || '',
       });
     } else {
       setEditingEvent(null);
-      setFormData({ name: '', date: '', time: '', location: '', description: '', capacity: '' });
+      setFormData({ 
+        name: '', date: '', time: '', location: '', description: '', capacity: '',
+        imageUrl: '', customEmailBody: '', attachmentUrl: '', attachmentName: ''
+      });
     }
     setIsDialogOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'attachment') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+        toast({ title: "File Too Large", description: "Maximum file size is 2MB.", variant: "destructive" });
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        const base64 = reader.result as string;
+        if (type === 'image') {
+            setFormData(prev => ({ ...prev, imageUrl: base64 }));
+        } else {
+            setFormData(prev => ({ ...prev, attachmentUrl: base64, attachmentName: file.name }));
+        }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveEvent = async (e: React.FormEvent) => {
@@ -94,6 +132,10 @@ export default function PlatformAdminOverview() {
         location: formData.location,
         description: formData.description,
         capacity: isNaN(capacityValue as number) ? undefined : capacityValue,
+        imageUrl: formData.imageUrl,
+        customEmailBody: formData.customEmailBody,
+        attachmentUrl: formData.attachmentUrl,
+        attachmentName: formData.attachmentName,
       };
 
       if (editingEvent) {
@@ -143,8 +185,17 @@ export default function PlatformAdminOverview() {
             const formattedDate = isValid(eventDate) ? format(eventDate, 'PPP') : event.date;
             
             return (
-              <Card key={event.id} className="hover:shadow-xl transition-all duration-300 border-none bg-white ring-1 ring-slate-200 overflow-hidden">
-                <CardHeader className="bg-slate-50/50 pb-4">
+              <Card key={event.id} className="hover:shadow-xl transition-all duration-300 border-none bg-white ring-1 ring-slate-200 overflow-hidden flex flex-col">
+                <div className="h-32 bg-slate-100 relative overflow-hidden">
+                    {event.imageUrl ? (
+                        <img src={event.imageUrl} alt={event.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300">
+                            <ImageIcon className="h-10 w-10" />
+                        </div>
+                    )}
+                </div>
+                <CardHeader className="bg-slate-50/50 pb-4 border-t border-slate-100">
                   <div className="flex justify-between items-start">
                     <div className="min-w-0 pr-4">
                       <CardTitle className="text-xl font-bold text-slate-900 truncate font-headline">{event.name}</CardTitle>
@@ -171,12 +222,19 @@ export default function PlatformAdminOverview() {
                     </DropdownMenu>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-6 space-y-4 pb-6">
+                <CardContent className="pt-6 space-y-4 pb-6 flex-grow">
                   <div className="flex items-start gap-2 text-sm text-slate-600">
                     <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" /> {event.location}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-emerald-600 font-bold uppercase tracking-wider">
-                    <Activity className="h-3 w-3 animate-pulse" /> Live Module Active
+                  <div className="flex flex-wrap gap-2">
+                     <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider">
+                        {event.customEmailBody ? "Custom Email Active" : "Default Email"}
+                     </Badge>
+                     {event.attachmentUrl && (
+                        <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border-emerald-100">
+                            <Paperclip className="h-2.5 w-2.5 mr-1" /> Attachment
+                        </Badge>
+                     )}
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2 p-4 border-t bg-white">
@@ -207,42 +265,95 @@ export default function PlatformAdminOverview() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-headline">
               {editingEvent ? 'Edit Module Details' : 'Deploy New Module'}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveEvent} className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Event Name</Label>
-              <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. District Installation 2026" />
+          <form onSubmit={handleSaveEvent} className="space-y-6 py-4">
+            <div className="space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Basic Information</h3>
+                <div className="space-y-2">
+                    <Label>Event Name</Label>
+                    <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. District Installation 2026" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Date</Label>
+                        <Input type="date" required value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Time</Label>
+                        <Input type="time" required value={formData.time} onChange={e => setFormData({ ...formData, time: e.target.value })} />
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label>Venue Location</Label>
+                    <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="e.g. Grand City Hall" />
+                </div>
+                <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Provide a brief overview for the registration page..." />
+                </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <Input type="date" required value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Time</Label>
-                <Input type="time" required value={formData.time} onChange={e => setFormData({ ...formData, time: e.target.value })} />
-              </div>
+
+            <div className="space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Creative & Branding</h3>
+                <div className="space-y-2">
+                    <Label className="flex items-center gap-2">Event Logo / Image URL <ImageIcon className="h-3 w-3 text-slate-400"/></Label>
+                    <div className="flex gap-2">
+                        <Input value={formData.imageUrl} onChange={e => setFormData({ ...formData, imageUrl: e.target.value })} placeholder="https://imgur.com/image.png" className="flex-grow" />
+                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>Upload</Button>
+                        <input type="file" hidden ref={fileInputRef} accept="image/*" onChange={(e) => handleFileChange(e, 'image')} />
+                    </div>
+                    {formData.imageUrl && (
+                        <div className="relative w-full h-24 rounded-lg overflow-hidden border mt-2">
+                            <img src={formData.imageUrl} className="w-full h-full object-cover" alt="Preview" />
+                            <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 rounded-full" onClick={() => setFormData({...formData, imageUrl: ''})}><X className="h-3 w-3"/></Button>
+                        </div>
+                    )}
+                </div>
             </div>
-            <div className="space-y-2">
-              <Label>Venue Location</Label>
-              <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="e.g. Grand City Hall" />
+
+            <div className="space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Email Automation (Optional)</h3>
+                <div className="space-y-2">
+                    <Label className="flex items-center gap-2">Custom Email Body <Mail className="h-3 w-3 text-slate-400"/></Label>
+                    <Textarea 
+                        value={formData.customEmailBody} 
+                        onChange={e => setFormData({ ...formData, customEmailBody: e.target.value })} 
+                        rows={4} 
+                        placeholder="Welcome to our event! Please find your ticket attached..." 
+                    />
+                    <p className="text-[10px] text-slate-400 italic">This will replace the default greeting in the confirmation email.</p>
+                </div>
+                <div className="space-y-2">
+                    <Label className="flex items-center gap-2">Email Attachment (Max 2MB) <Paperclip className="h-3 w-3 text-slate-400"/></Label>
+                    <div className="flex gap-2">
+                        <Input value={formData.attachmentName} readOnly placeholder="No file chosen" className="flex-grow" />
+                        <Button type="button" variant="outline" onClick={() => attachmentInputRef.current?.click()}>Select File</Button>
+                        <input type="file" hidden ref={attachmentInputRef} onChange={(e) => handleFileChange(e, 'attachment')} />
+                    </div>
+                    {formData.attachmentUrl && (
+                        <div className="flex items-center justify-between p-2 bg-emerald-50 border border-emerald-100 rounded-lg">
+                            <span className="text-xs font-medium text-emerald-800 truncate">{formData.attachmentName}</span>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setFormData({...formData, attachmentUrl: '', attachmentName: ''})}><X className="h-3 w-3"/></Button>
+                        </div>
+                    )}
+                </div>
             </div>
+
+            <Separator />
+            
             <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Provide a brief overview for the registration page..." />
-            </div>
-            <div className="space-y-2">
-              <Label>Capacity (Optional)</Label>
+              <Label>Attendee Capacity</Label>
               <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} placeholder="Unlimited if left empty" />
             </div>
-            <DialogFooter className="pt-4">
+
+            <DialogFooter className="pt-4 gap-2">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isProcessing} className="h-12 px-6 shadow-lg">
+              <Button type="submit" disabled={isProcessing} className="h-12 px-6 shadow-lg flex-1">
                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Save Changes" : "Start Module")}
               </Button>
             </DialogFooter>

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const { 
         eventId, eventName, eventDate, eventTime, eventLocation, 
         name, email, club, contactNumber, role, foodPreference,
-        submitterInfo // New field for bulk registration security
+        submitterInfo, customEmailBody, attachmentUrl, attachmentName
     } = data;
 
     if (!eventId || !name || !email) {
@@ -36,7 +36,6 @@ export async function POST(req: Request) {
       createdAt: serverTimestamp(),
     };
 
-    // Store submitter info if provided (for bulk registrations)
     if (submitterInfo) {
       registrationData.registeredBy = submitterInfo;
     }
@@ -61,6 +60,8 @@ export async function POST(req: Request) {
         });
 
         const foodLabel = foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian';
+        const defaultBody = `Your registration for <strong>${eventName}</strong> is successful. Please show the QR code below at the check-in desk for entry.`;
+        const emailContent = customEmailBody ? customEmailBody.replace(/\n/g, '<br>') : defaultBody;
 
         const emailHtml = `
           <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
             </div>
             <div style="padding: 40px 30px; background-color: #ffffff;">
               <p style="font-size: 18px; color: #1e293b; margin-top: 0;">Dear <strong>${name}</strong>,</p>
-              <p style="color: #475569; line-height: 1.6; font-size: 15px;">Your registration for <strong>${eventName}</strong> is successful. Please show the QR code below at the check-in desk for entry.</p>
+              <p style="color: #475569; line-height: 1.6; font-size: 15px;">${emailContent}</p>
               
               <div style="text-align: center; margin: 40px 0; padding: 30px; border: 2px dashed #cbd5e1; border-radius: 20px; background-color: #f8fafc;">
                 <img src="cid:qrcode" alt="Access QR" style="width: 240px; height: 240px; display: block; margin: 0 auto; border-radius: 8px;" />
@@ -91,17 +92,27 @@ export async function POST(req: Request) {
           </div>
         `;
 
+        const attachments: any[] = [{
+          filename: 'leoentrivo-pass.png',
+          content: qrBase64.split('base64,')[1],
+          encoding: 'base64',
+          cid: 'qrcode'
+        }];
+
+        if (attachmentUrl) {
+            attachments.push({
+                filename: attachmentName || 'Event_Document',
+                content: attachmentUrl.split('base64,')[1],
+                encoding: 'base64'
+            });
+        }
+
         await transporter.sendMail({
           from: `"LeoEntrivo Pass" <${GMAIL_EMAIL}>`,
           to: email,
           subject: `Your Pass for ${eventName}: ${ticketId}`,
           html: emailHtml,
-          attachments: [{
-            filename: 'leoentrivo-pass.png',
-            content: qrBase64.split('base64,')[1],
-            encoding: 'base64',
-            cid: 'qrcode'
-          }]
+          attachments
         });
         finalEmailStatus = 'success';
       } catch (emailErr) {
@@ -110,7 +121,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Update document with final email status
     await updateDoc(doc(db, PLATFORM_REGISTRATIONS, docRef.id), {
         emailStatus: finalEmailStatus
     });
