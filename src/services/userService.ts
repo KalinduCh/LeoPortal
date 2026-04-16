@@ -1,5 +1,5 @@
 // src/services/userService.ts
-import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc, deleteDoc, collection, query, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc, deleteDoc, collection, query, getDocs, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import type { User, UserRole } from '@/types';
 
@@ -14,7 +14,8 @@ export async function createUserProfile(
   dateOfBirth?: string,
   gender?: string,
   mobileNumber?: string,
-  designation?: string
+  designation?: string,
+  source: 'portal' | 'entrivo' = 'portal'
 ): Promise<void> {
   const userRef = doc(db, 'users', uid);
   const placeholderChar = name && name.trim().length > 0 ? name.trim().charAt(0).toUpperCase() : 'U';
@@ -25,6 +26,7 @@ export async function createUserProfile(
     name: name || "Unnamed User",
     role,
     status,
+    source,
     createdAt: serverTimestamp(),
     photoUrl: photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
     membershipFeeStatus: 'pending',
@@ -65,13 +67,14 @@ export async function getUserProfile(uid: string): Promise<User | null> {
         photoUrl: data.photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
         role: data.role,
         status: data.status || 'approved', 
+        source: data.source || 'portal',
         designation: data.designation,
         nic: data.nic,
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
         mobileNumber: data.mobileNumber,
         fcmToken: data.fcmToken, 
-        pushSubscription: data.pushSubscription, // Include pushSubscription
+        pushSubscription: data.pushSubscription, 
         membershipFeeStatus: data.membershipFeeStatus || 'pending',
         membershipFeeAmountPaid: data.membershipFeeAmountPaid || 0,
         permissions: data.permissions || {},
@@ -100,6 +103,7 @@ export async function getAllUsers(): Promise<User[]> {
             photoUrl: data.photoUrl,
             role: data.role,
             status: data.status || 'approved',
+            source: data.source || 'portal',
             designation: data.designation,
             nic: data.nic,
             dateOfBirth: data.dateOfBirth,
@@ -117,6 +121,20 @@ export async function getAllUsers(): Promise<User[]> {
         fetchedUsers.push(userProfile);
     });
     return fetchedUsers.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+}
+
+export async function getEntrivoOrganizers(): Promise<User[]> {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where('source', '==', 'entrivo'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        const u = { id: docSnap.id, ...data } as User;
+        if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+            u.createdAt = (data.createdAt as Timestamp).toDate().toISOString();
+        }
+        return u;
+    });
 }
 
 export async function updateUserProfile(uid: string, data: Partial<User>): Promise<void> {

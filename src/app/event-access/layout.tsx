@@ -5,10 +5,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, LayoutDashboard } from 'lucide-react';
+import { LogOut, LayoutDashboard, Users, ShieldCheck } from 'lucide-react';
 
 export default function AccessPlatformLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  
+  const isSuperAdmin = user?.email === 'chamikarakc@gmail.com' || user?.email === 'check22@gmail.com';
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -21,18 +23,31 @@ export default function AccessPlatformLayout({ children }: { children: React.Rea
           
           {user && (
             <div className="flex items-center gap-4">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm" className="hidden sm:flex">
-                  <LayoutDashboard className="mr-2 h-4 w-4" /> Club Portal
-                </Button>
-              </Link>
+              <div className="hidden md:flex items-center gap-2 mr-2">
+                <Link href="/event-access/admin">
+                  <Button variant="ghost" size="sm" className="font-bold">
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> Modules
+                  </Button>
+                </Link>
+                {isSuperAdmin && (
+                   <Link href="/event-access/admin/users">
+                    <Button variant="ghost" size="sm" className="font-bold">
+                      <Users className="mr-2 h-4 w-4" /> Manage Admins
+                    </Button>
+                  </Link>
+                )}
+              </div>
+
               <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
+              
               <div className="flex items-center gap-2">
                 <div className="text-right hidden sm:block">
                   <p className="text-xs font-bold leading-none">{user.name}</p>
-                  <p className="text-[10px] text-muted-foreground">Event Organizer</p>
+                  <p className="text-[9px] text-primary font-black uppercase tracking-tighter mt-1 flex items-center justify-end">
+                    <ShieldCheck className="h-2.5 w-2.5 mr-1" /> {isSuperAdmin ? 'Super Admin' : 'Organizer'}
+                  </p>
                 </div>
-                <Button variant="outline" size="icon" onClick={logout} title="Log out">
+                <Button variant="outline" size="icon" onClick={logout} title="Log out" className="rounded-full h-9 w-9">
                   <LogOut className="h-4 w-4" />
                 </Button>
               </div>

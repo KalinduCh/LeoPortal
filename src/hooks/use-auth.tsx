@@ -17,7 +17,7 @@ import { useToast } from './use-toast';
 import { useRouter } from 'next/navigation';
 
 export type AdminViewMode = 'admin_view' | 'member_view';
-const SUPER_ADMIN_EMAIL = "check22@gmail.com";
+const SUPER_ADMIN_EMAILS = ["check22@gmail.com", "chamikarakc@gmail.com"];
 
 export interface LoginResult {
   user: User | null;
@@ -39,7 +39,7 @@ interface AuthState {
   adminViewMode: AdminViewMode;
   setAdminViewMode: (mode: AdminViewMode) => void;
   login: (email: string, pass: string) => Promise<LoginResult>;
-  signup: (name: string, email: string, pass: string) => Promise<User | null>;
+  signup: (name: string, email: string, pass: string, source?: 'portal' | 'entrivo') => Promise<User | null>;
   logout: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<PasswordResetResult>;
   performAdminAuthOperation: (asyncTask: () => Promise<void>) => Promise<void>;
@@ -70,7 +70,6 @@ function useProvideAuth(): AuthState {
   const [adminViewMode, setAdminViewMode] = useState<AdminViewMode>('admin_view');
   const { toast } = useToast();
   const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const router = useRouter(); 
 
   useEffect(() => {
     const storedViewMode = localStorage.getItem('adminViewMode') as AdminViewMode;
@@ -120,7 +119,7 @@ function useProvideAuth(): AuthState {
         setFirebaseUser(fbUser);
         let userProfile = await getUserProfile(fbUser.uid);
         if (userProfile) {
-          if (userProfile.email === SUPER_ADMIN_EMAIL && userProfile.role !== 'super_admin') {
+          if (SUPER_ADMIN_EMAILS.includes(userProfile.email) && userProfile.role !== 'super_admin') {
             userProfile.role = 'super_admin';
           }
 
@@ -172,7 +171,7 @@ function useProvideAuth(): AuthState {
         return { user: null, success: false, reason: 'not_found' };
       }
       
-      if (userProfile.email === SUPER_ADMIN_EMAIL && userProfile.role !== 'super_admin') {
+      if (SUPER_ADMIN_EMAILS.includes(userProfile.email) && userProfile.role !== 'super_admin') {
         userProfile.role = 'super_admin';
       }
 
@@ -192,13 +191,14 @@ function useProvideAuth(): AuthState {
     }
   }, []);
 
-  const signup = useCallback(async (name: string, email: string, pass: string): Promise<User | null> => {
+  const signup = useCallback(async (name: string, email: string, pass: string, source: 'portal' | 'entrivo' = 'portal'): Promise<User | null> => {
     setIsSigningUp(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       const fbUser = userCredential.user;
       
-      await createUserProfile(fbUser.uid, email, name, 'member', 'pending');
+      const role: UserRole = source === 'entrivo' ? 'admin' : 'member';
+      await createUserProfile(fbUser.uid, email, name, role, 'pending', undefined, undefined, undefined, undefined, undefined, undefined, source);
       const newUserProfile = await getUserProfile(fbUser.uid);
 
       await firebaseSignOut(auth);
@@ -224,7 +224,6 @@ function useProvideAuth(): AuthState {
     if (user?.id) {
         try {
             await updateFcmToken(user.id, null);
-            console.log("FCM token cleared on logout.");
         } catch (error) {
             console.error("Failed to clear FCM token on logout:", error);
         }

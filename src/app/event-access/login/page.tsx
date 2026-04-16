@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Loader2, ShieldCheck, ArrowRight, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export default function AccessLoginPage() {
   const [email, setEmail] = useState('');
@@ -23,11 +24,21 @@ export default function AccessLoginPage() {
     e.preventDefault();
     setIsLoading(true);
     const result = await login(email, password);
-    if (result.success) {
+    
+    if (result.success && result.user) {
+      if (result.user.role === 'member' && result.user.source !== 'entrivo') {
+          toast({ title: "Permission Denied", description: "Standard club members cannot access the organizer portal.", variant: "destructive" });
+          setIsLoading(false);
+          return;
+      }
       toast({ title: "Authorized", description: "Welcome to the LeoEntrivo management portal." });
       router.push('/event-access/admin');
     } else {
-      toast({ title: "Access Denied", description: "Invalid credentials or unauthorized account.", variant: "destructive" });
+      if (result.reason === 'pending') {
+          toast({ title: "Account Pending", description: "Your organizer account is awaiting admin approval.", variant: "default" });
+      } else {
+          toast({ title: "Access Denied", description: "Invalid credentials or unauthorized account.", variant: "destructive" });
+      }
     }
     setIsLoading(false);
   };
@@ -41,28 +52,37 @@ export default function AccessLoginPage() {
           <p className="text-muted-foreground text-sm uppercase tracking-widest font-bold">Organizer Command Portal</p>
         </div>
 
-        <Card className="shadow-2xl border-none ring-1 ring-slate-200">
-          <CardHeader className="bg-slate-50/50">
+        <Card className="shadow-2xl border-none ring-1 ring-slate-200 rounded-[2rem] overflow-hidden bg-white">
+          <CardHeader className="bg-slate-900 p-8 text-white">
             <CardTitle className="text-xl flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" /> Security Gateway
             </CardTitle>
-            <CardDescription>Enter organizer credentials to manage district registrations.</CardDescription>
+            <CardDescription className="text-slate-400">Enter organizer credentials to manage district registrations.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="p-8">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label>Admin Email</Label>
-                <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="organizer@leoentrivo.com" />
+                <Input type="email" required className="h-12 rounded-xl" value={email} onChange={e => setEmail(e.target.value)} placeholder="organizer@leoentrivo.com" />
               </div>
               <div className="space-y-2">
                 <Label>Secure Password</Label>
-                <Input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+                <Input type="password" required className="h-12 rounded-xl" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
               </div>
-              <Button type="submit" className="w-full h-14 text-lg font-black shadow-lg" disabled={isLoading}>
+              <Button type="submit" className="w-full h-14 text-lg font-black shadow-lg rounded-xl bg-primary" disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Identity"}
                 {!isLoading && <ArrowRight className="ml-2 h-5 w-5" />}
               </Button>
             </form>
+            
+            <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                <p className="text-sm text-slate-500 mb-4">New organizer for a district event?</p>
+                <Button asChild variant="outline" className="w-full h-12 rounded-xl border-dashed">
+                    <Link href="/event-access/signup">
+                        <UserPlus className="mr-2 h-4 w-4" /> Request Access Pass
+                    </Link>
+                </Button>
+            </div>
           </CardContent>
         </Card>
         
