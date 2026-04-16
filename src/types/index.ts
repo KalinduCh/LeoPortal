@@ -20,6 +20,7 @@ export interface User {
   photoUrl?: string;
   role: UserRole;
   status: 'pending' | 'approved' | 'rejected';
+  source?: 'portal' | 'entrivo'; // Distinguishes between Club Portal and District Access users
   createdAt?: string; 
   designation?: string;
   nic?: string;
@@ -27,8 +28,8 @@ export interface User {
   gender?: string;
   mobileNumber?: string;
   badges?: BadgeId[];
-  fcmToken?: string; // Kept for backward compatibility
-  pushSubscription?: any; // Standard PushSubscription JSON object
+  fcmToken?: string; 
+  pushSubscription?: any; 
   membershipFeeStatus?: 'paid' | 'pending' | 'partial';
   membershipFeeAmountPaid?: number;
   permissions?: Partial<Record<AdminPermission, boolean>>;
