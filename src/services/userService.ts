@@ -34,11 +34,13 @@ export async function createUserProfile(
     permissions: role === 'admin' ? { 
         members: true,
         events: true,
+        tasks: true,
         finance: true,
         communication: true,
         project_ideas: true,
         reports: true,
         leaderboard: true,
+        district_access: true,
     } : {}
   };
 

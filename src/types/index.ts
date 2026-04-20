@@ -11,7 +11,7 @@ export interface Badge {
   icon: ElementType;
 }
 
-export type AdminPermission = 'members' | 'events' | 'finance' | 'communication' | 'project_ideas' | 'reports' | 'leaderboard';
+export type AdminPermission = 'members' | 'events' | 'finance' | 'communication' | 'project_ideas' | 'reports' | 'leaderboard' | 'tasks' | 'district_access';
 
 export interface User {
   id: string; 
