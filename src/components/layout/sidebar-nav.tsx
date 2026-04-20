@@ -36,7 +36,7 @@ const memberNavItems: NavItem[] = [
 const adminNavItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/calendar", label: "Calendar", icon: Calendar },
-  { href: "/tasks", label: "Tasks", icon: ListChecks },
+  { href: "/tasks", label: "Tasks", icon: ListChecks, permission: 'tasks' },
   { href: "/members", label: "Members", icon: Users, permission: 'members' },
   { href: "/events", label: "Events", icon: CalendarDays, permission: 'events' },
   { href: "/admin/finance", label: "Finance", icon: HandCoins, permission: 'finance' },
@@ -44,7 +44,7 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/communication", label: "Communication", icon: Mail, permission: 'communication' },
   { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, permission: 'project_ideas' },
   { href: "/admin/reports", label: "Reports", icon: BarChart, permission: 'reports' },
-  { href: "/event-access/admin", label: "District Access", icon: QrCode },
+  { href: "/event-access/admin", label: "District Access", icon: QrCode, permission: 'district_access' },
 ];
 
 const superAdminNavItems: NavItem[] = [
