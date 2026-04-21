@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { 
   PlusCircle, CalendarDays, MapPin, Settings, Loader2, 
-  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, Calendar as CalendarIcon
+  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, Calendar as CalendarIcon, Clock
 } from 'lucide-react';
 import { getPlatformEvents, createPlatformEvent, updatePlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
