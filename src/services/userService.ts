@@ -1,3 +1,4 @@
+
 // src/services/userService.ts
 import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc, deleteDoc, collection, query, getDocs, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
@@ -127,22 +128,25 @@ export async function getAllUsers(): Promise<User[]> {
 
 /**
  * Fetches all users relevant to Entrivo management.
- * Includes both native Entrivo signups and Main Portal admins with permissions.
+ * Aggregates Entrivo-specific applicants and Portal Admins with District Access.
  */
 export async function getEntrivoOrganizers(): Promise<User[]> {
     const usersRef = collection(db, "users");
-    // Fetch all users and filter on client to ensure we catch Main Portal admins with district_access toggled
     const querySnapshot = await getDocs(usersRef);
     const organizers: User[] = [];
     
     querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        const isEntrivoSource = data.source === 'entrivo';
-        const isPortalAdminWithAccess = data.source === 'portal' && 
+        
+        // 1. Native Entrivo applicants (source: entrivo)
+        const isEntrivoNative = data.source === 'entrivo';
+        
+        // 2. Portal Admins who have been granted explicit District Access
+        const isPortalAdminWithPermission = data.source === 'portal' && 
             (data.role === 'admin' || data.role === 'super_admin') && 
             data.permissions?.district_access === true;
 
-        if (isEntrivoSource || isPortalAdminWithAccess) {
+        if (isEntrivoNative || isPortalAdminWithPermission) {
             const u = { id: docSnap.id, ...data } as User;
             if (data.createdAt && typeof data.createdAt.toDate === 'function') {
                 u.createdAt = (data.createdAt as Timestamp).toDate().toISOString();
@@ -180,8 +184,12 @@ export async function approveUser(uid: string): Promise<void> {
     await updateUserProfile(uid, { status: 'approved' });
 }
 
+/**
+ * Rejects a user and removes them from the database to maintain security isolation.
+ */
 export async function rejectUser(uid: string): Promise<void> {
-    await updateUserProfile(uid, { status: 'rejected' });
+    const userRef = doc(db, 'users', uid);
+    await deleteDoc(userRef);
 }
 
 export async function deleteUserProfile(uid: string): Promise<void> {
