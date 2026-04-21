@@ -125,17 +125,36 @@ export async function getAllUsers(): Promise<User[]> {
     return fetchedUsers.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
+/**
+ * Fetches all users relevant to Entrivo management.
+ * Includes both native Entrivo signups and Main Portal admins with permissions.
+ */
 export async function getEntrivoOrganizers(): Promise<User[]> {
     const usersRef = collection(db, "users");
-    const q = query(usersRef, where('source', '==', 'entrivo'), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnap => {
+    // Fetch all users and filter on client to ensure we catch Main Portal admins with district_access toggled
+    const querySnapshot = await getDocs(usersRef);
+    const organizers: User[] = [];
+    
+    querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        const u = { id: docSnap.id, ...data } as User;
-        if (data.createdAt && typeof data.createdAt.toDate === 'function') {
-            u.createdAt = (data.createdAt as Timestamp).toDate().toISOString();
+        const isEntrivoSource = data.source === 'entrivo';
+        const isPortalAdminWithAccess = data.source === 'portal' && 
+            (data.role === 'admin' || data.role === 'super_admin') && 
+            data.permissions?.district_access === true;
+
+        if (isEntrivoSource || isPortalAdminWithAccess) {
+            const u = { id: docSnap.id, ...data } as User;
+            if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+                u.createdAt = (data.createdAt as Timestamp).toDate().toISOString();
+            }
+            organizers.push(u);
         }
-        return u;
+    });
+
+    return organizers.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
     });
 }
 
