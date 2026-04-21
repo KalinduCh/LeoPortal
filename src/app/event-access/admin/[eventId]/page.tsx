@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, CheckCircle, Clock, Download, QrCode, Search, 
-  Loader2, Trash2, ArrowLeft, BarChart3, Upload, Mail, ShieldAlert, Phone, Utensils, FileSpreadsheet,
-  AlertCircle, ShieldCheck
+  Loader2, Trash2, ArrowLeft, BarChart3, Mail, ShieldAlert, 
+  ShieldCheck
 } from 'lucide-react';
 import { getPlatformEvent, subscribeToPlatformRegistrations, deletePlatformRegistration } from '@/services/accessPlatformService';
 import type { AccessEvent, AccessRegistration, AccessPlatformStats } from '@/types/access-platform';
@@ -34,7 +34,6 @@ export default function PlatformEventDashboard() {
   const [registrations, setRegistrations] = useState<AccessRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -204,10 +203,10 @@ export default function PlatformEventDashboard() {
                         <TableCell className="font-mono text-xs text-primary font-bold">{r.ticketId}</TableCell>
                         <TableCell>
                             <Badge 
-                                variant={r.emailStatus === 'success' ? 'outline' : 'destructive'} 
+                                variant={r.emailStatus === 'success' ? 'outline' : r.emailStatus === 'failed' ? 'destructive' : 'secondary'} 
                                 className={cn("text-[10px] font-bold uppercase", r.emailStatus === 'success' ? 'text-emerald-600 border-emerald-500' : '')}
                             >
-                                {r.emailStatus === 'success' ? 'Delivered' : r.emailStatus === 'failed' ? 'Failed' : 'Sending...'}
+                                {r.emailStatus === 'success' ? 'Sent' : r.emailStatus === 'failed' ? 'Failed' : 'Sending...'}
                             </Badge>
                         </TableCell>
                         <TableCell>
