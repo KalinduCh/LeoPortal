@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -23,7 +22,19 @@ import Papa from 'papaparse';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
-const CLUBS = ["Athugalpura", "UOP", "Kandy", "Kandy ESU", "Others"];
+const CLUB_NAMES = [
+  "Athugalpura", 
+  "ESU Kandy", 
+  "Kandy Girls’ High School", 
+  "Kandy", 
+  "Pilimathalawa", 
+  "Polonnaruwa", 
+  "St. Sylvester’s College", 
+  "Trincomalee Elite", 
+  "Trincomalee Heroes", 
+  "University of Peradeniya", 
+  "Seethadevi Girls College"
+];
 
 export default function PlatformPublicRegistration() {
   const params = useParams();
@@ -323,7 +334,12 @@ export default function PlatformPublicRegistration() {
                                         <SelectValue placeholder="Choose your club" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {CLUBS.map(club => <SelectItem key={club} value={club}>{club}</SelectItem>)}
+                                        {CLUB_NAMES.map(name => (
+                                          <SelectItem key={name} value={`Leo Club of ${name}`}>
+                                            Leo Club of {name}
+                                          </SelectItem>
+                                        ))}
+                                        <SelectItem value="Others">Others</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 {formData.club === 'Others' && (
@@ -402,7 +418,12 @@ export default function PlatformPublicRegistration() {
                                     <SelectValue placeholder="Choose club" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {CLUBS.map(club => <SelectItem key={club} value={club}>{club}</SelectItem>)}
+                                    {CLUB_NAMES.map(name => (
+                                      <SelectItem key={name} value={`Leo Club of ${name}`}>
+                                        Leo Club of {name}
+                                      </SelectItem>
+                                    ))}
+                                    <SelectItem value="Others">Others</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
