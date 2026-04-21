@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -68,6 +67,15 @@ export default function AccessManagementOverview() {
     setIsCreating(false);
   };
 
+  // Safe parsing for Calendar to avoid UTC-offset issues
+  const getSafeCalendarDate = () => {
+    if (!formData.date) return undefined;
+    const parts = formData.date.split('-');
+    if (parts.length !== 3) return undefined;
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    return isValid(d) ? d : undefined;
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -78,7 +86,7 @@ export default function AccessManagementOverview() {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button size="lg" className="shadow-md">
-              <PlusCircle className="mr-2 h-5 w-5" /> Create New Module
+              <PlusCircle className="mr-2 h-5 w-5" /> Add New Event
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
@@ -103,13 +111,13 @@ export default function AccessManagementOverview() {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date ? format(parseISO(formData.date), "PPP") : <span>Pick a date</span>}
+                        {getSafeCalendarDate() ? format(getSafeCalendarDate()!, "PPP") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={formData.date ? parseISO(formData.date) : undefined}
+                        selected={getSafeCalendarDate()}
                         onSelect={(date) => setFormData({ ...formData, date: date ? format(date, "yyyy-MM-dd") : "" })}
                         initialFocus
                       />
@@ -145,7 +153,7 @@ export default function AccessManagementOverview() {
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={isCreating}>
-                  {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Start Module"}
+                  {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Start Event"}
                 </Button>
               </DialogFooter>
             </form>
@@ -157,36 +165,47 @@ export default function AccessManagementOverview() {
         {isLoading ? (
           <div className="col-span-full py-20 flex justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
         ) : events.length > 0 ? (
-          events.map(event => (
-            <Card key={event.id} className="hover:shadow-lg transition-all border-t-4 border-t-primary">
-              <CardHeader>
-                <CardTitle className="text-xl">{event.name}</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4" /> {isValid(parseISO(event.date)) ? format(parseISO(event.date), 'PPP') : event.date} @ {event.time}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4 mt-0.5 shrink-0" /> {event.location}
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Users className="h-4 w-4" /> {event.capacity ? `${event.capacity} Capacity` : 'Unlimited Capacity'}
-                </div>
-              </CardContent>
-              <DialogFooter className="p-4 border-t bg-muted/10">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(`/access-management/register/${event.id}`)}>
-                  <ExternalLink className="mr-2 h-4 w-4" /> Registration Page
-                </Button>
-                <Button size="sm" className="flex-1" onClick={() => router.push(`/admin/access-management/${event.id}`)}>
-                  <Settings className="mr-2 h-4 w-4" /> Dashboard
-                </Button>
-              </DialogFooter>
-            </Card>
-          ))
+          events.map(event => {
+            let formattedDate = 'Date TBD';
+            if (event.date) {
+                const parts = event.date.split('-');
+                if (parts.length === 3) {
+                    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    if (isValid(d)) formattedDate = format(d, 'PPP');
+                }
+            }
+
+            return (
+              <Card key={event.id} className="hover:shadow-lg transition-all border-t-4 border-t-primary">
+                <CardHeader>
+                  <CardTitle className="text-xl">{event.name}</CardTitle>
+                  <CardDescription className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4" /> {formattedDate} @ {event.time}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4 mt-0.5 shrink-0" /> {event.location}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Users className="h-4 w-4" /> {event.capacity ? `${event.capacity} Capacity` : 'Unlimited Capacity'}
+                  </div>
+                </CardContent>
+                <DialogFooter className="p-4 border-t bg-muted/10">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(`/access-management/register/${event.id}`)}>
+                    <ExternalLink className="mr-2 h-4 w-4" /> Registration Page
+                  </Button>
+                  <Button size="sm" className="flex-1" onClick={() => router.push(`/admin/access-management/${event.id}`)}>
+                    <Settings className="mr-2 h-4 w-4" /> Dashboard
+                  </Button>
+                </DialogFooter>
+              </Card>
+            );
+          })
         ) : (
           <div className="col-span-full text-center py-20 bg-muted/20 rounded-lg border-2 border-dashed">
             <Users className="h-12 w-12 mx-auto text-muted-foreground opacity-50 mb-4" />
-            <h3 className="text-lg font-semibold">No Event Modules Yet</h3>
+            <h3 className="text-lg font-semibold">No Events Found</h3>
             <p className="text-muted-foreground">Click the button above to start your first event registration system.</p>
           </div>
         )}
