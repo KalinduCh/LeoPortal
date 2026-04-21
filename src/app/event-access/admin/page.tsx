@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -170,7 +169,7 @@ export default function PlatformAdminOverview() {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  // Helper for Calendar
+  // Helper for Calendar selection state
   const getSelectedDate = () => {
     if (!formData.date) return undefined;
     const parsed = parseISO(formData.date);
@@ -192,8 +191,11 @@ export default function PlatformAdminOverview() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {events.length > 0 ? (
           events.map(event => {
-            const eventDate = event.date ? parseISO(event.date) : null;
-            const formattedDate = (eventDate && isValid(eventDate)) ? format(eventDate, 'PPP') : (event.date || 'Date TBD');
+            const eventDateStr = event.date || '';
+            const eventDateParsed = eventDateStr ? parseISO(eventDateStr) : null;
+            const formattedDate = (eventDateParsed && isValid(eventDateParsed)) 
+              ? format(eventDateParsed, 'PPP') 
+              : (event.date || 'Date TBD');
             
             return (
               <Card key={event.id} className="hover:shadow-xl transition-all duration-300 border-none bg-white ring-1 ring-slate-200 overflow-hidden flex flex-col">
@@ -298,7 +300,7 @@ export default function PlatformAdminOverview() {
                               variant={"outline"}
                               type="button"
                               className={cn(
-                                "w-full justify-start text-left font-normal",
+                                "w-full justify-start text-left font-normal h-10 px-3",
                                 !formData.date && "text-muted-foreground"
                               )}
                             >
@@ -310,7 +312,12 @@ export default function PlatformAdminOverview() {
                             <Calendar
                               mode="single"
                               selected={getSelectedDate()}
-                              onSelect={(date) => setFormData({ ...formData, date: date ? format(date, "yyyy-MM-dd") : "" })}
+                              onSelect={(date) => {
+                                setFormData(prev => ({ 
+                                  ...prev, 
+                                  date: date ? format(date, "yyyy-MM-dd") : "" 
+                                }));
+                              }}
                               initialFocus
                             />
                           </PopoverContent>
