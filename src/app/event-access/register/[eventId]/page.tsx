@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Calendar, MapPin, Loader2, CheckCircle, 
-  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck, Briefcase
+  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck
 } from 'lucide-react';
 import { getPlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent, RegistrationSubmitter } from '@/types/access-platform';
@@ -233,11 +233,11 @@ export default function PlatformPublicRegistration() {
       <div className="max-w-2xl mx-auto space-y-10">
         <header className="text-center space-y-6">
           <div className="flex justify-center">
-            <div className="bg-white p-2 rounded-3xl shadow-xl ring-1 ring-slate-200 w-24 h-24 sm:w-32 sm:h-32 flex items-center justify-center overflow-hidden">
+            <div className="bg-white p-2 rounded-full shadow-xl ring-4 ring-white w-28 h-24 sm:w-36 sm:h-32 flex items-center justify-center overflow-hidden aspect-square">
               {event.imageUrl ? (
-                <img src={event.imageUrl} alt="Event Branding" className="w-full h-full object-cover" />
+                <img src={event.imageUrl} alt="Event Branding" className="w-full h-full object-cover rounded-full" />
               ) : (
-                <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={80} height={80} className="object-contain" />
+                <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={90} height={90} className="object-contain" />
               )}
             </div>
           </div>

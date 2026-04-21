@@ -1,7 +1,10 @@
+
 import { NextResponse } from 'next/server';
 import { createRegistration, getAccessEvent } from '@/services/accessManagementService';
 import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
+
+const OFFICIAL_SENDER = "districtconference306d9@gmail.com";
 
 export async function POST(req: Request) {
   try {
@@ -35,11 +38,11 @@ export async function POST(req: Request) {
       width: 400
     });
 
-    const { GMAIL_EMAIL, GMAIL_APP_PASSWORD } = process.env;
-    if (GMAIL_EMAIL && GMAIL_APP_PASSWORD) {
+    const { GMAIL_APP_PASSWORD } = process.env;
+    if (OFFICIAL_SENDER && GMAIL_APP_PASSWORD) {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
-        auth: { user: GMAIL_EMAIL, pass: GMAIL_APP_PASSWORD },
+        auth: { user: OFFICIAL_SENDER, pass: GMAIL_APP_PASSWORD },
       });
 
       const emailHtml = `
@@ -70,7 +73,7 @@ export async function POST(req: Request) {
       `;
 
       await transporter.sendMail({
-        from: `"LeoEntrivo" <${GMAIL_EMAIL}>`,
+        from: `"LeoEntrivo" <${OFFICIAL_SENDER}>`,
         to: email,
         subject: `Pass for ${event.name}: ${ticketId}`,
         html: emailHtml,
