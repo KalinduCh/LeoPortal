@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/finance/page.tsx
 "use client";
 
@@ -14,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { PlusCircle, Edit, Trash2, Loader2, TrendingUp, TrendingDown, DollarSign, BarChart, Calendar, HandCoins, FileDown, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/financeService';
-import { format, parseISO, getYear, getMonth, eachMonthOfInterval, startOfYear, endOfYear } from 'date-fns';
+import { format, parseISO, getYear, getMonth, eachMonthOfInterval, startOfYear, endOfYear, isValid } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
@@ -78,7 +79,12 @@ export default function FinancePage() {
 
   const availableYears = useMemo(() => {
     const years = new Set<string>();
-    transactions.forEach(t => years.add(getYear(parseISO(t.date)).toString()));
+    transactions.forEach(t => {
+        if (t.date) {
+            const d = parseISO(t.date);
+            if (isValid(d)) years.add(getYear(d).toString());
+        }
+    });
     years.add(new Date().getFullYear().toString());
     const sortedYears = Array.from(years).sort((a, b) => b.localeCompare(a));
     return ['all', ...sortedYears];
@@ -86,7 +92,7 @@ export default function FinancePage() {
 
   const filteredTransactions = useMemo(() => {
     if (selectedYear === 'all') return transactions;
-    return transactions.filter(t => getYear(parseISO(t.date)).toString() === selectedYear);
+    return transactions.filter(t => t.date && isValid(parseISO(t.date)) && getYear(parseISO(t.date)).toString() === selectedYear);
   }, [transactions, selectedYear]);
 
   const paginatedTransactions = useMemo(() => {
@@ -114,10 +120,15 @@ export default function FinancePage() {
     if (selectedYear === 'all') {
         const yearGroups: Record<string, { income: number, expenses: number }> = {};
         transactions.forEach(t => {
-            const y = getYear(parseISO(t.date)).toString();
-            if (!yearGroups[y]) yearGroups[y] = { income: 0, expenses: 0 };
-            if (t.type === 'income') yearGroups[y].income += t.amount;
-            else yearGroups[y].expenses += t.amount;
+            if (t.date) {
+                const d = parseISO(t.date);
+                if (isValid(d)) {
+                    const y = getYear(d).toString();
+                    if (!yearGroups[y]) yearGroups[y] = { income: 0, expenses: 0 };
+                    if (t.type === 'income') yearGroups[y].income += t.amount;
+                    else yearGroups[y].expenses += t.amount;
+                }
+            }
         });
         return Object.entries(yearGroups)
             .map(([name, data]) => ({ name, ...data }))
@@ -135,11 +146,13 @@ export default function FinancePage() {
         }));
 
         transactions.forEach(t => {
-            const transactionDate = parseISO(t.date);
-            if(getYear(transactionDate) === yearInt) {
-                const monthIndex = getMonth(transactionDate);
-                if(t.type === 'income') data[monthIndex].income += t.amount;
-                else data[monthIndex].expenses += t.amount;
+            if (t.date) {
+                const transactionDate = parseISO(t.date);
+                if(isValid(transactionDate) && getYear(transactionDate) === yearInt) {
+                    const monthIndex = getMonth(transactionDate);
+                    if(t.type === 'income') data[monthIndex].income += t.amount;
+                    else data[monthIndex].expenses += t.amount;
+                }
             }
         });
         return data;
@@ -187,7 +200,7 @@ export default function FinancePage() {
 
   const handleExportCSV = () => {
     const dataToExport = filteredTransactions.map(t => ({
-        Date: format(parseISO(t.date), 'yyyy-MM-dd'),
+        Date: (t.date && isValid(parseISO(t.date))) ? format(parseISO(t.date), 'yyyy-MM-dd') : 'N/A',
         Type: t.type,
         Category: t.category,
         'Source/Description': t.source,
@@ -213,7 +226,7 @@ export default function FinancePage() {
 
     filteredTransactions.forEach(t => {
         const transactionData = [
-            format(parseISO(t.date), 'MMM dd, yyyy'),
+            (t.date && isValid(parseISO(t.date))) ? format(parseISO(t.date), 'MMM dd, yyyy') : 'N/A',
             t.type,
             t.category,
             t.source,
@@ -410,7 +423,7 @@ export default function FinancePage() {
                 <TableBody>
                   {paginatedTransactions.map((t) => (
                     <TableRow key={t.id} className="hover:bg-primary/5 transition-colors">
-                      <TableCell className="text-xs whitespace-nowrap">{format(parseISO(t.date), 'MMM dd, yyyy')}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{(t.date && isValid(parseISO(t.date))) ? format(parseISO(t.date), 'MMM dd, yyyy') : 'N/A'}</TableCell>
                       <TableCell>
                         <Badge variant={t.type === 'income' ? 'secondary' : 'destructive'} className={cn("capitalize px-2 py-0 h-5", t.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
                           {t.type}
@@ -440,7 +453,7 @@ export default function FinancePage() {
               {paginatedTransactions.map((t) => (
                   <Card key={t.id} className={cn("shadow-sm border-l-4 hover:shadow-md transition-shadow", t.type === 'income' ? 'border-l-green-500' : 'border-l-red-500')}>
                       <CardHeader className="p-3 pb-1 flex flex-row items-center justify-between">
-                          <p className="text-xs text-muted-foreground font-medium">{format(parseISO(t.date), 'MMMM dd, yyyy')}</p>
+                          <p className="text-xs text-muted-foreground font-medium">{(t.date && isValid(parseISO(t.date))) ? format(parseISO(t.date), 'MMMM dd, yyyy') : 'N/A'}</p>
                           <Badge variant="outline" className="text-[10px] uppercase h-4">{t.category}</Badge>
                       </CardHeader>
                       <CardContent className="p-3 pt-0">

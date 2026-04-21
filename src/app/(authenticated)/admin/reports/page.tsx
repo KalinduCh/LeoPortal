@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/reports/page.tsx
 "use client";
 
@@ -23,7 +24,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/comp
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/label';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 const PIE_CHART_COLORS = ["#2563eb", "#14b8a6", "#ef4444", "#f97316", "#8b5cf6", "#3b82f6", "#06b6d4", "#ec4899", "#84cc16"];
@@ -89,7 +90,12 @@ export default function ReportsPage() {
 
   const availableFinanceYears = useMemo(() => {
     const years = new Set<string>();
-    allTransactions.forEach(t => years.add(getYear(parseISO(t.date)).toString()));
+    allTransactions.forEach(t => {
+        if (t.date) {
+            const d = parseISO(t.date);
+            if (isValid(d)) years.add(getYear(d).toString());
+        }
+    });
     years.add(new Date().getFullYear().toString());
     const sortedYears = Array.from(years).sort((a, b) => b.localeCompare(a));
     return ['all', ...sortedYears];
@@ -97,7 +103,9 @@ export default function ReportsPage() {
 
   const filteredFinanceTransactions = useMemo(() => {
     return allTransactions.filter(t => {
+        if (!t.date) return false;
         const tDate = parseISO(t.date);
+        if (!isValid(tDate)) return false;
         const yearMatch = financeYear === 'all' || getYear(tDate).toString() === financeYear;
         const monthMatch = financeMonth === "all" || getMonth(tDate).toString() === financeMonth;
         return yearMatch && monthMatch;
@@ -200,14 +208,14 @@ export default function ReportsPage() {
       } else if (type === 'events') {
         data = allEvents.map(event => ({
           ID: event.id, Name: event.name,
-          StartDate: event.startDate ? format(parseISO(event.startDate), 'yyyy-MM-dd HH:mm:ss') : '',
-          EndDate: event.endDate ? format(parseISO(event.endDate), 'yyyy-MM-dd HH:mm:ss') : '',
+          StartDate: (event.startDate && isValid(parseISO(event.startDate))) ? format(parseISO(event.startDate), 'yyyy-MM-dd HH:mm:ss') : '',
+          EndDate: (event.endDate && isValid(parseISO(event.endDate))) ? format(parseISO(event.endDate), 'yyyy-MM-dd HH:mm:ss') : '',
           Location: event.location, Description: event.description
         }));
         fileName = `leo-portal_events_${new Date().toISOString().split('T')[0]}.csv`;
       } else if (type === 'transactions') {
         data = allTransactions.map(t => ({
-          ID: t.id, Type: t.type, Date: t.date, Amount: t.amount, Category: t.category, Source: t.source, Notes: t.notes
+          ID: t.id, Type: t.type, Date: (t.date && isValid(parseISO(t.date))) ? format(parseISO(t.date), 'yyyy-MM-dd HH:mm:ss') : '', Amount: t.amount, Category: t.category, Source: t.source, Notes: t.notes
         }));
         fileName = `leo-portal_all_transactions.csv`;
       } else {
@@ -216,7 +224,7 @@ export default function ReportsPage() {
           RecordID: record.id,
           EventName: eventMap.get(record.eventId) || 'Unknown Event',
           UserID: record.userId,
-          Timestamp: record.timestamp ? format(parseISO(record.timestamp), 'yyyy-MM-dd HH:mm:ss') : '',
+          Timestamp: (record.timestamp && isValid(parseISO(record.timestamp))) ? format(parseISO(record.timestamp), 'yyyy-MM-dd HH:mm:ss') : '',
           Status: record.status,
           AttendanceType: record.attendanceType,
           VisitorName: record.visitorName,
@@ -346,12 +354,12 @@ export default function ReportsPage() {
                         <Table>
                           <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Date</TableHead><TableHead>Location</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                           <TableBody>
-                            {eventReportsData.map((ev) => (<TableRow key={ev.id} className="hover:bg-primary/5 transition-colors"><TableCell className="font-medium text-sm">{ev.name}</TableCell><TableCell className="text-xs">{ev.startDate && isValid(parseISO(ev.startDate)) ? format(parseISO(ev.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell><TableCell className="text-xs text-muted-foreground">{ev.location}</TableCell><TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => router.push(`/admin/event-summary/${ev.id}`)} className="hover:bg-primary/10 hover:text-primary">Summary <ExternalLink className="ml-1.5 h-3 w-3" /></Button></TableCell></TableRow>))}
+                            {eventReportsData.map((ev) => (<TableRow key={ev.id} className="hover:bg-primary/5 transition-colors"><TableCell className="font-medium text-sm">{ev.name}</TableCell><TableCell className="text-xs">{(ev.startDate && isValid(parseISO(ev.startDate))) ? format(parseISO(ev.startDate), 'MMM dd, yyyy') : 'N/A'}</TableCell><TableCell className="text-xs text-muted-foreground">{ev.location}</TableCell><TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => router.push(`/admin/event-summary/${ev.id}`)} className="hover:bg-primary/10 hover:text-primary">Summary <ExternalLink className="ml-1.5 h-3 w-3" /></Button></TableCell></TableRow>))}
                           </TableBody>
                         </Table>
                       </div>
                       <div className="block md:hidden space-y-3">
-                        {eventReportsData.map((ev) => (<Card key={ev.id} className="shadow-sm hover:shadow-md transition-shadow"><CardHeader className="p-3 pb-1"><CardTitle className="text-sm font-semibold text-primary">{ev.name}</CardTitle></CardHeader><CardContent className="p-3 pt-0 pb-2"><p className="text-[10px] text-muted-foreground">{ev.startDate && isValid(parseISO(ev.startDate)) ? format(parseISO(ev.startDate), 'PPP') : 'N/A'}</p><p className="text-[10px] truncate">{ev.location}</p></CardContent><CardFooter className="p-2 border-t"><Button variant="ghost" className="w-full h-7 text-[10px] hover:bg-primary/10 hover:text-primary" onClick={() => router.push(`/admin/event-summary/${ev.id}`)}>View Summary</Button></CardFooter></Card>))}
+                        {eventReportsData.map((ev) => (<Card key={ev.id} className="shadow-sm hover:shadow-md transition-shadow"><CardHeader className="p-3 pb-1"><CardTitle className="text-sm font-semibold text-primary">{ev.name}</CardTitle></CardHeader><CardContent className="p-3 pt-0 pb-2"><p className="text-[10px] text-muted-foreground">{(ev.startDate && isValid(parseISO(ev.startDate))) ? format(parseISO(ev.startDate), 'PPP') : 'N/A'}</p><p className="text-[10px] truncate">{ev.location}</p></CardContent><CardFooter className="p-2 border-t"><Button variant="ghost" className="w-full h-7 text-[10px] hover:bg-primary/10 hover:text-primary" onClick={() => router.push(`/admin/event-summary/${ev.id}`)}>View Summary</Button></CardFooter></Card>))}
                       </div>
                     </div>
                 ) : (

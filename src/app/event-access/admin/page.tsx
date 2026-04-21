@@ -82,8 +82,8 @@ export default function PlatformAdminOverview() {
       setEditingEvent(event);
       setFormData({
         name: event.name,
-        date: event.date,
-        time: event.time,
+        date: event.date || '',
+        time: event.time || '',
         location: event.location,
         description: event.description || '',
         capacity: event.capacity?.toString() || '',
@@ -185,8 +185,8 @@ export default function PlatformAdminOverview() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {events.length > 0 ? (
           events.map(event => {
-            const eventDate = parseISO(event.date);
-            const formattedDate = isValid(eventDate) ? format(eventDate, 'PPP') : event.date;
+            const eventDate = event.date ? parseISO(event.date) : null;
+            const formattedDate = (eventDate && isValid(eventDate)) ? format(eventDate, 'PPP') : (event.date || 'Date TBD');
             
             return (
               <Card key={event.id} className="hover:shadow-xl transition-all duration-300 border-none bg-white ring-1 ring-slate-200 overflow-hidden flex flex-col">
@@ -295,7 +295,7 @@ export default function PlatformAdminOverview() {
                               )}
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {formData.date ? format(parseISO(formData.date), "PPP") : <span>Pick a date</span>}
+                              {formData.date && isValid(parseISO(formData.date)) ? format(parseISO(formData.date), "PPP") : <span>Pick a date</span>}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
