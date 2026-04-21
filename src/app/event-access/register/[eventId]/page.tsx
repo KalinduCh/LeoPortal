@@ -15,7 +15,7 @@ import {
 import { getPlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent, RegistrationSubmitter } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import Image from 'next/image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -228,6 +228,9 @@ export default function PlatformPublicRegistration() {
     );
   }
 
+  const eventDateParsed = event.date ? parseISO(event.date) : null;
+  const displayDate = (eventDateParsed && isValid(eventDateParsed)) ? format(eventDateParsed, 'PPP') : (event.date || 'TBD');
+
   return (
     <div className="min-h-screen bg-[#f8fafc] py-12 px-4">
       <div className="max-w-2xl mx-auto space-y-10">
@@ -248,7 +251,7 @@ export default function PlatformPublicRegistration() {
           </div>
 
           <div className="flex flex-wrap justify-center gap-6 text-sm text-slate-500 font-medium">
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><Calendar className="h-4 w-4 text-primary" /> {format(new Date(event.date), 'PPP')}</div>
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><Calendar className="h-4 w-4 text-primary" /> {displayDate}</div>
             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><Clock className="h-4 w-4 text-primary" /> {event.time}</div>
             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><MapPin className="h-4 w-4 text-primary" /> {event.location}</div>
           </div>

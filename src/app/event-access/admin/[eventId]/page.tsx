@@ -17,7 +17,7 @@ import {
 import { getPlatformEvent, subscribeToPlatformRegistrations, deletePlatformRegistration } from '@/services/accessPlatformService';
 import type { AccessEvent, AccessRegistration, AccessPlatformStats } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import Papa from 'papaparse';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
@@ -76,18 +76,21 @@ export default function PlatformEventDashboard() {
   }, [registrations, searchTerm]);
 
   const handleExport = () => {
-    const data = registrations.map(r => ({
-      'Ticket ID': r.ticketId,
-      'Name': r.name,
-      'Email': r.email,
-      'Contact': r.contactNumber,
-      'Club': r.club,
-      'Type': r.role,
-      'Food': r.foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian',
-      'Status': r.status === 'checked_in' ? 'Checked In' : 'Registered',
-      'Check-In Time': r.checkInTime ? format(parseISO(r.checkInTime), 'PPP p') : 'N/A',
-      'Registered By': r.registeredBy ? `${r.registeredBy.name} (${r.registeredBy.club})` : 'Self'
-    }));
+    const data = registrations.map(r => {
+      const checkInParsed = r.checkInTime ? parseISO(r.checkInTime) : null;
+      return {
+        'Ticket ID': r.ticketId,
+        'Name': r.name,
+        'Email': r.email,
+        'Contact': r.contactNumber,
+        'Club': r.club,
+        'Type': r.role,
+        'Food': r.foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian',
+        'Status': r.status === 'checked_in' ? 'Checked In' : 'Registered',
+        'Check-In Time': (checkInParsed && isValid(checkInParsed)) ? format(checkInParsed, 'PPP p') : 'N/A',
+        'Registered By': r.registeredBy ? `${r.registeredBy.name} (${r.registeredBy.club})` : 'Self'
+      };
+    });
     const csv = Papa.unparse(data);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -168,57 +171,60 @@ export default function PlatformEventDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRegistrations.map(r => (
-                      <TableRow key={r.id} className="hover:bg-slate-50/50">
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <p className="font-bold text-slate-900">{r.name}</p>
-                            {r.registeredBy && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-xs">Bulk Registered by: {r.registeredBy.name}</p>
-                                    <p className="text-[10px] opacity-70">{r.registeredBy.designation} • {r.registeredBy.club}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase tracking-tighter">
-                            <Mail className="h-3 w-3" /> {r.email}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm font-medium">{r.club}</p>
-                          <Badge variant="outline" className="text-[10px] uppercase font-bold">{r.role}</Badge>
-                        </TableCell>
-                        <TableCell>
-                            <Badge variant={r.foodPreference === 'veg' ? 'outline' : 'secondary'} className={r.foodPreference === 'veg' ? 'border-emerald-500 text-emerald-600' : ''}>
-                                {r.foodPreference === 'veg' ? 'Veg' : 'Non-Veg'}
+                    {filteredRegistrations.map(r => {
+                      const checkInParsed = r.checkInTime ? parseISO(r.checkInTime) : null;
+                      return (
+                        <TableRow key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-slate-900">{r.name}</p>
+                              {r.registeredBy && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="text-xs">Bulk Registered by: {r.registeredBy.name}</p>
+                                      <p className="text-[10px] opacity-70">{r.registeredBy.designation} • {r.registeredBy.club}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase tracking-tighter">
+                              <Mail className="h-3 w-3" /> {r.email}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <p className="text-sm font-medium">{r.club}</p>
+                            <Badge variant="outline" className="text-[10px] uppercase font-bold">{r.role}</Badge>
+                          </TableCell>
+                          <TableCell>
+                              <Badge variant={r.foodPreference === 'veg' ? 'outline' : 'secondary'} className={r.foodPreference === 'veg' ? 'border-emerald-500 text-emerald-600' : ''}>
+                                  {r.foodPreference === 'veg' ? 'Veg' : 'Non-Veg'}
+                              </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-primary font-bold">{r.ticketId}</TableCell>
+                          <TableCell>
+                              <Badge 
+                                  variant={r.emailStatus === 'success' ? 'outline' : r.emailStatus === 'failed' ? 'destructive' : 'secondary'} 
+                                  className={cn("text-[10px] font-bold uppercase", r.emailStatus === 'success' ? 'text-emerald-600 border-emerald-500' : '')}
+                              >
+                                  {r.emailStatus === 'success' ? 'Sent' : r.emailStatus === 'failed' ? 'Failed' : 'Sending...'}
+                              </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={r.status === 'checked_in' ? 'default' : 'secondary'} className={r.status === 'checked_in' ? 'bg-emerald-600 text-white' : ''}>
+                              {r.status === 'checked_in' ? 'Arrived' : 'Registered'}
                             </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-primary font-bold">{r.ticketId}</TableCell>
-                        <TableCell>
-                            <Badge 
-                                variant={r.emailStatus === 'success' ? 'outline' : r.emailStatus === 'failed' ? 'destructive' : 'secondary'} 
-                                className={cn("text-[10px] font-bold uppercase", r.emailStatus === 'success' ? 'text-emerald-600 border-emerald-500' : '')}
-                            >
-                                {r.emailStatus === 'success' ? 'Sent' : r.emailStatus === 'failed' ? 'Failed' : 'Sending...'}
-                            </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={r.status === 'checked_in' ? 'default' : 'secondary'} className={r.status === 'checked_in' ? 'bg-emerald-600 text-white' : ''}>
-                            {r.status === 'checked_in' ? 'Arrived' : 'Registered'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-rose-600" onClick={() => handleDelete(r.id)}><Trash2 className="h-4 w-4" /></Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" className="text-slate-400 hover:text-rose-600" onClick={() => handleDelete(r.id)}><Trash2 className="h-4 w-4" /></Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                     {filteredRegistrations.length === 0 && (
                       <TableRow><TableCell colSpan={7} className="text-center py-20 text-slate-400 italic">No guests found.</TableCell></TableRow>
                     )}
@@ -237,24 +243,27 @@ export default function PlatformEventDashboard() {
             </CardHeader>
             <CardContent className="pt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {registrations.filter(r => r.status === 'checked_in').slice(0, 12).map(r => (
-                  <div key={r.id} className="flex items-center justify-between p-4 border rounded-xl bg-emerald-50/30 border-emerald-100">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-                        <CheckCircle className="h-5 w-5" />
+                {registrations.filter(r => r.status === 'checked_in').slice(0, 12).map(r => {
+                  const checkInParsed = r.checkInTime ? parseISO(r.checkInTime) : null;
+                  return (
+                    <div key={r.id} className="flex items-center justify-between p-4 border rounded-xl bg-emerald-50/30 border-emerald-100">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                          <CheckCircle className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-slate-900">{r.name}</p>
+                          <p className={cn("text-[10px] font-black uppercase tracking-widest", r.foodPreference === 'veg' ? 'text-emerald-600' : 'text-slate-400')}>
+                              {r.foodPreference === 'veg' ? 'Vegetarian' : 'Standard'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-sm text-slate-900">{r.name}</p>
-                        <p className={cn("text-[10px] font-black uppercase tracking-widest", r.foodPreference === 'veg' ? 'text-emerald-600' : 'text-slate-400')}>
-                            {r.foodPreference === 'veg' ? 'Vegetarian' : 'Standard'}
-                        </p>
-                      </div>
+                      <p className="text-[10px] font-mono font-bold text-emerald-600 bg-white px-2 py-1 rounded shadow-sm">
+                        {(checkInParsed && isValid(checkInParsed)) ? format(checkInParsed, 'h:mm a') : 'Now'}
+                      </p>
                     </div>
-                    <p className="text-[10px] font-mono font-bold text-emerald-600 bg-white px-2 py-1 rounded shadow-sm">
-                      {r.checkInTime ? format(parseISO(r.checkInTime), 'h:mm a') : ''}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
                 {registrations.filter(r => r.status === 'checked_in').length === 0 && (
                   <div className="col-span-full py-24 text-center text-slate-400">
                     <ShieldAlert className="h-12 w-12 mx-auto mb-2 opacity-20" />

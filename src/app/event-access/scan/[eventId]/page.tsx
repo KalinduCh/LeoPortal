@@ -14,7 +14,7 @@ import { getPlatformEvent, getRegistrationByTicket, markPlatformCheckIn } from '
 import type { AccessEvent, AccessRegistration } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 
@@ -244,7 +244,7 @@ export default function PlatformQRScanner() {
                 {status === 'already_scanned' && (
                   <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-center">
                     <p className="text-[9px] uppercase font-black text-amber-600 tracking-tighter">Original Check-in</p>
-                    <p className="text-xs font-bold text-slate-900">{lastGuest.checkInTime ? format(parseISO(lastGuest.checkInTime), 'PPP p') : 'Already Logged'}</p>
+                    <p className="text-xs font-bold text-slate-900">{lastGuest.checkInTime && isValid(parseISO(lastGuest.checkInTime)) ? format(parseISO(lastGuest.checkInTime), 'PPP p') : 'Already Logged'}</p>
                   </div>
                 )}
               </div>
