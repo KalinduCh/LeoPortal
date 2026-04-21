@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -10,19 +11,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { 
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { 
-  PlusCircle, Calendar, MapPin, Settings, Loader2, 
-  ExternalLink, Activity, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X
+  PlusCircle, CalendarDays, MapPin, Settings, Loader2, 
+  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, Calendar as CalendarIcon
 } from 'lucide-react';
 import { getPlatformEvents, createPlatformEvent, updatePlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
 import { format, isValid, parseISO } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 const MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024; // 2MB
 
@@ -200,7 +204,7 @@ export default function PlatformAdminOverview() {
                     <div className="min-w-0 pr-4">
                       <CardTitle className="text-xl font-bold text-slate-900 truncate font-headline">{event.name}</CardTitle>
                       <CardDescription className="flex items-center gap-2 font-medium mt-1">
-                        <Calendar className="h-4 w-4 text-primary" /> {formattedDate}
+                        <CalendarDays className="h-4 w-4 text-primary" /> {formattedDate}
                       </CardDescription>
                     </div>
                     <DropdownMenu>
@@ -281,11 +285,41 @@ export default function PlatformAdminOverview() {
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>Date</Label>
-                        <Input type="date" required value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !formData.date && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {formData.date ? format(parseISO(formData.date), "PPP") : <span>Pick a date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={formData.date ? parseISO(formData.date) : undefined}
+                              onSelect={(date) => setFormData({ ...formData, date: date ? format(date, "yyyy-MM-dd") : "" })}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
                     </div>
                     <div className="space-y-2">
                         <Label>Time</Label>
-                        <Input type="time" required value={formData.time} onChange={e => setFormData({ ...formData, time: e.target.value })} />
+                        <div className="relative">
+                          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                          <Input 
+                            type="time" 
+                            required 
+                            className="pl-9"
+                            value={formData.time} 
+                            onChange={e => setFormData({ ...formData, time: e.target.value })} 
+                          />
+                        </div>
                     </div>
                 </div>
                 <div className="space-y-2">

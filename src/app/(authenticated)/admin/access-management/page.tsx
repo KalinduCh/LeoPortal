@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -8,11 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { PlusCircle, Calendar, MapPin, Users, Loader2, ExternalLink, Settings } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { PlusCircle, Calendar as CalendarIcon, MapPin, Users, Loader2, ExternalLink, Settings, Clock } from 'lucide-react';
 import { getAccessEvents, createAccessEvent } from '@/services/accessManagementService';
 import type { AccessEvent } from '@/types/access-management';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function AccessManagementOverview() {
   const [events, setEvents] = useState<AccessEvent[]>([]);
@@ -89,11 +93,41 @@ export default function AccessManagementOverview() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Date</Label>
-                  <Input type="date" required value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date ? format(parseISO(formData.date), "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.date ? parseISO(formData.date) : undefined}
+                        onSelect={(date) => setFormData({ ...formData, date: date ? format(date, "yyyy-MM-dd") : "" })}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label>Time</Label>
-                  <Input type="time" required value={formData.time} onChange={e => setFormData({ ...formData, time: e.target.value })} />
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input 
+                      type="time" 
+                      required 
+                      className="pl-9"
+                      value={formData.time} 
+                      onChange={e => setFormData({ ...formData, time: e.target.value })} 
+                    />
+                  </div>
                 </div>
               </div>
               <div className="space-y-2">
@@ -128,7 +162,7 @@ export default function AccessManagementOverview() {
               <CardHeader>
                 <CardTitle className="text-xl">{event.name}</CardTitle>
                 <CardDescription className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" /> {format(new Date(event.date), 'PPP')} @ {event.time}
+                  <CalendarIcon className="h-4 w-4" /> {isValid(parseISO(event.date)) ? format(parseISO(event.date), 'PPP') : event.date} @ {event.time}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

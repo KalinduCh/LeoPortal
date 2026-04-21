@@ -6,6 +6,7 @@ import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
 
 const PLATFORM_REGISTRATIONS = 'accessRegistrations';
+const OFFICIAL_SENDER = "districtconference306d9@gmail.com";
 
 export async function POST(req: Request) {
   try {
@@ -49,14 +50,14 @@ export async function POST(req: Request) {
       width: 400
     });
 
-    const { GMAIL_EMAIL, GMAIL_APP_PASSWORD } = process.env;
+    const { GMAIL_APP_PASSWORD } = process.env;
     let finalEmailStatus: 'success' | 'failed' = 'failed';
 
-    if (GMAIL_EMAIL && GMAIL_APP_PASSWORD) {
+    if (OFFICIAL_SENDER && GMAIL_APP_PASSWORD) {
       try {
         const transporter = nodemailer.createTransport({
           service: 'gmail',
-          auth: { user: GMAIL_EMAIL, pass: GMAIL_APP_PASSWORD },
+          auth: { user: OFFICIAL_SENDER, pass: GMAIL_APP_PASSWORD },
         });
 
         const foodLabel = foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian';
@@ -108,7 +109,7 @@ export async function POST(req: Request) {
         }
 
         await transporter.sendMail({
-          from: `"LeoEntrivo Pass" <${GMAIL_EMAIL}>`,
+          from: `"LeoEntrivo Pass" <${OFFICIAL_SENDER}>`,
           to: email,
           subject: `Your Pass for ${eventName}: ${ticketId}`,
           html: emailHtml,
