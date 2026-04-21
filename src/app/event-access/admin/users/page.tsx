@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ShieldCheck, UserCheck, UserX, Mail, Clock, ArrowLeft } from 'lucide-react';
+import { Loader2, ShieldCheck, UserCheck, UserX, Mail, Clock, ArrowLeft, Globe, Layout } from 'lucide-react';
 import { getEntrivoOrganizers, approveUser, rejectUser } from '@/services/userService';
 import type { User } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -73,15 +72,15 @@ export default function ManageOrganizersPage() {
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Modules
         </Button>
         <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900 uppercase">Organizer Registry</h1>
-        <p className="text-slate-500 uppercase text-xs tracking-widest font-black">Module Access Control</p>
+        <p className="text-slate-500 uppercase text-xs tracking-widest font-black">Admin Access Control & Module Authorization</p>
       </div>
 
       <Card className="shadow-xl border-none ring-1 ring-slate-200 overflow-hidden bg-white rounded-2xl">
         <CardHeader className="bg-slate-900 p-8 text-white">
           <CardTitle className="text-xl flex items-center gap-3">
-            <ShieldCheck className="h-6 w-6 text-primary" /> Pending Applications
+            <ShieldCheck className="h-6 w-6 text-primary" /> Authorized Personnel
           </CardTitle>
-          <CardDescription className="text-slate-400">Review and authorize district event organizers.</CardDescription>
+          <CardDescription className="text-slate-400">Review all users authorized to manage district event modules across platforms.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -89,7 +88,7 @@ export default function ManageOrganizersPage() {
                 <TableHeader className="bg-slate-50">
                 <TableRow>
                     <TableHead className="font-bold py-4">Applicant Details</TableHead>
-                    <TableHead className="font-bold py-4">Requested On</TableHead>
+                    <TableHead className="font-bold py-4">Platform Source</TableHead>
                     <TableHead className="font-bold py-4">Status</TableHead>
                     <TableHead className="text-right font-bold py-4 pr-8">Actions</TableHead>
                 </TableRow>
@@ -104,10 +103,15 @@ export default function ManageOrganizersPage() {
                         </div>
                     </TableCell>
                     <TableCell className="py-4">
-                        <div className="flex items-center gap-2 text-xs text-slate-600">
-                        <Clock className="h-3.5 w-3.5 text-slate-400" />
-                        {u.createdAt ? format(parseISO(u.createdAt), 'PPp') : 'N/A'}
-                        </div>
+                        {u.source === 'entrivo' ? (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100 flex items-center gap-1.5 py-1">
+                                <Globe className="h-3 w-3" /> District Platform
+                            </Badge>
+                        ) : (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-100 flex items-center gap-1.5 py-1">
+                                <Layout className="h-3 w-3" /> Club Portal
+                            </Badge>
+                        )}
                     </TableCell>
                     <TableCell className="py-4">
                         <Badge 
@@ -118,7 +122,7 @@ export default function ManageOrganizersPage() {
                         </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2 py-4 pr-8">
-                        {u.status === 'pending' && (
+                        {u.status === 'pending' && u.source === 'entrivo' && (
                         <>
                             <Button 
                             variant="ghost" 
@@ -139,7 +143,7 @@ export default function ManageOrganizersPage() {
                             </Button>
                         </>
                         )}
-                        {u.status === 'approved' && (
+                        {u.status === 'approved' && u.source === 'entrivo' && (
                             <Button 
                                 variant="ghost" 
                                 size="sm" 
@@ -150,11 +154,14 @@ export default function ManageOrganizersPage() {
                                 Revoke Access
                             </Button>
                         )}
+                        {u.source === 'portal' && (
+                            <p className="text-[10px] text-slate-400 font-bold uppercase italic">Managed via Portal Settings</p>
+                        )}
                     </TableCell>
                     </TableRow>
                 ))}
                 {organizers.length === 0 && (
-                    <TableRow><TableCell colSpan={4} className="text-center py-24 text-slate-400 italic">No organizer applications found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="text-center py-24 text-slate-400 italic">No authorized personnel found.</TableCell></TableRow>
                 )}
                 </TableBody>
             </Table>
