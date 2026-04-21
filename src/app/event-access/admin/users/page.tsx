@@ -85,7 +85,7 @@ export default function ManageOrganizersPage() {
     <div className="container mx-auto py-10 px-4 space-y-10">
       <div className="space-y-1">
         <Button variant="ghost" size="sm" onClick={() => router.push('/event-access/admin')} className="pl-0 text-primary font-bold hover:bg-primary/5">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Modules
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Events
         </Button>
         <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900 uppercase">Organizer Registry</h1>
         <p className="text-slate-500 uppercase text-xs tracking-widest font-black">Management of Authorized Personnel</p>

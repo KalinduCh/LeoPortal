@@ -34,7 +34,7 @@ export default function AccessPlatformLayout({ children }: { children: React.Rea
               <div className="hidden md:flex items-center gap-2 mr-2">
                 <Link href="/event-access/admin">
                   <Button variant="ghost" size="sm" className="font-bold">
-                    <LayoutDashboard className="mr-2 h-4 w-4" /> Modules
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> Events
                   </Button>
                 </Link>
                 {isSuperAdmin && (
