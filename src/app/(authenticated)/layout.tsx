@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/layout.tsx
 "use client";
 
@@ -94,13 +95,23 @@ export default function AuthenticatedLayout({
     }
   }, [user, isLoading, isAuthOperationInProgress, router]);
   
-  // Security check for admin pages
+  // Security guard for module isolation
   React.useEffect(() => {
-    const isAdminPage = pathname.startsWith('/admin/');
     if (isLoading || !user) return;
 
+    const isAdminPage = pathname.startsWith('/admin/');
+    const isEntrivoPage = pathname.startsWith('/event-access');
+
+    // 1. Strict Isolation: Entrivo users cannot access Main Portal routes
+    if (user.source === 'entrivo' && !isEntrivoPage) {
+        router.replace('/event-access/admin');
+        return;
+    }
+
+    // 2. Standard Portal Permissions
     if (user.role === 'member' && isAdminPage) {
         router.replace('/dashboard');
+        return;
     }
     
     if (user.role === 'admin' && adminViewMode === 'member_view' && isAdminPage) {

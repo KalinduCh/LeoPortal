@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -7,11 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ShieldCheck, UserCheck, UserX, Mail, Clock, ArrowLeft, Globe, Layout } from 'lucide-react';
-import { getEntrivoOrganizers, approveUser, rejectUser } from '@/services/userService';
+import { Loader2, ShieldCheck, UserCheck, UserX, Mail, ArrowLeft, Globe, Layout, ShieldAlert } from 'lucide-react';
+import { getEntrivoOrganizers, approveUser, rejectUser, updateUserProfile } from '@/services/userService';
 import type { User } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export default function ManageOrganizersPage() {
@@ -47,16 +47,32 @@ export default function ManageOrganizersPage() {
     }
   }, [user, authLoading, isSuperAdmin, router]);
 
-  const handleAction = async (targetId: string, action: 'approve' | 'reject') => {
-    setIsProcessing(targetId);
+  const handleAction = async (target: User, action: 'approve' | 'reject' | 'revoke') => {
+    setIsProcessing(target.id);
     try {
-      if (action === 'approve') await approveUser(targetId);
-      else await rejectUser(targetId);
+      if (action === 'approve') {
+          await approveUser(target.id);
+          toast({ title: "Access Granted", description: `${target.name} is now an authorized organizer.` });
+      } else if (action === 'reject') {
+          await rejectUser(target.id); // Deletes record
+          toast({ title: "Application Rejected", description: "Application removed from the database." });
+      } else if (action === 'revoke') {
+          if (target.source === 'portal') {
+              // Just remove the specific permission for portal users
+              const newPermissions = { ...target.permissions };
+              delete newPermissions.district_access;
+              await updateUserProfile(target.id, { permissions: newPermissions });
+              toast({ title: "Access Revoked", description: "District access removed from portal account." });
+          } else {
+              // Delete entrivo-only users
+              await rejectUser(target.id);
+              toast({ title: "Account Removed", description: "District organizer account has been deleted." });
+          }
+      }
       
-      toast({ title: "Status Updated", description: `Organizer has been ${action}ed.` });
       fetchOrganizers();
     } catch (error) {
-      toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+      toast({ title: "Error", description: "Action failed. Please try again.", variant: "destructive" });
     }
     setIsProcessing(null);
   };
@@ -72,7 +88,7 @@ export default function ManageOrganizersPage() {
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Modules
         </Button>
         <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900 uppercase">Organizer Registry</h1>
-        <p className="text-slate-500 uppercase text-xs tracking-widest font-black">Admin Access Control & Module Authorization</p>
+        <p className="text-slate-500 uppercase text-xs tracking-widest font-black">Management of Authorized Personnel</p>
       </div>
 
       <Card className="shadow-xl border-none ring-1 ring-slate-200 overflow-hidden bg-white rounded-2xl">
@@ -80,16 +96,16 @@ export default function ManageOrganizersPage() {
           <CardTitle className="text-xl flex items-center gap-3">
             <ShieldCheck className="h-6 w-6 text-primary" /> Authorized Personnel
           </CardTitle>
-          <CardDescription className="text-slate-400">Review all users authorized to manage district event modules across platforms.</CardDescription>
+          <CardDescription className="text-slate-400">Registry of users with administrative access to Entrivo modules.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
                 <TableHeader className="bg-slate-50">
                 <TableRow>
-                    <TableHead className="font-bold py-4">Applicant Details</TableHead>
-                    <TableHead className="font-bold py-4">Platform Source</TableHead>
-                    <TableHead className="font-bold py-4">Status</TableHead>
+                    <TableHead className="font-bold py-4">Organizer Details</TableHead>
+                    <TableHead className="font-bold py-4">Account Origin</TableHead>
+                    <TableHead className="font-bold py-4">Current Status</TableHead>
                     <TableHead className="text-right font-bold py-4 pr-8">Actions</TableHead>
                 </TableRow>
                 </TableHeader>
@@ -104,12 +120,12 @@ export default function ManageOrganizersPage() {
                     </TableCell>
                     <TableCell className="py-4">
                         {u.source === 'entrivo' ? (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100 flex items-center gap-1.5 py-1">
-                                <Globe className="h-3 w-3" /> District Platform
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100 flex items-center gap-1.5 py-1 px-3">
+                                <Globe className="h-3 w-3" /> District Native
                             </Badge>
                         ) : (
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-100 flex items-center gap-1.5 py-1">
-                                <Layout className="h-3 w-3" /> Club Portal
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-100 flex items-center gap-1.5 py-1 px-3">
+                                <Layout className="h-3 w-3" /> Portal Administrator
                             </Badge>
                         )}
                     </TableCell>
@@ -122,46 +138,46 @@ export default function ManageOrganizersPage() {
                         </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2 py-4 pr-8">
-                        {u.status === 'pending' && u.source === 'entrivo' && (
+                        {u.status === 'pending' && (
                         <>
                             <Button 
                             variant="ghost" 
                             size="sm" 
                             className="text-rose-600 font-bold hover:bg-rose-50"
                             disabled={isProcessing === u.id}
-                            onClick={() => handleAction(u.id, 'reject')}
+                            onClick={() => handleAction(u, 'reject')}
                             >
-                            <UserX className="mr-1 h-3.5 w-3.5" /> Reject
+                            <UserX className="mr-1 h-3.5 w-3.5" /> Reject & Delete
                             </Button>
                             <Button 
                             size="sm" 
                             className="bg-emerald-600 hover:bg-emerald-700 font-bold shadow-md"
                             disabled={isProcessing === u.id}
-                            onClick={() => handleAction(u.id, 'approve')}
+                            onClick={() => handleAction(u, 'approve')}
                             >
-                            {isProcessing === u.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCheck className="mr-1 h-3.5 w-3.5" />} Approve
+                            {isProcessing === u.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCheck className="mr-1 h-3.5 w-3.5" />} Approve Access
                             </Button>
                         </>
                         )}
-                        {u.status === 'approved' && u.source === 'entrivo' && (
+                        {u.status === 'approved' && u.id !== user?.id && (
                             <Button 
                                 variant="ghost" 
                                 size="sm" 
                                 className="text-slate-400 hover:text-rose-600 font-bold"
-                                onClick={() => handleAction(u.id, 'reject')}
+                                onClick={() => handleAction(u, 'revoke')}
                                 disabled={isProcessing === u.id}
                             >
-                                Revoke Access
+                                <ShieldAlert className="mr-1.5 h-3.5 w-3.5" /> Revoke Permissions
                             </Button>
                         )}
-                        {u.source === 'portal' && (
-                            <p className="text-[10px] text-slate-400 font-bold uppercase italic">Managed via Portal Settings</p>
+                        {u.id === user?.id && (
+                            <p className="text-[10px] text-primary font-black uppercase tracking-widest italic">Current Session</p>
                         )}
                     </TableCell>
                     </TableRow>
                 ))}
                 {organizers.length === 0 && (
-                    <TableRow><TableCell colSpan={4} className="text-center py-24 text-slate-400 italic">No authorized personnel found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="text-center py-24 text-slate-400 italic">No authorized personnel found in the registry.</TableCell></TableRow>
                 )}
                 </TableBody>
             </Table>
