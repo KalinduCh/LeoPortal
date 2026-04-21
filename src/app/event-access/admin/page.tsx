@@ -170,6 +170,13 @@ export default function PlatformAdminOverview() {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
+  // Helper for Calendar
+  const getSelectedDate = () => {
+    if (!formData.date) return undefined;
+    const parsed = parseISO(formData.date);
+    return isValid(parsed) ? parsed : undefined;
+  };
+
   return (
     <div className="container mx-auto py-10 px-4 space-y-10">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b pb-8">
@@ -289,19 +296,20 @@ export default function PlatformAdminOverview() {
                           <PopoverTrigger asChild>
                             <Button
                               variant={"outline"}
+                              type="button"
                               className={cn(
                                 "w-full justify-start text-left font-normal",
                                 !formData.date && "text-muted-foreground"
                               )}
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {formData.date && isValid(parseISO(formData.date)) ? format(parseISO(formData.date), "PPP") : <span>Pick a date</span>}
+                              {getSelectedDate() ? format(getSelectedDate()!, "PPP") : <span>Pick a date</span>}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                               mode="single"
-                              selected={formData.date ? parseISO(formData.date) : undefined}
+                              selected={getSelectedDate()}
                               onSelect={(date) => setFormData({ ...formData, date: date ? format(date, "yyyy-MM-dd") : "" })}
                               initialFocus
                             />

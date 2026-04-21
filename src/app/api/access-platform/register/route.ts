@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase/clientApp';
-import { collection, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
 
@@ -22,27 +22,8 @@ export async function POST(req: Request) {
     }
 
     const ticketId = `ENT-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
-
-    const registrationData: any = {
-      eventId,
-      name,
-      email,
-      club: club || 'Individual',
-      contactNumber: contactNumber || '',
-      role: role || 'Guest',
-      foodPreference: foodPreference || 'non_veg',
-      ticketId,
-      status: 'registered',
-      emailStatus: 'pending',
-      createdAt: serverTimestamp(),
-    };
-
-    if (submitterInfo) {
-      registrationData.registeredBy = submitterInfo;
-    }
-
-    const docRef = await addDoc(collection(db, PLATFORM_REGISTRATIONS), registrationData);
-
+    
+    // Generate QR early
     const qrPayload = JSON.stringify({ ticketId, eventId });
     const qrBase64 = await QRCode.toDataURL(qrPayload, {
       color: { dark: '#1e3a8a', light: '#ffffff' },
@@ -53,11 +34,14 @@ export async function POST(req: Request) {
     const { GMAIL_APP_PASSWORD } = process.env;
     let finalEmailStatus: 'success' | 'failed' = 'failed';
 
+    // Attempt email BEFORE writing to DB to determine initial status and handle permission-less state
     if (OFFICIAL_SENDER && GMAIL_APP_PASSWORD) {
       try {
         const transporter = nodemailer.createTransport({
           service: 'gmail',
           auth: { user: OFFICIAL_SENDER, pass: GMAIL_APP_PASSWORD },
+          pool: true,
+          maxConnections: 5,
         });
 
         const foodLabel = foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian';
@@ -117,19 +101,38 @@ export async function POST(req: Request) {
         });
         finalEmailStatus = 'success';
       } catch (emailErr) {
-        console.error("Email send failed:", emailErr);
+        console.error("LEOENTRIVO_MAIL_ERROR:", emailErr);
         finalEmailStatus = 'failed';
       }
+    } else {
+        console.error("LEOENTRIVO_CONFIG_ERROR: GMAIL_APP_PASSWORD not set in environment.");
     }
 
-    await updateDoc(doc(db, PLATFORM_REGISTRATIONS, docRef.id), {
-        emailStatus: finalEmailStatus
-    });
+    // Single write operation with the known email status
+    const registrationData: any = {
+      eventId,
+      name,
+      email,
+      club: club || 'Individual',
+      contactNumber: contactNumber || '',
+      role: role || 'Guest',
+      foodPreference: foodPreference || 'non_veg',
+      ticketId,
+      status: 'registered',
+      emailStatus: finalEmailStatus,
+      createdAt: serverTimestamp(),
+    };
 
-    return NextResponse.json({ success: true, ticketId });
+    if (submitterInfo) {
+      registrationData.registeredBy = submitterInfo;
+    }
+
+    await addDoc(collection(db, PLATFORM_REGISTRATIONS), registrationData);
+
+    return NextResponse.json({ success: true, ticketId, emailStatus: finalEmailStatus });
 
   } catch (error: any) {
-    console.error("LeoEntrivo API Error:", error);
+    console.error("LEOENTRIVO_API_CRITICAL_ERROR:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
