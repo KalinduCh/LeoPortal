@@ -169,11 +169,13 @@ export default function PlatformAdminOverview() {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  // Helper for Calendar selection state
-  const getSelectedDate = () => {
+  // Safe parsing for Calendar to avoid UTC-offset issues (day before bug)
+  const getSafeCalendarDate = () => {
     if (!formData.date) return undefined;
-    const parsed = parseISO(formData.date);
-    return isValid(parsed) ? parsed : undefined;
+    const parts = formData.date.split('-');
+    if (parts.length !== 3) return undefined;
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    return isValid(d) ? d : undefined;
   };
 
   return (
@@ -192,10 +194,14 @@ export default function PlatformAdminOverview() {
         {events.length > 0 ? (
           events.map(event => {
             const eventDateStr = event.date || '';
-            const eventDateParsed = eventDateStr ? parseISO(eventDateStr) : null;
-            const formattedDate = (eventDateParsed && isValid(eventDateParsed)) 
-              ? format(eventDateParsed, 'PPP') 
-              : (event.date || 'Date TBD');
+            let formattedDate = 'Date TBD';
+            if (eventDateStr) {
+                const parts = eventDateStr.split('-');
+                if (parts.length === 3) {
+                    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    if (isValid(d)) formattedDate = format(d, 'PPP');
+                }
+            }
             
             return (
               <Card key={event.id} className="hover:shadow-xl transition-all duration-300 border-none bg-white ring-1 ring-slate-200 overflow-hidden flex flex-col">
@@ -305,13 +311,13 @@ export default function PlatformAdminOverview() {
                               )}
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {getSelectedDate() ? format(getSelectedDate()!, "PPP") : <span>Pick a date</span>}
+                              {getSafeCalendarDate() ? format(getSafeCalendarDate()!, "PPP") : <span>Pick a date</span>}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                               mode="single"
-                              selected={getSelectedDate()}
+                              selected={getSafeCalendarDate()}
                               onSelect={(date) => {
                                 setFormData(prev => ({ 
                                   ...prev, 
