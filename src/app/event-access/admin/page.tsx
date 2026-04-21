@@ -62,7 +62,7 @@ export default function PlatformAdminOverview() {
       setEvents(data);
     } catch (error: any) {
       console.error("LEOENTRIVO_ERROR: Failed to load events:", error);
-      toast({ title: "Error", description: "Failed to load event modules.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to load events.", variant: "destructive" });
     }
     setIsLoading(false);
   };
@@ -144,13 +144,13 @@ export default function PlatformAdminOverview() {
 
       if (editingEvent) {
         await updatePlatformEvent(editingEvent.id, payload);
-        toast({ title: "Module Updated", description: "Event details have been successfully changed." });
+        toast({ title: "Event Updated", description: "Event details have been successfully changed." });
       } else {
         await createPlatformEvent({
           ...payload,
           organizerId: user.id,
         });
-        toast({ title: "Module Activated", description: "The LeoEntrivo registration pipeline is ready." });
+        toast({ title: "Event Created", description: "The LeoEntrivo registration pipeline is ready." });
       }
       
       setIsDialogOpen(false);
@@ -159,7 +159,7 @@ export default function PlatformAdminOverview() {
       console.error("LEOENTRIVO_ERROR: Save failed:", error);
       toast({ 
         title: "Error", 
-        description: error.message || "Could not save the event module.", 
+        description: error.message || "Could not save the event.", 
         variant: "destructive" 
       });
     }
@@ -175,10 +175,10 @@ export default function PlatformAdminOverview() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b pb-8">
         <div>
           <h1 className="text-4xl font-bold font-headline text-slate-900 tracking-tight uppercase">LeoEntrivo Dashboard</h1>
-          <p className="text-slate-500 mt-1">Manage registration and entry passes for your district event modules.</p>
+          <p className="text-slate-500 mt-1">Manage registration and entry passes for your district events.</p>
         </div>
         <Button size="lg" onClick={() => handleOpenDialog()} className="shadow-xl bg-primary hover:bg-primary/90 h-14 px-8 text-lg font-bold">
-          <PlusCircle className="mr-2 h-6 w-6" /> Deploy New Module
+          <PlusCircle className="mr-2 h-6 w-6" /> Add New Event
         </Button>
       </div>
 
@@ -214,7 +214,7 @@ export default function PlatformAdminOverview() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuLabel>Module Options</DropdownMenuLabel>
+                        <DropdownMenuLabel>Event Options</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleOpenDialog(event)}>
                           <Edit3 className="mr-2 h-4 w-4" /> Edit Event Details
@@ -262,8 +262,8 @@ export default function PlatformAdminOverview() {
         ) : (
           <div className="col-span-full py-32 flex flex-col items-center justify-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
             <QrCode className="h-16 w-16 text-slate-300 mb-4" />
-            <h3 className="text-xl font-bold text-slate-900">No Active Modules</h3>
-            <p className="text-slate-500">Deploy your first LeoEntrivo module above.</p>
+            <h3 className="text-xl font-bold text-slate-900">No Active Events</h3>
+            <p className="text-slate-500">Add your first district event above.</p>
           </div>
         )}
       </div>
@@ -272,7 +272,7 @@ export default function PlatformAdminOverview() {
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-headline">
-              {editingEvent ? 'Edit Module Details' : 'Deploy New Module'}
+              {editingEvent ? 'Edit Event Details' : 'Add New Event'}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveEvent} className="space-y-6 py-4">
@@ -388,7 +388,7 @@ export default function PlatformAdminOverview() {
             <DialogFooter className="pt-4 gap-2">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={isProcessing} className="h-12 px-6 shadow-lg flex-1">
-                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Save Changes" : "Start Module")}
+                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Save Changes" : "Add Event")}
               </Button>
             </DialogFooter>
           </form>
