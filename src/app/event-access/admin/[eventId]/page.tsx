@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -9,10 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Users, CheckCircle, Clock, Download, QrCode, Search, 
   Loader2, Trash2, ArrowLeft, BarChart3, Mail, ShieldAlert, 
-  ShieldCheck, PieChart as PieChartIcon, Utensils, Zap
+  ShieldCheck, PieChart as PieChartIcon, Utensils, Zap, AlertTriangle
 } from 'lucide-react';
 import { getPlatformEvent, subscribeToPlatformRegistrations, deletePlatformRegistration } from '@/services/accessPlatformService';
 import type { AccessEvent, AccessRegistration, AccessPlatformStats } from '@/types/access-platform';
@@ -40,6 +40,8 @@ export default function PlatformEventDashboard() {
   const [registrations, setRegistrations] = useState<AccessRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -90,7 +92,7 @@ export default function PlatformEventDashboard() {
         arrived: counts.check 
       }))
       .sort((a, b) => b.registered - a.registered)
-      .slice(0, 8); // Top 8 for clean UI
+      .slice(0, 8);
   }, [registrations]);
 
   // Visual Data: Role Mix
@@ -153,9 +155,50 @@ export default function PlatformEventDashboard() {
     if (!confirm("Revoke this registration pass permanently?")) return;
     try {
       await deletePlatformRegistration(id);
+      setSelectedIds(prev => prev.filter(item => item !== id));
       toast({ title: "Pass Revoked" });
     } catch (err) {
       toast({ title: "Error", description: "Failed to delete registration.", variant: "destructive" });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Are you sure you want to permanently revoke ${selectedIds.length} registration passes? This cannot be undone.`)) return;
+    
+    setIsBulkDeleting(true);
+    let successCount = 0;
+    
+    for (const id of selectedIds) {
+        try {
+            await deletePlatformRegistration(id);
+            successCount++;
+        } catch (error) {
+            console.error("Bulk Delete Item Error:", id, error);
+        }
+    }
+    
+    toast({ 
+        title: "Bulk Revoke Complete", 
+        description: `Successfully removed ${successCount} entries.` 
+    });
+    
+    setSelectedIds([]);
+    setIsBulkDeleting(false);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+        setSelectedIds(filteredRegistrations.map(r => r.id));
+    } else {
+        setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    if (checked) {
+        setSelectedIds(prev => [...prev, id]);
+    } else {
+        setSelectedIds(prev => prev.filter(item => item !== id));
     }
   };
 
@@ -168,7 +211,7 @@ export default function PlatformEventDashboard() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
         <div className="space-y-1">
           <Button variant="ghost" size="sm" onClick={() => router.push('/event-access/admin')} className="pl-0 text-primary font-bold">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Events
           </Button>
           <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900 uppercase">{event.name}</h1>
           <p className="text-slate-500 uppercase text-xs tracking-widest font-black">LeoEntrivo Command Center</p>
@@ -196,11 +239,30 @@ export default function PlatformEventDashboard() {
         </TabsList>
 
         <TabsContent value="list" className="space-y-6">
+          {selectedIds.length > 0 && (
+            <div className="flex items-center justify-between p-4 bg-slate-900 text-white rounded-2xl shadow-lg animate-in slide-in-from-top-4">
+                <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-400" />
+                    <span className="font-bold">{selectedIds.length} entries selected</span>
+                </div>
+                <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    className="font-bold px-6 h-10 shadow-lg"
+                    onClick={handleBulkDelete}
+                    disabled={isBulkDeleting}
+                >
+                    {isBulkDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                    Revoke Selected Passes
+                </Button>
+            </div>
+          )}
+
           <Card className="shadow-xl border-none ring-1 ring-slate-200 overflow-hidden">
             <CardHeader className="bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="text-lg">Attendee Registry</CardTitle>
-                <CardDescription>Search and manage all issued passes.</CardDescription>
+                <CardDescription>Manage and search all issued passes.</CardDescription>
               </div>
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -212,20 +274,29 @@ export default function PlatformEventDashboard() {
                 <Table>
                   <TableHeader className="bg-slate-50">
                     <TableRow>
+                      <TableHead className="w-12 px-6">
+                        <Checkbox 
+                            checked={filteredRegistrations.length > 0 && selectedIds.length === filteredRegistrations.length}
+                            onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                        />
+                      </TableHead>
                       <TableHead className="font-bold">Guest Info</TableHead>
                       <TableHead className="font-bold">Club & Type</TableHead>
                       <TableHead className="font-bold">Meal</TableHead>
                       <TableHead className="font-bold">Ticket ID</TableHead>
-                      <TableHead className="font-bold">Email Status</TableHead>
                       <TableHead className="font-bold">Entry Status</TableHead>
-                      <TableHead className="text-right font-bold">Actions</TableHead>
+                      <TableHead className="text-right font-bold pr-6">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRegistrations.map(r => {
-                      const checkInParsed = r.checkInTime ? parseISO(r.checkInTime) : null;
-                      return (
-                        <TableRow key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                    {filteredRegistrations.map(r => (
+                        <TableRow key={r.id} className={cn("hover:bg-slate-50/50 transition-colors", selectedIds.includes(r.id) && "bg-slate-100")}>
+                          <TableCell className="px-6">
+                            <Checkbox 
+                                checked={selectedIds.includes(r.id)}
+                                onCheckedChange={(checked) => handleSelectRow(r.id, !!checked)}
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <p className="font-bold text-slate-900">{r.name}</p>
@@ -236,8 +307,8 @@ export default function PlatformEventDashboard() {
                                       <ShieldCheck className="h-3.5 w-3.5 text-primary" />
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p className="text-xs">Bulk Registered by: {r.registeredBy.name}</p>
-                                      <p className="text-[10px] opacity-70">{r.registeredBy.designation} • {r.registeredBy.club}</p>
+                                      <p className="text-xs font-bold">Bulk Registration</p>
+                                      <p className="text-[10px] opacity-70">Officer: {r.registeredBy.name} ({r.registeredBy.club})</p>
                                     </TooltipContent>
                                   </UITooltip>
                                 </TooltipProvider>
@@ -258,26 +329,17 @@ export default function PlatformEventDashboard() {
                           </TableCell>
                           <TableCell className="font-mono text-xs text-primary font-bold">{r.ticketId}</TableCell>
                           <TableCell>
-                              <Badge 
-                                  variant={r.emailStatus === 'success' ? 'outline' : r.emailStatus === 'failed' ? 'destructive' : 'secondary'} 
-                                  className={cn("text-[10px] font-bold uppercase", r.emailStatus === 'success' ? 'text-emerald-600 border-emerald-500' : '')}
-                              >
-                                  {r.emailStatus === 'success' ? 'Sent' : r.emailStatus === 'failed' ? 'Failed' : 'Sending...'}
-                              </Badge>
-                          </TableCell>
-                          <TableCell>
                             <Badge variant={r.status === 'checked_in' ? 'default' : 'secondary'} className={r.status === 'checked_in' ? 'bg-emerald-600 text-white' : ''}>
                               {r.status === 'checked_in' ? 'Arrived' : 'Registered'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right pr-6">
                             <Button variant="ghost" size="icon" className="text-slate-400 hover:text-rose-600" onClick={() => handleDelete(r.id)}><Trash2 className="h-4 w-4" /></Button>
                           </TableCell>
                         </TableRow>
-                      );
-                    })}
+                    ))}
                     {filteredRegistrations.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="text-center py-20 text-slate-400 italic">No guests found.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center py-20 text-slate-400 italic">No guests found matching search criteria.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
