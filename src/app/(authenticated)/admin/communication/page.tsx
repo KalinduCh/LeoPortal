@@ -329,7 +329,7 @@ export default function CommunicationPage() {
     <div className="container mx-auto py-4 sm:py-8 space-y-6">
       <div className="flex items-center justify-between"><h1 className="text-2xl sm:text-3xl font-bold font-headline">Member Communication</h1></div>
       <Form {...form}>
-        <form onSubmit(form.handleSubmit(onSubmit))} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card className="shadow-lg">
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -441,8 +441,24 @@ export default function CommunicationPage() {
           
           <Card className="shadow-lg border-primary/10"><CardHeader className="bg-primary/5"><CardTitle className="flex items-center text-xl text-primary"><Sparkles className="mr-2 h-5 w-5" /> AI Content Assistant</CardTitle></CardHeader><CardContent className="space-y-4 pt-6"><Alert className="bg-blue-50 border-blue-100"><Info className="h-4 w-4 text-primary" /><AlertDescription className="text-xs leading-relaxed text-blue-800">Briefly describe the topic (e.g. "beach cleanup reminder") and the AI will draft a professional, engaging club email for you.</AlertDescription></Alert><div><Label htmlFor="ai-topic" className="font-bold">Topic for AI Draft</Label><div className="flex items-center gap-2 mt-1"><Input id="ai-topic" placeholder="e.g. Monthly meeting reminder for next Saturday at 10 AM" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} disabled={isGenerating || formSubmitting} className="rounded-xl"/><Button type="button" onClick={handleGenerateContent} disabled={isGenerating || formSubmitting} className="rounded-xl shadow-md">{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Draft Content</Button></div></div></CardContent></Card>
           <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Official Email</CardTitle><CardDescription className="text-sm">Finalize the subject and body before sending.</CardDescription></CardHeader><CardContent className="space-y-4">
-            <FormField control={form.control} name="subject" render={({ field }) => (<FormItem><FormLabel className="font-bold">Subject Line</FormLabel><FormControl><Input placeholder="Important: Club Update Regarding..." {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>)}/>
-            <FormField control={form.control} name="body" render={({ field }) => (<FormItem><FormLabel className="font-bold">Message Body</FormLabel><FormControl><Textarea placeholder="Dear members, we are writing to inform you that..." className="resize-y min-h-[200px] rounded-xl" {...field}/></FormControl><FormMessage /></FormItem>)}/>
+            <FormField control={form.control} name="subject" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="font-bold">Subject Line</FormLabel>
+                <FormControl>
+                  <Input placeholder="Important: Club Update Regarding..." {...field} className="rounded-xl" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}/>
+            <FormField control={form.control} name="body" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="font-bold">Message Body</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="Dear members, we are writing to inform you that..." className="resize-y min-h-[200px] rounded-xl" {...field}/>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}/>
             <FormItem><FormLabel className="flex items-center font-bold"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Append Signature</FormLabel><Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}><FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choose a signature template" /></SelectTrigger></FormControl><SelectContent>{Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (<SelectItem key={key} value={key}>{template.label}</SelectItem>))}</SelectContent></Select><FormDescription className="text-xs">This will be added to the end of your message.</FormDescription></FormItem>
             
             <FormField
