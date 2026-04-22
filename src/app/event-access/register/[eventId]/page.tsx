@@ -247,9 +247,9 @@ export default function PlatformPublicRegistration() {
       <div className="max-w-2xl mx-auto space-y-10">
         <header className="text-center space-y-6">
           <div className="flex justify-center">
-            <div className="bg-white p-2 rounded-full shadow-xl ring-4 ring-white w-28 h-24 sm:w-36 sm:h-32 flex items-center justify-center overflow-hidden aspect-square">
+            <div className="bg-white p-2 rounded-[2rem] shadow-xl ring-4 ring-white w-32 h-28 sm:w-40 sm:h-36 flex items-center justify-center overflow-hidden">
               {event.imageUrl ? (
-                <img src={event.imageUrl} alt="Event Branding" className="w-full h-full object-cover rounded-full" />
+                <img src={event.imageUrl} alt="Event Branding" className="w-full h-full object-cover rounded-2xl" />
               ) : (
                 <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={90} height={90} className="object-contain" />
               )}

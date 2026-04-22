@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
 
 const MAX_FILE_SIZE_MB = 2;
@@ -328,7 +329,7 @@ export default function CommunicationPage() {
     <div className="container mx-auto py-4 sm:py-8 space-y-6">
       <div className="flex items-center justify-between"><h1 className="text-2xl sm:text-3xl font-bold font-headline">Member Communication</h1></div>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit(form.handleSubmit(onSubmit))} className="space-y-6">
           <Card className="shadow-lg">
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
