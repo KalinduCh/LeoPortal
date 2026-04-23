@@ -57,6 +57,14 @@ export async function updatePlatformEvent(id: string, data: Partial<Omit<AccessE
 }
 
 /**
+ * Permanently deletes an event module.
+ */
+export async function deletePlatformEvent(id: string): Promise<void> {
+  const docRef = doc(db, PLATFORM_EVENTS, id);
+  await deleteDoc(docRef);
+}
+
+/**
  * Fetches all available event modules for the organizer dashboard.
  */
 export async function getPlatformEvents(): Promise<AccessEvent[]> {
@@ -93,6 +101,7 @@ export function subscribeToPlatformRegistrations(eventId: string, callback: (reg
         } as AccessRegistration;
     });
     
+    // Client-side sort by creation date descending
     const sorted = registrations.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
