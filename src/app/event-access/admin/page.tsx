@@ -34,6 +34,7 @@ export default function PlatformAdminOverview() {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -82,6 +83,7 @@ export default function PlatformAdminOverview() {
   }, [user, authLoading, router]);
 
   const handleOpenDialog = (event?: AccessEvent) => {
+    setIsCalendarOpen(false);
     if (event) {
       setEditingEvent(event);
       setFormData({
@@ -372,7 +374,7 @@ export default function PlatformAdminOverview() {
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>Date</Label>
-                        <Popover>
+                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                           <PopoverTrigger asChild>
                             <Button
                               variant={"outline"}
@@ -395,6 +397,7 @@ export default function PlatformAdminOverview() {
                                   ...prev, 
                                   date: date ? format(date, "yyyy-MM-dd") : "" 
                                 }));
+                                setIsCalendarOpen(false);
                               }}
                               initialFocus
                             />
