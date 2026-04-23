@@ -4,7 +4,8 @@ import { createRegistration, getAccessEvent } from '@/services/accessManagementS
 import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
 
-const OFFICIAL_SENDER = "districtconference306d9@gmail.com";
+const OFFICIAL_SENDER = process.env.GMAIL_TICKET_EMAIL || "noreplydistrictconferenced9@gmail.com";
+const GMAIL_PASSWORD = process.env.GMAIL_TICKET_APP_PASSWORD || "ceth hegq xouv nrvl";
 
 export async function POST(req: Request) {
   try {
@@ -28,19 +29,18 @@ export async function POST(req: Request) {
       width: 400
     });
 
-    const { GMAIL_APP_PASSWORD } = process.env;
     let emailSuccess = false;
 
-    if (OFFICIAL_SENDER && GMAIL_APP_PASSWORD) {
+    if (OFFICIAL_SENDER && GMAIL_PASSWORD) {
       try {
         const transporter = nodemailer.createTransport({
           service: 'gmail',
-          auth: { user: OFFICIAL_SENDER, pass: GMAIL_APP_PASSWORD },
+          auth: { user: OFFICIAL_SENDER, pass: GMAIL_PASSWORD },
         });
 
         const emailHtml = `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-            <div style="background-color: #2563eb; padding: 30px; text-align: center; color: white;">
+            <div style="background-color: #1e3a8a; padding: 30px; text-align: center; color: white;">
               <h1 style="margin: 0; font-size: 24px;">LeoEntrivo Entry Pass</h1>
               <p style="margin: 5px 0 0 0; opacity: 0.9;">Registration Confirmed</p>
             </div>

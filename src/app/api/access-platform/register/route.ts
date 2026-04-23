@@ -6,7 +6,10 @@ import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
 
 const PLATFORM_REGISTRATIONS = 'accessRegistrations';
-const OFFICIAL_SENDER = "districtconference306d9@gmail.com";
+
+// Priority: Env Var > Provided Default
+const OFFICIAL_SENDER = process.env.GMAIL_TICKET_EMAIL || "noreplydistrictconferenced9@gmail.com";
+const GMAIL_PASSWORD = process.env.GMAIL_TICKET_APP_PASSWORD || "ceth hegq xouv nrvl";
 
 export async function POST(req: Request) {
   try {
@@ -31,15 +34,14 @@ export async function POST(req: Request) {
       width: 400
     });
 
-    const { GMAIL_APP_PASSWORD } = process.env;
     let finalEmailStatus: 'success' | 'failed' = 'failed';
 
-    // Attempt email BEFORE writing to DB to determine initial status and handle permission-less state
-    if (OFFICIAL_SENDER && GMAIL_APP_PASSWORD) {
+    // Attempt email using Dedicated Ticket Account
+    if (OFFICIAL_SENDER && GMAIL_PASSWORD) {
       try {
         const transporter = nodemailer.createTransport({
           service: 'gmail',
-          auth: { user: OFFICIAL_SENDER, pass: GMAIL_APP_PASSWORD },
+          auth: { user: OFFICIAL_SENDER, pass: GMAIL_PASSWORD },
           pool: true,
           maxConnections: 5,
         });
@@ -50,7 +52,7 @@ export async function POST(req: Request) {
 
         const emailHtml = `
           <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-            <div style="background-color: #2563eb; padding: 40px 30px; text-align: center; color: white;">
+            <div style="background-color: #1e3a8a; padding: 40px 30px; text-align: center; color: white;">
               <h1 style="margin: 0; font-size: 28px; letter-spacing: -0.5px; text-transform: uppercase;">LeoEntrivo Digital Pass</h1>
               <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9; font-weight: 500;">Registration Confirmed</p>
             </div>
@@ -60,7 +62,7 @@ export async function POST(req: Request) {
               
               <div style="text-align: center; margin: 40px 0; padding: 30px; border: 2px dashed #cbd5e1; border-radius: 20px; background-color: #f8fafc;">
                 <img src="cid:qrcode" alt="Access QR" style="width: 240px; height: 240px; display: block; margin: 0 auto; border-radius: 8px;" />
-                <p style="font-family: 'Courier New', Courier, monospace; font-weight: bold; font-size: 22px; margin: 20px 0 0 0; color: #2563eb; letter-spacing: 2px;">${ticketId}</p>
+                <p style="font-family: 'Courier New', Courier, monospace; font-weight: bold; font-size: 22px; margin: 20px 0 0 0; color: #1e3a8a; letter-spacing: 2px;">${ticketId}</p>
               </div>
 
               <div style="background-color: #f1f5f9; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
@@ -105,7 +107,7 @@ export async function POST(req: Request) {
         finalEmailStatus = 'failed';
       }
     } else {
-        console.error("LEOENTRIVO_CONFIG_ERROR: GMAIL_APP_PASSWORD not set in environment.");
+        console.error("LEOENTRIVO_CONFIG_ERROR: Ticketing email credentials not provided.");
     }
 
     // Single write operation with the known email status
