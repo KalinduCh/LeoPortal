@@ -351,7 +351,7 @@ export default function PlatformEventDashboard() {
         <TabsContent value="live" className="space-y-6">
           <Card className="shadow-xl border-none ring-1 ring-slate-200 bg-white">
             <CardHeader className="bg-slate-50/50 flex items-center justify-between">
-              <div>
+              <div className="text-left">
                 <CardTitle className="text-lg">Real-Time Arrivals</CardTitle>
                 <CardDescription>Live check-in stream from entrance stations.</CardDescription>
               </div>
@@ -373,7 +373,7 @@ export default function PlatformEventDashboard() {
                         <div className="h-12 w-12 rounded-xl bg-slate-50 flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
                           <CheckCircle className="h-6 w-6" />
                         </div>
-                        <div>
+                        <div className="text-left">
                           <p className="font-bold text-sm text-slate-900">{r.name}</p>
                           <p className="text-[10px] text-slate-500 uppercase tracking-tighter truncate max-w-[120px]">{r.club.replace('Leo Club of ', '')}</p>
                           <div className="flex gap-1.5 mt-1">
@@ -391,8 +391,8 @@ export default function PlatformEventDashboard() {
                   );
                 })}
                 {registrations.filter(r => r.status === 'checked_in').length === 0 && (
-                  <div className="col-span-full py-24 text-center text-slate-400">
-                    <ShieldAlert className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                  <div className="col-span-full py-24 text-left text-slate-400">
+                    <ShieldAlert className="h-12 w-12 mb-2 opacity-20" />
                     <p className="font-bold uppercase tracking-widest text-xs">Waiting for first entry...</p>
                   </div>
                 )}
@@ -449,21 +449,21 @@ export default function PlatformEventDashboard() {
                     </CardContent>
                 </Card>
 
-                <Card className="shadow-xl border-none ring-1 ring-slate-200 bg-slate-900 text-white">
+                <Card className="shadow-xl border-none ring-1 ring-slate-200 bg-white">
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2 text-primary">
                             <Utensils className="h-5 w-5" /> Catering Estimates
                         </CardTitle>
-                        <CardDescription className="text-slate-400">Projected meal requirements for standard catering.</CardDescription>
+                        <CardDescription>Projected meal requirements for standard catering.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {mealData.map(meal => (
                             <div key={meal.name} className="space-y-2">
                                 <div className="flex justify-between items-end">
-                                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">{meal.name}</p>
-                                    <p className="text-xl font-black">{meal.value} <span className="text-[10px] text-slate-500 font-medium">Guests</span></p>
+                                    <p className="text-xs font-black uppercase tracking-widest text-slate-500">{meal.name}</p>
+                                    <p className="text-xl font-black text-slate-900">{meal.value} <span className="text-[10px] text-slate-400 font-medium">Guests</span></p>
                                 </div>
-                                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                                     <div 
                                         className="h-full transition-all duration-1000" 
                                         style={{ width: `${(meal.value / (stats.total || 1)) * 100}%`, backgroundColor: meal.color }}
@@ -486,7 +486,7 @@ function PlatformStatCard({ title, value, icon: Icon, color }: any) {
     <Card className="shadow-lg border-none ring-1 ring-slate-200 bg-white group hover:shadow-xl transition-all duration-300">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div className="space-y-1">
+          <div className="space-y-1 text-left">
             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{title}</p>
             <p className={`text-3xl font-black ${color}`}>{value}</p>
           </div>
