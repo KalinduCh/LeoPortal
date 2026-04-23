@@ -1,3 +1,4 @@
+
 // src/hooks/use-push-notifications.ts
 import { useState, useEffect, useCallback } from 'react';
 import { updatePushSubscription } from '@/services/userService';
@@ -10,13 +11,14 @@ const VAPID_PUBLIC_KEY = "BIc9bH71DzSMqmg3pBlve0gm14FLcVAh4EacFVw4Ovg4uEd3k11ETl
  * Optimized for iOS 16.4+ PWAs with robust feature detection.
  */
 export function usePushNotifications(user: User | null) {
-  const [permission, setPermission] = useState<NotificationPermission | 'default'>(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      return Notification.permission;
-    }
-    return 'default';
-  });
+  const [permission, setPermission] = useState<NotificationPermission | 'default'>('default');
   const [isSubscribing, setIsSubscribing] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPermission(Notification.permission);
+    }
+  }, []);
 
   const urlBase64ToUint8Array = (base64String: string) => {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -24,7 +26,7 @@ export function usePushNotifications(user: User | null) {
     const rawData = window.atob(base64);
     const outputArray = new Uint8Array(rawData.length);
     for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
+        outputArray[i] = rawData.charCodeAt(i);
     }
     return outputArray;
   };
@@ -37,7 +39,6 @@ export function usePushNotifications(user: User | null) {
 
     setIsSubscribing(true);
     try {
-      // 1. Request permission (iOS 16.4+ requires user gesture)
       const result = await Notification.requestPermission();
       setPermission(result);
 
@@ -45,14 +46,10 @@ export function usePushNotifications(user: User | null) {
         throw new Error('Permission not granted for notifications');
       }
 
-      // 2. Wait for SW to be ready
       const registration = await navigator.serviceWorker.ready;
-
-      // 3. Check for existing subscription
       let subscription = await registration.pushManager.getSubscription();
 
       if (!subscription) {
-        // 4. Create new subscription
         const subscribeOptions = {
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
@@ -60,7 +57,6 @@ export function usePushNotifications(user: User | null) {
         subscription = await registration.pushManager.subscribe(subscribeOptions);
       }
 
-      // 5. Save to Firestore
       const subscriptionJson = subscription.toJSON();
       await updatePushSubscription(user.id, subscriptionJson);
       
@@ -74,7 +70,6 @@ export function usePushNotifications(user: User | null) {
     }
   }, [user]);
 
-  // Check if current device is iOS and not added to home screen
   const isIosPwaEligible = useCallback(() => {
     if (typeof window === 'undefined') return false;
     const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
