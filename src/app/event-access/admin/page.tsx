@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -18,9 +19,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { 
   PlusCircle, CalendarDays, MapPin, Settings, Loader2, 
-  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, Calendar as CalendarIcon, Clock
+  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, Calendar as CalendarIcon, Clock, Trash2, AlertTriangle
 } from 'lucide-react';
-import { getPlatformEvents, createPlatformEvent, updatePlatformEvent } from '@/services/accessPlatformService';
+import { getPlatformEvents, createPlatformEvent, updatePlatformEvent, deletePlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
 import { format, isValid, parseISO } from 'date-fns';
@@ -40,7 +41,12 @@ export default function PlatformAdminOverview() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
+  // CRUD States
   const [editingEvent, setEditingEvent] = useState<AccessEvent | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<AccessEvent | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
   const [formData, setFormData] = useState({
     name: '',
     date: '',
@@ -99,6 +105,12 @@ export default function PlatformAdminOverview() {
       });
     }
     setIsDialogOpen(true);
+  };
+
+  const handleOpenDeleteDialog = (event: AccessEvent) => {
+    setEventToDelete(event);
+    setDeleteConfirmText("");
+    setIsDeleteDialogOpen(true);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'attachment') => {
@@ -165,11 +177,28 @@ export default function PlatformAdminOverview() {
     setIsProcessing(false);
   };
 
+  const handleDeleteEvent = async () => {
+    if (deleteConfirmText !== "DELETE" || !eventToDelete) return;
+    
+    setIsProcessing(true);
+    try {
+      await deletePlatformEvent(eventToDelete.id);
+      toast({ title: "Event Deleted", description: "The module has been permanently removed." });
+      setIsDeleteDialogOpen(false);
+      setEventToDelete(null);
+      fetchEvents();
+    } catch (error: any) {
+      console.error("LEOENTRIVO_ERROR: Delete failed:", error);
+      toast({ title: "Error", description: "Could not remove the event.", variant: "destructive" });
+    }
+    setIsProcessing(false);
+  };
+
   if (authLoading || isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  // Safe parsing for Calendar to avoid UTC-offset issues (day before bug)
+  // Safe parsing for Calendar to avoid UTC-offset issues
   const getSafeCalendarDate = () => {
     if (!formData.date) return undefined;
     const parts = formData.date.split('-');
@@ -237,6 +266,13 @@ export default function PlatformAdminOverview() {
                         <DropdownMenuItem onClick={() => router.push(`/event-access/admin/${event.id}`)}>
                           <Settings className="mr-2 h-4 w-4" /> View Admin Dashboard
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                            onClick={() => handleOpenDeleteDialog(event)}
+                            className="text-rose-600 focus:text-rose-600 focus:bg-rose-50"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Revoke Event Module
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -282,6 +318,44 @@ export default function PlatformAdminOverview() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 text-rose-600 mb-2">
+                <AlertTriangle className="h-6 w-6" />
+                <DialogTitle className="text-xl font-headline uppercase">Critical Action</DialogTitle>
+            </div>
+            <DialogDescription className="text-slate-600">
+              You are about to permanently remove <strong>{eventToDelete?.name}</strong>. This will revoke all issued passes and delete the dashboard configuration.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Type "DELETE" to confirm</Label>
+                <Input 
+                    value={deleteConfirmText} 
+                    onChange={e => setDeleteConfirmText(e.target.value)}
+                    placeholder="DELETE"
+                    className="h-12 border-rose-200 focus-visible:ring-rose-500 font-black text-center text-rose-600"
+                />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isProcessing}>Cancel</Button>
+            <Button 
+                variant="destructive" 
+                onClick={handleDeleteEvent} 
+                disabled={deleteConfirmText !== "DELETE" || isProcessing}
+                className="flex-1 h-11 font-bold shadow-lg"
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Permanently Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
