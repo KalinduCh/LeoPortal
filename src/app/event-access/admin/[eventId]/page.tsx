@@ -21,7 +21,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import Papa from 'papaparse';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
-import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip as UITooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   Cell, PieChart, Pie, Legend 
@@ -348,14 +348,14 @@ export default function PlatformEventDashboard() {
           <Card className="shadow-xl border-none ring-1 ring-slate-200 bg-white">
             <CardHeader className="bg-slate-50/50">
               <div className="flex items-center gap-3 mb-1">
-                <div className="flex items-center gap-2 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+                <CardTitle className="text-lg">Real-Time Arrivals</CardTitle>
+                <div className="flex items-center gap-2 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
                     <span className="relative flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
-                    <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Active</span>
+                    <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Station Active</span>
                 </div>
-                <CardTitle className="text-lg">Real-Time Arrivals</CardTitle>
               </div>
               <CardDescription className="text-left">Live check-in stream from entrance stations.</CardDescription>
             </CardHeader>
@@ -387,8 +387,8 @@ export default function PlatformEventDashboard() {
                   );
                 })}
                 {registrations.filter(r => r.status === 'checked_in').length === 0 && (
-                  <div className="col-span-full py-24 text-center text-slate-400">
-                    <ShieldAlert className="h-12 w-12 mb-2 opacity-20 mx-auto" />
+                  <div className="col-span-full py-24 text-center text-slate-400 flex flex-col items-center">
+                    <ShieldAlert className="h-12 w-12 mb-2 opacity-20" />
                     <p className="font-bold uppercase tracking-widest text-xs">Waiting for first entry...</p>
                   </div>
                 )}
