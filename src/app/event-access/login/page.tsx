@@ -109,7 +109,7 @@ export default function AccessLoginPage() {
                 <p className="text-sm text-slate-500 mb-4 font-medium">New to District Event Management?</p>
                 <Button asChild variant="outline" className="w-full h-12 rounded-xl border-dashed border-primary/40 text-primary font-bold hover:bg-primary/5">
                     <Link href="/event-access/signup">
-                        <UserPlus className="mr-2 h-4 w-4" /> Request authorized access to the Organizer Portal.
+                        <UserPlus className="mr-2 h-4 w-4" /> Request Portal Access
                     </Link>
                 </Button>
             </div>
