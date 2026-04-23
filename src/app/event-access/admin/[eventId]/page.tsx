@@ -63,7 +63,6 @@ export default function PlatformEventDashboard() {
     return () => unsubscribe();
   }, [eventId, user, authLoading, router]);
 
-  // Basic Stats
   const stats: AccessPlatformStats = useMemo(() => {
     const total = registrations.length;
     const checkedIn = registrations.filter(r => r.status === 'checked_in').length;
@@ -75,7 +74,6 @@ export default function PlatformEventDashboard() {
     };
   }, [registrations]);
 
-  // Visual Data: Club Breakdown
   const clubData = useMemo(() => {
     const map: Record<string, { reg: number, check: number }> = {};
     registrations.forEach(r => {
@@ -95,7 +93,6 @@ export default function PlatformEventDashboard() {
       .slice(0, 8);
   }, [registrations]);
 
-  // Visual Data: Role Mix
   const roleMixData = useMemo(() => {
     const map: Record<string, number> = {};
     registrations.forEach(r => {
@@ -104,7 +101,6 @@ export default function PlatformEventDashboard() {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [registrations]);
 
-  // Visual Data: Meal Distribution
   const mealData = useMemo(() => {
     let veg = 0;
     let nonVeg = 0;
@@ -350,18 +346,18 @@ export default function PlatformEventDashboard() {
 
         <TabsContent value="live" className="space-y-6">
           <Card className="shadow-xl border-none ring-1 ring-slate-200 bg-white">
-            <CardHeader className="bg-slate-50/50 flex items-center justify-between">
-              <div className="text-left">
+            <CardHeader className="bg-slate-50/50">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="flex items-center gap-2 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Active</span>
+                </div>
                 <CardTitle className="text-lg">Real-Time Arrivals</CardTitle>
-                <CardDescription>Live check-in stream from entrance stations.</CardDescription>
               </div>
-              <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Station Active</span>
-              </div>
+              <CardDescription className="text-left">Live check-in stream from entrance stations.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -391,8 +387,8 @@ export default function PlatformEventDashboard() {
                   );
                 })}
                 {registrations.filter(r => r.status === 'checked_in').length === 0 && (
-                  <div className="col-span-full py-24 text-left text-slate-400">
-                    <ShieldAlert className="h-12 w-12 mb-2 opacity-20" />
+                  <div className="col-span-full py-24 text-center text-slate-400">
+                    <ShieldAlert className="h-12 w-12 mb-2 opacity-20 mx-auto" />
                     <p className="font-bold uppercase tracking-widest text-xs">Waiting for first entry...</p>
                   </div>
                 )}
