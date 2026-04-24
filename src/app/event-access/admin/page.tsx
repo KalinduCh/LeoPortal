@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { 
   PlusCircle, CalendarDays, MapPin, Settings, Loader2, 
-  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, CalendarIcon, Clock, Trash2, AlertTriangle
+  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, CalendarIcon, Clock, Trash2, AlertTriangle, Link as LinkIcon
 } from 'lucide-react';
 import { getPlatformEvents, createPlatformEvent, updatePlatformEvent, deletePlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
@@ -111,6 +111,22 @@ export default function PlatformAdminOverview() {
     setIsDeleteDialogOpen(true);
   };
 
+  const handleCopyLink = (eventId: string) => {
+    const url = `${window.location.origin}/event-access/register/${eventId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast({ 
+        title: "Link Copied", 
+        description: "Public registration URL copied to clipboard.",
+      });
+    }).catch(err => {
+      toast({ 
+        title: "Copy Failed", 
+        description: "Could not copy link. Please copy it manually from the address bar.",
+        variant: "destructive"
+      });
+    });
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'attachment') => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -197,7 +213,7 @@ export default function PlatformAdminOverview() {
   };
 
   const PlatformDateTimePicker = () => {
-    const [open, setOpen] = useState(false);
+    const [calOpen, setCalOpen] = useState(false);
     const safeDate = getSafeCalendarDate();
     
     const handleDateSelect = (date: Date | undefined) => {
@@ -212,7 +228,7 @@ export default function PlatformAdminOverview() {
     return (
         <div className="space-y-2">
             <Label>Event Schedule (Date & Time)</Label>
-            <Popover open={open} onOpenChange={setOpen}>
+            <Popover open={calOpen} onOpenChange={setCalOpen}>
                 <PopoverTrigger asChild>
                     <Button
                         variant="outline"
@@ -236,7 +252,6 @@ export default function PlatformAdminOverview() {
                         selected={safeDate}
                         onSelect={(d) => {
                             handleDateSelect(d);
-                            // We don't close immediately to allow time selection
                         }}
                         initialFocus
                     />
@@ -314,11 +329,14 @@ export default function PlatformAdminOverview() {
                           <MoreVertical className="h-5 w-5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuContent align="end" className="w-64">
                         <DropdownMenuLabel>Event Options</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleOpenDialog(event)}>
                           <Edit3 className="mr-2 h-4 w-4" /> Edit Event Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleCopyLink(event.id)}>
+                          <LinkIcon className="mr-2 h-4 w-4" /> Copy Registration Link
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => router.push(`/event-access/admin/${event.id}`)}>
                           <Settings className="mr-2 h-4 w-4" /> View Admin Dashboard
@@ -356,13 +374,22 @@ export default function PlatformAdminOverview() {
                   >
                     Open Dashboard
                   </Button>
-                  <Button 
-                    variant="outline"
-                    className="w-full h-11 border-primary text-primary hover:bg-primary/5 font-bold" 
-                    onClick={() => window.open(`/event-access/register/${event.id}`, '_blank')}
-                  >
-                    <Eye className="mr-2 h-4 w-4" /> View Public Page
-                  </Button>
+                  <div className="flex gap-2 w-full">
+                    <Button 
+                      variant="outline"
+                      className="flex-1 h-11 border-primary text-primary hover:bg-primary/5 font-bold" 
+                      onClick={() => window.open(`/event-access/register/${event.id}`, '_blank')}
+                    >
+                      <Eye className="mr-2 h-4 w-4" /> View Page
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      className="flex-1 h-11 border-primary text-primary hover:bg-primary/5 font-bold" 
+                      onClick={() => handleCopyLink(event.id)}
+                    >
+                      <LinkIcon className="mr-2 h-4 w-4" /> Copy Link
+                    </Button>
+                  </div>
                 </CardFooter>
               </Card>
             );
