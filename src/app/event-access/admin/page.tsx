@@ -467,6 +467,11 @@ export default function PlatformAdminOverview() {
                         <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => fileInputRef.current?.click()}>Upload</Button>
                         <input type="file" hidden ref={fileInputRef} accept="image/*" onChange={(e) => handleFileChange(e, 'image')} />
                     </div>
+                    {formData.imageUrl && (
+                        <div className="mt-2 relative w-full h-32 rounded-xl overflow-hidden border bg-slate-50 flex items-center justify-center ring-1 ring-slate-200 shadow-inner">
+                            <img src={formData.imageUrl} alt="Event Logo Preview" className="max-h-full object-contain" />
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-2">
@@ -502,6 +507,12 @@ export default function PlatformAdminOverview() {
                         <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => attachmentInputRef.current?.click()}>Select</Button>
                         <input type="file" hidden ref={attachmentInputRef} onChange={(e) => handleFileChange(e, 'attachment')} />
                     </div>
+                    {formData.attachmentName && (
+                        <div className="mt-2 p-3 bg-emerald-50 text-emerald-700 text-xs rounded-xl border border-emerald-100 flex items-center gap-2 shadow-sm animate-in fade-in slide-in-from-top-1">
+                            <Paperclip className="h-3 w-3 shrink-0" />
+                            <span className="font-bold truncate">{formData.attachmentName}</span>
+                        </div>
+                    )}
                 </div>
             </div>
 

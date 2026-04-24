@@ -1,4 +1,3 @@
-
 import {
   collection,
   addDoc,
@@ -47,8 +46,9 @@ export async function updatePlatformEvent(id: string, data: Partial<Omit<AccessE
   const docRef = doc(db, PLATFORM_EVENTS, id);
   const cleanData: any = { ...data };
   
+  // We want to allow clearing fields (sending '') but remove truly undefined fields
   Object.keys(cleanData).forEach(key => {
-    if (cleanData[key] === undefined || cleanData[key] === '') {
+    if (cleanData[key] === undefined) {
       delete cleanData[key];
     }
   });
