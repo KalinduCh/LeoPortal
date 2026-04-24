@@ -54,12 +54,13 @@ service cloud.firestore {
     // =========================
     match /accessEvents/{eventId} {
       allow read, get: if true; 
-      allow list, write, create, update, delete: if isAdmin();
+      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.district_access == true);
     }
     
     match /accessRegistrations/{regId} {
       allow create: if true;
-      allow read, get, list, update, delete: if isAdmin();
+      allow read, get, list: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.district_access == true);
+      allow update, delete: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.district_access == true);
     }
 
     // =========================

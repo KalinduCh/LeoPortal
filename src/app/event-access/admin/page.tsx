@@ -40,7 +40,6 @@ export default function PlatformAdminOverview() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
-  // CRUD States
   const [editingEvent, setEditingEvent] = useState<AccessEvent | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<AccessEvent | null>(null);
@@ -167,11 +166,7 @@ export default function PlatformAdminOverview() {
       fetchEvents();
     } catch (error: any) {
       console.error("LEOENTRIVO_ERROR: Save failed:", error);
-      toast({ 
-        title: "Error", 
-        description: error.message || "Could not save the event.", 
-        variant: "destructive" 
-      });
+      toast({ title: "Error", description: error.message || "Could not save the event.", variant: "destructive" });
     }
     setIsProcessing(false);
   };
@@ -201,8 +196,8 @@ export default function PlatformAdminOverview() {
     return isValid(d) ? d : undefined;
   };
 
-  // Integrated Date & Time Picker UI
   const PlatformDateTimePicker = () => {
+    const [open, setOpen] = useState(false);
     const safeDate = getSafeCalendarDate();
     
     const handleDateSelect = (date: Date | undefined) => {
@@ -217,7 +212,7 @@ export default function PlatformAdminOverview() {
     return (
         <div className="space-y-2">
             <Label>Event Schedule (Date & Time)</Label>
-            <Popover>
+            <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button
                         variant="outline"
@@ -239,7 +234,10 @@ export default function PlatformAdminOverview() {
                     <Calendar
                         mode="single"
                         selected={safeDate}
-                        onSelect={handleDateSelect}
+                        onSelect={(d) => {
+                            handleDateSelect(d);
+                            // We don't close immediately to allow time selection
+                        }}
                         initialFocus
                     />
                     <div className="p-3 border-t bg-slate-50/50">
@@ -306,8 +304,8 @@ export default function PlatformAdminOverview() {
                   <div className="flex justify-between items-start">
                     <div className="min-w-0 pr-4">
                       <CardTitle className="text-xl font-bold text-slate-900 truncate font-headline">{event.name}</CardTitle>
-                      <CardDescription className="flex items-center gap-2 font-medium mt-1">
-                        <CalendarDays className="h-4 w-4 text-primary" /> {formattedDate}
+                      <CardDescription className="flex items-center gap-2 font-medium mt-1 text-xs">
+                        <CalendarDays className="h-4 w-4 text-primary" /> {formattedDate} @ {event.time}
                       </CardDescription>
                     </div>
                     <DropdownMenu>
@@ -416,6 +414,7 @@ export default function PlatformAdminOverview() {
         </DialogContent>
       </Dialog>
 
+      {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2rem]">
           <DialogHeader>
@@ -432,7 +431,6 @@ export default function PlatformAdminOverview() {
                     <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. District Installation 2026" className="h-12 rounded-xl" />
                 </div>
                 
-                {/* Perfected Picker Integration */}
                 <PlatformDateTimePicker />
 
                 <div className="space-y-2">
