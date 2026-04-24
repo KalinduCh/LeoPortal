@@ -73,7 +73,8 @@ export async function POST(req: Request) {
                 <p style="margin: 8px 0; font-size: 15px; color: #334155;">🍽️ Meal: <strong>${foodLabel}</strong></p>
               </div>
             </div>
-            <div style="padding: 25px; text-align: center; background-color: #f8fafc; color: #94a3b8; font-size: 11px; border-top: 1px solid #f1f5f9;">
+            <div style="padding: 25px; text-align: center; background-color: #f8fafc; color: #94a3b8; font-size: 10px; border-top: 1px solid #f1f5f9; line-height: 1.6;">
+              <p style="margin: 0 0 10px 0; color: #64748b;">You're receiving this email because you registered for ${eventName}.<br>If this wasn't you, contact us at <a href="mailto:districtconference306d9@gmail.com" style="color: #2563eb; text-decoration: none; font-weight: bold;">districtconference306d9@gmail.com</a></p>
               This pass is unique to your registration. Powered by LeoEntrivo &copy; 2026.
             </div>
           </div>
