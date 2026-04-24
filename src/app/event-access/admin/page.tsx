@@ -34,7 +34,6 @@ export default function PlatformAdminOverview() {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -83,7 +82,6 @@ export default function PlatformAdminOverview() {
   }, [user, authLoading, router]);
 
   const handleOpenDialog = (event?: AccessEvent) => {
-    setIsCalendarOpen(false);
     if (event) {
       setEditingEvent(event);
       setFormData({
@@ -195,10 +193,6 @@ export default function PlatformAdminOverview() {
     setIsProcessing(false);
   };
 
-  if (authLoading || isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
-  }
-
   const getSafeCalendarDate = () => {
     if (!formData.date) return undefined;
     const parts = formData.date.split('-');
@@ -206,6 +200,71 @@ export default function PlatformAdminOverview() {
     const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     return isValid(d) ? d : undefined;
   };
+
+  // Integrated Date & Time Picker UI
+  const PlatformDateTimePicker = () => {
+    const safeDate = getSafeCalendarDate();
+    
+    const handleDateSelect = (date: Date | undefined) => {
+        if (!date) return;
+        setFormData(prev => ({ ...prev, date: format(date, "yyyy-MM-dd") }));
+    };
+
+    const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData(prev => ({ ...prev, time: e.target.value }));
+    };
+
+    return (
+        <div className="space-y-2">
+            <Label>Event Schedule (Date & Time)</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        type="button"
+                        className={cn(
+                            "w-full justify-start text-left font-normal h-12 rounded-xl",
+                            !formData.date && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                        {formData.date ? (
+                            <span>{format(safeDate!, "PPP")} at {formData.time || "..."}</span>
+                        ) : (
+                            <span>Select date and time</span>
+                        )}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={safeDate}
+                        onSelect={handleDateSelect}
+                        initialFocus
+                    />
+                    <div className="p-3 border-t bg-slate-50/50">
+                        <Label htmlFor="entrivo-time" className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">Set Arrival Time</Label>
+                        <div className="relative">
+                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary pointer-events-none" />
+                            <Input 
+                                id="entrivo-time"
+                                type="time" 
+                                required 
+                                className="pl-9 h-10 rounded-lg bg-white"
+                                value={formData.time} 
+                                onChange={handleTimeChange} 
+                            />
+                        </div>
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+  };
+
+  if (authLoading || isLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+  }
 
   return (
     <div className="container mx-auto py-10 px-4 space-y-10">
@@ -358,133 +417,77 @@ export default function PlatformAdminOverview() {
       </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2rem]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-headline">
+            <DialogTitle className="text-2xl font-headline text-primary">
               {editingEvent ? 'Edit Event Details' : 'Add New Event'}
             </DialogTitle>
+            <DialogDescription>Configure the registration pipeline and entry pass logistics.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSaveEvent} className="space-y-6 py-4">
             <div className="space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Basic Information</h3>
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b pb-1">Basic Information</h3>
                 <div className="space-y-2">
                     <Label>Event Name</Label>
-                    <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. District Installation 2026" />
+                    <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. District Installation 2026" className="h-12 rounded-xl" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Date</Label>
-                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant={"outline"}
-                              type="button"
-                              className={cn(
-                                "w-full justify-start text-left font-normal h-10 px-3",
-                                !formData.date && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {getSafeCalendarDate() ? format(getSafeCalendarDate()!, "PPP") : <span>Pick a date</span>}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={getSafeCalendarDate()}
-                              onSelect={(date) => {
-                                setFormData(prev => ({ 
-                                  ...prev, 
-                                  date: date ? format(date, "yyyy-MM-dd") : "" 
-                                }));
-                                setIsCalendarOpen(false);
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Time</Label>
-                        <div className="relative">
-                          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                          <Input 
-                            type="time" 
-                            required 
-                            className="pl-9"
-                            value={formData.time} 
-                            onChange={e => setFormData({ ...formData, time: e.target.value })} 
-                          />
-                        </div>
-                    </div>
-                </div>
+                
+                {/* Perfected Picker Integration */}
+                <PlatformDateTimePicker />
+
                 <div className="space-y-2">
                     <Label>Venue Location</Label>
-                    <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="e.g. Grand City Hall" />
+                    <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="e.g. Grand City Hall" className="h-12 rounded-xl" />
                 </div>
                 <div className="space-y-2">
                     <Label>Description</Label>
-                    <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Provide a brief overview for the registration page..." />
+                    <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Provide a brief overview for the registration page..." className="rounded-xl" />
                 </div>
             </div>
 
             <div className="space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Creative & Branding</h3>
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b pb-1">Branding & Automation</h3>
                 <div className="space-y-2">
                     <Label className="flex items-center gap-2">Event Logo / Image URL <ImageIcon className="h-3 w-3 text-slate-400"/></Label>
                     <div className="flex gap-2">
-                        <Input value={formData.imageUrl} onChange={e => setFormData({ ...formData, imageUrl: e.target.value })} placeholder="https://imgur.com/image.png" className="flex-grow" />
-                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>Upload</Button>
+                        <Input value={formData.imageUrl} onChange={e => setFormData({ ...formData, imageUrl: e.target.value })} placeholder="https://imgur.com/image.png" className="flex-grow h-12 rounded-xl" />
+                        <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => fileInputRef.current?.click()}>Upload</Button>
                         <input type="file" hidden ref={fileInputRef} accept="image/*" onChange={(e) => handleFileChange(e, 'image')} />
                     </div>
-                    {formData.imageUrl && (
-                        <div className="relative w-full h-24 rounded-lg overflow-hidden border mt-2">
-                            <img src={formData.imageUrl} className="w-full h-full object-cover" alt="Preview" />
-                            <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 rounded-full" onClick={() => setFormData({...formData, imageUrl: ''})}><X className="h-3 w-3"/></Button>
-                        </div>
-                    )}
                 </div>
-            </div>
 
-            <div className="space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Email Automation (Optional)</h3>
                 <div className="space-y-2">
-                    <Label className="flex items-center gap-2">Custom Email Body <Mail className="h-3 w-3 text-slate-400"/></Label>
+                    <Label className="flex items-center gap-2">Custom Email Message <Mail className="h-3 w-3 text-slate-400"/></Label>
                     <Textarea 
                         value={formData.customEmailBody} 
                         onChange={e => setFormData({ ...formData, customEmailBody: e.target.value })} 
-                        rows={4} 
+                        rows={3} 
+                        className="rounded-xl"
                         placeholder="Welcome to our event! Please find your ticket attached..." 
                     />
-                    <p className="text-[10px] text-slate-400 italic">This will replace the default greeting in the confirmation email.</p>
                 </div>
+                
                 <div className="space-y-2">
-                    <Label className="flex items-center gap-2">Email Attachment (Max 2MB) <Paperclip className="h-3 w-3 text-slate-400"/></Label>
+                    <Label className="flex items-center gap-2">Attach Document (Max 2MB) <Paperclip className="h-3 w-3 text-slate-400"/></Label>
                     <div className="flex gap-2">
-                        <Input value={formData.attachmentName} readOnly placeholder="No file chosen" className="flex-grow" />
-                        <Button type="button" variant="outline" onClick={() => attachmentInputRef.current?.click()}>Select File</Button>
+                        <Input value={formData.attachmentName} readOnly placeholder="No file chosen" className="flex-grow h-12 rounded-xl" />
+                        <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => attachmentInputRef.current?.click()}>Select</Button>
                         <input type="file" hidden ref={attachmentInputRef} onChange={(e) => handleFileChange(e, 'attachment')} />
                     </div>
-                    {formData.attachmentUrl && (
-                        <div className="flex items-center justify-between p-2 bg-emerald-50 border border-emerald-100 rounded-lg">
-                            <span className="text-xs font-medium text-emerald-800 truncate">{formData.attachmentName}</span>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setFormData({...formData, attachmentUrl: '', attachmentName: ''})}><X className="h-3 w-3"/></Button>
-                        </div>
-                    )}
                 </div>
             </div>
 
             <Separator />
             
             <div className="space-y-2">
-              <Label>Attendee Capacity</Label>
-              <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} placeholder="Unlimited if left empty" />
+              <Label>Attendee Capacity (Optional)</Label>
+              <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} placeholder="Unlimited" className="h-12 rounded-xl" />
             </div>
 
             <DialogFooter className="pt-4 gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isProcessing} className="h-12 px-6 shadow-lg flex-1">
-                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Save Changes" : "Add Event")}
+              <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => setIsDialogOpen(false)} disabled={isProcessing}>Cancel</Button>
+              <Button type="submit" disabled={isProcessing} className="h-12 px-6 shadow-lg flex-1 bg-primary rounded-xl font-bold">
+                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Save Changes" : "Start Event Pipeline")}
               </Button>
             </DialogFooter>
           </form>
