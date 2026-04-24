@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { 
   PlusCircle, CalendarDays, MapPin, Settings, Loader2, 
-  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, Calendar as CalendarIcon, Clock, Trash2, AlertTriangle
+  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, CalendarIcon, Clock, Trash2, AlertTriangle
 } from 'lucide-react';
 import { getPlatformEvents, createPlatformEvent, updatePlatformEvent, deletePlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
@@ -449,6 +449,21 @@ export default function PlatformAdminOverview() {
                     <Label className="flex items-center gap-2">Event Logo / Image URL <ImageIcon className="h-3 w-3 text-slate-400"/></Label>
                     <div className="flex gap-2">
                         <Input value={formData.imageUrl} onChange={e => setFormData({ ...formData, imageUrl: e.target.value })} placeholder="https://imgur.com/image.png" className="flex-grow h-12 rounded-xl" />
+                        {formData.imageUrl && (
+                            <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-12 w-12 rounded-xl text-rose-600 hover:bg-rose-50" 
+                                onClick={() => {
+                                    setFormData(prev => ({ ...prev, imageUrl: '' }));
+                                    if(fileInputRef.current) fileInputRef.current.value = '';
+                                }}
+                                title="Remove image"
+                            >
+                                <X className="h-5 w-5" />
+                            </Button>
+                        )}
                         <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => fileInputRef.current?.click()}>Upload</Button>
                         <input type="file" hidden ref={fileInputRef} accept="image/*" onChange={(e) => handleFileChange(e, 'image')} />
                     </div>
@@ -469,6 +484,21 @@ export default function PlatformAdminOverview() {
                     <Label className="flex items-center gap-2">Attach Document (Max 2MB) <Paperclip className="h-3 w-3 text-slate-400"/></Label>
                     <div className="flex gap-2">
                         <Input value={formData.attachmentName} readOnly placeholder="No file chosen" className="flex-grow h-12 rounded-xl" />
+                        {formData.attachmentUrl && (
+                            <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-12 w-12 rounded-xl text-rose-600 hover:bg-rose-50" 
+                                onClick={() => {
+                                    setFormData(prev => ({ ...prev, attachmentUrl: '', attachmentName: '' }));
+                                    if(attachmentInputRef.current) attachmentInputRef.current.value = '';
+                                }}
+                                title="Remove attachment"
+                            >
+                                <X className="h-5 w-5" />
+                            </Button>
+                        )}
                         <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => attachmentInputRef.current?.click()}>Select</Button>
                         <input type="file" hidden ref={attachmentInputRef} onChange={(e) => handleFileChange(e, 'attachment')} />
                     </div>
