@@ -1,4 +1,3 @@
-
 // src/services/userService.ts
 import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc, deleteDoc, collection, query, getDocs, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
@@ -128,7 +127,6 @@ export async function getAllUsers(): Promise<User[]> {
 
 /**
  * Fetches all users relevant to Entrivo management.
- * Aggregates Entrivo-specific applicants and Portal Admins with District Access.
  */
 export async function getEntrivoOrganizers(): Promise<User[]> {
     const usersRef = collection(db, "users");
@@ -138,10 +136,7 @@ export async function getEntrivoOrganizers(): Promise<User[]> {
     querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
         
-        // 1. Native Entrivo applicants (source: entrivo)
         const isEntrivoNative = data.source === 'entrivo';
-        
-        // 2. Portal Admins who have been granted explicit District Access
         const isPortalAdminWithPermission = data.source === 'portal' && 
             (data.role === 'admin' || data.role === 'super_admin') && 
             data.permissions?.district_access === true;
@@ -186,6 +181,7 @@ export async function approveUser(uid: string): Promise<void> {
 
 /**
  * Rejects a user and removes them from the database to maintain security isolation.
+ * Stricly deletes the document as requested.
  */
 export async function rejectUser(uid: string): Promise<void> {
     const userRef = doc(db, 'users', uid);
