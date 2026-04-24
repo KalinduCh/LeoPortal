@@ -59,7 +59,8 @@ export async function POST(req: Request) {
                 <p style="margin: 5px 0; font-size: 15px;">📍 <strong>${event.location}</strong></p>
               </div>
             </div>
-            <div style="padding: 20px; text-align: center; background-color: #f1f5f9; color: #64748b; font-size: 12px;">
+            <div style="padding: 20px; text-align: center; background-color: #f1f5f9; color: #64748b; font-size: 11px; line-height: 1.5;">
+              <p style="margin: 0 0 10px 0;">You're receiving this email because you registered for ${event.name}.<br>If this wasn't you, contact us at <a href="mailto:districtconference306d9@gmail.com" style="color: #1e3a8a; text-decoration: none; font-weight: bold;">districtconference306d9@gmail.com</a></p>
               &copy; 2026 LeoEntrivo Platform. Designed by Leo Club of Athugalpura.
             </div>
           </div>
