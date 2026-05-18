@@ -1,3 +1,4 @@
+
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
@@ -45,12 +46,29 @@ const createEmailHtml = (bodyContent: string) => {
                       <p style="margin: 0; font-weight: bold; font-size: 15px; color: #1e3a8a;">LEO CLUB OF ATHUGALPURA</p>
                       <p style="margin: 5px 0 0 0; font-size: 12px; color: #555555;">Leo District 306 D9 | Sri Lanka</p>
                       <p style="margin: 5px 0 0 0; font-size: 11px; color: #777777;">Leostic Year 2025/26</p>
+                      <p style="margin-top: 15px;">
+                          <a href="https://www.facebook.com/leoclubofathugalpura/" target="_blank" style="text-decoration: none; margin-right: 12px;">
+                              <img src="https://i.postimg.cc/0QtH6Bn7/image.png" alt="Facebook" width="24" height="24" style="border:0;"/>
+                          </a>
+                          <a href="https://www.instagram.com/athugalpuraleos/" target="_blank" style="text-decoration: none; margin-right: 12px;">
+                              <img src="https://i.postimg.cc/RZLrSGkP/image.png" alt="Instagram" width="24" height="24" style="border:0;"/>
+                          </a>
+                          <a href="https://www.youtube.com/channel/UCe23x0ATwC2rIqA5RKWuF6w" target="_blank" style="text-decoration: none; margin-right: 12px;">
+                              <img src="https://i.postimg.cc/CMBWBw32/image.png" alt="YouTube" width="24" height="24" style="border:0;"/>
+                          </a>
+                          <a href="https://www.tiktok.com/@athugalpuraleos" target="_blank" style="text-decoration: none;">
+                              <img src="https://i.postimg.cc/hjJ3d05k/image.png" alt="TikTok" width="24" height="24" style="border:0;"/>
+                          </a>
+                      </p>
                     </td>
                     <td align="right" valign="top" style="width: 70px;">
                       <img src="https://i.imgur.com/MP1YFNf.png" alt="Leo Club Logo" width="60" style="width: 60px; height: auto; border-radius: 50%;">
                     </td>
                   </tr>
                 </table>
+              </div>
+              <div style="padding: 15px 25px; text-align: center; background-color: #f1f5f9; color: #64748b; font-size: 10px; line-height: 1.5;">
+                <p style="margin: 0;">You're receiving this email because you are a registered member of the LEO Portal.<br>If this wasn't you, contact us at <a href="mailto:districtconference306d9@gmail.com" style="color: #1e3a8a; text-decoration: none; font-weight: bold;">districtconference306d9@gmail.com</a></p>
               </div>
           </div>
         </div>
@@ -153,7 +171,12 @@ export const onUserStatusChange = functions.firestore
       );
 
       const subject = "Your LEO Portal Account has been Approved!";
-      const htmlBody = `<p>Dear ${userName},</p><p>Congratulations! Your membership for the LEO Portal has been approved.</p><p>Welcome to the club!</p>`;
+      const htmlBody = `
+        <p>Dear ${userName},</p>
+        <p>Congratulations! Your membership for the LEO Portal has been approved.</p>
+        <p>You can now log in to your account to view upcoming events, track your participation, and connect with other members.</p>
+        <p>Welcome to the club!</p>
+      `;
       if (userEmail) {
         await sendEmail(userEmail, subject, htmlBody);
       }
@@ -163,7 +186,11 @@ export const onUserStatusChange = functions.firestore
         const userEmail = after.email;
         const userName = after.name || "Leo";
         const subject = "Update on Your LEO Portal Registration";
-        const htmlBody = `<p>Dear ${userName},</p><p>Thank you for your interest. Unfortunately, your registration could not be approved at this time.</p>`;
+        const htmlBody = `
+            <p>Dear ${userName},</p>
+            <p>Thank you for your interest in joining the LEO Portal.</p>
+            <p>After careful review, we regret to inform you that your registration could not be approved at this time.</p>
+        `;
         if (userEmail) await sendEmail(userEmail, subject, htmlBody);
         await db.collection("users").doc(userId).delete();
     }
