@@ -15,6 +15,9 @@ export interface AccessEvent {
   capacity?: number;
   organizerId: string; // The ID of the admin who created this platform instance
   createdAt: string;
+  // Registration controls
+  isRegistrationClosed?: boolean;
+  registrationClosingDate?: string;
 }
 
 export interface RegistrationSubmitter {

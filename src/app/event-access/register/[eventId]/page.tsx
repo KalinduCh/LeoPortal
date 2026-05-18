@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -9,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Calendar, MapPin, Loader2, CheckCircle, 
-  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck
+  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck, Lock, MessageCircle
 } from 'lucide-react';
 import { getPlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent, RegistrationSubmitter } from '@/types/access-platform';
@@ -239,6 +240,10 @@ export default function PlatformPublicRegistration() {
     );
   }
 
+  const isManuallyClosed = event.isRegistrationClosed;
+  const isPastClosingDate = event.registrationClosingDate && new Date() > new Date(event.registrationClosingDate + 'T23:59:59');
+  const isRegistrationOver = isManuallyClosed || isPastClosingDate;
+
   const eventDateParsed = event.date ? parseISO(event.date) : null;
   const displayDate = (eventDateParsed && isValid(eventDateParsed)) ? format(eventDateParsed, 'PPP') : (event.date || 'TBD');
 
@@ -291,6 +296,43 @@ export default function PlatformPublicRegistration() {
               <Button variant="link" className="text-primary font-bold" onClick={() => window.location.reload()}>Need to register more people?</Button>
             </CardContent>
           </Card>
+        ) : isRegistrationOver ? (
+            <Card className="shadow-2xl border-none rounded-3xl bg-white overflow-hidden text-center">
+                <div className="bg-rose-600 p-10 text-white">
+                    <Lock className="h-20 w-16 mx-auto mb-4" />
+                    <h2 className="text-3xl font-black font-headline">REGISTRATION CLOSED</h2>
+                    <p className="opacity-90 font-medium">This event is no longer accepting new registrations.</p>
+                </div>
+                <CardContent className="p-10 space-y-8">
+                    <div className="space-y-4">
+                        <p className="text-slate-600 text-lg font-medium leading-relaxed">
+                            Thank you for your interest in <strong>{event.name}</strong>. Unfortunately, the registration period has concluded.
+                        </p>
+                        <p className="text-slate-500 text-sm italic">
+                            The deadline for entry pass requests has passed or the capacity has been reached.
+                        </p>
+                    </div>
+
+                    <div className="p-8 bg-slate-50 rounded-3xl ring-1 ring-slate-200 space-y-4">
+                        <div className="flex justify-center">
+                            <div className="bg-white p-3 rounded-2xl shadow-sm text-primary">
+                                <MessageCircle className="h-8 w-8" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <h4 className="font-black uppercase tracking-widest text-xs text-slate-900">Have an enquiry?</h4>
+                            <p className="text-sm text-slate-600">
+                                If you have urgent questions or require assistance, please contact the organizing committee directly.
+                            </p>
+                        </div>
+                        <Button asChild variant="outline" className="h-12 rounded-xl w-full border-primary/20 text-primary font-bold hover:bg-primary/5">
+                            <a href="mailto:districtconference306d9@gmail.com">Contact Committee</a>
+                        </Button>
+                    </div>
+
+                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-[0.3em]">LeoDistrict 306 D9 &copy; 2026</p>
+                </CardContent>
+            </Card>
         ) : (
           <Card className="shadow-2xl border-none rounded-3xl bg-white overflow-hidden">
             <CardHeader className="bg-slate-900 p-8 text-white">
