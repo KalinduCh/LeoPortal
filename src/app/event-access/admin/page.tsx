@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -12,13 +13,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Switch } from '@/components/ui/switch';
 import { 
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { 
   PlusCircle, CalendarDays, MapPin, Settings, Loader2, 
-  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, CalendarIcon, Clock, Trash2, AlertTriangle, Link as LinkIcon
+  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, CalendarIcon, Clock, Trash2, AlertTriangle, Link as LinkIcon, Lock, Unlock
 } from 'lucide-react';
 import { getPlatformEvents, createPlatformEvent, updatePlatformEvent, deletePlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent } from '@/types/access-platform';
@@ -56,6 +58,8 @@ export default function PlatformAdminOverview() {
     customEmailBody: '',
     attachmentUrl: '',
     attachmentName: '',
+    isRegistrationClosed: false,
+    registrationClosingDate: '',
   });
 
   const fetchEvents = async () => {
@@ -94,12 +98,15 @@ export default function PlatformAdminOverview() {
         customEmailBody: event.customEmailBody || '',
         attachmentUrl: event.attachmentUrl || '',
         attachmentName: event.attachmentName || '',
+        isRegistrationClosed: event.isRegistrationClosed || false,
+        registrationClosingDate: event.registrationClosingDate || '',
       });
     } else {
       setEditingEvent(null);
       setFormData({ 
         name: '', date: '', time: '', location: '', description: '', capacity: '',
-        imageUrl: '', customEmailBody: '', attachmentUrl: '', attachmentName: ''
+        imageUrl: '', customEmailBody: '', attachmentUrl: '', attachmentName: '',
+        isRegistrationClosed: false, registrationClosingDate: '',
       });
     }
     setIsDialogOpen(true);
@@ -165,6 +172,8 @@ export default function PlatformAdminOverview() {
         customEmailBody: formData.customEmailBody,
         attachmentUrl: formData.attachmentUrl,
         attachmentName: formData.attachmentName,
+        isRegistrationClosed: formData.isRegistrationClosed,
+        registrationClosingDate: formData.registrationClosingDate,
       };
 
       if (editingEvent) {
@@ -204,21 +213,23 @@ export default function PlatformAdminOverview() {
     setIsProcessing(false);
   };
 
-  const getSafeCalendarDate = () => {
-    if (!formData.date) return undefined;
-    const parts = formData.date.split('-');
+  const getSafeCalendarDate = (dateStr?: string) => {
+    if (!dateStr) return undefined;
+    const parts = dateStr.split('-');
     if (parts.length !== 3) return undefined;
     const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     return isValid(d) ? d : undefined;
   };
 
-  const PlatformDateTimePicker = () => {
+  const PlatformDateTimePicker = ({ fieldName, label }: { fieldName: 'date' | 'registrationClosingDate', label: string }) => {
     const [calOpen, setCalOpen] = useState(false);
-    const safeDate = getSafeCalendarDate();
+    const dateValue = formData[fieldName];
+    const safeDate = getSafeCalendarDate(dateValue);
     
     const handleDateSelect = (date: Date | undefined) => {
         if (!date) return;
-        setFormData(prev => ({ ...prev, date: format(date, "yyyy-MM-dd") }));
+        setFormData(prev => ({ ...prev, [fieldName]: format(date, "yyyy-MM-dd") }));
+        setCalOpen(false);
     };
 
     const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -227,7 +238,7 @@ export default function PlatformAdminOverview() {
 
     return (
         <div className="space-y-2">
-            <Label>Event Schedule (Date & Time)</Label>
+            <Label>{label}</Label>
             <Popover open={calOpen} onOpenChange={setCalOpen}>
                 <PopoverTrigger asChild>
                     <Button
@@ -235,14 +246,14 @@ export default function PlatformAdminOverview() {
                         type="button"
                         className={cn(
                             "w-full justify-start text-left font-normal h-12 rounded-xl",
-                            !formData.date && "text-muted-foreground"
+                            !dateValue && "text-muted-foreground"
                         )}
                     >
                         <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                        {formData.date ? (
-                            <span>{format(safeDate!, "PPP")} at {formData.time || "..."}</span>
+                        {dateValue && safeDate ? (
+                            <span>{format(safeDate, "PPP")} {fieldName === 'date' ? `at ${formData.time || "..."}` : ''}</span>
                         ) : (
-                            <span>Select date and time</span>
+                            <span>{fieldName === 'date' ? 'Select date and time' : 'Select closing date'}</span>
                         )}
                     </Button>
                 </PopoverTrigger>
@@ -250,25 +261,24 @@ export default function PlatformAdminOverview() {
                     <Calendar
                         mode="single"
                         selected={safeDate}
-                        onSelect={(d) => {
-                            handleDateSelect(d);
-                        }}
+                        onSelect={handleDateSelect}
                         initialFocus
                     />
-                    <div className="p-3 border-t bg-slate-50/50">
-                        <Label htmlFor="entrivo-time" className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">Set Arrival Time</Label>
-                        <div className="relative">
-                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary pointer-events-none" />
-                            <Input 
-                                id="entrivo-time"
-                                type="time" 
-                                required 
-                                className="pl-9 h-10 rounded-lg bg-white"
-                                value={formData.time} 
-                                onChange={handleTimeChange} 
-                            />
+                    {fieldName === 'date' && (
+                        <div className="p-3 border-t bg-slate-50/50">
+                            <Label htmlFor="entrivo-time" className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">Set Arrival Time</Label>
+                            <div className="relative">
+                                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary pointer-events-none" />
+                                <Input 
+                                    id="entrivo-time"
+                                    type="time" 
+                                    className="pl-9 h-10 rounded-lg bg-white"
+                                    value={formData.time} 
+                                    onChange={handleTimeChange} 
+                                />
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </PopoverContent>
             </Popover>
         </div>
@@ -295,15 +305,13 @@ export default function PlatformAdminOverview() {
         {events.length > 0 ? (
           events.map(event => {
             const eventDateStr = event.date || '';
-            let formattedDate = 'Date TBD';
-            if (eventDateStr) {
-                const parts = eventDateStr.split('-');
-                if (parts.length === 3) {
-                    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                    if (isValid(d)) formattedDate = format(d, 'PPP');
-                }
-            }
+            const safeDate = getSafeCalendarDate(eventDateStr);
+            const formattedDate = safeDate ? format(safeDate, 'PPP') : 'Date TBD';
             
+            const isManuallyClosed = event.isRegistrationClosed;
+            const isPastClosingDate = event.registrationClosingDate && new Date() > new Date(event.registrationClosingDate + 'T23:59:59');
+            const isLocked = isManuallyClosed || isPastClosingDate;
+
             return (
               <Card key={event.id} className="hover:shadow-xl transition-all duration-300 border-none bg-white ring-1 ring-slate-200 overflow-hidden flex flex-col">
                 <div className="h-32 bg-slate-100 relative overflow-hidden">
@@ -312,6 +320,13 @@ export default function PlatformAdminOverview() {
                     ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-300">
                             <ImageIcon className="h-10 w-10" />
+                        </div>
+                    )}
+                    {isLocked && (
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center">
+                            <Badge variant="destructive" className="font-black px-4 py-1 uppercase tracking-widest shadow-lg">
+                                <Lock className="h-3 w-3 mr-2" /> Registration Closed
+                            </Badge>
                         </div>
                     )}
                 </div>
@@ -364,6 +379,11 @@ export default function PlatformAdminOverview() {
                         <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border-emerald-100">
                             <Paperclip className="h-2.5 w-2.5 mr-1" /> Attachment
                         </Badge>
+                     )}
+                     {event.registrationClosingDate && (
+                         <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border-blue-100">
+                            Closes: {event.registrationClosingDate}
+                         </Badge>
                      )}
                   </div>
                 </CardContent>
@@ -458,7 +478,7 @@ export default function PlatformAdminOverview() {
                     <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. District Installation 2026" className="h-12 rounded-xl" />
                 </div>
                 
-                <PlatformDateTimePicker />
+                <PlatformDateTimePicker fieldName="date" label="Event Schedule (Date & Time)" />
 
                 <div className="space-y-2">
                     <Label>Venue Location</Label>
@@ -468,6 +488,25 @@ export default function PlatformAdminOverview() {
                     <Label>Description</Label>
                     <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Provide a brief overview for the registration page..." className="rounded-xl" />
                 </div>
+            </div>
+
+            <div className="space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b pb-1">Registration Controls</h3>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl ring-1 ring-slate-200">
+                    <div className="space-y-0.5">
+                        <Label className="text-sm font-bold flex items-center gap-2">
+                            <Lock className="h-4 w-4 text-rose-600" /> Stop New Registrations
+                        </Label>
+                        <p className="text-[10px] text-slate-500 font-medium">Manually close the registration form immediately.</p>
+                    </div>
+                    <Switch 
+                        checked={formData.isRegistrationClosed} 
+                        onCheckedChange={(v) => setFormData(prev => ({ ...prev, isRegistrationClosed: v }))} 
+                    />
+                </div>
+
+                <PlatformDateTimePicker fieldName="registrationClosingDate" label="Automatic Closing Date" />
+                <p className="text-[10px] text-slate-500 font-medium italic mt-1 px-1">Registrations will automatically close at the end of this day.</p>
             </div>
 
             <div className="space-y-4">
