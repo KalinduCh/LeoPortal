@@ -11,32 +11,40 @@ LeoPortal is a comprehensive, modern web application designed to streamline the 
 A professional-grade event ticketing and entrance management system tailored for District 306 D9 events.
 - **Dual Registration Engine**: Supports seamless single-entry registrations and high-volume Club Bulk Uploads via CSV.
 - **Officer Security Layer**: Mandatory identification for bulk submittals (President/Secretary details) to ensure a secure audit trail.
-- **Participation Analytics**: Standardized club selection system (Athugalpura, UOP, Kandy, etc.) to track attendance density and generate club-wise reports.
-- **Digital QR Passes**: Automated generation and email delivery of unique entry tickets with built-in delivery status tracking (Delivered/Failed).
-- **Ground Command Center**: Real-time dashboard for organizers with a live arrival feed and attendee registry management.
-- **Pro Entrance Scanner**: Mobile-optimized, transactional QR scanner featuring haptic feedback and explicit verification states (Access Granted, Already Entered, Invalid).
+- **Participation Analytics**: Real-time dashboard with arrival velocity charts, registration source tracking, and demographic breakdowns.
+- **Digital QR Passes**: Automated generation and email delivery of unique entry tickets with anti-spam verification.
+- **Ground Command Center**: Real-time arrival feed and attendee registry management for organizers.
+- **Pro Entrance Scanner**: Mobile-optimized QR scanner featuring haptic feedback and explicit verification states.
 
-### PWA & Push Notifications
-LeoPortal is a fully functional Progressive Web App.
-- **Service Worker**: Robust background messaging for reliable push notifications.
-- **Task Alerts**: Members receive instant notifications when assigned to a task.
-- **Event Alerts**: Reminders before and on the day of events.
-- **Account Status**: Alerts when your registration is approved.
+### 🏆 Gamification & Engagement
+- **Impact Leaderboard**: Monthly rankings based on member participation and leadership roles.
+- **Automated Badges**: Members earn achievements like "Top Volunteer," "Active Leo," and "Club Leader" based on their activity.
+- **Points System**: Integrated points allocation for meeting attendance, project participation, and executive roles.
 
-### Member & Club Management
-- **Role-Based Access Control**: Dashboards for Admins and Members.
-- **Granular Permissions**: Assign module-specific access to other admins.
+### 💡 AI Project Proposal Hub
+- **Proposal Architect**: Transform raw project ideas into structured, professional proposals using Gemini 1.5 Flash.
+- **Full Action Plans**: AI generates objectives, execution schedules, PR plans, and estimated budgets in LKR.
+- **Review Workflow**: Members submit proposals for Admin review, with feedback loops for revisions.
 
-### Event & Attendance
-- **Event Management**: Admins can create, update, and delete club events.
-- **Interactive Calendar**: Color-coded year plan visualization.
-- **Smart Attendance Tracking**: Geolocation-restricted attendance for ongoing events.
+### 📋 Task & Project Management
+- **Kanban Board**: Drag-and-drop task management for club projects.
+- **Sub-tasks & Checklists**: Track granular progress within larger project goals.
+- **Collaborative Comments**: Real-time communication on tasks with automatic push notifications.
+
+### 📱 PWA & Push Notifications
+- **Service Worker**: Robust background messaging for reliable push notifications on Android and iOS (16.4+).
+- **Automated Alerts**: Instant notifications for task assignments, event publications, and account approvals.
+
+### 📅 Club Operations
+- **Interactive Year Plan**: Color-coded calendar for club, district, and multiple projects.
+- **Finance Ledger**: Comprehensive income and expense tracking with PDF/CSV reporting.
+- **Smart Attendance**: Geolocation-restricted attendance marking to ensure member presence.
 
 ## 🛠️ Tech Stack
-- **Framework**: Next.js 15 (Node 18 compatible)
-- **Backend**: Firebase (Auth, Firestore, Functions)
-- **AI**: Google Gemini 1.5 Flash (Efficient & Compatible)
-- **UI**: Shadcn/UI, Tailwind CSS, Lucide icons
+- **Framework**: Next.js 15 (App Router)
+- **Backend**: Firebase (Auth, Firestore, Functions, Cloud Messaging)
+- **AI**: Google Genkit with Gemini 1.5 Flash
+- **UI**: Shadcn/UI, Tailwind CSS, Lucide Icons, Recharts
 
 ## 🚀 Getting Started
 
@@ -55,12 +63,6 @@ Create a `.env` file in the root and `functions/` directory.
 To activate push notifications and automated emails:
 ```bash
 firebase deploy --only functions
-```
-See [DEPLOY.md](./DEPLOY.md) for detailed instructions.
-
-### 4. Run Development
-```bash
-npm run dev
 ```
 
 ---
