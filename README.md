@@ -3,6 +3,11 @@
 
 ![LeoPortal Logo](https://i.imgur.com/aRktweQ.png)
 
+## 🏆 Award-Winning Platform
+LeoPortal is the proud recipient of multiple honors for the Leostic Year 2025/26:
+- 🎖️ **Best Innovative Project**
+- 🎖️ **Best IT Enabled Club**
+
 LeoPortal is a comprehensive, modern web application designed to streamline the management and engagement of Leo Club members. Built with a powerful stack including Next.js, Firebase, and Genkit for AI.
 
 ## ✨ Key Features
