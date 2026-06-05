@@ -9,11 +9,16 @@ import { getEvent } from '@/services/eventService';
 import { getAttendanceRecordsForEvent, markUserAttendance } from '@/services/attendanceService';
 import { getUserProfile, getAllUsers } from '@/services/userService'; 
 import { useAuth } from '@/hooks/use-auth';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, Info, Users, ArrowLeft, Mail, Star, MessageSquare, ClipboardCopy, FileDown, UserPlus, Search, CheckCircle2, ShieldCheck, FileSpreadsheet } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { 
+  Loader2, CalendarDays, MapPin, Info, Users, 
+  ArrowLeft, Mail, Star, MessageSquare, ClipboardCopy, 
+  UserPlus, Search, ShieldCheck, FileSpreadsheet 
+} from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -255,8 +260,8 @@ export default function EventSummaryPage() {
     const presentIds = new Set(participantsSummary.filter(p => p.type === 'member').map(p => p.id));
     return allMembers.filter(m => !presentIds.has(m.id))
       .filter(m => 
-        m.name.toLowerCase().includes(memberSearchTerm.toLowerCase()) || 
-        m.email.toLowerCase().includes(memberSearchTerm.toLowerCase())
+        (m.name || '').toLowerCase().includes(memberSearchTerm.toLowerCase()) || 
+        (m.email || '').toLowerCase().includes(memberSearchTerm.toLowerCase())
       );
   }, [allMembers, participantsSummary, memberSearchTerm]);
 
