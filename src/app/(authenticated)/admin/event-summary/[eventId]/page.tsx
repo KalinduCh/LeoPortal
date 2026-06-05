@@ -8,11 +8,12 @@ import type { Event, User, AttendanceRecord, EventParticipantSummary } from '@/t
 import { getEvent } from '@/services/eventService';
 import { getAttendanceRecordsForEvent, markUserAttendance } from '@/services/attendanceService';
 import { getUserProfile, getAllUsers } from '@/services/userService'; 
+import { useAuth } from '@/hooks/use-auth';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, Info, Users, ArrowLeft, Mail, Star, MessageSquare, ClipboardCopy, FileDown, UserPlus, Search, CheckCircle2 } from 'lucide-react';
+import { Loader2, CalendarDays, MapPin, Info, Users, ArrowLeft, Mail, Star, MessageSquare, ClipboardCopy, FileDown, UserPlus, Search, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -28,6 +29,7 @@ export default function EventSummaryPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { user: currentAdmin } = useAuth();
   const eventId = typeof params.eventId === 'string' ? params.eventId : '';
 
   const [event, setEvent] = useState<Event | null>(null);
@@ -77,7 +79,7 @@ export default function EventSummaryPage() {
                 pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
                 heightLeft -= (pdf.internal.pageSize.getHeight() - 20);
             }
-            pdf.save(`Event_Summary_${event.name.replace(/\s/g, '_')}.pdf`);
+            pdf.save(`Event_Summary_${event.name.replace(/\s+/g, '_')}.pdf`);
              toast({ title: "PDF Generated", description: "Your summary is downloading." });
         }).catch(err => {
              console.error("Failed to generate PDF:", err);
@@ -127,6 +129,7 @@ export default function EventSummaryPage() {
               userRole: userProfile.role,
               userDesignation: userProfile.designation,
               userPhotoUrl: userProfile.photoUrl,
+              markedByAdminName: record.markedByAdminName,
             });
           }
         } else if (record.attendanceType === 'visitor') {
@@ -183,7 +186,7 @@ export default function EventSummaryPage() {
   const handleCopySummary = () => {
     if (!event) return;
 
-    const headers = ["Type", "Name", "Role/Designation", "Email/Club", "Comment", "Timestamp"];
+    const headers = ["Type", "Name", "Role/Designation", "Email/Club", "Comment", "Timestamp", "Marked By"];
     const rows = participantsSummary.map(summary => {
       const timestamp = summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp))
         ? format(parseISO(summary.attendanceTimestamp), "yyyy-MM-dd HH:mm:ss")
@@ -196,7 +199,8 @@ export default function EventSummaryPage() {
           summary.userDesignation || summary.userRole || "Member",
           summary.userEmail || "",
           "N/A",
-          timestamp
+          timestamp,
+          summary.markedByAdminName || "Self"
         ].join('\t');
       } else { // visitor
         return [
@@ -205,7 +209,8 @@ export default function EventSummaryPage() {
           summary.visitorDesignation || "",
           summary.visitorClub || "",
           summary.visitorComment || "N/A",
-          timestamp
+          timestamp,
+          "N/A"
         ].join('\t');
       }
     });
@@ -237,9 +242,16 @@ export default function EventSummaryPage() {
   };
 
   const handleManualMark = async (userId: string) => {
+    if (!currentAdmin) return;
     setIsMarkingInProgress(userId);
     try {
-      const result = await markUserAttendance(eventId, userId);
+      const result = await markUserAttendance(
+        eventId, 
+        userId, 
+        undefined, 
+        undefined, 
+        { id: currentAdmin.id, name: currentAdmin.name }
+      );
       if (result.status === 'success' || result.status === 'already_marked') {
         toast({ title: "Attendance Marked", description: result.message });
         await fetchEventData(); // Refresh list
@@ -317,7 +329,7 @@ export default function EventSummaryPage() {
               <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
                 <DialogHeader>
                   <DialogTitle>Manual Attendance Marking</DialogTitle>
-                  <DialogDescription>Select a member to mark them as present for this event.</DialogDescription>
+                  <DialogDescription>Select a member to mark them as present for this event. Your name will be recorded as the authorizing admin.</DialogDescription>
                 </DialogHeader>
                 <div className="relative my-4">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -420,7 +432,7 @@ export default function EventSummaryPage() {
           <CardContent>
             {participantsSummary.length > 0 ? (
               <>
-                {/* Always use table view for print, but hide it on screen for md and below */}
+                {/* Desktop Table View */}
                 <div className="hidden print:block md:block">
                   <ScrollArea className="max-h-[400px] border rounded-md print:max-h-none print:border-0 print:overflow-visible">
                     <Table>
@@ -462,7 +474,17 @@ export default function EventSummaryPage() {
                                 {summary.type === 'visitor' ? (summary.visitorComment || 'N/A') : 'N/A'}
                              </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a") : "Invalid Date"}
+                              {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? (
+                                <div>
+                                    {format(parseISO(summary.attendanceTimestamp), "MMM d, yy, h:mm a")}
+                                    {summary.markedByAdminName && (
+                                        <div className="text-[10px] text-orange-600 font-bold flex items-center mt-1">
+                                            <ShieldCheck className="h-2.5 w-2.5 mr-1" />
+                                            Admin entry: {summary.markedByAdminName}
+                                        </div>
+                                    )}
+                                </div>
+                              ) : "Invalid Date"}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -470,7 +492,7 @@ export default function EventSummaryPage() {
                     </Table>
                   </ScrollArea>
                 </div>
-                {/* Mobile Card View - hidden on print and on md+ screens */}
+                {/* Mobile Card View */}
                 <div className="block md:hidden print:hidden">
                   {participantsSummary.map((summary) => (
                     <Card key={summary.id} className="shadow-sm mb-3 last:mb-0">
@@ -515,9 +537,12 @@ export default function EventSummaryPage() {
                                <MessageSquare className="h-3 w-3 mr-1.5 mt-0.5 shrink-0" /> {summary.visitorComment}
                             </p>
                         )}
-                        <p className="text-xs text-muted-foreground mt-2 text-right">
-                          Attended: {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? format(parseISO(summary.attendanceTimestamp), "MMM d, h:mm a") : "Invalid Date"}
-                        </p>
+                        <div className="text-xs text-muted-foreground mt-2 text-right">
+                          <p>Attended: {summary.attendanceTimestamp && isValid(parseISO(summary.attendanceTimestamp)) ? format(parseISO(summary.attendanceTimestamp), "MMM d, h:mm a") : "Invalid Date"}</p>
+                          {summary.markedByAdminName && (
+                              <p className="text-[10px] text-orange-600 font-bold italic mt-0.5">Autorized by {summary.markedByAdminName}</p>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
