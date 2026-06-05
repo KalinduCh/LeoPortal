@@ -44,6 +44,7 @@ service cloud.firestore {
     match /attendance/{attendanceId} {
       allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if 
+        isAdmin() ||
         (!isSignedIn() && request.resource.data.attendanceType == 'visitor') ||
         (isSignedIn() && request.resource.data.attendanceType == 'member' && request.resource.data.userId == request.auth.uid);
       allow update, delete: if isAdmin();
@@ -61,6 +62,15 @@ service cloud.firestore {
       allow create: if true;
       allow read, get, list: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.district_access == true);
       allow update, delete: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.district_access == true);
+    }
+
+    // =========================
+    // ✨ AI Welcome Check-ins
+    // =========================
+    match /checkins/{checkinId} {
+      allow read: if true; 
+      allow create: if true; 
+      allow update, delete: if isAdmin();
     }
 
     // =========================
