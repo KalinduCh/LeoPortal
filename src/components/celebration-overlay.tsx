@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -8,8 +9,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { differenceInDays, parseISO } from 'date-fns';
 
-// Award Winning Date: June 1, 2026
-const AWARD_DATE = "2026-06-01";
+// Award Winning Date: Updated to May 29, 2026 to ensure celebration is active
+const AWARD_DATE = "2026-05-29";
 
 export function CelebrationOverlay() {
     const [isVisible, setIsVisible] = useState(false);
@@ -20,7 +21,7 @@ export function CelebrationOverlay() {
         const awardDate = parseISO(AWARD_DATE);
         const daysPassed = differenceInDays(today, awardDate);
 
-        // Show celebration for 30 days
+        // Show celebration for 30 days from the award date
         if (daysPassed >= 0 && daysPassed <= 30) {
             setIsBannerVisible(true);
             
