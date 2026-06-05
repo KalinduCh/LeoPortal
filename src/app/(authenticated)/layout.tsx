@@ -38,6 +38,7 @@ export default function AuthenticatedLayout({
   const { toast } = useToast();
   
   const [isPermissionDialogOpen, setIsPermissionDialogOpen] = React.useState(false);
+  const [isIosPromptOpen, setIsIosPromptOpen] = React.useState(false);
   const [isOnline, setIsOnline] = React.useState(true);
 
   // Effect for online/offline status detection
@@ -89,6 +90,16 @@ export default function AuthenticatedLayout({
     }
   }, [user, isLoading, permission, isIosPwaEligible]);
 
+  // Effect to handle iOS PWA prompt
+  React.useEffect(() => {
+    if (isIosPwaEligible) {
+      const dismissed = localStorage.getItem('iosPwaPromptDismissed');
+      if (!dismissed) {
+        setIsIosPromptOpen(true);
+      }
+    }
+  }, [isIosPwaEligible]);
+
   React.useEffect(() => {
     if (!isLoading && !user && !isAuthOperationInProgress) {
       router.replace("/login");
@@ -138,6 +149,11 @@ export default function AuthenticatedLayout({
     }
     setIsPermissionDialogOpen(false);
   };
+
+  const handleDismissIosPrompt = () => {
+    setIsIosPromptOpen(false);
+    localStorage.setItem('iosPwaPromptDismissed', 'true');
+  };
   
   return (
     <>
@@ -167,7 +183,7 @@ export default function AuthenticatedLayout({
 
       {/* iOS Help Alert: Push only works if added to Home Screen */}
       {isIosPwaEligible && (
-        <AlertDialog open={true}>
+        <AlertDialog open={isIosPromptOpen} onOpenChange={setIsIosPromptOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle className="flex items-center">
@@ -178,7 +194,7 @@ export default function AuthenticatedLayout({
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogAction onClick={() => {}}>Got it</AlertDialogAction>
+                    <AlertDialogAction onClick={handleDismissIosPrompt}>Got it</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
