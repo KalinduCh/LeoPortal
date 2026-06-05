@@ -78,6 +78,8 @@ export interface AttendanceRecord {
   visitorComment?: string;
   markedLatitude?: number;
   markedLongitude?: number;
+  markedByAdminId?: string; // ID of admin who manually marked this
+  markedByAdminName?: string; // Name of admin who manually marked this
 }
 
 export interface ProjectIdea {
@@ -130,6 +132,7 @@ export interface EventParticipantSummary {
   visitorDesignation?: string;
   visitorClub?: string;
   visitorComment?: string;
+  markedByAdminName?: string; // Name of admin who manually marked this
 }
 
 export interface CommunicationGroup {

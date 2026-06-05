@@ -45,6 +45,8 @@ function dataToAttendanceRecord(docId: string, data: any): AttendanceRecord | nu
     visitorComment: data.visitorComment,
     markedLatitude: data.markedLatitude,
     markedLongitude: data.markedLongitude,
+    markedByAdminId: data.markedByAdminId,
+    markedByAdminName: data.markedByAdminName,
   } as AttendanceRecord;
 }
 
@@ -53,7 +55,8 @@ export async function markUserAttendance(
   eventId: string,
   userId: string,
   markedLatitude?: number,
-  markedLongitude?: number
+  markedLongitude?: number,
+  adminInfo?: { id: string; name: string }
 ): Promise<MarkAttendanceResult> {
   console.log(`Attempting to mark user attendance for eventId: ${eventId}, userId: ${userId}`);
   
@@ -70,7 +73,6 @@ export async function markUserAttendance(
   } catch (error) {
     if (isOfflineError(error)) {
         // If offline, we can't check for existing attendance, so we queue it.
-        // The backend sync process should handle potential duplicates if necessary.
         console.warn("Offline: Cannot check for existing attendance. Queuing record.");
     } else {
         throw error; // Re-throw other errors
@@ -78,7 +80,7 @@ export async function markUserAttendance(
   }
 
 
-  const attendanceData: Omit<AttendanceRecord, 'id' | 'timestamp'> & { timestamp: any; createdAt: any } = {
+  const attendanceData: any = {
     eventId,
     userId,
     status: 'present',
@@ -92,20 +94,25 @@ export async function markUserAttendance(
     attendanceData.markedLongitude = markedLongitude;
   }
 
+  if (adminInfo) {
+    attendanceData.markedByAdminId = adminInfo.id;
+    attendanceData.markedByAdminName = adminInfo.name;
+  }
+
   try {
     const docRef = await addDoc(attendanceCollectionRef, attendanceData);
     const newDocSnap = await getDoc(doc(db, 'attendance', docRef.id));
     if (newDocSnap.exists()) {
         const newRecord = dataToAttendanceRecord(newDocSnap.id, newDocSnap.data());
         if (newRecord) {
-            return { status: 'success', message: 'Your attendance has been recorded.', record: newRecord };
+            return { status: 'success', message: 'Attendance record created successfully.', record: newRecord };
         }
     }
     return { status: 'error', message: 'Attendance recorded but failed to retrieve confirmation details.' };
   } catch (error: any) {
     if (isOfflineError(error)) {
       console.log("Offline mode detected. Queuing user attendance.");
-      await addOfflineAttendance({ ...attendanceData, timestamp: attendanceData.timestamp.toDate().toISOString() });
+      await addOfflineAttendance({ ...attendanceData, timestamp: new Date().toISOString() });
       return { status: 'offline_queued', message: 'You are offline. Attendance has been saved and will sync later.' };
     }
     console.error("Error adding user attendance document to Firestore for event " + eventId + ":", error);
@@ -142,7 +149,7 @@ export async function markVisitorAttendance(
   } catch (error: any) {
     if (isOfflineError(error)) {
       console.log("Offline mode detected. Queuing visitor attendance.");
-      await addOfflineAttendance({ ...attendanceData, timestamp: attendanceData.timestamp.toDate().toISOString() });
+      await addOfflineAttendance({ ...attendanceData, timestamp: new Date().toISOString() });
       return { status: 'offline_queued', message: 'You are offline. Attendance has been saved and will sync later.' };
     }
     console.error("Error adding visitor attendance document to Firestore for event " + eventId + ":", error);
