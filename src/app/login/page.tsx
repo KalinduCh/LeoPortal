@@ -1,4 +1,3 @@
-
 // src/app/login/page.tsx
 "use client";
 
@@ -10,7 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AuthForm } from "@/components/auth/auth-form";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserCheck, AlertTriangle, Info, CheckCircle } from "lucide-react";
+import { Loader2, UserCheck, AlertTriangle, Info, Trophy } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { markUserAttendance } from "@/services/attendanceService";
 
@@ -25,13 +24,10 @@ function LoginContent() {
   const eventId = searchParams.get('eventId');
 
   React.useEffect(() => {
-    // This effect handles redirection *after* the user state is confirmed.
-    // It does not handle the initial login logic.
     if (user && !authLoading) {
-      const destination = eventId ? `/dashboard` : "/dashboard"; // Always go to dashboard after attendance is marked.
-      router.replace(destination);
+      router.replace("/dashboard");
     }
-  }, [user, authLoading, router, eventId]);
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (values: any) => {
     setFormLoading(true);
@@ -41,7 +37,6 @@ function LoginContent() {
     if (result.success && result.user) {
         toast({ title: "Login Successful", description: `Welcome back, ${result.user.name}!` });
         
-        // If an eventId is present in the URL, attempt to mark attendance automatically
         if (eventId) {
             try {
                 toast({ title: "Marking Attendance...", description: "Please wait.", duration: 3000 });
@@ -52,19 +47,14 @@ function LoginContent() {
                     toast({ title: "Attendance Error", description: attendanceResult.message, variant: "destructive", duration: 8000 });
                 }
             } catch (error: any) {
-                toast({ title: "Attendance Failed", description: error.message || "An unexpected error occurred while marking attendance.", variant: "destructive", duration: 8000 });
+                console.error("Auto-attendance error:", error);
             }
         }
-
-        // The useEffect hook will now handle the redirection to the dashboard.
-        // setFormLoading will be false after redirection anyway, but good practice to keep it.
-        setFormLoading(false);
-
     } else {
       if (result.reason === 'pending') {
           setLoginMessage({ 
               type: 'info', 
-              text: 'Your account is awaiting admin approval. Please check back later or contact an administrator if you believe this is an error.' 
+              text: 'Your account is awaiting admin approval. Please check back later.' 
           });
       } else {
           setLoginMessage({ type: 'error', text: 'Invalid email or password. Please try again.' });
@@ -84,6 +74,16 @@ function LoginContent() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
+       {/* Award Badge for Login Page */}
+       <div className="absolute top-8 right-8 flex flex-col items-end gap-2 animate-in fade-in slide-in-from-right duration-1000">
+          <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1.5 rounded-full text-[10px] font-black text-yellow-600 tracking-widest shadow-sm">
+             <Trophy className="h-3 w-3" /> BEST INNOVATIVE PROJECT 2026
+          </div>
+          <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-full text-[10px] font-black text-primary tracking-widest shadow-sm">
+             <Trophy className="h-3 w-3" /> BEST IT ENABLED CLUB
+          </div>
+       </div>
+
        <div className="absolute top-8 left-8 flex items-center space-x-2 text-primary">
         <Image 
             src={logoUrl} 
@@ -93,7 +93,7 @@ function LoginContent() {
             className="h-8 w-8 rounded-sm"
             data-ai-hint="club logo"
         />
-        <h1 className="text-2xl font-bold font-headline">LEO Portal</h1>
+        <h1 className="text-2xl font-bold font-headline text-slate-900 tracking-tighter">LEO Portal</h1>
       </div>
       <div className="w-full max-w-md space-y-4">
         {loginMessage && (
