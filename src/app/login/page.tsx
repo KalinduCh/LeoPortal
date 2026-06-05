@@ -77,7 +77,7 @@ function LoginContent() {
        {/* Award Badge for Login Page */}
        <div className="absolute top-8 right-8 flex flex-col items-end gap-2 animate-in fade-in slide-in-from-right duration-1000">
           <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1.5 rounded-full text-[10px] font-black text-yellow-600 tracking-widest shadow-sm">
-             <Trophy className="h-3 w-3" /> BEST INNOVATIVE PROJECT 2026
+             <Trophy className="h-3 w-3" /> BEST INNOVATIVE PROJECT
           </div>
           <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-full text-[10px] font-black text-primary tracking-widest shadow-sm">
              <Trophy className="h-3 w-3" /> BEST IT ENABLED CLUB
