@@ -2,27 +2,27 @@
 // src/app/(authenticated)/admin/event-summary/[eventId]/page.tsx
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Event, User, AttendanceRecord, EventParticipantSummary } from '@/types';
 import { getEvent } from '@/services/eventService';
-import { getAttendanceRecordsForEvent } from '@/services/attendanceService';
-import { getUserProfile } from '@/services/userService'; 
+import { getAttendanceRecordsForEvent, markUserAttendance } from '@/services/attendanceService';
+import { getUserProfile, getAllUsers } from '@/services/userService'; 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, CalendarDays, MapPin, Info, Users, ArrowLeft, Mail, Star, MessageSquare, ClipboardCopy, FileDown } from 'lucide-react';
+import { Loader2, CalendarDays, MapPin, Info, Users, ArrowLeft, Mail, Star, MessageSquare, ClipboardCopy, FileDown, UserPlus, Search, CheckCircle2 } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
-import { useReactToPrint } from 'react-to-print'
 
 export default function EventSummaryPage() {
   const params = useParams();
@@ -34,6 +34,12 @@ export default function EventSummaryPage() {
   const [participantsSummary, setParticipantsSummary] = useState<EventParticipantSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Manual marking states
+  const [isManualMarkOpen, setIsManualMarkOpen] = useState(false);
+  const [allMembers, setAllMembers] = useState<User[]>([]);
+  const [memberSearchTerm, setMemberSearchTerm] = useState('');
+  const [isMarkingInProgress, setIsMarkingInProgress] = useState<string | null>(null);
 
   const componentRef = useRef<HTMLDivElement>(null);
 
@@ -143,6 +149,11 @@ export default function EventSummaryPage() {
         const nameB = b.userName || b.visitorName || "";
         return nameA.localeCompare(nameB);
       }));
+
+      // Pre-fetch all members for manual marking if needed
+      const allUsers = await getAllUsers();
+      setAllMembers(allUsers.filter(u => u.status === 'approved' && ['member', 'admin', 'super_admin'].includes(u.role)));
+
     } catch (err: any) {
       console.error("Error fetching event summary data:", err);
       setError(`Failed to load event data: ${err.message}`);
@@ -225,6 +236,30 @@ export default function EventSummaryPage() {
     });
   };
 
+  const handleManualMark = async (userId: string) => {
+    setIsMarkingInProgress(userId);
+    try {
+      const result = await markUserAttendance(eventId, userId);
+      if (result.status === 'success' || result.status === 'already_marked') {
+        toast({ title: "Attendance Marked", description: result.message });
+        await fetchEventData(); // Refresh list
+      } else {
+        toast({ title: "Error", description: result.message, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to mark attendance.", variant: "destructive" });
+    }
+    setIsMarkingInProgress(null);
+  };
+
+  const missingMembers = useMemo(() => {
+    const presentIds = new Set(participantsSummary.filter(p => p.type === 'member').map(p => p.id));
+    return allMembers.filter(m => !presentIds.has(m.id))
+      .filter(m => 
+        m.name.toLowerCase().includes(memberSearchTerm.toLowerCase()) || 
+        m.email.toLowerCase().includes(memberSearchTerm.toLowerCase())
+      );
+  }, [allMembers, participantsSummary, memberSearchTerm]);
 
   if (isLoading) {
     return (
@@ -273,6 +308,65 @@ export default function EventSummaryPage() {
             <h1 className="text-2xl sm:text-3xl font-bold font-headline text-primary">{event.name} - Summary</h1>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 print:hidden w-full sm:w-auto">
+            <Dialog open={isManualMarkOpen} onOpenChange={setIsManualMarkOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto border-primary text-primary hover:bg-primary/5">
+                  <UserPlus className="mr-2 h-4 w-4" /> Manual Mark
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+                <DialogHeader>
+                  <DialogTitle>Manual Attendance Marking</DialogTitle>
+                  <DialogDescription>Select a member to mark them as present for this event.</DialogDescription>
+                </DialogHeader>
+                <div className="relative my-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search by name or email..." 
+                    className="pl-10" 
+                    value={memberSearchTerm}
+                    onChange={(e) => setMemberSearchTerm(e.target.value)}
+                  />
+                </div>
+                <ScrollArea className="flex-1 overflow-y-auto pr-3">
+                  <div className="space-y-3">
+                    {missingMembers.length > 0 ? (
+                      missingMembers.map(member => (
+                        <div key={member.id} className="flex items-center justify-between p-3 border rounded-xl bg-muted/20">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9">
+                              <AvatarImage src={member.photoUrl} alt={member.name} />
+                              <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold truncate">{member.name}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">{member.designation || member.role}</p>
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="text-primary font-bold hover:bg-primary/10"
+                            onClick={() => handleManualMark(member.id)}
+                            disabled={isMarkingInProgress === member.id}
+                          >
+                            {isMarkingInProgress === member.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>Mark Present</>
+                            )}
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center py-10 text-muted-foreground text-sm italic">
+                        {memberSearchTerm ? "No matching members found." : "All club members are already marked present."}
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
             <button onClick={handleCopySummary} className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
               <ClipboardCopy className="mr-2 h-4 w-4" /> Copy
             </button>
