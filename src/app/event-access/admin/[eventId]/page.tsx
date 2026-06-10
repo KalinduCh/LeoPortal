@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Users, CheckCircle, Clock, Download, QrCode, Search, 
   Loader2, Trash2, ArrowLeft, BarChart3, Mail, ShieldAlert, 
-  ShieldCheck, PieChart as PieChartIcon, Utensils, Zap, AlertTriangle
+  ShieldCheck, PieChart as PieChartIcon, Utensils, Zap, AlertTriangle, Banknote, Ticket
 } from 'lucide-react';
 import { getPlatformEvent, subscribeToPlatformRegistrations, deletePlatformRegistration } from '@/services/accessPlatformService';
 import type { AccessEvent, AccessRegistration, AccessPlatformStats } from '@/types/access-platform';
@@ -133,6 +133,8 @@ export default function PlatformEventDashboard() {
         'Contact': r.contactNumber,
         'Club': r.club,
         'Type': r.role,
+        'Ticket Category': r.tierName || 'Standard',
+        'Amount (LKR)': r.priceAtRegistration || 0,
         'Food': r.foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian',
         'Status': r.status === 'checked_in' ? 'Checked In' : 'Registered',
         'Check-In Time': (checkInParsed && isValid(checkInParsed)) ? format(checkInParsed, 'PPP p') : 'N/A',
@@ -278,6 +280,7 @@ export default function PlatformEventDashboard() {
                       </TableHead>
                       <TableHead className="font-bold">Guest Info</TableHead>
                       <TableHead className="font-bold">Club & Type</TableHead>
+                      <TableHead className="font-bold">Ticket Category</TableHead>
                       <TableHead className="font-bold">Meal</TableHead>
                       <TableHead className="font-bold">Ticket ID</TableHead>
                       <TableHead className="font-bold">Entry Status</TableHead>
@@ -319,6 +322,12 @@ export default function PlatformEventDashboard() {
                             <Badge variant="outline" className="text-[10px] uppercase font-bold">{r.role}</Badge>
                           </TableCell>
                           <TableCell>
+                             <div className="flex flex-col">
+                                <span className="text-xs font-bold text-slate-900">{r.tierName || 'Standard'}</span>
+                                <span className="text-[10px] text-slate-500 font-mono tracking-tighter">LKR {r.priceAtRegistration?.toLocaleString() || '0'}</span>
+                             </div>
+                          </TableCell>
+                          <TableCell>
                               <Badge variant={r.foodPreference === 'veg' ? 'outline' : 'secondary'} className={r.foodPreference === 'veg' ? 'border-emerald-500 text-emerald-600' : ''}>
                                   {r.foodPreference === 'veg' ? 'Veg' : 'Non-Veg'}
                               </Badge>
@@ -335,7 +344,7 @@ export default function PlatformEventDashboard() {
                         </TableRow>
                     ))}
                     {filteredRegistrations.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="text-center py-20 text-slate-400 italic">No guests found matching search criteria.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={8} className="text-center py-20 text-slate-400 italic">No guests found matching search criteria.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -376,7 +385,7 @@ export default function PlatformEventDashboard() {
                              <Badge variant="outline" className={cn("text-[8px] font-black px-1.5 h-4", r.foodPreference === 'veg' ? 'border-emerald-500 text-emerald-600' : 'text-slate-400')}>
                                 {r.foodPreference === 'veg' ? 'VEG' : 'NON-VEG'}
                              </Badge>
-                             <Badge variant="secondary" className="text-[8px] font-black px-1.5 h-4">{r.role.toUpperCase()}</Badge>
+                             <Badge variant="secondary" className="text-[8px] font-black px-1.5 h-4 bg-primary/10 text-primary border-none">{r.tierName?.toUpperCase() || 'STANDARD'}</Badge>
                           </div>
                         </div>
                       </div>
