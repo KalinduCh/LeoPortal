@@ -434,6 +434,14 @@ export default function PlatformAdminOverview() {
                   <Button className="w-full h-11 font-bold shadow-md" onClick={() => router.push(`/event-access/admin/${event.id}`)}>
                     Open Dashboard
                   </Button>
+                  <div className="grid grid-cols-2 gap-2 w-full">
+                    <Button variant="outline" size="sm" className="font-bold" onClick={() => window.open(`/event-access/register/${event.id}`, '_blank')}>
+                      <Eye className="mr-1.5 h-3.5 w-3.5" /> View Page
+                    </Button>
+                    <Button variant="outline" size="sm" className="font-bold" onClick={() => handleCopyLink(event.id)}>
+                      <LinkIcon className="mr-1.5 h-3.5 w-3.5" /> Copy Link
+                    </Button>
+                  </div>
                 </CardFooter>
               </Card>
             );
