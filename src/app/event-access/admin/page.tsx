@@ -20,10 +20,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { 
   PlusCircle, CalendarDays, MapPin, Settings, Loader2, 
-  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, CalendarIcon, Clock, Trash2, AlertTriangle, Link as LinkIcon, Lock, Unlock
+  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, CalendarIcon, Clock, Trash2, AlertTriangle, Link as LinkIcon, Lock, Banknote, History
 } from 'lucide-react';
 import { getPlatformEvents, createPlatformEvent, updatePlatformEvent, deletePlatformEvent } from '@/services/accessPlatformService';
-import type { AccessEvent } from '@/types/access-platform';
+import type { AccessEvent, PricingTier } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
 import { format, isValid, parseISO } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
@@ -60,6 +60,7 @@ export default function PlatformAdminOverview() {
     attachmentName: '',
     isRegistrationClosed: false,
     registrationClosingDate: '',
+    pricingTiers: [] as PricingTier[],
   });
 
   const fetchEvents = async () => {
@@ -100,6 +101,7 @@ export default function PlatformAdminOverview() {
         attachmentName: event.attachmentName || '',
         isRegistrationClosed: event.isRegistrationClosed || false,
         registrationClosingDate: event.registrationClosingDate || '',
+        pricingTiers: event.pricingTiers || [],
       });
     } else {
       setEditingEvent(null);
@@ -107,6 +109,7 @@ export default function PlatformAdminOverview() {
         name: '', date: '', time: '', location: '', description: '', capacity: '',
         imageUrl: '', customEmailBody: '', attachmentUrl: '', attachmentName: '',
         isRegistrationClosed: false, registrationClosingDate: '',
+        pricingTiers: [],
       });
     }
     setIsDialogOpen(true);
@@ -128,7 +131,7 @@ export default function PlatformAdminOverview() {
     }).catch(err => {
       toast({ 
         title: "Copy Failed", 
-        description: "Could not copy link. Please copy it manually from the address bar.",
+        description: "Could not copy link.",
         variant: "destructive"
       });
     });
@@ -155,6 +158,28 @@ export default function PlatformAdminOverview() {
     reader.readAsDataURL(file);
   };
 
+  const handleAddTier = () => {
+    const newTier: PricingTier = {
+        id: `tier-${Date.now()}`,
+        name: '',
+        price: 0,
+        startDate: '',
+        endDate: '',
+    };
+    setFormData(prev => ({ ...prev, pricingTiers: [...prev.pricingTiers, newTier] }));
+  };
+
+  const handleRemoveTier = (id: string) => {
+    setFormData(prev => ({ ...prev, pricingTiers: prev.pricingTiers.filter(t => t.id !== id) }));
+  };
+
+  const handleUpdateTier = (id: string, field: keyof PricingTier, value: any) => {
+    setFormData(prev => ({
+        ...prev,
+        pricingTiers: prev.pricingTiers.map(t => t.id === id ? { ...t, [field]: value } : t)
+    }));
+  };
+
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -174,6 +199,7 @@ export default function PlatformAdminOverview() {
         attachmentName: formData.attachmentName,
         isRegistrationClosed: formData.isRegistrationClosed,
         registrationClosingDate: formData.registrationClosingDate,
+        pricingTiers: formData.pricingTiers,
       };
 
       if (editingEvent) {
@@ -232,10 +258,6 @@ export default function PlatformAdminOverview() {
         setCalOpen(false);
     };
 
-    const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData(prev => ({ ...prev, time: e.target.value }));
-    };
-
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
@@ -274,7 +296,7 @@ export default function PlatformAdminOverview() {
                                     type="time" 
                                     className="pl-9 h-10 rounded-lg bg-white"
                                     value={formData.time} 
-                                    onChange={handleTimeChange} 
+                                    onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))} 
                                 />
                             </div>
                         </div>
@@ -282,6 +304,34 @@ export default function PlatformAdminOverview() {
                 </PopoverContent>
             </Popover>
         </div>
+    );
+  };
+
+  const TierDatePicker = ({ tierId, field, label }: { tierId: string, field: 'startDate' | 'endDate', label: string }) => {
+    const [calOpen, setCalOpen] = useState(false);
+    const tier = formData.pricingTiers.find(t => t.id === tierId);
+    const dateValue = tier?.[field];
+    const safeDate = getSafeCalendarDate(dateValue);
+
+    return (
+        <Popover open={calOpen} onOpenChange={setCalOpen}>
+            <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("w-full justify-start h-9 text-[10px]", !dateValue && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-1.5 h-3 w-3" />
+                    {dateValue && safeDate ? format(safeDate, "MMM dd, yyyy") : label}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+                <Calendar 
+                    mode="single" 
+                    selected={safeDate} 
+                    onSelect={(d) => {
+                        if(d) handleUpdateTier(tierId, field, format(d, "yyyy-MM-dd"));
+                        setCalOpen(false);
+                    }}
+                />
+            </PopoverContent>
+        </Popover>
     );
   };
 
@@ -304,10 +354,8 @@ export default function PlatformAdminOverview() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {events.length > 0 ? (
           events.map(event => {
-            const eventDateStr = event.date || '';
-            const safeDate = getSafeCalendarDate(eventDateStr);
+            const safeDate = getSafeCalendarDate(event.date);
             const formattedDate = safeDate ? format(safeDate, 'PPP') : 'Date TBD';
-            
             const isManuallyClosed = event.isRegistrationClosed;
             const isPastClosingDate = event.registrationClosingDate && new Date() > new Date(event.registrationClosingDate + 'T23:59:59');
             const isLocked = isManuallyClosed || isPastClosingDate;
@@ -373,43 +421,19 @@ export default function PlatformAdminOverview() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                      <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider">
-                        {event.customEmailBody ? "Custom Email Active" : "Default Email"}
+                        {event.pricingTiers && event.pricingTiers.length > 0 ? `${event.pricingTiers.length} Pricing Stages` : "Single Pricing"}
                      </Badge>
                      {event.attachmentUrl && (
                         <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border-emerald-100">
                             <Paperclip className="h-2.5 w-2.5 mr-1" /> Attachment
                         </Badge>
                      )}
-                     {event.registrationClosingDate && (
-                         <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border-blue-100">
-                            Closes: {event.registrationClosingDate}
-                         </Badge>
-                     )}
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2 p-4 border-t bg-white">
-                  <Button 
-                    className="w-full h-11 font-bold shadow-md" 
-                    onClick={() => router.push(`/event-access/admin/${event.id}`)}
-                  >
+                  <Button className="w-full h-11 font-bold shadow-md" onClick={() => router.push(`/event-access/admin/${event.id}`)}>
                     Open Dashboard
                   </Button>
-                  <div className="flex gap-2 w-full">
-                    <Button 
-                      variant="outline"
-                      className="flex-1 h-11 border-primary text-primary hover:bg-primary/5 font-bold" 
-                      onClick={() => window.open(`/event-access/register/${event.id}`, '_blank')}
-                    >
-                      <Eye className="mr-2 h-4 w-4" /> View Page
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      className="flex-1 h-11 border-primary text-primary hover:bg-primary/5 font-bold" 
-                      onClick={() => handleCopyLink(event.id)}
-                    >
-                      <LinkIcon className="mr-2 h-4 w-4" /> Copy Link
-                    </Button>
-                  </div>
                 </CardFooter>
               </Card>
             );
@@ -423,7 +447,7 @@ export default function PlatformAdminOverview() {
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -431,31 +455,16 @@ export default function PlatformAdminOverview() {
                 <AlertTriangle className="h-6 w-6" />
                 <DialogTitle className="text-xl font-headline uppercase">Critical Action</DialogTitle>
             </div>
-            <DialogDescription className="text-slate-600">
-              You are about to permanently remove <strong>{eventToDelete?.name}</strong>. This will revoke all issued passes and delete the dashboard configuration.
-            </DialogDescription>
+            <DialogDescription>You are about to permanently remove <strong>{eventToDelete?.name}</strong>.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Type "DELETE" to confirm</Label>
-                <Input 
-                    value={deleteConfirmText} 
-                    onChange={e => setDeleteConfirmText(e.target.value)}
-                    placeholder="DELETE"
-                    className="h-12 border-rose-200 focus-visible:ring-rose-500 font-black text-center text-rose-600"
-                />
-            </div>
+            <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Type "DELETE" to confirm</Label>
+            <Input value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="h-12 border-rose-200 font-black text-center text-rose-600" />
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isProcessing}>Cancel</Button>
-            <Button 
-                variant="destructive" 
-                onClick={handleDeleteEvent} 
-                disabled={deleteConfirmText !== "DELETE" || isProcessing}
-                className="flex-1 h-11 font-bold shadow-lg"
-            >
-              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-              Permanently Delete
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteEvent} disabled={deleteConfirmText !== "DELETE" || isProcessing} className="flex-1 h-11 font-bold">
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />} Permanently Delete
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -468,18 +477,15 @@ export default function PlatformAdminOverview() {
             <DialogTitle className="text-2xl font-headline text-primary">
               {editingEvent ? 'Edit Event Details' : 'Add New Event'}
             </DialogTitle>
-            <DialogDescription>Configure the registration pipeline and entry pass logistics.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSaveEvent} className="space-y-6 py-4">
+          <form onSubmit={handleSaveEvent} className="space-y-8 py-4">
             <div className="space-y-4">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b pb-1">Basic Information</h3>
                 <div className="space-y-2">
                     <Label>Event Name</Label>
                     <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. District Installation 2026" className="h-12 rounded-xl" />
                 </div>
-                
                 <PlatformDateTimePicker fieldName="date" label="Event Schedule (Date & Time)" />
-
                 <div className="space-y-2">
                     <Label>Venue Location</Label>
                     <Input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="e.g. Grand City Hall" className="h-12 rounded-xl" />
@@ -492,19 +498,15 @@ export default function PlatformAdminOverview() {
 
             <div className="space-y-4">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b pb-1">Registration Controls</h3>
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl ring-1 ring-slate-200">
-                    <div className="space-y-0.5">
-                        <Label className="text-sm font-bold flex items-center gap-2">
-                            <Lock className="h-4 w-4 text-rose-600" /> Stop New Registrations
-                        </Label>
-                        <p className="text-[10px] text-slate-500 font-medium">Manually close the registration form immediately.</p>
+                {editingEvent && (
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl ring-1 ring-slate-200">
+                        <div className="space-y-0.5">
+                            <Label className="text-sm font-bold flex items-center gap-2"><Lock className="h-4 w-4 text-rose-600" /> Stop New Registrations</Label>
+                            <p className="text-[10px] text-slate-500 font-medium">Manually close the registration form immediately.</p>
+                        </div>
+                        <Switch checked={formData.isRegistrationClosed} onCheckedChange={(v) => setFormData(prev => ({ ...prev, isRegistrationClosed: v }))} />
                     </div>
-                    <Switch 
-                        checked={formData.isRegistrationClosed} 
-                        onCheckedChange={(v) => setFormData(prev => ({ ...prev, isRegistrationClosed: v }))} 
-                    />
-                </div>
-
+                )}
                 <PlatformDateTimePicker fieldName="registrationClosingDate" label="Automatic Closing Date" />
                 <p className="text-[10px] text-slate-500 font-medium italic mt-1 px-1">Registrations will automatically close at the end of this day.</p>
             </div>
@@ -512,87 +514,102 @@ export default function PlatformAdminOverview() {
             <div className="space-y-4">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b pb-1">Branding & Automation</h3>
                 <div className="space-y-2">
-                    <Label className="flex items-center gap-2">Event Logo / Image URL <ImageIcon className="h-3 w-3 text-slate-400"/></Label>
+                    <Label>Event Logo / Image URL</Label>
                     <div className="flex gap-2">
                         <Input value={formData.imageUrl} onChange={e => setFormData({ ...formData, imageUrl: e.target.value })} placeholder="https://imgur.com/image.png" className="flex-grow h-12 rounded-xl" />
-                        {formData.imageUrl && (
-                            <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-12 w-12 rounded-xl text-rose-600 hover:bg-rose-50" 
-                                onClick={() => {
-                                    setFormData(prev => ({ ...prev, imageUrl: '' }));
-                                    if(fileInputRef.current) fileInputRef.current.value = '';
-                                }}
-                                title="Remove image"
-                            >
-                                <X className="h-5 w-5" />
-                            </Button>
-                        )}
                         <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => fileInputRef.current?.click()}>Upload</Button>
                         <input type="file" hidden ref={fileInputRef} accept="image/*" onChange={(e) => handleFileChange(e, 'image')} />
                     </div>
-                    {formData.imageUrl && (
-                        <div className="mt-2 relative w-full h-32 rounded-xl overflow-hidden border bg-slate-50 flex items-center justify-center ring-1 ring-slate-200 shadow-inner">
-                            <img src={formData.imageUrl} alt="Event Logo Preview" className="max-h-full object-contain" />
-                        </div>
-                    )}
                 </div>
-
                 <div className="space-y-2">
-                    <Label className="flex items-center gap-2">Custom Email Message <Mail className="h-3 w-3 text-slate-400"/></Label>
-                    <Textarea 
-                        value={formData.customEmailBody} 
-                        onChange={e => setFormData({ ...formData, customEmailBody: e.target.value })} 
-                        rows={3} 
-                        className="rounded-xl"
-                        placeholder="Welcome to our event! Please find your ticket attached..." 
-                    />
+                    <Label>Custom Email Message</Label>
+                    <Textarea value={formData.customEmailBody} onChange={e => setFormData({ ...formData, customEmailBody: e.target.value })} rows={3} className="rounded-xl" placeholder="Welcome to our event! Please find your ticket attached..." />
                 </div>
-                
                 <div className="space-y-2">
-                    <Label className="flex items-center gap-2">Attach Document (Max 2MB) <Paperclip className="h-3 w-3 text-slate-400"/></Label>
+                    <Label>Attach Document (Max 2MB)</Label>
                     <div className="flex gap-2">
                         <Input value={formData.attachmentName} readOnly placeholder="No file chosen" className="flex-grow h-12 rounded-xl" />
-                        {formData.attachmentUrl && (
-                            <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-12 w-12 rounded-xl text-rose-600 hover:bg-rose-50" 
-                                onClick={() => {
-                                    setFormData(prev => ({ ...prev, attachmentUrl: '', attachmentName: '' }));
-                                    if(attachmentInputRef.current) attachmentInputRef.current.value = '';
-                                }}
-                                title="Remove attachment"
-                            >
-                                <X className="h-5 w-5" />
-                            </Button>
-                        )}
                         <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => attachmentInputRef.current?.click()}>Select</Button>
                         <input type="file" hidden ref={attachmentInputRef} onChange={(e) => handleFileChange(e, 'attachment')} />
                     </div>
-                    {formData.attachmentName && (
-                        <div className="mt-2 p-3 bg-emerald-50 text-emerald-700 text-xs rounded-xl border border-emerald-100 flex items-center gap-2 shadow-sm animate-in fade-in slide-in-from-top-1">
-                            <Paperclip className="h-3 w-3 shrink-0" />
-                            <span className="font-bold truncate">{formData.attachmentName}</span>
-                        </div>
-                    )}
+                </div>
+                <div className="space-y-2">
+                    <Label>Attendee Capacity (Optional)</Label>
+                    <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} placeholder="Unlimited" className="h-12 rounded-xl" />
                 </div>
             </div>
 
-            <Separator />
-            
-            <div className="space-y-2">
-              <Label>Attendee Capacity (Optional)</Label>
-              <Input type="number" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value })} placeholder="Unlimited" className="h-12 rounded-xl" />
+            <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-1">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-primary">Pricing Strategy</h3>
+                    <Button type="button" variant="ghost" size="sm" onClick={handleAddTier} className="text-primary font-bold h-8">
+                        <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add Pricing Stage
+                    </Button>
+                </div>
+                
+                <div className="space-y-3">
+                    {formData.pricingTiers.map((tier) => (
+                        <Card key={tier.id} className="relative group overflow-hidden border-dashed">
+                            <CardContent className="p-4 space-y-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-bold uppercase text-slate-500">Stage Name</Label>
+                                        <Input 
+                                            value={tier.name} 
+                                            onChange={(e) => handleUpdateTier(tier.id, 'name', e.target.value)} 
+                                            placeholder="e.g., Early Bird" 
+                                            className="h-9 text-xs rounded-lg"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-bold uppercase text-slate-500">Ticket Price (LKR)</Label>
+                                        <div className="relative">
+                                            <Banknote className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                                            <Input 
+                                                type="number" 
+                                                value={tier.price} 
+                                                onChange={(e) => handleUpdateTier(tier.id, 'price', parseFloat(e.target.value))} 
+                                                placeholder="0.00" 
+                                                className="h-9 text-xs rounded-lg pl-8"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-bold uppercase text-slate-500">Active From</Label>
+                                        <TierDatePicker tierId={tier.id} field="startDate" label="Start Date" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-bold uppercase text-slate-500">Active Until</Label>
+                                        <TierDatePicker tierId={tier.id} field="endDate" label="End Date" />
+                                    </div>
+                                </div>
+                                <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="absolute top-1 right-1 h-7 w-7 text-slate-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity" 
+                                    onClick={() => handleRemoveTier(tier.id)}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    ))}
+                    {formData.pricingTiers.length === 0 && (
+                        <div className="text-center py-8 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200">
+                            <Banknote className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                            <p className="text-xs text-slate-400 font-medium">No custom tiers defined. Registration will be free.</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <DialogFooter className="pt-4 gap-2">
               <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => setIsDialogOpen(false)} disabled={isProcessing}>Cancel</Button>
-              <Button type="submit" disabled={isProcessing} className="h-12 px-6 shadow-lg flex-1 bg-primary rounded-xl font-bold">
-                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Save Changes" : "Start Event Pipeline")}
+              <Button type="submit" disabled={isProcessing} className="h-12 px-6 shadow-lg flex-1 bg-primary rounded-xl font-bold uppercase tracking-tight">
+                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Update Event" : "Create Event")}
               </Button>
             </DialogFooter>
           </form>
@@ -600,4 +617,21 @@ export default function PlatformAdminOverview() {
       </Dialog>
     </div>
   );
+}
+
+function TierDatePicker({ tierId, field, label }: any) {
+    const [calOpen, setCalOpen] = useState(false);
+    return (
+        <Popover open={calOpen} onOpenChange={setCalOpen}>
+            <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full justify-start h-9 text-[10px] font-medium">
+                    <CalendarIcon className="mr-1.5 h-3 w-3 text-primary" />
+                    {label}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" initialFocus onSelect={() => setCalOpen(false)} />
+            </PopoverContent>
+        </Popover>
+    );
 }

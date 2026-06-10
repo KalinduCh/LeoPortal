@@ -1,6 +1,14 @@
 
 export type AccessRegistrationStatus = 'registered' | 'checked_in';
 
+export interface PricingTier {
+  id: string;
+  name: string;
+  price: number;
+  startDate: string;
+  endDate: string;
+}
+
 export interface AccessEvent {
   id: string;
   name: string;
@@ -18,6 +26,8 @@ export interface AccessEvent {
   // Registration controls
   isRegistrationClosed?: boolean;
   registrationClosingDate?: string;
+  // Pricing
+  pricingTiers?: PricingTier[];
 }
 
 export interface RegistrationSubmitter {
@@ -43,6 +53,9 @@ export interface AccessRegistration {
   ticketId: string;
   createdAt: string;
   registeredBy?: RegistrationSubmitter; // Metadata for who performed the registration
+  // Pricing Snapshot
+  tierName?: string;
+  priceAtRegistration?: number;
 }
 
 export interface AccessPlatformStats {
