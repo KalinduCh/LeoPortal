@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Users, CheckCircle, Clock, Download, QrCode, Search, 
   Loader2, Trash2, ArrowLeft, BarChart3, Mail, ShieldAlert, 
@@ -356,52 +357,61 @@ export default function PlatformEventDashboard() {
         <TabsContent value="live" className="space-y-6">
           <Card className="shadow-xl border-none ring-1 ring-slate-200 bg-white">
             <CardHeader className="bg-slate-50/50">
-              <div className="flex items-center gap-3 mb-1">
-                <CardTitle className="text-lg">Real-Time Arrivals</CardTitle>
-                <div className="flex items-center gap-2 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Station Active</span>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-lg">Real-Time Arrivals Feed</CardTitle>
+                    <div className="flex items-center gap-2 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Station Active</span>
+                    </div>
+                  </div>
+                  <CardDescription>Streaming live updates from all entrance stations.</CardDescription>
                 </div>
+                <Badge variant="outline" className="font-mono text-xs">
+                  {registrations.filter(r => r.status === 'checked_in').length} Total Arrived
+                </Badge>
               </div>
-              <CardDescription className="text-left">Live check-in stream from entrance stations.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {registrations.filter(r => r.status === 'checked_in').slice(0, 15).map(r => {
-                  const checkInParsed = r.checkInTime ? parseISO(r.checkInTime) : null;
-                  return (
-                    <div key={r.id} className="group flex items-center justify-between p-4 border rounded-2xl bg-white hover:border-primary/30 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-xl bg-slate-50 flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
-                          <CheckCircle className="h-6 w-6" />
-                        </div>
-                        <div className="text-left">
-                          <p className="font-bold text-sm text-slate-900">{r.name}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-tighter truncate max-w-[120px]">{r.club.replace('Leo Club of ', '')}</p>
-                          <div className="flex gap-1.5 mt-1">
-                             <Badge variant="outline" className={cn("text-[8px] font-black px-1.5 h-4", r.foodPreference === 'veg' ? 'border-emerald-500 text-emerald-600' : 'text-slate-400')}>
-                                {r.foodPreference === 'veg' ? 'VEG' : 'NON-VEG'}
-                             </Badge>
-                             <Badge variant="secondary" className="text-[8px] font-black px-1.5 h-4 bg-primary/10 text-primary border-none">{r.tierName?.toUpperCase() || 'STANDARD'}</Badge>
+            <CardContent className="pt-6 px-6">
+              <ScrollArea className="h-[600px] pr-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {registrations.filter(r => r.status === 'checked_in').map(r => {
+                    const checkInParsed = r.checkInTime ? parseISO(r.checkInTime) : null;
+                    return (
+                      <div key={r.id} className="group flex items-center justify-between p-4 border rounded-2xl bg-white hover:border-primary/30 hover:shadow-md transition-all duration-300">
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 rounded-xl bg-slate-50 flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
+                            <CheckCircle className="h-6 w-6" />
+                          </div>
+                          <div className="text-left">
+                            <p className="font-bold text-sm text-slate-900">{r.name}</p>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-tighter truncate max-w-[120px]">{r.club.replace('Leo Club of ', '')}</p>
+                            <div className="flex gap-1.5 mt-1">
+                               <Badge variant="outline" className={cn("text-[8px] font-black px-1.5 h-4", r.foodPreference === 'veg' ? 'border-emerald-500 text-emerald-600' : 'text-slate-400')}>
+                                  {r.foodPreference === 'veg' ? 'VEG' : 'NON-VEG'}
+                               </Badge>
+                               <Badge variant="secondary" className="text-[8px] font-black px-1.5 h-4 bg-primary/10 text-primary border-none">{r.tierName?.toUpperCase() || 'STANDARD'}</Badge>
+                            </div>
                           </div>
                         </div>
+                        <p className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
+                          {(checkInParsed && isValid(checkInParsed)) ? format(checkInParsed, 'h:mm a') : 'Now'}
+                        </p>
                       </div>
-                      <p className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
-                        {(checkInParsed && isValid(checkInParsed)) ? format(checkInParsed, 'h:mm a') : 'Now'}
-                      </p>
+                    );
+                  })}
+                  {registrations.filter(r => r.status === 'checked_in').length === 0 && (
+                    <div className="col-span-full py-24 text-center text-slate-400 flex flex-col items-center">
+                      <ShieldAlert className="h-12 w-12 mb-2 opacity-20" />
+                      <p className="font-bold uppercase tracking-widest text-xs">Waiting for first entry...</p>
                     </div>
-                  );
-                })}
-                {registrations.filter(r => r.status === 'checked_in').length === 0 && (
-                  <div className="col-span-full py-24 text-center text-slate-400 flex flex-col items-center">
-                    <ShieldAlert className="h-12 w-12 mb-2 opacity-20" />
-                    <p className="font-bold uppercase tracking-widest text-xs">Waiting for first entry...</p>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </ScrollArea>
             </CardContent>
           </Card>
         </TabsContent>
