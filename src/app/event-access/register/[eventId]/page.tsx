@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -10,12 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Calendar, MapPin, Loader2, CheckCircle, 
-  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck, Lock, MessageCircle
+  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck, Lock, MessageCircle, Banknote, Sparkles
 } from 'lucide-react';
 import { getPlatformEvent } from '@/services/accessPlatformService';
-import type { AccessEvent, RegistrationSubmitter } from '@/types/access-platform';
+import type { AccessEvent, RegistrationSubmitter, PricingTier } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO, isValid } from 'date-fns';
+import { format, parseISO, isValid, isWithinInterval } from 'date-fns';
 import Image from 'next/image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -79,6 +79,17 @@ export default function PlatformPublicRegistration() {
     fetchEvent();
   }, [eventId]);
 
+  const activePricing = useMemo(() => {
+    if (!event || !event.pricingTiers || event.pricingTiers.length === 0) return null;
+    const now = new Date();
+    return event.pricingTiers.find(tier => {
+      const start = parseISO(tier.startDate + 'T00:00:00');
+      const end = parseISO(tier.endDate + 'T23:59:59');
+      if (!isValid(start) || !isValid(end)) return false;
+      return now >= start && now <= end;
+    });
+  }, [event]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event) return;
@@ -106,6 +117,8 @@ export default function PlatformPublicRegistration() {
           customEmailBody: event.customEmailBody,
           attachmentUrl: event.attachmentUrl,
           attachmentName: event.attachmentName,
+          tierName: activePricing?.name || 'Standard',
+          priceAtRegistration: activePricing?.price || 0,
         }),
       });
 
@@ -118,28 +131,9 @@ export default function PlatformPublicRegistration() {
         throw new Error(errorData.error || "Failed to register.");
       }
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Submission failed. Please try again.", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "Submission failed.", variant: "destructive" });
     }
     setIsSubmitting(false);
-  };
-
-  const handleDownloadSample = () => {
-    const sampleData = [
-      {
-        Name: "John Doe",
-        Email: "john.doe@sample.com",
-        Club: "Leo Club of Athugalpura",
-        Contact: "0712345678",
-        Type: "Leo",
-        Food: "non_veg"
-      }
-    ];
-    const csv = Papa.unparse(sampleData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = "LeoEntrivo_Bulk_Template.csv";
-    link.click();
   };
 
   const handleBulkCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,11 +141,7 @@ export default function PlatformPublicRegistration() {
     if (!file || !event) return;
 
     if (!submitterData.name || !submitterData.email || !submitterData.contact || !submitterData.club) {
-        toast({ 
-            title: "Submitter Identity Required", 
-            description: "Please fill in your (the officer's) details before uploading the list.", 
-            variant: "destructive" 
-        });
+        toast({ title: "Identification Required", description: "Please fill in your details first.", variant: "destructive" });
         e.target.value = '';
         return;
     }
@@ -191,7 +181,9 @@ export default function PlatformPublicRegistration() {
                 contactNumber: row.Contact || '',
                 role: row.Type || 'Leo',
                 foodPreference: (row.Food?.toLowerCase().includes('veg') && !row.Food?.toLowerCase().includes('non')) ? 'veg' : 'non_veg',
-                submitterInfo: submitterData
+                submitterInfo: submitterData,
+                tierName: activePricing?.name || 'Standard',
+                priceAtRegistration: activePricing?.price || 0,
               }),
             });
 
@@ -204,18 +196,8 @@ export default function PlatformPublicRegistration() {
         if (successCount > 0) {
           setBulkSuccessCount(successCount);
           setSuccess(true);
-          toast({
-            title: "Bulk Registration Complete",
-            description: `Successfully generated ${successCount} entry passes.`
-          });
-        } else {
-          toast({
-            title: "Import Failed",
-            description: "No registrations were successful. Please check the CSV format.",
-            variant: "destructive"
-          });
+          toast({ title: "Bulk Registration Complete", description: `${successCount} passes generated.` });
         }
-        
         setIsBulkProcessing(false);
         e.target.value = '';
       }
@@ -226,26 +208,11 @@ export default function PlatformPublicRegistration() {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  if (!event) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-        <Card className="max-w-md text-center shadow-xl border-none">
-          <CardHeader>
-            <CardTitle>Pass Request Link Expired</CardTitle>
-            <CardDescription>The registration link for this event is no longer active.</CardDescription>
-          </CardHeader>
-          <CardFooter><Button className="w-full" onClick={() => router.push('/')}>Return Home</Button></CardFooter>
-        </Card>
-      </div>
-    );
-  }
+  if (!event) return null;
 
   const isManuallyClosed = event.isRegistrationClosed;
   const isPastClosingDate = event.registrationClosingDate && new Date() > new Date(event.registrationClosingDate + 'T23:59:59');
   const isRegistrationOver = isManuallyClosed || isPastClosingDate;
-
-  const eventDateParsed = event.date ? parseISO(event.date) : null;
-  const displayDate = (eventDateParsed && isValid(eventDateParsed)) ? format(eventDateParsed, 'PPP') : (event.date || 'TBD');
 
   return (
     <div className="min-h-screen bg-[#f8fafc] py-12 px-4">
@@ -256,95 +223,73 @@ export default function PlatformPublicRegistration() {
               {event.imageUrl ? (
                 <img src={event.imageUrl} alt="Event Branding" className="w-full h-full object-cover rounded-2xl" />
               ) : (
-                <Image src="https://i.imgur.com/MP1YFNf.png" alt="LeoEntrivo Logo" width={90} height={90} className="object-contain" />
+                <Image src="https://i.imgur.com/MP1YFNf.png" alt="Logo" width={90} height={90} className="object-contain" />
               )}
             </div>
           </div>
-          
           <div className="space-y-1">
             <h1 className="text-4xl font-black font-headline text-slate-900 tracking-tighter uppercase">{event.name}</h1>
             <p className="text-primary font-bold tracking-[0.2em] text-xs uppercase">LeoEntrivo Digital Pass System</p>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-slate-500 font-medium">
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><Calendar className="h-4 w-4 text-primary" /> {displayDate}</div>
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><Clock className="h-4 w-4 text-primary" /> {event.time}</div>
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200"><MapPin className="h-4 w-4 text-primary" /> {event.location}</div>
+          <div className="flex flex-wrap justify-center gap-4">
+             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200 text-xs font-bold text-slate-500"><Calendar className="h-4 w-4 text-primary" /> {event.date}</div>
+             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200 text-xs font-bold text-slate-500"><Clock className="h-4 w-4 text-primary" /> {event.time}</div>
+             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200 text-xs font-bold text-slate-500"><MapPin className="h-4 w-4 text-primary" /> {event.location}</div>
           </div>
+
+          {activePricing && (
+              <div className="flex justify-center pt-2">
+                  <div className="bg-primary/5 border border-primary/20 px-6 py-3 rounded-2xl flex items-center gap-4 shadow-sm animate-in zoom-in-95 duration-500">
+                      <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white">
+                          <Banknote className="h-5 w-5" />
+                      </div>
+                      <div className="text-left">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-primary leading-none mb-1">{activePricing.name} Tier</p>
+                          <p className="text-xl font-black text-slate-900 leading-none">LKR {activePricing.price.toLocaleString()}</p>
+                      </div>
+                      <div className="ml-2">
+                          <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
+                      </div>
+                  </div>
+              </div>
+          )}
         </header>
 
         {success ? (
           <Card className="border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
             <div className="bg-emerald-600 p-10 text-white text-center">
               <CheckCircle className="h-20 w-16 mx-auto mb-4" />
-              <h2 className="text-3xl font-black font-headline">REGISTRATION SUCCESSFUL!</h2>
-              <p className="opacity-90 font-medium">
-                {bulkSuccessCount > 0 
-                  ? `${bulkSuccessCount} digital entry passes have been generated.` 
-                  : "Your digital entry pass is on its way."}
-              </p>
+              <h2 className="text-3xl font-black font-headline uppercase">Success!</h2>
+              <p className="opacity-90 font-medium">Registration complete. Your entry pass is in your inbox.</p>
             </div>
             <CardContent className="p-10 text-center space-y-6">
               <p className="text-slate-600 text-lg leading-relaxed">
                 {bulkSuccessCount > 0 
-                  ? "Unique QR passes have been sent to all email addresses provided." 
+                  ? `Successfully generated ${bulkSuccessCount} digital entry passes for your club.` 
                   : `Thank you for registering. A unique QR entry pass has been sent to ${formData.email}.`}
               </p>
-              <div className="p-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-sm font-medium text-slate-500">
-                Please ensure all guests have their passes ready on their phones for scanning at the venue entrance.
-              </div>
-              <Button variant="link" className="text-primary font-bold" onClick={() => window.location.reload()}>Need to register more people?</Button>
+              <Button variant="link" className="text-primary font-bold" onClick={() => window.location.reload()}>Register more people?</Button>
             </CardContent>
           </Card>
         ) : isRegistrationOver ? (
-            <Card className="shadow-2xl border-none rounded-3xl bg-white overflow-hidden text-center">
-                <div className="bg-rose-600 p-10 text-white">
-                    <Lock className="h-20 w-16 mx-auto mb-4" />
-                    <h2 className="text-3xl font-black font-headline">REGISTRATION CLOSED</h2>
-                    <p className="opacity-90 font-medium">This event is no longer accepting new registrations.</p>
-                </div>
-                <CardContent className="p-10 space-y-8">
-                    <div className="space-y-4">
-                        <p className="text-slate-600 text-lg font-medium leading-relaxed">
-                            Thank you for your interest in <strong>{event.name}</strong>. Unfortunately, the registration period has concluded.
-                        </p>
-                        <p className="text-slate-500 text-sm italic">
-                            The deadline for entry pass requests has passed or the capacity has been reached.
-                        </p>
-                    </div>
-
-                    <div className="p-8 bg-slate-50 rounded-3xl ring-1 ring-slate-200 space-y-4">
-                        <div className="flex justify-center">
-                            <div className="bg-white p-3 rounded-2xl shadow-sm text-primary">
-                                <MessageCircle className="h-8 w-8" />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <h4 className="font-black uppercase tracking-widest text-xs text-slate-900">Have an enquiry?</h4>
-                            <p className="text-sm text-slate-600">
-                                If you have urgent questions or require assistance, please contact the organizing committee directly.
-                            </p>
-                        </div>
-                        <Button asChild variant="outline" className="h-12 rounded-xl w-full border-primary/20 text-primary font-bold hover:bg-primary/5">
-                            <a href="mailto:districtconference306d9@gmail.com">Contact Committee</a>
-                        </Button>
-                    </div>
-
-                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-[0.3em]">LeoDistrict 306 D9 &copy; 2026</p>
-                </CardContent>
-            </Card>
+          <Card className="shadow-2xl border-none rounded-3xl bg-white overflow-hidden text-center p-10">
+            <Lock className="h-16 w-16 mx-auto mb-4 text-rose-600" />
+            <h2 className="text-2xl font-black uppercase text-slate-900">Registration Closed</h2>
+            <p className="text-slate-500 mt-2">This event is no longer accepting new registrations.</p>
+          </Card>
         ) : (
           <Card className="shadow-2xl border-none rounded-3xl bg-white overflow-hidden">
             <CardHeader className="bg-slate-900 p-8 text-white">
-              <CardTitle className="text-2xl font-headline">Request Access Pass</CardTitle>
-              <CardDescription className="text-slate-400 text-sm">Please choose how you would like to register.</CardDescription>
+              <CardTitle className="text-2xl font-headline">Secure Entry Registration</CardTitle>
+              <CardDescription className="text-slate-400 text-sm">Choose your method and fill in the details below.</CardDescription>
             </CardHeader>
             
             <Tabs defaultValue="single" className="w-full">
               <div className="px-8 pt-6">
                 <TabsList className="grid w-full grid-cols-2 h-14 bg-slate-100 rounded-2xl p-1.5 ring-1 ring-slate-200">
-                  <TabsTrigger value="single" className="rounded-xl font-bold h-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">Single Entry</TabsTrigger>
-                  <TabsTrigger value="bulk" className="rounded-xl font-bold h-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">Club Bulk Upload</TabsTrigger>
+                  <TabsTrigger value="single" className="rounded-xl font-bold h-full data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Single Entry</TabsTrigger>
+                  <TabsTrigger value="bulk" className="rounded-xl font-bold h-full data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Club Bulk Upload</TabsTrigger>
                 </TabsList>
               </div>
 
@@ -354,45 +299,30 @@ export default function PlatformPublicRegistration() {
                     <div className="space-y-6">
                         <div className="space-y-2">
                             <Label className="flex items-center gap-2 font-bold text-slate-700"><User className="h-4 w-4 text-primary" /> Full Name</Label>
-                            <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. John Doe" className="h-12 rounded-xl" />
+                            <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="John Doe" className="h-12 rounded-xl" />
                         </div>
-
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2 font-bold text-slate-700"><Mail className="h-4 w-4 text-primary" /> Email Address</Label>
-                                <Input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="john.doe@sample.com" className="h-12 rounded-xl" />
+                                <Input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="john@example.com" className="h-12 rounded-xl" />
                             </div>
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2 font-bold text-slate-700"><Phone className="h-4 w-4 text-primary" /> Contact Number</Label>
                                 <Input required value={formData.contactNumber} onChange={e => setFormData({ ...formData, contactNumber: e.target.value })} placeholder="07X XXXXXXX" className="h-12 rounded-xl" />
                             </div>
                         </div>
-
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2 font-bold text-slate-700"><Building2 className="h-4 w-4 text-primary" /> Select Club</Label>
                                 <Select value={formData.club} onValueChange={v => setFormData({...formData, club: v})}>
                                     <SelectTrigger className="h-12 rounded-xl">
-                                        <SelectValue placeholder="Choose your club" />
+                                        <SelectValue placeholder="Choose club" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {CLUB_NAMES.map(name => (
-                                          <SelectItem key={name} value={`Leo Club of ${name}`}>
-                                            Leo Club of {name}
-                                          </SelectItem>
-                                        ))}
+                                        {CLUB_NAMES.map(name => <SelectItem key={name} value={`Leo Club of ${name}`}>Leo Club of {name}</SelectItem>)}
                                         <SelectItem value="Others">Others</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                {formData.club === 'Others' && (
-                                    <Input 
-                                        required 
-                                        placeholder="Type your club name..." 
-                                        className="mt-2 h-12 rounded-xl animate-in slide-in-from-top-2"
-                                        value={formData.otherClubName}
-                                        onChange={e => setFormData({...formData, otherClubName: e.target.value})}
-                                    />
-                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2 font-bold text-slate-700"><Users2 className="h-4 w-4 text-primary" /> Member Type</Label>
@@ -408,29 +338,16 @@ export default function PlatformPublicRegistration() {
                                 </Select>
                             </div>
                         </div>
-
                         <div className="space-y-3 p-4 bg-slate-50 rounded-2xl ring-1 ring-slate-200">
                             <Label className="flex items-center gap-2 font-bold text-slate-700"><Utensils className="h-4 w-4 text-primary" /> Food Preference</Label>
-                            <RadioGroup 
-                                value={formData.foodPreference} 
-                                onValueChange={(v: any) => setFormData({...formData, foodPreference: v})}
-                                className="flex gap-6"
-                            >
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="non_veg" id="non_veg" />
-                                    <Label htmlFor="non_veg" className="font-medium cursor-pointer">Non-Vegetarian</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="veg" id="veg" />
-                                    <Label htmlFor="veg" className="font-medium cursor-pointer">Vegetarian</Label>
-                                </div>
+                            <RadioGroup value={formData.foodPreference} onValueChange={(v: any) => setFormData({...formData, foodPreference: v})} className="flex gap-6">
+                                <div className="flex items-center space-x-2"><RadioGroupItem value="non_veg" id="non_veg" /><Label htmlFor="non_veg" className="font-medium cursor-pointer">Non-Vegetarian</Label></div>
+                                <div className="flex items-center space-x-2"><RadioGroupItem value="veg" id="veg" /><Label htmlFor="veg" className="font-medium cursor-pointer">Vegetarian</Label></div>
                             </RadioGroup>
                         </div>
                     </div>
-
-                    <Button type="submit" size="lg" className="w-full h-16 text-xl font-black shadow-xl bg-primary hover:scale-[1.01] transition-transform rounded-2xl" disabled={isSubmitting}>
+                    <Button type="submit" size="lg" className="w-full h-16 text-xl font-black shadow-xl bg-primary rounded-2xl" disabled={isSubmitting}>
                       {isSubmitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : "Request Entry Pass"}
-                      {!isSubmitting && <ArrowRight className="ml-2 h-6 w-6" />}
                     </Button>
                   </form>
                 </CardContent>
@@ -439,107 +356,29 @@ export default function PlatformPublicRegistration() {
               <TabsContent value="bulk">
                 <CardContent className="p-8 space-y-8">
                   <div className="bg-slate-50 ring-1 ring-slate-200 rounded-3xl p-6 space-y-6">
-                    <div className="flex items-center gap-3 text-slate-900 border-b pb-4">
-                      <ShieldCheck className="h-6 w-6 text-primary" />
-                      <h3 className="font-black uppercase tracking-tight">Submitter Identification</h3>
-                    </div>
-                    
+                    <h3 className="font-black uppercase tracking-tight flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Submitter Identity</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Your Name</Label>
-                            <Input placeholder="John Doe" className="h-11 rounded-xl bg-white" value={submitterData.name} onChange={e => setSubmitterData({...submitterData, name: e.target.value})} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Designation</Label>
-                            <Input placeholder="Club President" className="h-11 rounded-xl bg-white" value={submitterData.designation} onChange={e => setSubmitterData({...submitterData, designation: e.target.value})} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Select Club</Label>
-                            <Select value={submitterData.club} onValueChange={v => setSubmitterData({...submitterData, club: v})}>
-                                <SelectTrigger className="h-11 rounded-xl bg-white">
-                                    <SelectValue placeholder="Choose club" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {CLUB_NAMES.map(name => (
-                                      <SelectItem key={name} value={`Leo Club of ${name}`}>
-                                        Leo Club of {name}
-                                      </SelectItem>
-                                    ))}
-                                    <SelectItem value="Others">Others</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Contact Number</Label>
-                            <Input placeholder="07X XXXXXXX" className="h-11 rounded-xl bg-white" value={submitterData.contact} onChange={e => setSubmitterData({...submitterData, contact: e.target.value})} />
-                        </div>
-                        <div className="space-y-2 sm:col-span-2">
-                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Email Address</Label>
-                            <Input type="email" placeholder="officer@sample.com" className="h-11 rounded-xl bg-white" value={submitterData.email} onChange={e => setSubmitterData({...submitterData, email: e.target.value})} />
-                        </div>
+                        <Input placeholder="Your Name" className="h-11 rounded-xl bg-white" value={submitterData.name} onChange={e => setSubmitterData({...submitterData, name: e.target.value})} />
+                        <Input placeholder="Designation" className="h-11 rounded-xl bg-white" value={submitterData.designation} onChange={e => setSubmitterData({...submitterData, designation: e.target.value})} />
+                        <Select value={submitterData.club} onValueChange={v => setSubmitterData({...submitterData, club: v})}>
+                            <SelectTrigger className="h-11 rounded-xl bg-white"><SelectValue placeholder="Choose club" /></SelectTrigger>
+                            <SelectContent>{CLUB_NAMES.map(name => <SelectItem key={name} value={`Leo Club of ${name}`}>Leo Club of {name}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Input placeholder="Contact Number" className="h-11 rounded-xl bg-white" value={submitterData.contact} onChange={e => setSubmitterData({...submitterData, contact: e.target.value})} />
+                        <Input type="email" placeholder="Professional Email" className="h-11 rounded-xl bg-white sm:col-span-2" value={submitterData.email} onChange={e => setSubmitterData({...submitterData, email: e.target.value})} />
                     </div>
                   </div>
 
-                  <div className="bg-primary/5 border border-primary/10 rounded-2xl p-6 space-y-4">
-                    <div className="flex items-center gap-3 text-primary">
-                      <FileSpreadsheet className="h-6 w-6" />
-                      <h3 className="font-bold text-lg">Member List Portal</h3>
-                    </div>
-                    <p className="text-sm text-slate-600 leading-relaxed">
-                      Upload your club list to generate passes for multiple members at once. 
-                      Each guest will receive their pass individually.
-                    </p>
-                    <Button variant="outline" size="sm" onClick={handleDownloadSample} className="bg-white border-primary/20 text-primary hover:bg-primary/5 font-bold">
-                      <Download className="mr-2 h-4 w-4" /> Download Formatting Sample
-                    </Button>
+                  <div className="relative group">
+                    <Input type="file" accept=".csv" onChange={handleBulkCsvUpload} className="hidden" id="bulk-csv-input" disabled={isBulkProcessing} />
+                    <label htmlFor="bulk-csv-input" className="flex flex-col items-center justify-center gap-4 p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-all">
+                      <div className="h-16 w-16 rounded-full bg-white shadow-md flex items-center justify-center text-primary"><Upload className="h-8 w-8" /></div>
+                      <p className="font-black text-slate-900 uppercase tracking-tighter">Upload Club CSV List</p>
+                    </label>
                   </div>
-
-                  {isBulkProcessing ? (
-                    <div className="space-y-6 py-10 text-center animate-in fade-in">
-                      <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-                      <div className="space-y-2">
-                        <p className="font-black text-slate-900 uppercase tracking-widest">Processing District List...</p>
-                        <p className="text-sm text-slate-500">{processProgress}% complete</p>
-                      </div>
-                      <Progress value={processProgress} className="h-2 rounded-full bg-slate-100" />
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="relative group">
-                        <Input 
-                          type="file" 
-                          accept=".csv" 
-                          onChange={handleBulkCsvUpload}
-                          className="hidden" 
-                          id="bulk-csv-input" 
-                        />
-                        <label 
-                          htmlFor="bulk-csv-input" 
-                          className="flex flex-col items-center justify-center gap-4 p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 hover:bg-slate-100 hover:border-primary/30 cursor-pointer transition-all duration-300"
-                        >
-                          <div className="h-16 w-16 rounded-full bg-white shadow-md flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                            <Upload className="h-8 w-8" />
-                          </div>
-                          <div className="text-center">
-                            <p className="font-black text-slate-900 uppercase tracking-tighter text-lg">Upload Club Member List</p>
-                            <p className="text-sm text-slate-500">Tap to browse .CSV files</p>
-                          </div>
-                        </label>
-                      </div>
-
-                      <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-xs">
-                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                        <p>Security Note: Your identification details will be logged as the registrant for this list.</p>
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </TabsContent>
             </Tabs>
-
-            <CardFooter className="bg-slate-50 p-6 text-center justify-center">
-              <p className="text-[10px] uppercase font-black text-slate-400 tracking-[0.3em]">LeoEntrivo Pass System &copy; 2026</p>
-            </CardFooter>
           </Card>
         )}
       </div>
