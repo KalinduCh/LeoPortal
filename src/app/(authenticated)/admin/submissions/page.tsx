@@ -12,14 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   FileText, PlusCircle, ExternalLink, Settings, 
   Loader2, Trash2, Eye, LayoutGrid, CheckCircle, Clock, XCircle, 
-  Lightbulb, Search, MoreHorizontal, User, Calendar, MessageSquare
+  Lightbulb, Search, MoreHorizontal, User, Calendar, MessageSquare, ClipboardCopy, Share2
 } from 'lucide-react';
 import { getForms, deleteForm, updateForm, createForm } from '@/services/formService';
 import { getProjectIdeasForAdmin, updateProjectIdea } from '@/services/projectIdeaService';
 import type { FormRecord, FormStatus, ProjectIdea } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -111,6 +111,15 @@ export default function SubmissionsAdminDashboard() {
     setIsFormDialogOpen(true);
   };
 
+  const handleCopyLink = (formId: string) => {
+    const url = `${window.location.origin}/submissions/${formId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast({ title: "Link Copied", description: "Public submission URL copied to clipboard." });
+    }).catch(() => {
+      toast({ title: "Copy Failed", description: "Could not copy link to clipboard.", variant: "destructive" });
+    });
+  };
+
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -182,7 +191,7 @@ export default function SubmissionsAdminDashboard() {
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline text-primary">Submissions & Review</h1>
+          <h1 className="text-3xl font-bold font-headline text-primary uppercase">Submissions & Review</h1>
           <p className="text-muted-foreground">Manage connected Google Forms and AI-generated project proposals.</p>
         </div>
       </div>
@@ -200,7 +209,7 @@ export default function SubmissionsAdminDashboard() {
         </TabsList>
 
         <TabsContent value="forms" className="space-y-6">
-          <Card className="shadow-lg">
+          <Card className="shadow-lg border-none ring-1 ring-slate-200">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <CardTitle>Connected Submission Modules</CardTitle>
@@ -209,10 +218,10 @@ export default function SubmissionsAdminDashboard() {
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                 <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input placeholder="Search forms..." value={formSearchTerm} onChange={e => setFormSearchTerm(e.target.value)} className="pl-9" />
+                    <Input placeholder="Search forms..." value={formSearchTerm} onChange={e => setFormSearchTerm(e.target.value)} className="pl-9 h-10 rounded-xl" />
                 </div>
-                <Button onClick={() => handleOpenFormDialog()}>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Connect New
+                <Button onClick={() => handleOpenFormDialog()} className="rounded-xl">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Connect New Form
                 </Button>
               </div>
             </CardHeader>
@@ -235,26 +244,38 @@ export default function SubmissionsAdminDashboard() {
                           <p className="text-xs text-muted-foreground line-clamp-1 max-w-xs">{form.description}</p>
                         </TableCell>
                         <TableCell>
-                          <Badge className={form.status === 'active' ? 'bg-emerald-600' : form.status === 'closed' ? 'bg-rose-600' : 'bg-slate-500'}>
+                          <Badge className={cn("uppercase text-[10px] font-black tracking-widest", form.status === 'active' ? 'bg-emerald-600' : form.status === 'closed' ? 'bg-rose-600' : 'bg-slate-500')}>
                             {form.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {format(parseISO(form.createdAt), 'MMM dd, yyyy')}
                         </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button variant="ghost" size="sm" onClick={() => window.open(`/submissions/${form.id}`, '_blank')}>
+                        <TableCell className="text-right space-x-1">
+                          <Button variant="ghost" size="sm" onClick={() => handleCopyLink(form.id)} className="h-8 hover:text-primary">
+                             <ClipboardCopy className="h-4 w-4 mr-1.5" /> Link
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => window.open(`/submissions/${form.id}`, '_blank')} className="h-8 hover:text-primary">
                             <Eye className="h-4 w-4 mr-1.5" /> View
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/submissions/responses/${form.id}`)} disabled={!form.sheetApiUrl}>
-                            <LayoutGrid className="h-4 w-4 mr-1.5" /> Responses
+                          <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/submissions/responses/${form.id}`)} disabled={!form.sheetApiUrl} className="h-8 hover:text-primary">
+                            <LayoutGrid className="h-4 w-4 mr-1.5" /> Data
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenFormDialog(form)}>
-                            <Settings className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="text-rose-600" onClick={() => handleDeleteForm(form.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Options</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => handleOpenFormDialog(form)}>
+                                    <Settings className="mr-2 h-4 w-4" /> Edit Configuration
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleDeleteForm(form.id)} className="text-rose-600">
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete Connection
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -273,7 +294,7 @@ export default function SubmissionsAdminDashboard() {
         </TabsContent>
 
         <TabsContent value="ideas" className="space-y-6">
-          <Card className="shadow-lg">
+          <Card className="shadow-lg border-none ring-1 ring-slate-200">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <CardTitle>Project Idea Proposals</CardTitle>
@@ -281,7 +302,7 @@ export default function SubmissionsAdminDashboard() {
               </div>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input placeholder="Search proposals..." value={ideaSearchTerm} onChange={e => setIdeaSearchTerm(e.target.value)} className="pl-9" />
+                <Input placeholder="Search proposals..." value={ideaSearchTerm} onChange={e => setIdeaSearchTerm(e.target.value)} className="pl-9 h-10 rounded-xl" />
               </div>
             </CardHeader>
             <CardContent>
@@ -308,12 +329,12 @@ export default function SubmissionsAdminDashboard() {
                                 </TableCell>
                                 <TableCell className="text-xs text-muted-foreground">{format(parseISO(idea.createdAt), 'MMM dd, yyyy')}</TableCell>
                                 <TableCell>
-                                    <Badge className={getIdeaStatusVariant(idea.status)}>
+                                    <Badge className={cn("uppercase text-[10px] font-black tracking-widest", getIdeaStatusVariant(idea.status))}>
                                         {idea.status.replace(/_/g, ' ')}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-right space-x-2">
-                                    <Button variant="outline" size="sm" onClick={() => handleReviewIdea(idea)}>
+                                    <Button variant="outline" size="sm" onClick={() => handleReviewIdea(idea)} className="h-8 rounded-lg">
                                         Review <ExternalLink className="ml-2 h-3 w-3" />
                                     </Button>
                                     <DropdownMenu>
@@ -348,43 +369,44 @@ export default function SubmissionsAdminDashboard() {
       </Tabs>
 
       <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
             <DialogTitle>{editingFormId ? 'Edit Form Connection' : 'Connect Google Form'}</DialogTitle>
-            <DialogDescription>Link an existing Google Form to the Leo Portal.</DialogDescription>
+            <DialogDescription>Link an existing Google Form or external submission tool to the Leo Portal.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSaveForm} className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Form Title</Label>
-              <Input required value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="e.g. Recruitment 2026" />
+              <Input required value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="e.g. Recruitment 2026" className="h-11 rounded-xl" />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
-              <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="What is this form for?" />
+              <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="What is this form for?" className="rounded-xl" />
             </div>
             <div className="space-y-2">
-              <Label>Google Form Embed URL</Label>
-              <Input required value={formData.embedUrl} onChange={e => setFormData({ ...formData, embedUrl: e.target.value })} placeholder="https://docs.google.com/forms/d/e/.../viewform?embedded=true" />
+              <Label>Google Form Embed URL or Code</Label>
+              <Input required value={formData.embedUrl} onChange={e => setFormData({ ...formData, embedUrl: e.target.value })} placeholder="Paste URL or <iframe> embed code..." className="h-11 rounded-xl" />
+              <p className="text-[10px] text-muted-foreground italic">Tip: You can paste the full iframe code from Google Forms 'Send' menu.</p>
             </div>
             <div className="space-y-2">
               <Label>Response API URL (Optional)</Label>
-              <Input value={formData.sheetApiUrl} onChange={e => setFormData({ ...formData, sheetApiUrl: e.target.value })} placeholder="https://script.google.com/macros/s/.../exec" />
+              <Input value={formData.sheetApiUrl} onChange={e => setFormData({ ...formData, sheetApiUrl: e.target.value })} placeholder="Apps Script API URL for Sheet data..." className="h-11 rounded-xl" />
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label>Visibility Status</Label>
               <select 
-                className="w-full h-10 rounded-md border border-input bg-background px-3"
+                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm"
                 value={formData.status}
                 onChange={e => setFormData({ ...formData, status: e.target.value as FormStatus })}
               >
                 <option value="active">Active (Visible to Public)</option>
-                <option value="closed">Closed (Archive)</option>
+                <option value="closed">Closed (Archived)</option>
                 <option value="draft">Draft (Admin Only)</option>
               </select>
             </div>
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsFormDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isProcessing}>
+            <DialogFooter className="pt-4 gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsFormDialogOpen(false)} className="h-11 rounded-xl flex-1">Cancel</Button>
+              <Button type="submit" disabled={isProcessing} className="h-11 rounded-xl flex-1 font-bold">
                 {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
                 {editingFormId ? 'Update Connection' : 'Connect Form'}
               </Button>
@@ -398,7 +420,7 @@ export default function SubmissionsAdminDashboard() {
 
 function StatCard({ title, value, icon: Icon, color }: any) {
   return (
-    <Card className="bg-white shadow-sm border-none ring-1 ring-slate-200">
+    <Card className="bg-white shadow-sm border-none ring-1 ring-slate-200 rounded-2xl">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
