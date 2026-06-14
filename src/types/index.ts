@@ -194,16 +194,41 @@ export interface Task {
 }
 
 export type FormStatus = 'active' | 'closed' | 'draft';
+export type FormVisibility = 'public' | 'members';
+
+export type FormComponentType = 'text' | 'paragraph' | 'number' | 'date' | 'time' | 'select' | 'radio' | 'checkbox' | 'file' | 'header' | 'divider';
+
+export interface FormComponent {
+    id: string;
+    type: FormComponentType;
+    label: string;
+    required: boolean;
+    placeholder?: string;
+    options?: string[]; // For select, radio, checkbox
+    description?: string;
+}
 
 export interface FormRecord {
   id: string;
   title: string;
   description?: string;
-  type: 'google_form';
-  embedUrl: string;
-  sheetApiUrl?: string;
+  type: 'google_form' | 'native';
+  embedUrl: string; // Used for Google Forms
+  sheetApiUrl?: string; // Used for Google Forms
+  components?: FormComponent[]; // Used for Native Forms
   status: FormStatus;
+  visibility: FormVisibility;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FormSubmission {
+    id: string;
+    formId: string;
+    respondentId?: string; // Optional if logged in
+    respondentName?: string;
+    respondentEmail?: string;
+    data: Record<string, any>;
+    submittedAt: string;
 }
