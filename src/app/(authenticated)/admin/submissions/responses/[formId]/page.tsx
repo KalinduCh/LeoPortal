@@ -7,15 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   ArrowLeft, Download, Search, Loader2, RefreshCw, 
-  FileSpreadsheet, Filter, AlertTriangle, FileText, LayoutGrid
+  FileSpreadsheet, Filter, AlertTriangle, FileText, LayoutGrid, User, Clock, CheckCircle
 } from 'lucide-react';
 import { getForm, getFormResponses } from '@/services/formService';
+import { getSubmissionsForForm } from '@/services/submissionService';
 import type { FormRecord } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { format, parseISO, isValid } from 'date-fns';
 import Papa from 'papaparse';
 
-export default function FormResponsesPage() {
+export default function UnifiedResponsesPage() {
   const params = useParams();
   const formId = params.formId as string;
   const router = useRouter();
@@ -27,40 +30,85 @@ export default function FormResponsesPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    const loadForm = async () => {
-      const data = await getForm(formId);
-      if (data) setForm(data);
-      else router.push('/admin/submissions');
-    };
-    loadForm();
-  }, [formId, router]);
-
-  const fetchResponses = async () => {
-    if (!form?.sheetApiUrl) return;
+  const fetchAllData = async (formRecord: FormRecord) => {
     setIsRefreshing(true);
+    let combinedData: any[] = [];
+
     try {
-      const data = await getFormResponses(form.sheetApiUrl);
-      setResponses(data);
-      if (data.length > 0) {
-        toast({ title: "Data Synced", description: `Fetched ${data.length} responses from Google Sheets.` });
+      // 1. Fetch Native Submissions (Firestore)
+      const nativeSubs = await getSubmissionsForForm(formRecord.id);
+      const labelMap = new Map();
+      formRecord.components?.forEach(c => labelMap.set(c.id, c.label));
+
+      const formattedNative = nativeSubs.map(s => {
+        const row: any = {
+          'Submission Type': 'Portal Native',
+          'Submitted At': s.submittedAt ? format(parseISO(s.submittedAt), 'PPP p') : 'N/A',
+          'Respondent Name': s.respondentName || 'Anonymous',
+          'Respondent Email': s.respondentEmail || 'N/A',
+        };
+        
+        // Map component IDs to Labels
+        Object.entries(s.data).forEach(([cid, val]) => {
+          const label = labelMap.get(cid) || cid;
+          row[label] = Array.isArray(val) ? val.join(', ') : val;
+        });
+        
+        return row;
+      });
+
+      combinedData = [...formattedNative];
+
+      // 2. Fetch External Data if Google Form
+      if (formRecord.type === 'google_form' && formRecord.sheetApiUrl) {
+        try {
+          const externalResults = await getFormResponses(formRecord.sheetApiUrl);
+          const formattedExternal = externalResults.map(r => ({
+            ...r,
+            'Submission Type': 'Google Form'
+          }));
+          combinedData = [...combinedData, ...formattedExternal];
+        } catch (e) {
+          console.error("External fetch failed:", e);
+        }
+      }
+
+      setResponses(combinedData);
+      
+      if (combinedData.length > 0) {
+        toast({ title: "Sync Complete", description: `Found ${combinedData.length} total responses.` });
       }
     } catch (error) {
-      toast({ title: "Sync Failed", description: "Could not fetch responses from the external API.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to load response data.", variant: "destructive" });
     }
+    
     setIsRefreshing(false);
     setIsLoading(false);
   };
 
   useEffect(() => {
-    if (form?.sheetApiUrl) {
-      fetchResponses();
-    }
-  }, [form]);
+    const loadForm = async () => {
+      const data = await getForm(formId);
+      if (data) {
+        setForm(data);
+        fetchAllData(data);
+      } else {
+        router.push('/admin/submissions');
+      }
+    };
+    loadForm();
+  }, [formId]);
 
   const headers = useMemo(() => {
     if (responses.length === 0) return [];
-    return Object.keys(responses[0]);
+    const keys = new Set<string>();
+    responses.forEach(r => Object.keys(r).forEach(k => keys.add(k)));
+    
+    // Ensure standard columns are at the front
+    const priority = ['Submission Type', 'Submitted At', 'Respondent Name', 'Respondent Email'];
+    const others = Array.from(keys).filter(k => !priority.includes(k));
+    
+    return [...priority.filter(p => keys.has(p)), ...others];
   }, [responses]);
 
   const filteredResponses = useMemo(() => {
@@ -76,7 +124,7 @@ export default function FormResponsesPage() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${form?.title.replace(/\s+/g, '_')}_Responses.csv`;
+    link.download = `${form?.title.replace(/\s+/g, '_')}_Master_Responses.csv`;
     link.click();
   };
 
@@ -92,88 +140,94 @@ export default function FormResponsesPage() {
             <ArrowLeft className="mr-2 h-4 w-4" /> Dashboard
           </Button>
           <h1 className="text-3xl font-bold font-headline uppercase text-slate-900 tracking-tight">{form?.title}</h1>
-          <p className="text-slate-500 uppercase text-[10px] font-black tracking-widest">External Response Ledger</p>
+          <p className="text-slate-500 uppercase text-[10px] font-black tracking-widest">Consolidated Submission Ledger</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" onClick={fetchResponses} disabled={isRefreshing}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Sync Data
+          <Button variant="outline" onClick={() => form && fetchAllData(form)} disabled={isRefreshing} className="rounded-xl h-11">
+            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh Data
           </Button>
-          <Button onClick={handleExport} disabled={responses.length === 0} className="bg-emerald-600 hover:bg-emerald-700">
+          <Button onClick={handleExport} disabled={responses.length === 0} className="bg-emerald-600 hover:bg-emerald-700 rounded-xl h-11 px-6 shadow-lg font-bold">
             <Download className="mr-2 h-4 w-4" /> Export CSV
           </Button>
         </div>
       </div>
 
-      {!form?.sheetApiUrl ? (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="p-10 flex flex-col items-center text-center">
-            <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
-            <h3 className="text-xl font-bold text-amber-900">API Link Missing</h3>
-            <p className="text-amber-700 max-w-md mt-2">
-              You haven't configured a Response API URL for this form. Please create a Google Apps Script to serve your Sheet data as JSON.
-            </p>
-            <Button variant="outline" className="mt-6 border-amber-300 text-amber-900" onClick={() => router.push('/admin/submissions')}>
-              Configure Connection
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="shadow-xl ring-1 ring-slate-200 border-none overflow-hidden">
-          <CardHeader className="bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                <LayoutGrid className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle>{responses.length} Total Submissions</CardTitle>
-                <CardDescription>Live data fetched from linked Google Sheet.</CardDescription>
-              </div>
+      <Card className="shadow-xl ring-1 ring-slate-200 border-none overflow-hidden rounded-[2rem]">
+        <CardHeader className="bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-8">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+              <LayoutGrid className="h-6 w-6" />
             </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input 
-                placeholder="Search rows..." 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
-                className="pl-9 h-10 rounded-xl bg-white"
-              />
+            <div>
+              <CardTitle className="text-xl">{responses.length} Total Submissions</CardTitle>
+              <CardDescription>Viewing combined results from Portal and external sources.</CardDescription>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-slate-50">
-                  <TableRow>
+          </div>
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input 
+              placeholder="Filter responses..." 
+              value={searchTerm || ''} 
+              onChange={e => setSearchTerm(e.target.value)} 
+              className="pl-10 h-12 rounded-2xl bg-white border-none ring-1 ring-slate-200"
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow>
+                  {headers.map(h => (
+                    <TableHead key={h} className="font-black uppercase text-[10px] tracking-widest text-slate-500 py-6 px-6">
+                      {h}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredResponses.map((row, i) => (
+                  <TableRow key={i} className="hover:bg-slate-50/50 transition-colors">
                     {headers.map(h => (
-                      <TableHead key={h} className="font-bold uppercase text-[10px] tracking-widest text-slate-500 py-4">
-                        {h}
-                      </TableHead>
+                      <TableCell key={h} className="py-6 px-6 text-sm font-medium text-slate-700">
+                        {h === 'Submission Type' ? (
+                          <Badge variant="outline" className={cn(
+                            "text-[9px] font-black uppercase",
+                            row[h] === 'Portal Native' ? 'border-primary text-primary bg-primary/5' : 'border-amber-500 text-amber-600 bg-amber-50'
+                          )}>
+                            {row[h]}
+                          </Badge>
+                        ) : (
+                          String(row[h] || '—')
+                        )}
+                      </TableCell>
                     ))}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredResponses.map((row, i) => (
-                    <TableRow key={i} className="hover:bg-slate-50/50 transition-colors">
-                      {headers.map(h => (
-                        <TableCell key={h} className="py-4 text-sm font-medium text-slate-700">
-                          {String(row[h])}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                  {filteredResponses.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={headers.length || 1} className="text-center py-24 text-slate-400 italic">
-                        {responses.length === 0 ? "No data found. Ensure your Apps Script is returning JSON correctly." : "No results match your search."}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                ))}
+                {filteredResponses.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={headers.length || 1} className="text-center py-32">
+                       <div className="flex flex-col items-center opacity-30">
+                          <FileText className="h-12 w-12 mb-4" />
+                          <p className="font-bold uppercase tracking-widest text-xs">No entries recorded yet</p>
+                       </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+        <CardFooter className="bg-slate-50/50 p-6 border-t flex justify-between items-center">
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+              Secured LeoPortal Audit Trail
+            </p>
+            <div className="flex items-center gap-2">
+               <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 font-black h-6">{responses.filter(r => r['Submission Type'] === 'Portal Native').length} Native</Badge>
+               <Badge variant="secondary" className="bg-amber-50 text-amber-600 font-black h-6">{responses.filter(r => r['Submission Type'] === 'Google Form').length} External</Badge>
             </div>
-          </CardContent>
-        </Card>
-      )}
+        </CardFooter>
+      </Card>
     </div>
   );
 }
