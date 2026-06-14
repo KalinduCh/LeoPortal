@@ -11,10 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { 
   ArrowLeft, PlusCircle, Trash2, Settings2, Eye, Save, Loader2, 
   GripVertical, Type, AlignLeft, Hash, Calendar, Clock, ChevronDown, 
-  ListChecks, FileUp, Heading, Minus, Sparkles, Wand2, Search
+  ListChecks, FileUp, Heading, Minus, Sparkles, Wand2, Search, X
 } from 'lucide-react';
 import { getForm, createForm, updateForm } from '@/services/formService';
-import type { FormRecord, FormComponent, FormComponentType, FormVisibility } from '@/types';
+import type { FormRecord, FormComponent, FormComponentType, FormVisibility, FormStatus } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -51,7 +51,7 @@ export default function FormBuilderPage() {
       const loadForm = async () => {
         const data = await getForm(formId);
         if (data && data.type === 'native') {
-          setTitle(data.title);
+          setTitle(data.title || '');
           setDescription(data.description || '');
           setShowDescription(!!data.description);
           setVisibility(data.visibility || 'public');
@@ -100,9 +100,9 @@ export default function FormBuilderPage() {
     setIsAiGenerating(true);
     try {
       const result = await generateFormFromAi({ prompt: aiPrompt });
-      setTitle(result.title);
-      setDescription(result.description);
-      setShowDescription(true);
+      setTitle(result.title || 'AI Generated Form');
+      setDescription(result.description || '');
+      setShowDescription(!!result.description);
       setComponents(result.components.map((c, i) => ({ ...c, id: `ai-${Date.now()}-${i}` } as FormComponent)));
       setIsAiDialogOpen(false);
       toast({ title: "Form Blueprint Ready", description: "AI has generated your form structure." });
@@ -184,7 +184,7 @@ export default function FormBuilderPage() {
             <BuilderAction icon={ListChecks} label="Selection" onClick={() => addComponent('radio')} />
             <BuilderAction icon={FileUp} label="File Upload" onClick={() => addComponent('file')} />
             
-            <Separator className="my-4" />
+            <div className="h-px bg-slate-100 w-full my-4" />
             <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Layout</h2>
             <BuilderAction icon={Heading} label="Header" onClick={() => addComponent('header')} />
             <BuilderAction icon={Minus} label="Divider" onClick={() => addComponent('divider')} />
@@ -204,7 +204,7 @@ export default function FormBuilderPage() {
             <Card className="border-t-8 border-t-primary shadow-xl rounded-2xl overflow-hidden">
               <CardContent className="p-8 space-y-4">
                 <Input 
-                  value={title} 
+                  value={title || ''} 
                   onChange={e => setTitle(e.target.value)} 
                   placeholder="Form Title" 
                   className="text-3xl font-black font-headline border-none h-auto p-0 focus-visible:ring-0 placeholder:text-slate-200"
@@ -212,7 +212,7 @@ export default function FormBuilderPage() {
                 
                 {showDescription ? (
                   <Textarea 
-                    value={description} 
+                    value={description || ''} 
                     onChange={e => setDescription(e.target.value)} 
                     placeholder="Provide instructions or context for your respondents..." 
                     className="border-none p-0 focus-visible:ring-0 text-slate-500 resize-none min-h-[40px]"
@@ -230,7 +230,7 @@ export default function FormBuilderPage() {
 
             {/* COMPONENTS LIST */}
             <div className="space-y-4">
-              {components.map((comp, index) => (
+              {components.map((comp) => (
                 <Card 
                   key={comp.id} 
                   className={cn(
@@ -243,7 +243,7 @@ export default function FormBuilderPage() {
                     <div className="flex items-center gap-4 mb-4">
                        <GripVertical className="h-4 w-4 text-slate-300 cursor-move" />
                        <Input 
-                         value={comp.label} 
+                         value={comp.label || ''} 
                          onChange={e => updateComponent(comp.id, { label: e.target.value })}
                          className="text-lg font-bold border-none p-0 h-auto focus-visible:ring-0 w-full"
                          placeholder="Question text"
@@ -252,8 +252,8 @@ export default function FormBuilderPage() {
                     </div>
                     
                     <div className="pl-8 opacity-60 pointer-events-none">
-                       {comp.type === 'text' && <Input placeholder="Short answer" />}
-                       {comp.type === 'paragraph' && <Textarea placeholder="Long answer" />}
+                       {comp.type === 'text' && <Input placeholder={comp.placeholder || "Short answer"} value="" readOnly />}
+                       {comp.type === 'paragraph' && <Textarea placeholder={comp.placeholder || "Long answer"} value="" readOnly />}
                        {comp.type === 'select' && <div className="border rounded-lg p-3 flex justify-between items-center text-sm">Select an option <ChevronDown className="h-4 w-4" /></div>}
                        {(comp.type === 'radio' || comp.type === 'checkbox') && (
                          <div className="space-y-2">
@@ -265,7 +265,8 @@ export default function FormBuilderPage() {
                            ))}
                          </div>
                        )}
-                       {comp.type === 'header' && <Separator />}
+                       {comp.type === 'header' && <div className="h-px bg-slate-100 w-full my-4" />}
+                       {comp.type === 'divider' && <div className="h-px bg-slate-100 w-full my-4" />}
                     </div>
 
                     {/* COMPONENT SETTINGS (HIDDEN UNLESS SELECTED) */}
@@ -278,7 +279,7 @@ export default function FormBuilderPage() {
                               {comp.options.map((opt, i) => (
                                 <div key={i} className="flex items-center gap-2">
                                   <Input 
-                                    value={opt} 
+                                    value={opt || ''} 
                                     onChange={e => {
                                       const newOpts = [...comp.options!];
                                       newOpts[i] = e.target.value;
@@ -295,7 +296,7 @@ export default function FormBuilderPage() {
                                 </div>
                               ))}
                               <Button variant="link" className="p-0 h-auto text-primary text-xs font-bold" onClick={() => {
-                                updateComponent(comp.id, { options: [...comp.options!, `Option ${comp.options!.length + 1}`] });
+                                updateComponent(comp.id, { options: [...(comp.options || []), `Option ${(comp.options?.length || 0) + 1}`] });
                               }}>Add another option</Button>
                             </div>
                           </div>
@@ -303,7 +304,7 @@ export default function FormBuilderPage() {
                         <div className="flex items-center justify-between bg-slate-50 p-4 rounded-xl">
                             <div className="flex items-center gap-6">
                               <div className="flex items-center gap-2">
-                                <Switch checked={comp.required} onCheckedChange={v => updateComponent(comp.id, { required: v })} />
+                                <Switch checked={!!comp.required} onCheckedChange={v => updateComponent(comp.id, { required: v })} />
                                 <Label className="text-xs font-bold">Required</Label>
                               </div>
                             </div>
@@ -375,7 +376,7 @@ export default function FormBuilderPage() {
             <div className="space-y-3">
               <Label className="font-bold">Describe your form</Label>
               <Textarea 
-                value={aiPrompt} 
+                value={aiPrompt || ''} 
                 onChange={e => setAiPrompt(e.target.value)}
                 placeholder="e.g. Create a membership application form with personal details, previous volunteering experience, and a motivation statement."
                 className="min-h-[120px] rounded-2xl"
@@ -396,6 +397,13 @@ export default function FormBuilderPage() {
   );
 }
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 function BuilderAction({ icon: Icon, label, onClick }: { icon: any, label: string, onClick: () => void }) {
   return (
     <button 
@@ -408,8 +416,4 @@ function BuilderAction({ icon: Icon, label, onClick }: { icon: any, label: strin
       {label}
     </button>
   );
-}
-
-function Separator({ className }: { className?: string }) {
-  return <div className={cn("h-px bg-slate-100 w-full", className)} />;
 }
