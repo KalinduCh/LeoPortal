@@ -43,7 +43,6 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/leaderboard", label: "Leaderboard", icon: Trophy, permission: 'leaderboard' },
   { href: "/admin/communication", label: "Communication", icon: Mail, permission: 'communication' },
   { href: "/admin/submissions", label: "Submissions & Review", icon: FileSpreadsheet, permission: 'project_ideas' },
-  { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, permission: 'project_ideas' },
   { href: "/admin/reports", label: "Reports", icon: BarChart, permission: 'reports' },
   { href: "/event-access/admin", label: "District Access", icon: QrCode, permission: 'district_access' },
 ];
