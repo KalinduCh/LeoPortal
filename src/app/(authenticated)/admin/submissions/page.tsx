@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   FileText, PlusCircle, ExternalLink, Settings, 
   Loader2, Trash2, Eye, LayoutGrid, CheckCircle, Clock, XCircle, 
-  Lightbulb, Search, MoreHorizontal, User, Calendar, MessageSquare, ClipboardCopy, Wand2, ImageIcon, FileJson, MousePointer2
+  Lightbulb, Search, MoreHorizontal, User, Calendar, MessageSquare, ClipboardCopy, Wand2, ImageIcon, FileJson, MousePointer2, Sparkles
 } from 'lucide-react';
 import { getForms, deleteForm, updateForm, createForm } from '@/services/formService';
 import { getProjectIdeasForAdmin, updateProjectIdea } from '@/services/projectIdeaService';
@@ -244,7 +244,7 @@ export default function SubmissionsAdminDashboard() {
                         <TableCell>
                            <Badge variant="outline" className="capitalize text-[10px]">
                               {form.type === 'native' ? <Sparkles className="h-2.5 w-2.5 mr-1 text-primary" /> : <FileText className="h-2.5 w-2.5 mr-1" />}
-                              {form.type.replace('_', ' ')}
+                              {form.type?.replace('_', ' ') || 'Unknown'}
                            </Badge>
                         </TableCell>
                         <TableCell>

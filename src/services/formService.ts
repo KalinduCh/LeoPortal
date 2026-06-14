@@ -41,6 +41,7 @@ const docToForm = (docSnap: any): FormRecord => {
   return {
     id: docSnap.id,
     ...data,
+    type: data.type || 'google_form', // Fallback for legacy records
     createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
     updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
   } as FormRecord;
