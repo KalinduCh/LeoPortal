@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   ArrowLeft, Download, Search, Loader2, RefreshCw, 
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isValid } from 'date-fns';
 import Papa from 'papaparse';
+import { cn } from '@/lib/utils';
 
 export default function UnifiedResponsesPage() {
   const params = useParams();
@@ -49,10 +50,12 @@ export default function UnifiedResponsesPage() {
         };
         
         // Map component IDs to Labels
-        Object.entries(s.data).forEach(([cid, val]) => {
-          const label = labelMap.get(cid) || cid;
-          row[label] = Array.isArray(val) ? val.join(', ') : val;
-        });
+        if (s.data) {
+            Object.entries(s.data).forEach(([cid, val]) => {
+              const label = labelMap.get(cid) || cid;
+              row[label] = Array.isArray(val) ? val.join(', ') : val;
+            });
+        }
         
         return row;
       });
