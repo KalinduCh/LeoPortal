@@ -75,15 +75,15 @@ export default function SubmissionsAdminDashboard() {
 
   const filteredForms = useMemo(() => {
     return forms.filter(f => 
-      f.title.toLowerCase().includes(formSearchTerm.toLowerCase()) ||
-      f.description?.toLowerCase().includes(formSearchTerm.toLowerCase())
+      (f.title || '').toLowerCase().includes(formSearchTerm.toLowerCase()) ||
+      (f.description || '').toLowerCase().includes(formSearchTerm.toLowerCase())
     );
   }, [forms, formSearchTerm]);
 
   const filteredIdeas = useMemo(() => {
     return ideas.filter(i => 
-        i.projectName.toLowerCase().includes(ideaSearchTerm.toLowerCase()) ||
-        i.authorName.toLowerCase().includes(ideaSearchTerm.toLowerCase())
+        (i.projectName || '').toLowerCase().includes(ideaSearchTerm.toLowerCase()) ||
+        (i.authorName || '').toLowerCase().includes(ideaSearchTerm.toLowerCase())
     );
   }, [ideas, ideaSearchTerm]);
 
@@ -99,11 +99,11 @@ export default function SubmissionsAdminDashboard() {
     if (form) {
       setEditingFormId(form.id);
       setExternalFormData({
-        title: form.title,
+        title: form.title || '',
         description: form.description || '',
-        embedUrl: form.embedUrl,
+        embedUrl: form.embedUrl || '',
         sheetApiUrl: form.sheetApiUrl || '',
-        status: form.status,
+        status: form.status || 'active',
       });
     } else {
       setEditingFormId(null);
@@ -135,6 +135,7 @@ export default function SubmissionsAdminDashboard() {
           ...externalFormData,
           type: 'google_form',
           createdBy: user.id,
+          visibility: 'public',
         });
         toast({ title: "Form Connected", description: "Google Form is now linked to Leo Portal." });
       }
@@ -220,7 +221,7 @@ export default function SubmissionsAdminDashboard() {
               </div>
               <div className="relative w-full sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input placeholder="Search forms..." value={formSearchTerm} onChange={e => setFormSearchTerm(e.target.value)} className="pl-9 h-10 rounded-xl" />
+                  <Input placeholder="Search forms..." value={formSearchTerm || ''} onChange={e => setFormSearchTerm(e.target.value)} className="pl-9 h-10 rounded-xl" />
               </div>
             </CardHeader>
             <CardContent>
@@ -244,7 +245,7 @@ export default function SubmissionsAdminDashboard() {
                         <TableCell>
                            <Badge variant="outline" className="capitalize text-[10px]">
                               {form.type === 'native' ? <Sparkles className="h-2.5 w-2.5 mr-1 text-primary" /> : <FileText className="h-2.5 w-2.5 mr-1" />}
-                              {form.type?.replace('_', ' ') || 'Unknown'}
+                              {(form.type || 'google_form').replace('_', ' ')}
                            </Badge>
                         </TableCell>
                         <TableCell>
@@ -306,7 +307,7 @@ export default function SubmissionsAdminDashboard() {
               </div>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input placeholder="Search proposals..." value={ideaSearchTerm} onChange={e => setIdeaSearchTerm(e.target.value)} className="pl-9 h-10 rounded-xl" />
+                <Input placeholder="Search proposals..." value={ideaSearchTerm || ''} onChange={e => setIdeaSearchTerm(e.target.value)} className="pl-9 h-10 rounded-xl" />
               </div>
             </CardHeader>
             <CardContent>
@@ -334,7 +335,7 @@ export default function SubmissionsAdminDashboard() {
                                 <TableCell className="text-xs text-muted-foreground">{format(parseISO(idea.createdAt), 'MMM dd, yyyy')}</TableCell>
                                 <TableCell>
                                     <Badge className={cn("uppercase text-[10px] font-black tracking-widest", getIdeaStatusVariant(idea.status))}>
-                                        {idea.status.replace(/_/g, ' ')}
+                                        {(idea.status || 'draft').replace(/_/g, ' ')}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-right space-x-2">
@@ -440,19 +441,19 @@ export default function SubmissionsAdminDashboard() {
           <form onSubmit={handleSaveExternalForm} className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Form Title</Label>
-              <Input required value={externalFormData.title} onChange={e => setExternalFormData({ ...externalFormData, title: e.target.value })} placeholder="e.g. Recruitment 2026" className="h-11 rounded-xl" />
+              <Input required value={externalFormData.title || ''} onChange={e => setExternalFormData({ ...externalFormData, title: e.target.value })} placeholder="e.g. Recruitment 2026" className="h-11 rounded-xl" />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
-              <Textarea value={externalFormData.description} onChange={e => setExternalFormData({ ...externalFormData, description: e.target.value })} placeholder="What is this form for?" className="rounded-xl" />
+              <Textarea value={externalFormData.description || ''} onChange={e => setExternalFormData({ ...externalFormData, description: e.target.value })} placeholder="What is this form for?" className="rounded-xl" />
             </div>
             <div className="space-y-2">
               <Label>Embed URL or Code</Label>
-              <Input required value={externalFormData.embedUrl} onChange={e => setExternalFormData({ ...externalFormData, embedUrl: e.target.value })} placeholder="Paste URL or <iframe> embed code..." className="h-11 rounded-xl" />
+              <Input required value={externalFormData.embedUrl || ''} onChange={e => setExternalFormData({ ...externalFormData, embedUrl: e.target.value })} placeholder="Paste URL or <iframe> embed code..." className="h-11 rounded-xl" />
             </div>
             <div className="space-y-2">
               <Label>Response API URL (Optional)</Label>
-              <Input value={externalFormData.sheetApiUrl} onChange={e => setExternalFormData({ ...externalFormData, sheetApiUrl: e.target.value })} placeholder="Apps Script API URL for Sheet data..." className="h-11 rounded-xl" />
+              <Input value={externalFormData.sheetApiUrl || ''} onChange={e => setExternalFormData({ ...externalFormData, sheetApiUrl: e.target.value })} placeholder="Apps Script API URL for Sheet data..." className="h-11 rounded-xl" />
             </div>
             <DialogFooter className="pt-4 gap-2">
               <Button type="button" variant="outline" onClick={() => setIsExternalFormDialogOpen(false)} className="h-11 rounded-xl flex-1">Cancel</Button>
