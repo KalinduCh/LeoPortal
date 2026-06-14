@@ -192,3 +192,18 @@ export interface Task {
     createdAt: string;
     updatedAt: string;
 }
+
+export type FormStatus = 'active' | 'closed' | 'draft';
+
+export interface FormRecord {
+  id: string;
+  title: string;
+  description?: string;
+  type: 'google_form';
+  embedUrl: string;
+  sheetApiUrl?: string;
+  status: FormStatus;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}

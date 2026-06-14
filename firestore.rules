@@ -124,5 +124,13 @@ service cloud.firestore {
         allow create: if isSignedIn() || isAdmin();
         allow update, delete: if isAdmin();
     }
+
+    // =========================
+    // 📝 Submissions & Review (New)
+    // =========================
+    match /forms/{formId} {
+      allow read: if true;
+      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.project_ideas == true);
+    }
   }
 }
