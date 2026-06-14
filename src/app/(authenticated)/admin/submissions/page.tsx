@@ -260,7 +260,7 @@ export default function SubmissionsAdminDashboard() {
                           <Button variant="ghost" size="sm" onClick={() => window.open(`/submissions/${form.id}`, '_blank')} className="h-8 hover:text-primary">
                             <Eye className="h-4 w-4 mr-1.5" /> View
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => router.push(form.type === 'native' ? `/admin/submissions/responses/native/${form.id}` : `/admin/submissions/responses/${form.id}`)} className="h-8 hover:text-primary">
+                          <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/submissions/responses/${form.id}`)} className="h-8 hover:text-primary">
                             <LayoutGrid className="h-4 w-4 mr-1.5" /> Data
                           </Button>
                           <DropdownMenu>
