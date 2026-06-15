@@ -206,6 +206,7 @@ export interface FormRecord {
   sheetApiUrl?: string; 
   status: FormStatus;
   visibility: FormVisibility;
+  assigneeIds?: string[];
   createdBy: string;
   createdAt: string;
 }
