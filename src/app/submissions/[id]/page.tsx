@@ -62,28 +62,51 @@ export default function PublicFormView() {
   }
 
   // Permission Check
-  if (form.visibility === 'members' && !user) {
-    return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-            <Card className="max-w-md w-full shadow-2xl rounded-[2rem] overflow-hidden">
-                <CardHeader className="bg-slate-900 text-white text-center p-10">
-                    <div className="h-16 w-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Lock className="h-8 w-8 text-primary" />
-                    </div>
-                    <CardTitle className="text-2xl font-black uppercase font-headline">Member Access Only</CardTitle>
-                    <CardDescription className="text-slate-400">Please log in to your Leo Portal account to fill out this form.</CardDescription>
-                </CardHeader>
-                <CardContent className="p-8">
-                    <Button className="w-full h-12 rounded-xl font-bold" onClick={() => router.push('/login')}>
-                        Log In to Portal
-                    </Button>
-                    <Button variant="ghost" className="w-full mt-2 text-slate-500" onClick={() => router.push('/')}>
-                        Cancel
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
-    );
+  if (form.visibility === 'members') {
+      const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+      const isAssigned = user && form.assigneeIds?.includes(user.id);
+      
+      if (!user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+                <Card className="max-w-md w-full shadow-2xl rounded-[2rem] overflow-hidden">
+                    <CardHeader className="bg-slate-900 text-white text-center p-10">
+                        <div className="h-16 w-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Lock className="h-8 w-8 text-primary" />
+                        </div>
+                        <CardTitle className="text-2xl font-black uppercase font-headline">Member Access Only</CardTitle>
+                        <CardDescription className="text-slate-400">Please log in to your Leo Portal account to fill out this form.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-8">
+                        <Button className="w-full h-12 rounded-xl font-bold" onClick={() => router.push('/login')}>
+                            Log In to Portal
+                        </Button>
+                        <Button variant="ghost" className="w-full mt-2 text-slate-500" onClick={() => router.push('/')}>
+                            Cancel
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+      }
+      
+      // If the form is restricted to specific members (assignment)
+      if (form.assigneeIds && form.assigneeIds.length > 0 && !isAdmin && !isAssigned) {
+          return (
+            <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+                <Card className="max-w-md w-full shadow-2xl rounded-[2rem] overflow-hidden text-center">
+                    <CardHeader className="bg-rose-600 text-white p-10">
+                        <Lock className="h-12 w-12 mx-auto mb-4" />
+                        <CardTitle className="text-xl font-black uppercase">Access Denied</CardTitle>
+                        <CardDescription className="text-rose-100">You are not authorized to view this assigned form.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-8">
+                        <Button variant="outline" className="w-full" onClick={() => router.push('/')}>Return Home</Button>
+                    </CardContent>
+                </Card>
+            </div>
+          );
+      }
   }
 
   return (

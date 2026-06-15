@@ -12,18 +12,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   PlusCircle, ExternalLink, Settings, 
   Loader2, Trash2, Eye, LayoutGrid, CheckCircle, Clock, XCircle, 
-  Lightbulb, Search, MoreHorizontal, User, ClipboardCopy, FileText, ImageIcon, X, UploadCloud, Share2, Globe, Shield
+  Lightbulb, Search, MoreHorizontal, User, ClipboardCopy, FileText, ImageIcon, X, UploadCloud, Share2, Globe, Shield, Users, Check
 } from 'lucide-react';
 import { getForms, deleteForm, updateForm, createForm } from '@/services/formService';
-import { getProjectIdeasForAdmin, updateProjectIdea } from '@/services/projectIdeaService';
-import type { FormRecord, FormStatus, FormVisibility, ProjectIdea } from '@/types';
+import { getProjectIdeasForAdmin } from '@/services/projectIdeaService';
+import { getAllUsers } from '@/services/userService';
+import type { FormRecord, FormStatus, FormVisibility, ProjectIdea, User as UserType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
@@ -37,6 +39,7 @@ export default function SubmissionsAdminDashboard() {
 
   const [forms, setForms] = useState<FormRecord[]>([]);
   const [ideas, setIdeas] = useState<ProjectIdea[]>([]);
+  const [allUsers, setAllUsers] = useState<UserType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -49,6 +52,7 @@ export default function SubmissionsAdminDashboard() {
     bannerUrl: '',
     status: 'active' as FormStatus,
     visibility: 'public' as FormVisibility,
+    assigneeIds: [] as string[],
   });
 
   const [editingFormId, setEditingFormId] = useState<string | null>(null);
@@ -56,12 +60,14 @@ export default function SubmissionsAdminDashboard() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [formsData, ideasData] = await Promise.all([
+      const [formsData, ideasData, usersData] = await Promise.all([
         getForms(),
-        getProjectIdeasForAdmin()
+        getProjectIdeasForAdmin(),
+        getAllUsers()
       ]);
       setForms(formsData);
       setIdeas(ideasData);
+      setAllUsers(usersData.filter(u => u.status === 'approved'));
     } catch (error) {
       toast({ title: "Error", description: "Failed to load data.", variant: "destructive" });
     }
@@ -87,10 +93,20 @@ export default function SubmissionsAdminDashboard() {
         bannerUrl: form.bannerUrl || '',
         status: form.status,
         visibility: form.visibility || 'public',
+        assigneeIds: form.assigneeIds || [],
       });
     } else {
       setEditingFormId(null);
-      setFormData({ title: '', description: '', embedUrl: '', sheetApiUrl: '', bannerUrl: '', status: 'active', visibility: 'public' });
+      setFormData({ 
+        title: '', 
+        description: '', 
+        embedUrl: '', 
+        sheetApiUrl: '', 
+        bannerUrl: '', 
+        status: 'active', 
+        visibility: 'public',
+        assigneeIds: [],
+      });
     }
     setIsDialogOpen(true);
   };
@@ -154,6 +170,14 @@ export default function SubmissionsAdminDashboard() {
     }
   };
 
+  const handleOpenData = (url?: string) => {
+      if (!url) {
+          toast({ title: "No Link Provided", description: "Please add a response spreadsheet link to this form.", variant: "destructive" });
+          return;
+      }
+      window.open(url, '_blank');
+  };
+
   const handleReviewIdea = (idea: ProjectIdea) => {
       sessionStorage.setItem('selectedProjectIdea', JSON.stringify(idea));
       router.push(`/project-ideas/view?id=${idea.id}&mode=review`);
@@ -193,6 +217,7 @@ export default function SubmissionsAdminDashboard() {
                   <TableRow>
                     <TableHead>Form Details</TableHead>
                     <TableHead>Visibility</TableHead>
+                    <TableHead>Assignments</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -211,6 +236,26 @@ export default function SubmissionsAdminDashboard() {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                          <div className="flex -space-x-2">
+                              {(form.assigneeIds || []).slice(0, 3).map(id => {
+                                  const u = allUsers.find(user => user.id === id);
+                                  return (
+                                      <div key={id} className="h-6 w-6 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[8px] font-black uppercase overflow-hidden" title={u?.name}>
+                                          {u?.photoUrl ? <img src={u.photoUrl} alt="" className="object-cover" /> : (u?.name?.charAt(0) || '?')}
+                                      </div>
+                                  );
+                              })}
+                              {(form.assigneeIds || []).length > 3 && (
+                                  <div className="h-6 w-6 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[8px] font-black">
+                                      +{(form.assigneeIds || []).length - 3}
+                                  </div>
+                              )}
+                              {(form.assigneeIds || []).length === 0 && (
+                                  <span className="text-[10px] text-slate-400 italic">Unassigned</span>
+                              )}
+                          </div>
+                      </TableCell>
+                      <TableCell>
                         <Badge className={cn("uppercase text-[10px]", form.status === 'active' ? 'bg-emerald-600' : 'bg-slate-500')}>
                           {form.status}
                         </Badge>
@@ -219,7 +264,7 @@ export default function SubmissionsAdminDashboard() {
                         <Button variant="ghost" size="sm" onClick={() => window.open(`/submissions/${form.id}`, '_blank')}>
                           <Eye className="h-4 w-4 mr-1.5" /> View
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/submissions/responses/${form.id}`)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenData(form.sheetApiUrl)}>
                           <LayoutGrid className="h-4 w-4 mr-1.5" /> Data
                         </Button>
                         <DropdownMenu>
@@ -237,7 +282,7 @@ export default function SubmissionsAdminDashboard() {
                     </TableRow>
                   ))}
                   {forms.length === 0 && (
-                    <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground">No integrated forms found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground">No integrated forms found.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -271,6 +316,9 @@ export default function SubmissionsAdminDashboard() {
                                 </TableCell>
                             </TableRow>
                         ))}
+                        {ideas.length === 0 && (
+                            <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground">No project ideas pending review.</TableCell></TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -279,7 +327,7 @@ export default function SubmissionsAdminDashboard() {
       </Tabs>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-lg rounded-2xl">
+        <DialogContent className="sm:max-w-lg rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingFormId ? 'Edit Form Module' : 'Add New Form'}</DialogTitle>
             <DialogDescription>Configure your Google Form integration.</DialogDescription>
@@ -319,6 +367,50 @@ export default function SubmissionsAdminDashboard() {
             </div>
 
             <div className="space-y-2">
+                <Label>Assign Members</Label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between h-11 rounded-xl text-xs font-normal">
+                            {formData.assigneeIds.length > 0 ? `${formData.assigneeIds.length} members assigned` : "Select members to assign"}
+                            <Users className="ml-2 h-4 w-4 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command>
+                            <CommandInput placeholder="Search members..." />
+                            <CommandList>
+                                <CommandEmpty>No members found.</CommandEmpty>
+                                <CommandGroup>
+                                    {allUsers.map((u) => (
+                                        <CommandItem
+                                            key={u.id}
+                                            onSelect={() => {
+                                                const ids = formData.assigneeIds.includes(u.id)
+                                                    ? formData.assigneeIds.filter(id => id !== u.id)
+                                                    : [...formData.assigneeIds, u.id];
+                                                setFormData({ ...formData, assigneeIds: ids });
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <div className={cn(
+                                                    "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                    formData.assigneeIds.includes(u.id) ? "bg-primary text-primary-foreground" : "opacity-50"
+                                                )}>
+                                                    {formData.assigneeIds.includes(u.id) && <Check className="h-3 w-3" />}
+                                                </div>
+                                                <span className="text-xs">{u.name}</span>
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            </CommandList>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
+                <p className="text-[10px] text-slate-400 italic">Assign members responsible for managing this form.</p>
+            </div>
+
+            <div className="space-y-2">
                 <Label>Cover Banner (Max 1MB)</Label>
                 <div className="flex gap-2">
                     <div className="relative h-12 w-20 bg-slate-100 rounded-lg overflow-hidden border">
@@ -347,9 +439,9 @@ export default function SubmissionsAdminDashboard() {
               <Input required value={formData.embedUrl} onChange={e => setFormData({ ...formData, embedUrl: e.target.value })} placeholder="Paste URL or <iframe> code..." className="h-11 rounded-xl" />
             </div>
             <div className="space-y-2">
-              <Label>Apps Script API URL (for responses)</Label>
-              <Input value={formData.sheetApiUrl} onChange={e => setFormData({ ...formData, sheetApiUrl: e.target.value })} placeholder="https://script.google.com/..." className="h-11 rounded-xl" />
-              <p className="text-[10px] text-slate-400 italic">This allows the portal to fetch and show submission data in the dashboard.</p>
+              <Label>Responses Spreadsheet Link</Label>
+              <Input value={formData.sheetApiUrl} onChange={e => setFormData({ ...formData, sheetApiUrl: e.target.value })} placeholder="https://docs.google.com/spreadsheets/d/..." className="h-11 rounded-xl" />
+              <p className="text-[10px] text-slate-400 italic">The direct link to the responses Google Sheet (for Admin use only).</p>
             </div>
             <DialogFooter className="pt-4 gap-2">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="h-11 rounded-xl flex-1">Cancel</Button>
@@ -363,4 +455,3 @@ export default function SubmissionsAdminDashboard() {
     </div>
   );
 }
-
