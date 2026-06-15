@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   PlusCircle, ExternalLink, Settings, 
   Loader2, Trash2, Eye, LayoutGrid, CheckCircle, Clock, XCircle, 
-  Lightbulb, Search, MoreHorizontal, User, ClipboardCopy, FileText, ImageIcon, X, UploadCloud, Share2, Globe, Shield, Users, Check
+  Lightbulb, Search, MoreHorizontal, User, ClipboardCopy, FileText, ImageIcon, X, UploadCloud, Share2, Globe, Shield, Users, Check, MessageSquare
 } from 'lucide-react';
 import { getForms, deleteForm, updateForm, createForm } from '@/services/formService';
 import { getProjectIdeasForAdmin } from '@/services/projectIdeaService';
@@ -183,6 +183,16 @@ export default function SubmissionsAdminDashboard() {
       router.push(`/project-ideas/view?id=${idea.id}&mode=review`);
   };
 
+  const getStatusBadge = (status: ProjectIdea['status']) => {
+    switch (status) {
+      case 'approved': return <Badge className="bg-emerald-600">Approved</Badge>;
+      case 'declined': return <Badge variant="destructive">Declined</Badge>;
+      case 'needs_revision': return <Badge className="bg-blue-600">Needs Revision</Badge>;
+      case 'pending_review': return <Badge className="bg-amber-500">Pending Review</Badge>;
+      default: return <Badge variant="secondary" className="capitalize">{status}</Badge>;
+    }
+  };
+
   if (isLoading || authLoading) {
     return <div className="flex h-[80vh] items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
@@ -194,9 +204,6 @@ export default function SubmissionsAdminDashboard() {
           <h1 className="text-3xl font-bold font-headline text-primary uppercase">Submissions & Review</h1>
           <p className="text-muted-foreground">Manage external Google Forms and member proposals.</p>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="h-12 rounded-xl shadow-lg font-bold">
-          <PlusCircle className="mr-2 h-5 w-5" /> Add Form
-        </Button>
       </div>
 
       <Tabs defaultValue="forms" className="w-full">
@@ -205,7 +212,12 @@ export default function SubmissionsAdminDashboard() {
           <TabsTrigger value="ideas" className="font-bold"><Lightbulb className="mr-2 h-4 w-4" /> Idea Review</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="forms">
+        <TabsContent value="forms" className="space-y-6">
+          <div className="flex justify-end">
+            <Button onClick={() => handleOpenDialog()} className="h-12 rounded-xl shadow-lg font-bold">
+              <PlusCircle className="mr-2 h-5 w-5" /> Add Form
+            </Button>
+          </div>
           <Card className="shadow-lg border-none ring-1 ring-slate-200">
             <CardHeader>
               <CardTitle>Google Form Integrations</CardTitle>
@@ -292,7 +304,12 @@ export default function SubmissionsAdminDashboard() {
 
         <TabsContent value="ideas">
           <Card className="shadow-lg border-none ring-1 ring-slate-200">
-            <CardHeader><CardTitle>Project Idea Review</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lightbulb className="h-5 w-5 text-primary" /> Pending Project Proposals
+              </CardTitle>
+              <CardDescription>Review and provide feedback on member-submitted project ideas.</CardDescription>
+            </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
@@ -306,13 +323,29 @@ export default function SubmissionsAdminDashboard() {
                     <TableBody>
                         {ideas.map((idea) => (
                             <TableRow key={idea.id}>
-                                <TableCell className="font-bold">{idea.projectName}</TableCell>
-                                <TableCell>{idea.authorName}</TableCell>
                                 <TableCell>
-                                    <Badge variant="outline" className="capitalize">{idea.status.replace(/_/g, ' ')}</Badge>
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-slate-900">{idea.projectName}</span>
+                                    {idea.adminFeedback && (
+                                      <span className="text-[10px] text-blue-600 flex items-center gap-1">
+                                        <MessageSquare className="h-2.5 w-2.5" /> Has Feedback
+                                      </span>
+                                    )}
+                                  </div>
                                 </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold">
+                                      {idea.authorName?.charAt(0) || '?'}
+                                    </div>
+                                    <span className="text-sm">{idea.authorName}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>{getStatusBadge(idea.status)}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="outline" size="sm" onClick={() => handleReviewIdea(idea)}>Review</Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleReviewIdea(idea)} className="font-bold">
+                                      <Eye className="mr-2 h-4 w-4" /> Review Proposal
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ))}
