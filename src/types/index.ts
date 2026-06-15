@@ -168,6 +168,12 @@ export interface TaskChecklistItem {
     completed: boolean;
 }
 
+export interface TaskChecklistItem {
+    id: string;
+    text: string;
+    completed: boolean;
+}
+
 export interface TaskComment {
     id: string;
     authorId: string;
@@ -212,6 +218,7 @@ export interface FormRecord {
   id: string;
   title: string;
   description?: string;
+  bannerUrl?: string;
   type: 'google_form' | 'native';
   embedUrl: string; // Used for Google Forms
   sheetApiUrl?: string; // Used for Google Forms
