@@ -194,6 +194,7 @@ export interface Task {
 }
 
 export type FormStatus = 'active' | 'closed' | 'draft';
+export type FormVisibility = 'public' | 'members';
 
 export interface FormRecord {
   id: string;
@@ -201,9 +202,10 @@ export interface FormRecord {
   description?: string;
   bannerUrl?: string;
   type: 'google_form';
-  embedUrl: string; // The URL to embed
-  sheetApiUrl?: string; // The API URL to fetch responses
+  embedUrl: string; 
+  sheetApiUrl?: string; 
   status: FormStatus;
+  visibility: FormVisibility;
   createdBy: string;
   createdAt: string;
 }

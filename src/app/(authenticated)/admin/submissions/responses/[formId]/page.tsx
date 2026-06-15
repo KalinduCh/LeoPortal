@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   ArrowLeft, Download, Search, Loader2, RefreshCw, 
-  FileSpreadsheet, Filter, AlertTriangle, FileText, LayoutGrid, User, Clock, CheckCircle
+  FileSpreadsheet, Filter, AlertTriangle, FileText, LayoutGrid, User, Clock, CheckCircle, FileDown
 } from 'lucide-react';
 import { getForm, getFormResponses } from '@/services/formService';
 import { getSubmissionsForForm } from '@/services/submissionService';
@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isValid } from 'date-fns';
 import Papa from 'papaparse';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { cn } from '@/lib/utils';
 
 export default function UnifiedResponsesPage() {
@@ -38,22 +40,18 @@ export default function UnifiedResponsesPage() {
     try {
       // 1. Fetch Native Submissions (Firestore)
       const nativeSubs = await getSubmissionsForForm(formRecord.id);
-      const labelMap = new Map();
-      formRecord.components?.forEach(c => labelMap.set(c.id, c.label));
-
+      
       const formattedNative = nativeSubs.map(s => {
         const row: any = {
-          'Submission Type': 'Portal Native',
-          'Submitted At': s.submittedAt ? format(parseISO(s.submittedAt), 'PPP p') : 'N/A',
-          'Respondent Name': s.respondentName || 'Anonymous',
-          'Respondent Email': s.respondentEmail || 'N/A',
+          'Submission Source': 'Leo Portal',
+          'Timestamp': s.submittedAt ? format(parseISO(s.submittedAt), 'PPP p') : 'N/A',
+          'Respondent': s.respondentName || 'Anonymous',
+          'Email': s.respondentEmail || 'N/A',
         };
         
-        // Map component IDs to Labels
         if (s.data) {
-            Object.entries(s.data).forEach(([cid, val]) => {
-              const label = labelMap.get(cid) || cid;
-              row[label] = Array.isArray(val) ? val.join(', ') : val;
+            Object.entries(s.data).forEach(([key, val]) => {
+              row[key] = Array.isArray(val) ? val.join(', ') : val;
             });
         }
         
@@ -68,7 +66,7 @@ export default function UnifiedResponsesPage() {
           const externalResults = await getFormResponses(formRecord.sheetApiUrl);
           const formattedExternal = externalResults.map(r => ({
             ...r,
-            'Submission Type': 'Google Form'
+            'Submission Source': 'Google Forms'
           }));
           combinedData = [...combinedData, ...formattedExternal];
         } catch (e) {
@@ -77,10 +75,6 @@ export default function UnifiedResponsesPage() {
       }
 
       setResponses(combinedData);
-      
-      if (combinedData.length > 0) {
-        toast({ title: "Sync Complete", description: `Found ${combinedData.length} total responses.` });
-      }
     } catch (error) {
       toast({ title: "Error", description: "Failed to load response data.", variant: "destructive" });
     }
@@ -107,8 +101,8 @@ export default function UnifiedResponsesPage() {
     const keys = new Set<string>();
     responses.forEach(r => Object.keys(r).forEach(k => keys.add(k)));
     
-    // Ensure standard columns are at the front
-    const priority = ['Submission Type', 'Submitted At', 'Respondent Name', 'Respondent Email'];
+    // Standard priority columns
+    const priority = ['Submission Source', 'Timestamp', 'Respondent', 'Email'];
     const others = Array.from(keys).filter(k => !priority.includes(k));
     
     return [...priority.filter(p => keys.has(p)), ...others];
@@ -122,13 +116,35 @@ export default function UnifiedResponsesPage() {
     );
   }, [responses, searchTerm]);
 
-  const handleExport = () => {
+  const handleExportCsv = () => {
     const csv = Papa.unparse(responses);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${form?.title.replace(/\s+/g, '_')}_Master_Responses.csv`;
+    link.download = `${form?.title.replace(/\s+/g, '_')}_Responses.csv`;
     link.click();
+  };
+
+  const handleExportPdf = () => {
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const title = form?.title || "Form Responses";
+    
+    doc.setFontSize(18);
+    doc.text(title, 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Generated on ${format(new Date(), 'PPP p')}`, 14, 28);
+
+    const body = filteredResponses.map(row => headers.map(h => String(row[h] || '')));
+
+    autoTable(doc, {
+      head: [headers],
+      body: body,
+      startY: 35,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [37, 99, 235] },
+    });
+
+    doc.save(`${title.replace(/\s+/g, '_')}_Report.pdf`);
   };
 
   if (isLoading) {
@@ -143,14 +159,17 @@ export default function UnifiedResponsesPage() {
             <ArrowLeft className="mr-2 h-4 w-4" /> Dashboard
           </Button>
           <h1 className="text-3xl font-bold font-headline uppercase text-slate-900 tracking-tight">{form?.title}</h1>
-          <p className="text-slate-500 uppercase text-[10px] font-black tracking-widest">Consolidated Submission Ledger</p>
+          <p className="text-slate-500 uppercase text-[10px] font-black tracking-widest">Submission Management</p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <Button variant="outline" onClick={() => form && fetchAllData(form)} disabled={isRefreshing} className="rounded-xl h-11">
-            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh Data
+            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Sync
           </Button>
-          <Button onClick={handleExport} disabled={responses.length === 0} className="bg-emerald-600 hover:bg-emerald-700 rounded-xl h-11 px-6 shadow-lg font-bold">
-            <Download className="mr-2 h-4 w-4" /> Export CSV
+          <Button variant="outline" onClick={handleExportPdf} disabled={responses.length === 0} className="rounded-xl h-11">
+            <FileDown className="mr-2 h-4 w-4" /> PDF
+          </Button>
+          <Button onClick={handleExportCsv} disabled={responses.length === 0} className="bg-emerald-600 hover:bg-emerald-700 rounded-xl h-11 px-6 shadow-lg font-bold">
+            <FileSpreadsheet className="mr-2 h-4 w-4" /> Export CSV
           </Button>
         </div>
       </div>
@@ -163,14 +182,14 @@ export default function UnifiedResponsesPage() {
             </div>
             <div>
               <CardTitle className="text-xl">{responses.length} Total Submissions</CardTitle>
-              <CardDescription>Viewing combined results from Portal and external sources.</CardDescription>
+              <CardDescription>Viewing responses for {form?.title}.</CardDescription>
             </div>
           </div>
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
-              placeholder="Filter responses..." 
-              value={searchTerm || ''} 
+              placeholder="Filter entries..." 
+              value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
               className="pl-10 h-12 rounded-2xl bg-white border-none ring-1 ring-slate-200"
             />
@@ -193,10 +212,10 @@ export default function UnifiedResponsesPage() {
                   <TableRow key={i} className="hover:bg-slate-50/50 transition-colors">
                     {headers.map(h => (
                       <TableCell key={h} className="py-6 px-6 text-sm font-medium text-slate-700">
-                        {h === 'Submission Type' ? (
+                        {h === 'Submission Source' ? (
                           <Badge variant="outline" className={cn(
                             "text-[9px] font-black uppercase",
-                            row[h] === 'Portal Native' ? 'border-primary text-primary bg-primary/5' : 'border-amber-500 text-amber-600 bg-amber-50'
+                            row[h] === 'Leo Portal' ? 'border-primary text-primary bg-primary/5' : 'border-amber-500 text-amber-600 bg-amber-50'
                           )}>
                             {row[h]}
                           </Badge>
@@ -212,7 +231,7 @@ export default function UnifiedResponsesPage() {
                     <TableCell colSpan={headers.length || 1} className="text-center py-32">
                        <div className="flex flex-col items-center opacity-30">
                           <FileText className="h-12 w-12 mb-4" />
-                          <p className="font-bold uppercase tracking-widest text-xs">No entries recorded yet</p>
+                          <p className="font-bold uppercase tracking-widest text-xs">No entries found</p>
                        </div>
                     </TableCell>
                   </TableRow>
@@ -226,8 +245,7 @@ export default function UnifiedResponsesPage() {
               Secured LeoPortal Audit Trail
             </p>
             <div className="flex items-center gap-2">
-               <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 font-black h-6">{responses.filter(r => r['Submission Type'] === 'Portal Native').length} Native</Badge>
-               <Badge variant="secondary" className="bg-amber-50 text-amber-600 font-black h-6">{responses.filter(r => r['Submission Type'] === 'Google Form').length} External</Badge>
+               <Badge variant="secondary" className="bg-primary/10 text-primary font-black h-6">{responses.length} Total</Badge>
             </div>
         </CardFooter>
       </Card>
