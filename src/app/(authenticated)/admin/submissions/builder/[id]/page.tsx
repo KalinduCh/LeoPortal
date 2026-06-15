@@ -1,17 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   ArrowLeft, PlusCircle, Trash2, Settings2, Eye, Save, Loader2, 
   GripVertical, Type, AlignLeft, Hash, Calendar, Clock, ChevronDown, 
-  ListChecks, FileUp, Heading, Minus, Sparkles, Wand2, Search, X
+  ListChecks, FileUp, Heading, Minus, Sparkles, Wand2, X, ImageIcon, UploadCloud
 } from 'lucide-react';
 import { getForm, createForm, updateForm } from '@/services/formService';
 import type { FormRecord, FormComponent, FormComponentType, FormVisibility, FormStatus } from '@/types';
@@ -21,6 +21,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { generateFormFromAi } from '@/ai/flows/generate-form-flow';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
+
+const MAX_BANNER_SIZE = 1 * 1024 * 1024; // 1MB
 
 export default function FormBuilderPage() {
   const params = useParams();
@@ -30,6 +33,7 @@ export default function FormBuilderPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const [isLoading, setIsLoading] = useState(!isNew);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -37,6 +41,7 @@ export default function FormBuilderPage() {
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [bannerUrl, setBannerUrl] = useState<string | undefined>(undefined);
   const [showDescription, setShowDescription] = useState(false);
   const [visibility, setVisibility] = useState<FormVisibility>('public');
   const [components, setComponents] = useState<FormComponent[]>([]);
@@ -53,6 +58,7 @@ export default function FormBuilderPage() {
         if (data && data.type === 'native') {
           setTitle(data.title || '');
           setDescription(data.description || '');
+          setBannerUrl(data.bannerUrl);
           setShowDescription(!!data.description);
           setVisibility(data.visibility || 'public');
           setComponents(data.components || []);
@@ -95,6 +101,22 @@ export default function FormBuilderPage() {
     setComponents(components.map(c => c.id === id ? { ...c, ...updates } : c));
   };
 
+  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_BANNER_SIZE) {
+        toast({ title: "File Too Large", description: "Banner image must be less than 1MB.", variant: "destructive" });
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        setBannerUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim()) return;
     setIsAiGenerating(true);
@@ -123,11 +145,13 @@ export default function FormBuilderPage() {
     const formData = {
       title,
       description,
+      bannerUrl,
       visibility,
       status: 'active' as FormStatus,
       components,
       type: 'native' as const,
       createdBy: user.id,
+      embedUrl: '', // Default for native
     };
 
     try {
@@ -201,7 +225,27 @@ export default function FormBuilderPage() {
         <div className="flex-1 overflow-y-auto p-6 lg:p-12">
           <div className="max-w-2xl mx-auto space-y-6">
             {/* FORM HEADER */}
-            <Card className="border-t-8 border-t-primary shadow-xl rounded-2xl overflow-hidden">
+            <Card className="shadow-xl rounded-2xl overflow-hidden border-none ring-1 ring-slate-200">
+              <div className="relative group w-full aspect-[3/1] bg-slate-100 flex items-center justify-center border-b">
+                {bannerUrl ? (
+                    <>
+                        <Image src={bannerUrl} alt="Banner Preview" fill className="object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <Button size="sm" variant="secondary" onClick={() => bannerInputRef.current?.click()}><ImageIcon className="h-4 w-4 mr-2" /> Replace</Button>
+                            <Button size="sm" variant="destructive" onClick={() => setBannerUrl(undefined)}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                    </>
+                ) : (
+                    <button 
+                        onClick={() => bannerInputRef.current?.click()}
+                        className="flex flex-col items-center gap-2 text-slate-400 hover:text-primary transition-colors"
+                    >
+                        <UploadCloud className="h-8 w-8" />
+                        <span className="text-xs font-bold uppercase tracking-widest">Upload Cover Banner</span>
+                    </button>
+                )}
+                <input type="file" hidden ref={bannerInputRef} accept="image/*" onChange={handleBannerUpload} />
+              </div>
               <CardContent className="p-8 space-y-4">
                 <Input 
                   value={title || ''} 

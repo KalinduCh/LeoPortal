@@ -5,19 +5,19 @@ import { useParams, useRouter } from 'next/navigation';
 import { getForm } from '@/services/formService';
 import { submitForm } from '@/services/submissionService';
 import type { FormRecord } from '@/types';
-import { Loader2, ArrowLeft, Info, Lock, ExternalLink, CheckCircle, Send, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Loader2, ArrowLeft, Lock, CheckCircle, Send, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Image from 'next/image';
 
 export default function PublicFormView() {
   const params = useParams();
@@ -65,9 +65,6 @@ export default function PublicFormView() {
     setResponses(prev => ({ ...prev, [id]: value }));
   };
 
-  /**
-   * Intelligently extracts the source URL from potentially dirty input (raw URL or full <iframe> code)
-   */
   const getEmbedUrl = (input: string) => {
     if (!input) return "";
     if (input.includes("<iframe")) {
@@ -100,7 +97,7 @@ export default function PublicFormView() {
             <CardDescription>This module is currently unavailable or set to private.</CardDescription>
           </CardHeader>
           <CardContent className="pb-10">
-            <p className="text-slate-500 text-sm mb-8 leading-relaxed">Please ensure you have the correct link. For further assistance, contact the Leo Club of Athugalpura administration.</p>
+            <p className="text-slate-500 text-sm mb-8 leading-relaxed">Please ensure you have the correct link. For further assistance, contact the administration.</p>
             <Button className="w-full h-12 rounded-xl font-bold bg-primary shadow-lg" onClick={() => router.push('/')}>Return to Dashboard</Button>
           </CardContent>
         </Card>
@@ -150,12 +147,9 @@ export default function PublicFormView() {
     <div className="min-h-screen bg-[#f8fafc] flex flex-col">
       <header className="h-20 bg-white border-b sticky top-0 z-50 flex items-center shadow-sm">
         <div className="container mx-auto px-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Image src="https://i.imgur.com/MP1YFNf.png" alt="Logo" width={48} height={48} className="rounded-full shadow-md" />
-            <div>
-              <h1 className="text-xl font-black text-slate-900 leading-none uppercase tracking-tight line-clamp-1 max-w-[200px] sm:max-w-none">{form.title}</h1>
-              <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-1">LeoPortal Secured Submissions</p>
-            </div>
+          <div>
+            <h1 className="text-xl font-black text-slate-900 leading-none uppercase tracking-tight line-clamp-1 max-w-[200px] sm:max-w-none">{form.title}</h1>
+            <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-1">Secured Submissions</p>
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" className="hidden sm:flex font-bold rounded-lg hover:bg-slate-100" onClick={() => router.push('/')}>
@@ -169,14 +163,13 @@ export default function PublicFormView() {
         {form.type === 'google_form' ? (
           <Card className="border-none shadow-2xl rounded-none sm:rounded-[2rem] overflow-hidden bg-white min-h-[900px]">
             <CardContent className="p-0 h-full flex flex-col">
+              <div className="relative w-full aspect-[3/1] bg-slate-100">
+                {form.bannerUrl && (
+                  <Image src={form.bannerUrl} alt="Form Banner" fill className="object-cover" />
+                )}
+              </div>
               <div className="p-6 sm:p-10 bg-slate-50/50 border-b">
-                <div className="flex items-start gap-4 mb-6">
-                    <Image src="https://i.imgur.com/MP1YFNf.png" alt="Club Logo" width={64} height={64} className="rounded-2xl shadow-sm" />
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-900 uppercase font-headline tracking-tight">{form.title}</h2>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-1">Leo Club of Athugalpura</p>
-                    </div>
-                </div>
+                <h2 className="text-2xl font-black text-slate-900 uppercase font-headline tracking-tight">{form.title}</h2>
                 {form.description && <p className="text-slate-500 mt-2 text-sm leading-relaxed whitespace-pre-wrap">{form.description}</p>}
               </div>
               <iframe
@@ -193,15 +186,14 @@ export default function PublicFormView() {
           </Card>
         ) : (
           <form onSubmit={handleNativeSubmit} className="space-y-6">
-            <Card className="border-t-8 border-t-primary shadow-xl rounded-2xl overflow-hidden border-none ring-1 ring-slate-200">
+            <Card className="shadow-xl rounded-2xl overflow-hidden border-none ring-1 ring-slate-200">
+               {form.bannerUrl && (
+                  <div className="relative w-full aspect-[3/1] bg-slate-100">
+                    <Image src={form.bannerUrl} alt="Form Banner" fill className="object-cover" />
+                  </div>
+               )}
                <CardContent className="p-8 sm:p-10">
-                 <div className="flex items-start gap-5 mb-8">
-                    <Image src="https://i.imgur.com/MP1YFNf.png" alt="Club Logo" width={72} height={72} className="rounded-2xl shadow-md" />
-                    <div>
-                        <h2 className="text-3xl font-black text-slate-900 uppercase font-headline tracking-tight">{form.title}</h2>
-                        <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em] mt-1">Official Submission Portal</p>
-                    </div>
-                 </div>
+                 <h2 className="text-3xl font-black text-slate-900 uppercase font-headline tracking-tight">{form.title}</h2>
                  {form.description && (
                    <>
                     <p className="text-slate-500 mt-4 text-sm leading-relaxed whitespace-pre-wrap">{form.description}</p>
@@ -300,10 +292,6 @@ export default function PublicFormView() {
 
       <footer className="py-12 bg-slate-900 text-white text-center">
         <div className="container mx-auto px-4 space-y-6">
-          <div className="space-y-1">
-            <p className="text-sm font-black uppercase tracking-[0.2em]">Leo Club of Athugalpura</p>
-            <p className="text-[10px] opacity-40 uppercase font-bold tracking-widest">District 306 D9 | Sri Lanka</p>
-          </div>
           <Separator className="max-w-[100px] mx-auto opacity-20" />
           <p className="text-[10px] opacity-30 uppercase font-medium tracking-tighter">Secured Submission Management Platform &copy; 2026</p>
         </div>
