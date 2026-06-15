@@ -4,15 +4,17 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getForm } from '@/services/formService';
 import type { FormRecord } from '@/types';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 
 export default function PublicFormView() {
   const params = useParams();
   const formId = params.id as string;
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [form, setForm] = useState<FormRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,7 +30,6 @@ export default function PublicFormView() {
 
   const getEmbedUrl = (input: string) => {
     if (!input) return "";
-    // If user pasted <iframe> embed code, extract the src
     if (input.includes("<iframe")) {
       const srcMatch = input.match(/src="([^"]+)"/);
       return srcMatch ? srcMatch[1] : "";
@@ -36,7 +37,7 @@ export default function PublicFormView() {
     return input.trim();
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -57,6 +58,31 @@ export default function PublicFormView() {
           </CardContent>
         </Card>
       </div>
+    );
+  }
+
+  // Permission Check
+  if (form.visibility === 'members' && !user) {
+    return (
+        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+            <Card className="max-w-md w-full shadow-2xl rounded-[2rem] overflow-hidden">
+                <CardHeader className="bg-slate-900 text-white text-center p-10">
+                    <div className="h-16 w-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Lock className="h-8 w-8 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl font-black uppercase font-headline">Member Access Only</CardTitle>
+                    <CardDescription className="text-slate-400">Please log in to your Leo Portal account to fill out this form.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-8">
+                    <Button className="w-full h-12 rounded-xl font-bold" onClick={() => router.push('/login')}>
+                        Log In to Portal
+                    </Button>
+                    <Button variant="ghost" className="w-full mt-2 text-slate-500" onClick={() => router.push('/')}>
+                        Cancel
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
     );
   }
 
@@ -88,7 +114,7 @@ export default function PublicFormView() {
               </div>
             )}
             <div className="p-6 sm:p-10 border-b bg-slate-50/50">
-                <h2 className="text-2xl font-bold text-slate-900">{form.title}</h2>
+                <h2 className="text-2xl font-bold text-slate-900 font-headline">{form.title}</h2>
                 {form.description && <p className="text-slate-500 mt-2 text-sm leading-relaxed">{form.description}</p>}
             </div>
             <div className="w-full min-h-[800px] bg-white">
