@@ -170,7 +170,13 @@ export default function PublicFormView() {
           <Card className="border-none shadow-2xl rounded-none sm:rounded-[2rem] overflow-hidden bg-white min-h-[900px]">
             <CardContent className="p-0 h-full flex flex-col">
               <div className="p-6 sm:p-10 bg-slate-50/50 border-b">
-                <h2 className="text-2xl font-black text-slate-900 uppercase font-headline tracking-tight">{form.title}</h2>
+                <div className="flex items-start gap-4 mb-6">
+                    <Image src="https://i.imgur.com/MP1YFNf.png" alt="Club Logo" width={64} height={64} className="rounded-2xl shadow-sm" />
+                    <div>
+                        <h2 className="text-2xl font-black text-slate-900 uppercase font-headline tracking-tight">{form.title}</h2>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-1">Leo Club of Athugalpura</p>
+                    </div>
+                </div>
                 {form.description && <p className="text-slate-500 mt-2 text-sm leading-relaxed whitespace-pre-wrap">{form.description}</p>}
               </div>
               <iframe
@@ -189,7 +195,13 @@ export default function PublicFormView() {
           <form onSubmit={handleNativeSubmit} className="space-y-6">
             <Card className="border-t-8 border-t-primary shadow-xl rounded-2xl overflow-hidden border-none ring-1 ring-slate-200">
                <CardContent className="p-8 sm:p-10">
-                 <h2 className="text-3xl font-black text-slate-900 uppercase font-headline tracking-tight">{form.title}</h2>
+                 <div className="flex items-start gap-5 mb-8">
+                    <Image src="https://i.imgur.com/MP1YFNf.png" alt="Club Logo" width={72} height={72} className="rounded-2xl shadow-md" />
+                    <div>
+                        <h2 className="text-3xl font-black text-slate-900 uppercase font-headline tracking-tight">{form.title}</h2>
+                        <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em] mt-1">Official Submission Portal</p>
+                    </div>
+                 </div>
                  {form.description && (
                    <>
                     <p className="text-slate-500 mt-4 text-sm leading-relaxed whitespace-pre-wrap">{form.description}</p>
@@ -288,7 +300,6 @@ export default function PublicFormView() {
 
       <footer className="py-12 bg-slate-900 text-white text-center">
         <div className="container mx-auto px-4 space-y-6">
-          <Image src="https://i.imgur.com/MP1YFNf.png" alt="Logo" width={50} height={50} className="mx-auto opacity-50 grayscale invert" />
           <div className="space-y-1">
             <p className="text-sm font-black uppercase tracking-[0.2em]">Leo Club of Athugalpura</p>
             <p className="text-[10px] opacity-40 uppercase font-bold tracking-widest">District 306 D9 | Sri Lanka</p>
