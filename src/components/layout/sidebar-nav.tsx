@@ -1,3 +1,4 @@
+
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -13,7 +14,7 @@ import {
 import { 
   LayoutDashboard, CalendarDays, Users, Mail, 
   Lightbulb, HandCoins, Settings, Trophy, BarChart, 
-  Calendar, ListChecks, QrCode, ExternalLink, FileSpreadsheet 
+  Calendar, ListChecks, QrCode, ExternalLink, FileSpreadsheet, BellRing 
 } from "lucide-react"; 
 import type { AdminPermission } from "@/types";
 
@@ -49,6 +50,7 @@ const adminNavItems: NavItem[] = [
 
 const superAdminNavItems: NavItem[] = [
     ...adminNavItems,
+    { href: "/admin/notifications-test", label: "Push Tester", icon: BellRing },
     { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
