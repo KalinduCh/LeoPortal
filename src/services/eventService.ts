@@ -8,25 +8,23 @@ import type { EventFormValues } from '@/components/events/event-form';
 const eventsCollection = collection(db, 'events');
 
 export async function createEvent(data: EventFormValues): Promise<string> {
-  console.log("Creating event with form data:", data);
-  const eventData: Partial<Event> & { startDate: string, reminderSent: boolean } = {
+  const eventData: any = {
     name: data.name,
     startDate: data.startDate.toISOString(),
     description: data.description,
-    reminderSent: false, // Initialize reminderSent to false
+    reminderSent: false,
   };
 
   if (data.eventType !== 'deadline' && data.endDate) {
     eventData.endDate = data.endDate.toISOString();
   }
 
-  // Conditionally add fields based on event type
   if (data.eventType !== 'deadline') {
     eventData.location = data.location;
-    if (data.enableGeoRestriction && typeof data.latitude === 'number' && !isNaN(data.latitude)) {
+    if (data.enableGeoRestriction && typeof data.latitude === 'number') {
         eventData.latitude = data.latitude;
     }
-    if (data.enableGeoRestriction && typeof data.longitude === 'number' && !isNaN(data.longitude)) {
+    if (data.enableGeoRestriction && typeof data.longitude === 'number') {
         eventData.longitude = data.longitude;
     }
     if (typeof data.points === 'number' && data.points > 0) {
@@ -39,35 +37,22 @@ export async function createEvent(data: EventFormValues): Promise<string> {
   }
 
   const docRef = await addDoc(eventsCollection, eventData);
-  console.log("Event created with ID:", docRef.id);
   return docRef.id;
 }
 
 export async function getEvents(): Promise<Event[]> {
-  console.log("[EventService] Attempting to fetch events from Firestore...");
   try {
     const q = query(eventsCollection, orderBy('startDate', 'asc'));
     const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-      console.warn("[EventService] Firestore 'events' collection is empty or the query returned no documents.");
-      return [];
-    }
-
-    console.log(`[EventService] Successfully fetched ${snapshot.docs.length} raw event documents.`);
-
     const events = snapshot.docs.map(docSnap => {
       const data = docSnap.data();
-      if (!data.startDate) {
-        console.warn(`[EventService] Event ${docSnap.id} has invalid or missing startDate. Skipping. Data:`, data);
-        return null;
-      }
+      if (!data.startDate) return null;
       const event: Event = {
         id: docSnap.id,
         name: data.name,
-        startDate: (data.startDate.toDate) ? data.startDate.toDate().toISOString() : data.startDate,
-        location: data.location,
-        description: data.description,
+        startDate: data.startDate,
+        location: data.location || '',
+        description: data.description || '',
         latitude: data.latitude,
         longitude: data.longitude,
         reminderSent: data.reminderSent || false,
@@ -75,15 +60,13 @@ export async function getEvents(): Promise<Event[]> {
         points: data.points,
       };
       if (data.endDate) {
-        event.endDate = (data.endDate.toDate) ? data.endDate.toDate().toISOString() : data.endDate;
+        event.endDate = data.endDate;
       }
       return event;
     }).filter(event => event !== null) as Event[];
-    
-    console.log(`[EventService] Returning ${events.length} parsed and valid events.`);
     return events;
   } catch (error) {
-      console.error("CRITICAL ERROR in getEvents service:", error);
+      console.error("Error in getEvents:", error);
       return [];
   }
 }
@@ -93,16 +76,12 @@ export async function getEvent(eventId: string): Promise<Event | null> {
   const docSnap = await getDoc(eventRef);
   if (docSnap.exists()) {
     const data = docSnap.data();
-    if (!data.startDate) {
-      console.error(`Event ${docSnap.id} has invalid or missing startDate. Data:`, data);
-      return null;
-    }
     const event: Event = {
       id: docSnap.id,
       name: data.name,
-      startDate: (data.startDate.toDate) ? data.startDate.toDate().toISOString() : data.startDate,
-      location: data.location,
-      description: data.description,
+      startDate: data.startDate,
+      location: data.location || '',
+      description: data.description || '',
       latitude: data.latitude,
       longitude: data.longitude,
       reminderSent: data.reminderSent || false,
@@ -110,7 +89,7 @@ export async function getEvent(eventId: string): Promise<Event | null> {
       points: data.points,
     };
     if (data.endDate) {
-      event.endDate = (data.endDate.toDate) ? data.endDate.toDate().toISOString() : data.endDate;
+      event.endDate = data.endDate;
     }
     return event;
   }
@@ -126,7 +105,6 @@ export async function updateEvent(eventId: string, data: EventFormValues): Promi
     eventType: data.eventType || deleteField(),
   };
 
-  // Handle fields based on event type
   if (data.eventType === 'deadline') {
     updatePayload.endDate = deleteField();
     updatePayload.location = deleteField();
@@ -145,11 +123,8 @@ export async function updateEvent(eventId: string, data: EventFormValues): Promi
         updatePayload.longitude = deleteField();
     }
   }
-  
   await updateDoc(eventRef, updatePayload);
-  console.log(`Event ${eventId} updated.`);
 }
-
 
 export async function deleteEvent(eventId: string): Promise<void> {
   const eventRef = doc(db, 'events', eventId);
