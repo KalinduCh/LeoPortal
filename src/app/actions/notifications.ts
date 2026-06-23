@@ -10,6 +10,7 @@ export async function sendTestPushAction(token: string, title: string, body: str
   try {
     // Check if Firebase Admin is already initialized
     if (!admin.apps.length) {
+      // Ensure the service_key.json is present in the root or accessible path
       admin.initializeApp({
         credential: admin.credential.cert(require("../../../service_key.json")),
       });
