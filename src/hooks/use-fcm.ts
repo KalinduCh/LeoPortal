@@ -7,7 +7,9 @@ import type { User } from '@/types';
 import { updateFcmToken } from '@/services/userService';
 import { useToast } from './use-toast';
 
-const VAPID_KEY = "BIc9bH71DzSMqmg3pBlve0gm14FLcVAh4EacFVw4Ovg4uEd3k11ETlLIimkEinqQgObmFoOLWdKb4ZKCN1Nn-oM";
+// This is your Web Push Certificate Public Key from Firebase Console
+// Project Settings > Cloud Messaging > Web configuration
+const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BIc9bH71DzSMqmg3pBlve0gm14FLcVAh4EacFVw4Ovg4uEd3k11ETlLIimkEinqQgObmFoOLWdKb4ZKCN1Nn-oM";
 
 export function useFcm(user: User | null) {
   const { toast } = useToast();
@@ -32,8 +34,14 @@ export function useFcm(user: User | null) {
       const supported = await isSupported();
       if (!supported) throw new Error("FCM is not supported in this environment.");
 
-      // Check if service worker is ready
-      const registration = await navigator.serviceWorker.ready;
+      // Ensure the service worker is registered and ready
+      // FCM specifically looks for 'firebase-messaging-sw.js'
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        scope: '/'
+      });
+      
+      // Wait for the service worker to be active
+      await navigator.serviceWorker.ready;
       
       const messaging = getMessaging(app);
       const currentToken = await getToken(messaging, { 
@@ -62,10 +70,10 @@ export function useFcm(user: User | null) {
 
   // Auto-retrieve if permission is already granted
   useEffect(() => {
-    if (user && notificationPermissionStatus === 'granted') {
+    if (user && notificationPermissionStatus === 'granted' && !token) {
       retrieveToken(false);
     }
-  }, [user, notificationPermissionStatus, retrieveToken]);
+  }, [user, notificationPermissionStatus, retrieveToken, token]);
 
   const requestPermission = async (): Promise<boolean> => {
     if (typeof window === 'undefined' || !('Notification' in window)) return false;
@@ -78,7 +86,7 @@ export function useFcm(user: User | null) {
           await retrieveToken(true);
           return true;
         } else {
-          toast({ title: "Permission Denied", description: "You will not receive push notifications.", variant: "destructive" });
+          toast({ title: "Permission Denied", description: "Please enable notifications in site settings.", variant: "destructive" });
           return false;
         }
     } catch (error: any) {
