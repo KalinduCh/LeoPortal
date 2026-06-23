@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Extended user information stored in Firestore",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["member", "admin", "super_admin"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "source": { "type": "string", "enum": ["portal", "entrivo"] },
+        "permissions": { "type": "object" }
+      },
+      "required": ["uid", "email", "name", "role", "status"]
+    },
+    "Form": {
+      "title": "Form",
+      "description": "Metadata for a connected Google Form",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["google_form"] },
+        "embedUrl": { "type": "string" },
+        "sheetApiUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "closed", "draft"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "type", "embedUrl", "status"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "#/backend/entities/UserProfile",
+      "description": "Collection of user profiles"
+    },
+    "/forms/{formId}": {
+      "schema": "#/backend/entities/Form",
+      "description": "Collection of connected forms"
+    }
+  }
+}

@@ -1,4 +1,3 @@
-
 // src/services/attendanceService.ts
 import {
   collection,
@@ -18,6 +17,8 @@ import { db } from '@/lib/firebase/clientApp';
 import type { AttendanceRecord } from '@/types';
 import type { VisitorAttendanceFormValues } from '@/components/events/visitor-attendance-form';
 import { addOfflineAttendance, isOfflineError } from './offlineSyncService';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const attendanceCollectionRef = collection(db, 'attendance');
 
@@ -45,6 +46,8 @@ function dataToAttendanceRecord(docId: string, data: any): AttendanceRecord | nu
     visitorComment: data.visitorComment,
     markedLatitude: data.markedLatitude,
     markedLongitude: data.markedLongitude,
+    markedByAdminId: data.markedByAdminId,
+    markedByAdminName: data.markedByAdminName,
   } as AttendanceRecord;
 }
 
@@ -53,14 +56,13 @@ export async function markUserAttendance(
   eventId: string,
   userId: string,
   markedLatitude?: number,
-  markedLongitude?: number
+  markedLongitude?: number,
+  adminInfo?: { id: string; name: string }
 ): Promise<MarkAttendanceResult> {
-  console.log(`Attempting to mark user attendance for eventId: ${eventId}, userId: ${userId}`);
   
   try {
     const existingAttendance = await getUserAttendanceForEvent(eventId, userId);
     if (existingAttendance) {
-      console.log(`User ${userId} already marked attendance for event ${eventId}.`);
       return {
         status: 'already_marked',
         message: 'Attendance already marked for this event.',
@@ -68,17 +70,12 @@ export async function markUserAttendance(
       };
     }
   } catch (error) {
-    if (isOfflineError(error)) {
-        // If offline, we can't check for existing attendance, so we queue it.
-        // The backend sync process should handle potential duplicates if necessary.
-        console.warn("Offline: Cannot check for existing attendance. Queuing record.");
-    } else {
-        throw error; // Re-throw other errors
+    if (!isOfflineError(error)) {
+        throw error;
     }
   }
 
-
-  const attendanceData: Omit<AttendanceRecord, 'id' | 'timestamp'> & { timestamp: any; createdAt: any } = {
+  const attendanceData: any = {
     eventId,
     userId,
     status: 'present',
@@ -92,25 +89,32 @@ export async function markUserAttendance(
     attendanceData.markedLongitude = markedLongitude;
   }
 
-  try {
-    const docRef = await addDoc(attendanceCollectionRef, attendanceData);
-    const newDocSnap = await getDoc(doc(db, 'attendance', docRef.id));
-    if (newDocSnap.exists()) {
-        const newRecord = dataToAttendanceRecord(newDocSnap.id, newDocSnap.data());
-        if (newRecord) {
-            return { status: 'success', message: 'Your attendance has been recorded.', record: newRecord };
-        }
-    }
-    return { status: 'error', message: 'Attendance recorded but failed to retrieve confirmation details.' };
-  } catch (error: any) {
-    if (isOfflineError(error)) {
-      console.log("Offline mode detected. Queuing user attendance.");
-      await addOfflineAttendance({ ...attendanceData, timestamp: attendanceData.timestamp.toDate().toISOString() });
-      return { status: 'offline_queued', message: 'You are offline. Attendance has been saved and will sync later.' };
-    }
-    console.error("Error adding user attendance document to Firestore for event " + eventId + ":", error);
-    return { status: 'error', message: `Failed to record user attendance: ${error.message || 'Unknown error'}` };
+  if (adminInfo) {
+    attendanceData.markedByAdminId = adminInfo.id;
+    attendanceData.markedByAdminName = adminInfo.name;
   }
+
+  // Refactored to follow non-blocking mutation pattern with contextual error handling
+  addDoc(attendanceCollectionRef, attendanceData)
+    .then(async (docRef) => {
+        console.log("Attendance record created with ID:", docRef.id);
+    })
+    .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: attendanceCollectionRef.path,
+            operation: 'create',
+            requestResourceData: attendanceData,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+    });
+
+  // For UI purposes, we assume success or handle offline queuing
+  if (typeof window !== 'undefined' && !navigator.onLine) {
+      await addOfflineAttendance({ ...attendanceData, timestamp: new Date().toISOString() });
+      return { status: 'offline_queued', message: 'You are offline. Attendance has been saved and will sync later.' };
+  }
+
+  return { status: 'success', message: 'Attendance record submitted.' };
 }
 
 export async function markVisitorAttendance(
@@ -119,7 +123,7 @@ export async function markVisitorAttendance(
   markedLatitude?: number,
   markedLongitude?: number
 ): Promise<MarkAttendanceResult> {
-  const attendanceData: Omit<AttendanceRecord, 'id' | 'timestamp' | 'userId'> & { timestamp: any; createdAt: any } = {
+  const attendanceData: any = {
     eventId,
     status: 'present',
     attendanceType: 'visitor',
@@ -136,18 +140,22 @@ export async function markVisitorAttendance(
     attendanceData.markedLongitude = markedLongitude;
   }
 
-  try {
-    await addDoc(attendanceCollectionRef, attendanceData);
-    return { status: 'success', message: 'Your attendance has been recorded.' };
-  } catch (error: any) {
-    if (isOfflineError(error)) {
-      console.log("Offline mode detected. Queuing visitor attendance.");
-      await addOfflineAttendance({ ...attendanceData, timestamp: attendanceData.timestamp.toDate().toISOString() });
+  addDoc(attendanceCollectionRef, attendanceData)
+    .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: attendanceCollectionRef.path,
+            operation: 'create',
+            requestResourceData: attendanceData,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+    });
+
+  if (typeof window !== 'undefined' && !navigator.onLine) {
+      await addOfflineAttendance({ ...attendanceData, timestamp: new Date().toISOString() });
       return { status: 'offline_queued', message: 'You are offline. Attendance has been saved and will sync later.' };
-    }
-    console.error("Error adding visitor attendance document to Firestore for event " + eventId + ":", error);
-    return { status: 'error', message: `Failed to record visitor attendance: ${error.message || 'Unknown error'}` };
   }
+
+  return { status: 'success', message: 'Your attendance has been recorded.' };
 }
 
 
@@ -205,12 +213,12 @@ export async function getAllAttendanceRecords(): Promise<AttendanceRecord[]> {
 export async function bulkAddAttendance(records: any[]): Promise<void> {
   const batch = writeBatch(db);
   records.forEach(record => {
-    const docRef = doc(collection(db, 'attendance')); // Create a new doc with a random ID
+    const docRef = doc(collection(db, 'attendance'));
     const recordData = {
         ...record,
-        timestamp: Timestamp.fromDate(new Date(record.timestamp)), // Convert ISO string back to Timestamp
+        timestamp: Timestamp.fromDate(new Date(record.timestamp)),
     };
-    delete recordData.createdAt; // Let Firestore handle this on the backend
+    delete recordData.createdAt;
     batch.set(docRef, recordData);
   });
   await batch.commit();

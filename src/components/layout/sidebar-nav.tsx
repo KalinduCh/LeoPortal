@@ -1,4 +1,3 @@
-
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -11,14 +10,19 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CalendarDays, Users, FileText, Mail, Lightbulb, HandCoins, Settings, Trophy, BarChart, Calendar } from "lucide-react"; 
+import { 
+  LayoutDashboard, CalendarDays, Users, Mail, 
+  Lightbulb, HandCoins, Settings, Trophy, BarChart, 
+  Calendar, ListChecks, QrCode, ExternalLink, FileSpreadsheet 
+} from "lucide-react"; 
 import type { AdminPermission } from "@/types";
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  permission?: AdminPermission; // Add permission key
+  permission?: AdminPermission;
+  external?: boolean;
 }
 
 const memberNavItems: NavItem[] = [
@@ -26,22 +30,24 @@ const memberNavItems: NavItem[] = [
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/project-ideas", label: "Project Ideas", icon: Lightbulb },
+  { href: "/tasks", label: "My Tasks", icon: ListChecks },
 ];
 
 const adminNavItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/calendar", label: "Calendar", icon: Calendar },
+  { href: "/tasks", label: "Tasks", icon: ListChecks, permission: 'tasks' },
   { href: "/members", label: "Members", icon: Users, permission: 'members' },
   { href: "/events", label: "Events", icon: CalendarDays, permission: 'events' },
   { href: "/admin/finance", label: "Finance", icon: HandCoins, permission: 'finance' },
   { href: "/admin/leaderboard", label: "Leaderboard", icon: Trophy, permission: 'leaderboard' },
   { href: "/admin/communication", label: "Communication", icon: Mail, permission: 'communication' },
-  { href: "/admin/project-ideas", label: "Idea Review", icon: Lightbulb, permission: 'project_ideas' },
+  { href: "/admin/submissions", label: "Submissions & Review", icon: FileSpreadsheet, permission: 'project_ideas' },
   { href: "/admin/reports", label: "Reports", icon: BarChart, permission: 'reports' },
+  { href: "/event-access/admin", label: "District Access", icon: QrCode, permission: 'district_access' },
 ];
 
 const superAdminNavItems: NavItem[] = [
-    // super admin has all admin items plus settings
     ...adminNavItems,
     { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
@@ -58,14 +64,8 @@ export function SidebarNav() {
   if (user.role === 'super_admin') {
       itemsToShow = superAdminNavItems;
   } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
-      // Filter admin items based on user's permissions
       itemsToShow = adminNavItems.filter(item => {
-          // If an item doesn't require a specific permission, always show it (e.g., Dashboard).
-          if (!item.permission) {
-              return true;
-          }
-          // Otherwise, strictly check if the user has that specific permission set to true.
-          // If permissions are not defined or the specific permission is false/undefined, deny access.
+          if (!item.permission) return true;
           return user.permissions?.[item.permission] === true;
       });
   } else {
@@ -81,9 +81,10 @@ export function SidebarNav() {
             isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))}
             tooltip={{ children: item.label, className: "font-sans" }}
           >
-            <Link href={item.href}>
+            <Link href={item.href} target={item.external ? "_blank" : undefined}>
               <item.icon />
               <span>{item.label}</span>
+              {item.external && <ExternalLink className="ml-auto h-3 w-3 opacity-50" />}
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

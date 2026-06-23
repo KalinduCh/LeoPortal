@@ -8,6 +8,7 @@ import { MemberDashboard } from '@/app/(authenticated)/dashboard/member-dashboar
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
+import { CelebrationOverlay } from '@/components/celebration-overlay';
 
 export default function DashboardPage() {
   const { user, isLoading, adminViewMode } = useAuth();
@@ -32,17 +33,22 @@ export default function DashboardPage() {
   const isAdmin = user.role === 'admin';
   
   // Super Admin always sees admin dashboard.
-  if (isSuperAdmin) {
-    return <AdminDashboard user={user} />;
+  const dashboardContent = () => {
+      if (isSuperAdmin) {
+        return <AdminDashboard user={user} />;
+      }
+      if (isAdmin) {
+        return adminViewMode === 'admin_view' ? <AdminDashboard user={user} /> : <MemberDashboard user={user} />;
+      }
+      return <MemberDashboard user={user} />;
   }
-  
-  // Admin view depends on the toggle state.
-  if (isAdmin) {
-    return adminViewMode === 'admin_view' ? <AdminDashboard user={user} /> : <MemberDashboard user={user} />;
-  }
-  
-  // Default to member dashboard for members.
-  return <MemberDashboard user={user} />;
+
+  return (
+      <>
+        <CelebrationOverlay />
+        {dashboardContent()}
+      </>
+  );
 }
 
 const DashboardSkeleton = () => (
