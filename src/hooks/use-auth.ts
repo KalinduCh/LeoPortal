@@ -2,7 +2,7 @@
 // src/hooks/use-auth.ts
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, createContext, useContext, ReactNode } from 'react';
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -15,7 +15,7 @@ import { auth } from '@/lib/firebase/clientApp';
 import { createUserProfile, getUserProfile, updateFcmToken } from '@/services/userService';
 import type { User, UserRole } from '@/types';
 import { useToast } from './use-toast';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation';
 
 export type AdminViewMode = 'admin_view' | 'member_view';
 const SUPER_ADMIN_EMAIL = "check22@gmail.com";
@@ -29,7 +29,7 @@ export interface LoginResult {
 export interface PasswordResetResult {
     success: boolean;
     message?: string;
-    error?: any; // Keep error for detailed logging if needed
+    error?: any; 
 }
 
 interface AuthState {
@@ -47,7 +47,22 @@ interface AuthState {
   setAuthOperationInProgress: (inProgress: boolean) => void;
 }
 
-export function useAuth(): AuthState {
+const AuthContext = createContext<AuthState | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const authState = useProvideAuth();
+  return <AuthContext.Provider value={authState}>{children}</AuthContext.Provider>;
+}
+
+export const useAuth = (): AuthState => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+function useProvideAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +83,6 @@ export function useAuth(): AuthState {
   const handleSetAdminViewMode = (mode: AdminViewMode) => {
     setAdminViewMode(mode);
     localStorage.setItem('adminViewMode', mode);
-    // Use a full page reload to ensure all components re-evaluate the auth state and view mode
     window.location.href = '/dashboard';
   };
 
@@ -80,7 +94,6 @@ export function useAuth(): AuthState {
             variant: "destructive",
             duration: 7000
         });
-        // Redirect to login page after signing out
         window.location.href = '/login';
     });
   }, [toast]);
@@ -108,7 +121,6 @@ export function useAuth(): AuthState {
         setFirebaseUser(fbUser);
         let userProfile = await getUserProfile(fbUser.uid);
         if (userProfile) {
-          // SUPER_ADMIN logic override
           if (userProfile.email === SUPER_ADMIN_EMAIL && userProfile.role !== 'super_admin') {
             userProfile.role = 'super_admin';
           }
@@ -161,7 +173,6 @@ export function useAuth(): AuthState {
         return { user: null, success: false, reason: 'not_found' };
       }
       
-      // SUPER_ADMIN logic override
       if (userProfile.email === SUPER_ADMIN_EMAIL && userProfile.role !== 'super_admin') {
         userProfile.role = 'super_admin';
       }
