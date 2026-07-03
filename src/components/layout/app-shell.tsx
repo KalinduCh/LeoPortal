@@ -1,4 +1,3 @@
-
 // src/components/layout/app-shell.tsx
 "use client";
 
@@ -39,7 +38,6 @@ export function AppShell({ children }: AppShellProps) {
   const logoUrl = "https://i.imgur.com/aRktweQ.png";
 
   const president = { name: 'Leo Lion Menuka Wickramasinghe', email: 'isanthamenuka@gmail.com', phone: '+9477 352 3893' };
-  const support = { name: 'Leo Kalindu Chamikara', email: 'chamikarakc@gmail.com', phone: '+9477 2137638' };
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -75,7 +73,7 @@ export function AppShell({ children }: AppShellProps) {
               <DialogHeader>
                 <DialogTitle>Help & Support</DialogTitle>
                 <DialogDescription>
-                  If you have any questions or need assistance, please contact one of the administrators below.
+                  If you have any questions or need assistance, please contact the administrator below.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-2">
@@ -93,24 +91,6 @@ export function AppShell({ children }: AppShellProps) {
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       <a href={`tel:${president.phone.replace(/\s/g, '')}`} className="hover:underline">{president.phone}</a>
-                    </div>
-                  </div>
-                </div>
-                <Separator />
-                <div>
-                  <h4 className="font-semibold text-primary mb-2">IT Support</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <UserCircle className="h-4 w-4 text-muted-foreground" />
-                      <span>{support.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href={`mailto:${support.email}`} className="hover:underline">{support.email}</a>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href={`tel:${support.phone.replace(/\s/g, '')}`} className="hover:underline">{support.phone}</a>
                     </div>
                   </div>
                 </div>

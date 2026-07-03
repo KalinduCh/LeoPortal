@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/admin/settings/page.tsx
 "use client";
 
@@ -22,11 +21,13 @@ import { Separator } from '@/components/ui/separator';
 const PERMISSION_CONFIG: { id: AdminPermission; label: string }[] = [
     { id: 'members', label: 'Members' },
     { id: 'events', label: 'Events' },
+    { id: 'tasks', label: 'Global Tasks' },
     { id: 'finance', label: 'Finance' },
     { id: 'leaderboard', label: 'Leaderboard' },
     { id: 'communication', label: 'Communication' },
     { id: 'project_ideas', label: 'Idea Review' },
     { id: 'reports', label: 'Reports' },
+    { id: 'district_access', label: 'District Access' },
 ];
 
 export default function SettingsPage() {
