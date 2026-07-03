@@ -8,7 +8,7 @@ import { updateFcmToken } from '@/services/userService';
 import { useToast } from './use-toast';
 
 // This is your Web Push Certificate Public Key from Firebase Console
-// Project Settings > Cloud Messaging > Web configuration
+// Now fetched dynamically from your environment variables
 const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BIc9bH71DzSMqmg3pBlve0gm14FLcVAh4EacFVw4Ovg4uEd3k11ETlLIimkEinqQgObmFoOLWdKb4ZKCN1Nn-oM";
 
 export function useFcm(user: User | null) {
@@ -35,7 +35,6 @@ export function useFcm(user: User | null) {
       if (!supported) throw new Error("FCM is not supported in this environment.");
 
       // Ensure the service worker is registered and ready
-      // FCM specifically looks for 'firebase-messaging-sw.js'
       const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
         scope: '/'
       });

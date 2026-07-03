@@ -5,14 +5,27 @@ import * as admin from "firebase-admin";
 
 /**
  * Server action to send a test notification to a specific FCM token.
+ * Uses environment variables for secure authentication on hosting platforms like Netlify.
  */
 export async function sendTestPushAction(token: string, title: string, body: string) {
   try {
-    // Check if Firebase Admin is already initialized
+    // Initialize Firebase Admin using environment variables
     if (!admin.apps.length) {
-      // Ensure the service_key.json is present in the root or accessible path
+      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+      const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "leoathugal";
+
+      if (!privateKey || !clientEmail) {
+        console.error("FCM Delivery Error: Missing server-side environment variables (FIREBASE_PRIVATE_KEY or FIREBASE_CLIENT_EMAIL).");
+        return { success: false, error: "Server-side configuration error: Missing credentials." };
+      }
+
       admin.initializeApp({
-        credential: admin.credential.cert(require("../../../service_key.json")),
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
       });
     }
 
