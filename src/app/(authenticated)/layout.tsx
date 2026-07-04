@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/layout.tsx
 "use client";
 
@@ -6,8 +5,8 @@ import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/layout/app-shell";
-import { Loader2, BellRing, Settings, HelpCircle, Wifi, WifiOff, Smartphone } from "lucide-react";
-import { usePushNotifications } from "@/hooks/use-push-notifications";
+import { Loader2, BellRing, Smartphone, Wifi, WifiOff } from "lucide-react";
+import { useFcm } from "@/hooks/use-fcm";
 import { syncOfflineAttendance } from "@/services/offlineSyncService";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -20,11 +19,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { FirebaseErrorListener } from "@/components/FirebaseErrorListener";
-
 
 export default function AuthenticatedLayout({
   children,
@@ -34,14 +31,13 @@ export default function AuthenticatedLayout({
   const { user, isLoading, isAuthOperationInProgress, adminViewMode } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { subscribeUser, permission, isIosPwaEligible } = usePushNotifications(user);
   const { toast } = useToast();
+  const { requestPermission, notificationPermissionStatus } = useFcm(user);
   
   const [isPermissionDialogOpen, setIsPermissionDialogOpen] = React.useState(false);
-  const [isIosPromptOpen, setIsIosPromptOpen] = React.useState(false);
   const [isOnline, setIsOnline] = React.useState(true);
 
-  // Effect for online/offline status detection
+  // Connectivity and Offline Sync
   React.useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
@@ -49,32 +45,28 @@ export default function AuthenticatedLayout({
         const syncedCount = await syncOfflineAttendance();
         if (syncedCount > 0) {
           toast({
-            title: "Offline Sync Complete",
-            description: `Successfully synced ${syncedCount} pending record(s) from when you were offline.`,
+            title: "Data Synced",
+            description: `Successfully uploaded ${syncedCount} pending attendance records.`,
             icon: <Wifi className="h-5 w-5 text-green-500" />,
           });
         }
       } catch (error) {
-        console.error("Error during offline sync:", error);
+        console.error("Sync Error:", error);
       }
     };
 
     const handleOffline = () => {
       setIsOnline(false);
       toast({
-        title: "You are currently offline",
-        description: "Attendance marking will be saved locally and synced when you reconnect.",
+        title: "Connection Lost",
+        description: "You are currently offline. Attendance data will be saved locally.",
         icon: <WifiOff className="h-5 w-5 text-destructive" />,
-        duration: 10000,
       });
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
-    if(typeof window !== 'undefined') {
-        setIsOnline(navigator.onLine);
-    }
+    if(typeof window !== 'undefined') setIsOnline(navigator.onLine);
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -82,23 +74,13 @@ export default function AuthenticatedLayout({
     };
   }, [toast]);
 
-  // Effect to ask for notification permission
+  // Push Notification Onboarding
   React.useEffect(() => {
-    if (user && !isLoading && permission === 'default' && !isIosPwaEligible) {
+    if (user && !isLoading && notificationPermissionStatus === 'default') {
       const timer = setTimeout(() => setIsPermissionDialogOpen(true), 5000);
       return () => clearTimeout(timer);
     }
-  }, [user, isLoading, permission, isIosPwaEligible]);
-
-  // Effect to handle iOS PWA prompt
-  React.useEffect(() => {
-    if (isIosPwaEligible) {
-      const dismissed = localStorage.getItem('iosPwaPromptDismissed');
-      if (!dismissed) {
-        setIsIosPromptOpen(true);
-      }
-    }
-  }, [isIosPwaEligible]);
+  }, [user, isLoading, notificationPermissionStatus]);
 
   React.useEffect(() => {
     if (!isLoading && !user && !isAuthOperationInProgress) {
@@ -106,20 +88,18 @@ export default function AuthenticatedLayout({
     }
   }, [user, isLoading, isAuthOperationInProgress, router]);
   
-  // Security guard for module isolation
+  // Navigation Guards
   React.useEffect(() => {
     if (isLoading || !user) return;
 
     const isAdminPage = pathname.startsWith('/admin/');
     const isEntrivoPage = pathname.startsWith('/event-access');
 
-    // 1. Strict Isolation: Entrivo users cannot access Main Portal routes
     if (user.source === 'entrivo' && !isEntrivoPage) {
         router.replace('/event-access/admin');
         return;
     }
 
-    // 2. Standard Portal Permissions
     if (user.role === 'member' && isAdminPage) {
         router.replace('/dashboard');
         return;
@@ -128,7 +108,6 @@ export default function AuthenticatedLayout({
     if (user.role === 'admin' && adminViewMode === 'member_view' && isAdminPage) {
         router.replace('/dashboard');
     }
-
   }, [user, isLoading, pathname, router, adminViewMode]);
 
 
@@ -142,19 +121,6 @@ export default function AuthenticatedLayout({
   
   if (!user) return null;
 
-  const handleAllowNotifications = async () => {
-    const success = await subscribeUser();
-    if (success) {
-        toast({ title: "Notifications Enabled", description: "You will now receive updates on tasks and events." });
-    }
-    setIsPermissionDialogOpen(false);
-  };
-
-  const handleDismissIosPrompt = () => {
-    setIsIosPromptOpen(false);
-    localStorage.setItem('iosPwaPromptDismissed', 'true');
-  };
-  
   return (
     <>
       <DndProvider backend={HTML5Backend}>
@@ -163,42 +129,28 @@ export default function AuthenticatedLayout({
         </AppShell>
       </DndProvider>
 
-      {/* Standard Permission Dialog */}
+      {/* Push Notification Opt-in */}
       <AlertDialog open={isPermissionDialogOpen} onOpenChange={setIsPermissionDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center">
-              <BellRing className="mr-2 h-5 w-5 text-primary"/> Stay Updated
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Allow notifications to get instant alerts about new events, tasks, and important club announcements right on your device.
+            <div className="mx-auto h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+                <BellRing className="h-8 w-8 text-primary"/>
+            </div>
+            <AlertDialogTitle className="text-center font-black uppercase tracking-tight">Stay Updated</AlertDialogTitle>
+            <AlertDialogDescription className="text-center font-medium">
+              Enable notifications to receive instant alerts for new events, task assignments, and club announcements.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsPermissionDialogOpen(false)}>Maybe Later</AlertDialogCancel>
-            <AlertDialogAction onClick={handleAllowNotifications}>Enable Notifications</AlertDialogAction>
+          <AlertDialogFooter className="sm:flex-col gap-2">
+            <AlertDialogAction onClick={() => { requestPermission(); setIsPermissionDialogOpen(false); }} className="w-full h-12 rounded-xl font-bold bg-primary shadow-lg">
+                Enable Notifications
+            </AlertDialogAction>
+            <AlertDialogCancel onClick={() => setIsPermissionDialogOpen(false)} className="w-full h-12 rounded-xl border-none font-bold text-slate-400">
+                Maybe Later
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* iOS Help Alert: Push only works if added to Home Screen */}
-      {isIosPwaEligible && (
-        <AlertDialog open={isIosPromptOpen} onOpenChange={setIsIosPromptOpen}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center">
-                        <Smartphone className="mr-2 h-5 w-5 text-primary"/> Add to Home Screen
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                        To receive notifications on iPhone, you must add this app to your Home Screen. Tap the Share icon <span className="font-bold">Square with up arrow</span> and select <span className="font-bold">"Add to Home Screen"</span>.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogAction onClick={handleDismissIosPrompt}>Got it</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-      )}
 
       <FirebaseErrorListener />
     </>

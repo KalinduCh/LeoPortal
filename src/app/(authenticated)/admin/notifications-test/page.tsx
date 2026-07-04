@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useFcm } from '@/hooks/use-fcm';
 import { Button } from '@/components/ui/button';
@@ -10,249 +9,189 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { sendTestPushAction } from '@/app/actions/notifications';
+import { sendPushNotification, broadcastToUsers } from '@/app/actions/notifications';
+import { getAllUsers } from '@/services/userService';
+import type { User } from '@/types';
 import { 
   BellRing, ShieldCheck, QrCode, Send, 
   Loader2, Smartphone, CheckCircle, AlertTriangle, 
-  Clipboard, ClipboardCheck, Info, RefreshCw, Sparkles, Cake, CalendarClock, Ban, ClipboardList
+  Clipboard, ClipboardCheck, Info, RefreshCw, Users, Globe, UserCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
-export default function NotificationsTestPage() {
+export default function PushControlCenter() {
   const { user } = useAuth();
   const { requestPermission, retrieveToken, notificationPermissionStatus, token, isRetrieving } = useFcm(user);
   const { toast } = useToast();
   
   const [isSending, setIsSending] = useState(false);
-  const [testTitle, setTestTitle] = useState('LeoPortal Test');
-  const [testBody, setTestBody] = useState('Hello! This is a real-time push notification.');
+  const [testTitle, setTestTitle] = useState('LeoPortal Update');
+  const [testBody, setTestBody] = useState('This is a real-time push notification from the admin console.');
   const [copied, setCopied] = useState(false);
+  const [allMembers, setAllMembers] = useState<User[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
 
-  const presets = [
-    {
-      id: 'birthday',
-      label: 'Birthday Wish',
-      icon: Cake,
-      title: `Happy Birthday, ${user?.name || 'Leo'}!`,
-      body: 'Wishing you a fantastic day from the Leo Club of Athugalpura! 🎉',
-      color: 'text-pink-500 bg-pink-50'
-    },
-    {
-      id: 'event_3d',
-      label: 'Event (3 Days)',
-      icon: CalendarClock,
-      title: 'Upcoming Event',
-      body: 'Project "Community Care" is in 3 days! Get ready.',
-      color: 'text-blue-500 bg-blue-50'
-    },
-    {
-      id: 'event_1d',
-      label: 'Event (Tomorrow)',
-      icon: CalendarClock,
-      title: 'Event Tomorrow',
-      body: 'Reminder: The Monthly Meeting starts tomorrow. See you there!',
-      color: 'text-indigo-500 bg-indigo-50'
-    },
-    {
-      id: 'event_today',
-      label: 'Event Today',
-      icon: Sparkles,
-      title: 'Event Today!',
-      body: 'The Beach Cleanup is happening today! Don\'t miss it.',
-      color: 'text-amber-500 bg-amber-50'
-    },
-    {
-      id: 'cancelled',
-      label: 'Cancelled',
-      icon: Ban,
-      title: 'Event Cancelled',
-      body: 'The project "Youth Hike" has been cancelled. Check calendar for details.',
-      color: 'text-rose-500 bg-rose-50'
-    },
-    {
-      id: 'task',
-      label: 'Task Assigned',
-      icon: ClipboardList,
-      title: 'New Task Assigned',
-      body: 'You have been assigned to: "Design Event Flyer"',
-      color: 'text-emerald-500 bg-emerald-50'
-    }
-  ];
-
-  const applyPreset = (preset: typeof presets[0]) => {
-    setTestTitle(preset.title);
-    setTestBody(preset.body);
-    toast({
-        title: "Template Applied",
-        description: `Now previewing: ${preset.label}`,
-    });
-  };
+  useEffect(() => {
+    const fetchUsers = async () => {
+        const users = await getAllUsers();
+        setAllMembers(users.filter(u => u.status === 'approved' && u.fcmToken));
+        setIsLoadingUsers(false);
+    };
+    fetchUsers();
+  }, []);
 
   const handleCopyToken = () => {
     if (!token) return;
     navigator.clipboard.writeText(token);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast({ title: "Copied", description: "Token copied to clipboard." });
+    toast({ title: "Copied", description: "Device token copied to clipboard." });
   };
 
-  const handleSendTestPush = async () => {
-    if (!token) {
-        toast({ title: "Missing Token", description: "Please generate an FCM token first.", variant: "destructive" });
+  const handleSendSelf = async () => {
+    if (!token) return;
+    setIsSending(true);
+    const result = await sendPushNotification(token, testTitle, testBody);
+    if (result.success) toast({ title: "Self-Push Sent!" });
+    else toast({ title: "Delivery Failed", description: result.error, variant: "destructive" });
+    setIsSending(false);
+  };
+
+  const handleBroadcast = async () => {
+    const approvedIds = allMembers.map(u => u.id);
+    if (approvedIds.length === 0) {
+        toast({ title: "No targets", description: "No active members have registered device tokens." });
         return;
     }
-    
+
     setIsSending(true);
-    const result = await sendTestPushAction(token, testTitle, testBody);
-    
+    const result = await broadcastToUsers(approvedIds, testTitle, testBody);
     if (result.success) {
-        toast({ title: "Notification Sent!", description: "Message successfully dispatched via FCM." });
+        toast({ title: "Broadcast Successful", description: `Delivered to ${result.sentCount} active devices.` });
     } else {
-        toast({ title: "Delivery Failed", description: result.error, variant: "destructive" });
+        toast({ title: "Broadcast Failed", description: result.error, variant: "destructive" });
     }
     setIsSending(false);
   };
 
-  const getPermissionBadge = () => {
-    switch (notificationPermissionStatus) {
-        case 'granted': return <Badge className="bg-emerald-600">Granted</Badge>;
-        case 'denied': return <Badge variant="destructive">Denied</Badge>;
-        default: return <Badge variant="secondary">Not Requested</Badge>;
-    }
-  };
-
   return (
-    <div className="container mx-auto py-8 max-w-4xl space-y-8">
-      <div className="space-y-1">
-        <h1 className="text-3xl font-bold font-headline uppercase tracking-tight">Push Notification Console</h1>
-        <p className="text-muted-foreground">Debug and preview real-time member notifications.</p>
+    <div className="container mx-auto py-8 max-w-5xl space-y-8">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+            <h1 className="text-3xl font-bold font-headline uppercase tracking-tight">Push Control Center</h1>
+            <p className="text-muted-foreground text-sm font-medium">Manage and debug cross-platform PWA notifications.</p>
+        </div>
+        <Badge variant={notificationPermissionStatus === 'granted' ? 'default' : 'destructive'} className="h-6">
+            {notificationPermissionStatus === 'granted' ? <CheckCircle className="w-3 h-3 mr-1" /> : <AlertTriangle className="w-3 h-3 mr-1" />}
+            Status: {notificationPermissionStatus}
+        </Badge>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-1 space-y-6">
-            {/* Step 1: Permissions */}
-            <Card className="shadow-lg border-none ring-1 ring-slate-200">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div className="space-y-1">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <ShieldCheck className="h-5 w-5 text-primary" /> Step 1: Access
-                    </CardTitle>
-                </div>
-                {getPermissionBadge()}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Step 1: Client Access */}
+        <Card className="shadow-lg border-primary/10">
+            <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-primary" /> 1. Client Access
+                </CardTitle>
+                <CardDescription>Authorize browser push capabilities.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Button 
-                    onClick={requestPermission} 
-                    disabled={notificationPermissionStatus === 'granted'}
                     className="w-full h-11 font-bold"
+                    onClick={requestPermission}
+                    disabled={notificationPermissionStatus === 'granted'}
                 >
                     {notificationPermissionStatus === 'granted' ? <CheckCircle className="mr-2 h-4 w-4" /> : <BellRing className="mr-2 h-4 w-4" />}
-                    {notificationPermissionStatus === 'granted' ? 'Permissions Active' : 'Request Permissions'}
+                    {notificationPermissionStatus === 'granted' ? 'Access Granted' : 'Request Access'}
                 </Button>
             </CardContent>
-            </Card>
+        </Card>
 
-            {/* Step 2: FCM Token */}
-            <Card className="shadow-lg border-none ring-1 ring-slate-200">
+        {/* Step 2: Sync Token */}
+        <Card className="shadow-lg border-primary/10">
             <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                    <QrCode className="h-5 w-5 text-primary" /> Step 2: Device Token
+                    <QrCode className="h-5 w-5 text-primary" /> 2. Sync Device
                 </CardTitle>
+                <CardDescription>Retrieve unique FCM token.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="relative">
-                    <Input 
-                        value={token || ''} 
-                        readOnly 
-                        placeholder="Retrieve token..." 
-                        className="pr-10 font-mono text-[10px] h-12 bg-slate-50"
-                    />
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="absolute right-1 top-1 h-10 w-10 text-slate-400"
-                        onClick={handleCopyToken}
-                        disabled={!token}
-                    >
+                    <Input value={token || ''} readOnly placeholder="Token pending..." className="pr-10 font-mono text-[10px] h-11 bg-slate-50" />
+                    <Button variant="ghost" size="icon" className="absolute right-1 top-0.5 h-10" onClick={handleCopyToken} disabled={!token}>
                         {copied ? <ClipboardCheck className="h-4 w-4 text-emerald-600" /> : <Clipboard className="h-4 w-4" />}
                     </Button>
                 </div>
-                <Button 
-                    variant="outline" 
-                    className="w-full font-bold" 
-                    onClick={() => retrieveToken(true)}
-                    disabled={isRetrieving || notificationPermissionStatus !== 'granted'}
-                >
+                <Button variant="outline" className="w-full font-bold h-11" onClick={() => retrieveToken(true)} disabled={isRetrieving || notificationPermissionStatus !== 'granted'}>
                     {isRetrieving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                    Generate Token
+                    {token ? 'Refresh Token' : 'Generate Token'}
                 </Button>
             </CardContent>
-            </Card>
-        </div>
+        </Card>
 
-        <div className="lg:col-span-2 space-y-6">
-            {/* Template Presets */}
-            <Card className="shadow-lg border-none ring-1 ring-slate-200">
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Sparkles className="h-5 w-5 text-amber-500" /> Automated Templates
-                    </CardTitle>
-                    <CardDescription>Click a template to preview its push notification format.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {presets.map((p) => (
-                        <button 
-                            key={p.id} 
-                            onClick={() => applyPreset(p)}
-                            className="flex items-center gap-3 p-3 rounded-2xl border bg-white hover:border-primary hover:shadow-md transition-all text-left"
-                        >
-                            <div className={cn("p-2.5 rounded-xl", p.color)}>
-                                <p.icon className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold text-slate-900">{p.label}</p>
-                                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">Template</p>
-                            </div>
-                        </button>
-                    ))}
-                </CardContent>
-            </Card>
-
-            {/* Step 3: Dispatch */}
-            <Card className="shadow-xl border-primary/20 bg-primary/5">
+        {/* Quick Stats */}
+        <Card className="shadow-lg border-primary/10 bg-primary/5">
             <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                    <Send className="h-5 w-5 text-primary" /> Step 3: Dispatch Test
+                    <Globe className="h-5 w-5 text-primary" /> Network Coverage
                 </CardTitle>
-                <CardDescription>Send the current template payload to this device.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Title Preview</Label>
-                        <Input value={testTitle} onChange={e => setTestTitle(e.target.value)} className="bg-white" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Body Preview</Label>
-                        <Input value={testBody} onChange={e => setTestBody(e.target.value)} className="bg-white" />
-                    </div>
-                </div>
-                <Button 
-                    className="w-full h-14 text-lg font-black shadow-lg uppercase tracking-tight" 
-                    onClick={handleSendTestPush}
-                    disabled={!token || isSending}
-                >
-                    {isSending ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Smartphone className="mr-2 h-6 w-6" />}
-                    Send Real Push Now
-                </Button>
+            <CardContent className="text-center py-2">
+                <p className="text-4xl font-black text-primary">{allMembers.length}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mt-2">Active FCM Device Tokens</p>
             </CardContent>
-            <CardFooter className="bg-white/50 border-t p-4 flex gap-3 text-[10px] text-slate-500">
-                <Info className="h-4 w-4 shrink-0 text-primary" />
-                <p>Background notifications (FCM) on <strong>iOS</strong> require the PWA to be "Added to Home Screen" and minimized to the background or locked.</p>
-            </CardFooter>
-            </Card>
-        </div>
+        </Card>
       </div>
+
+      <Separator />
+
+      {/* Dispatch Console */}
+      <Card className="shadow-xl border-2 border-primary/20">
+        <CardHeader className="bg-slate-900 text-white p-8">
+            <CardTitle className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                <Send className="h-6 w-6 text-primary" /> Dispatch Terminal
+            </CardTitle>
+            <CardDescription className="text-slate-400">Configure and send real-time alerts across the network.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-8 space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Alert Headline</Label>
+                    <Input value={testTitle} onChange={e => setTestTitle(e.target.value)} className="h-12 text-lg font-bold" />
+                </div>
+                <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Alert Body</Label>
+                    <Input value={testBody} onChange={e => setTestBody(e.target.value)} className="h-12" />
+                </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <Button 
+                    variant="outline"
+                    className="h-16 flex-1 text-lg font-black border-2 rounded-2xl group transition-all"
+                    disabled={!token || isSending}
+                    onClick={handleSendSelf}
+                >
+                    <Smartphone className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform" />
+                    Push to this Device
+                </Button>
+                <Button 
+                    className="h-16 flex-1 text-lg font-black shadow-xl rounded-2xl bg-primary group transition-all"
+                    disabled={allMembers.length === 0 || isSending}
+                    onClick={handleBroadcast}
+                >
+                    {isSending ? <Loader2 className="mr-3 h-6 w-6 animate-spin" /> : <Users className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform" />}
+                    Broadcast to All Members
+                </Button>
+            </div>
+        </CardContent>
+        <CardFooter className="bg-slate-50 border-t p-4 flex gap-3 text-[10px] text-slate-500">
+            <Info className="h-4 w-4 shrink-0 text-primary" />
+            <p>Broadcasts only target <strong>approved</strong> members with active PWA tokens. iOS delivery requires the app to be added to the Home Screen.</p>
+        </CardFooter>
+      </Card>
     </div>
   );
 }

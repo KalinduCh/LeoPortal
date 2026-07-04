@@ -31,6 +31,7 @@ export async function createUserProfile(
     photoUrl: photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
     membershipFeeStatus: 'pending',
     membershipFeeAmountPaid: 0,
+    fcmToken: null,
     permissions: role === 'admin' ? { 
         members: true,
         events: true,
@@ -75,7 +76,7 @@ export async function getUserProfile(uid: string): Promise<User | null> {
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
         mobileNumber: data.mobileNumber,
-        fcmToken: data.fcmToken, 
+        fcmToken: data.fcmToken || null, 
         pushSubscription: data.pushSubscription, 
         membershipFeeStatus: data.membershipFeeStatus || 'pending',
         membershipFeeAmountPaid: data.membershipFeeAmountPaid || 0,
@@ -89,6 +90,11 @@ export async function getUserProfile(uid: string): Promise<User | null> {
      return userProfile;
   }
   return null;
+}
+
+export async function updateFcmToken(userId: string, token: string | null): Promise<void> {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, { fcmToken: token });
 }
 
 export async function getAllUsers(): Promise<User[]> {
@@ -111,7 +117,7 @@ export async function getAllUsers(): Promise<User[]> {
             dateOfBirth: data.dateOfBirth,
             gender: data.gender,
             mobileNumber: data.mobileNumber,
-            fcmToken: data.fcmToken,
+            fcmToken: data.fcmToken || null,
             pushSubscription: data.pushSubscription,
             membershipFeeStatus: data.membershipFeeStatus || 'pending',
             membershipFeeAmountPaid: data.membershipFeeAmountPaid || 0,
@@ -125,9 +131,6 @@ export async function getAllUsers(): Promise<User[]> {
     return fetchedUsers.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
-/**
- * Fetches all users relevant to Entrivo management.
- */
 export async function getEntrivoOrganizers(): Promise<User[]> {
     const usersRef = collection(db, "users");
     const querySnapshot = await getDocs(usersRef);
@@ -179,10 +182,6 @@ export async function approveUser(uid: string): Promise<void> {
     await updateUserProfile(uid, { status: 'approved' });
 }
 
-/**
- * Rejects a user and removes them from the database to maintain security isolation.
- * Stricly deletes the document as requested.
- */
 export async function rejectUser(uid: string): Promise<void> {
     const userRef = doc(db, 'users', uid);
     await deleteDoc(userRef);
@@ -196,9 +195,4 @@ export async function deleteUserProfile(uid: string): Promise<void> {
 export async function updatePushSubscription(userId: string, subscription: any): Promise<void> {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, { pushSubscription: subscription });
-}
-
-export async function updateFcmToken(userId: string, token: string | null): Promise<void> {
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, { fcmToken: token });
 }

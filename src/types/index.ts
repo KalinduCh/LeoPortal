@@ -28,7 +28,7 @@ export interface User {
   gender?: string;
   mobileNumber?: string;
   badges?: BadgeId[];
-  fcmToken?: string; 
+  fcmToken?: string | null; 
   pushSubscription?: any; 
   membershipFeeStatus?: 'paid' | 'pending' | 'partial';
   membershipFeeAmountPaid?: number;
