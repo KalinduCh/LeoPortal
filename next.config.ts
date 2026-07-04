@@ -10,6 +10,7 @@ const withPWA = require('next-pwa')({
     skipWaiting: true,
     disable: process.env.NODE_ENV === 'development',
     sw: 'firebase-messaging-sw.js',
+    customWorkerDir: 'src/workers', // We can move custom logic here if needed
 });
 
 const nextConfig: NextConfig = {

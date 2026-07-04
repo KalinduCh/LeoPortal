@@ -22,6 +22,7 @@ import {
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { FirebaseErrorListener } from "@/components/FirebaseErrorListener";
+import { PushNotificationManager } from "@/components/notifications/PushNotificationManager";
 
 export default function AuthenticatedLayout({
   children,
@@ -153,6 +154,7 @@ export default function AuthenticatedLayout({
       </AlertDialog>
 
       <FirebaseErrorListener />
+      <PushNotificationManager />
     </>
   );
 }
