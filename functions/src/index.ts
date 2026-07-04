@@ -22,42 +22,57 @@ const transporter = nodemailer.createTransport({
 const sendPushToUsers = async (userIds: string[], title: string, body: string, link: string = "/dashboard") => {
   if (userIds.length === 0) return;
 
-  const usersSnap = await db.collection("users")
-    .where(admin.firestore.FieldPath.documentId(), "in", userIds.slice(0, 500))
-    .get();
+  // Split userIds into chunks of 500 for Firestore "in" query
+  const chunks = [];
+  for (let i = 0; i < userIds.length; i += 500) {
+    chunks.push(userIds.slice(i, i + 500));
+  }
 
-  const tokens: string[] = [];
-  usersSnap.forEach(doc => {
-    const data = doc.data();
-    if (data.fcmToken) tokens.push(data.fcmToken);
-  });
+  for (const chunk of chunks) {
+    const usersSnap = await db.collection("users")
+      .where(admin.firestore.FieldPath.documentId(), "in", chunk)
+      .get();
 
-  if (tokens.length === 0) return;
+    const tokens: string[] = [];
+    const tokenToUserIdMap: { [token: string]: string } = {};
 
-  const message: admin.messaging.MulticastMessage = {
-    tokens,
-    notification: { title, body },
-    webpush: {
-      fcmOptions: { link },
-      notification: { icon: "https://i.imgur.com/MP1YFNf.png" },
-    },
-  };
-
-  try {
-    const response = await messaging.sendEachForMulticast(message);
-    // Cleanup invalid tokens
-    const tokensToRemove: Promise<any>[] = [];
-    response.responses.forEach((resp, idx) => {
-        if (!resp.success && (resp.error?.code === 'messaging/invalid-registration-token' || resp.error?.code === 'messaging/registration-token-not-registered')) {
-            const userId = usersSnap.docs.find(d => d.data().fcmToken === tokens[idx])?.id;
-            if (userId) {
-                tokensToRemove.push(db.collection("users").doc(userId).update({ fcmToken: admin.firestore.FieldValue.delete() }));
-            }
-        }
+    usersSnap.forEach(doc => {
+      const data = doc.data();
+      if (data.fcmToken) {
+        tokens.push(data.fcmToken);
+        tokenToUserIdMap[data.fcmToken] = doc.id;
+      }
     });
-    await Promise.all(tokensToRemove);
-  } catch (error) {
-    console.error("PUSH_DISPATCH_FAILURE:", error);
+
+    if (tokens.length === 0) continue;
+
+    const message: admin.messaging.MulticastMessage = {
+      tokens,
+      notification: { title, body },
+      webpush: {
+        fcmOptions: { link },
+        notification: { icon: "https://i.imgur.com/MP1YFNf.png" },
+      },
+    };
+
+    try {
+      const response = await messaging.sendEachForMulticast(message);
+
+      // Cleanup invalid tokens
+      const tokensToRemove: Promise<any>[] = [];
+      response.responses.forEach((resp, idx) => {
+          if (!resp.success && (resp.error?.code === 'messaging/invalid-registration-token' || resp.error?.code === 'messaging/registration-token-not-registered')) {
+              const token = tokens[idx];
+              const userId = tokenToUserIdMap[token];
+              if (userId) {
+                  tokensToRemove.push(db.collection("users").doc(userId).update({ fcmToken: admin.firestore.FieldValue.delete() }));
+              }
+          }
+      });
+      await Promise.all(tokensToRemove);
+    } catch (error) {
+      console.error("PUSH_DISPATCH_FAILURE:", error);
+    }
   }
 };
 
@@ -70,7 +85,7 @@ export const onEventCreated = functions.firestore
     const event = snap.data();
     const approvedUsers = await db.collection("users").where("status", "==", "approved").get();
     const userIds = approvedUsers.docs.map(d => d.id);
-    await sendPushToUsers(userIds, "New Event Published!", `Join us for ${event.name}! Check the portal for details.`);
+    await sendPushToUsers(userIds, "New Event Published!", `Join us for ${event.name}! Check the portal for details.`, "/calendar");
   });
 
 /**
@@ -82,7 +97,7 @@ export const onEventDeleted = functions.firestore
     const event = snap.data();
     const approvedUsers = await db.collection("users").where("status", "==", "approved").get();
     const userIds = approvedUsers.docs.map(d => d.id);
-    await sendPushToUsers(userIds, "Event Cancelled", `The event "${event.name}" has been removed from the calendar.`);
+    await sendPushToUsers(userIds, "Event Cancelled", `The event "${event.name}" has been removed from the calendar.`, "/calendar");
   });
 
 /**
@@ -104,14 +119,17 @@ export const sendBirthdayWishes = functions.pubsub.schedule("0 9 * * *")
   .timeZone("Asia/Colombo")
   .onRun(async () => {
     const today = new Date();
-    const todayStr = today.toISOString().slice(5, 10); // MM-DD
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayMMDD = `${mm}-${dd}`;
     
     const usersSnap = await db.collection("users").where("status", "==", "approved").get();
     
     for (const doc of usersSnap.docs) {
         const user = doc.data();
-        if (user.dateOfBirth && user.dateOfBirth.includes(todayStr)) {
-            await sendPushToUsers([doc.id], `Happy Birthday, ${user.name}!`, "Wishing you a fantastic day from the Leo Club of Athugalpura! 🎉");
+        // Assuming dateOfBirth is stored as YYYY-MM-DD or MM-DD
+        if (user.dateOfBirth && user.dateOfBirth.includes(todayMMDD)) {
+            await sendPushToUsers([doc.id], `Happy Birthday, ${user.name}!`, "Wishing you a fantastic day from the Leo Club of Athugalpura! 🎉", "/profile");
         }
     }
   });

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { User, CommunicationGroup } from '@/types';
+import type { User, CommunicationGroup, Event } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -13,14 +13,17 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Mail, Users, Send, Loader2, Sparkles, Search, Info, Edit, PlusCircle, Settings, Trash2, Paperclip, X } from "lucide-react";
+import { Mail, Users, Send, Loader2, Sparkles, Search, Info, Edit, PlusCircle, Settings, Trash2, Paperclip, X, Bell, Calendar } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { generateCommunication, type GenerateCommunicationInput } from '@/ai/flows/generate-communication-flow';
 import { getGroups, createGroup, updateGroup, deleteGroup } from '@/services/groupService';
 import { getAllUsers } from '@/services/userService';
+import { getEvents } from '@/services/eventService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -36,6 +39,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
+import { auth as firebaseAuth } from '@/lib/firebase/clientApp';
 
 const MAX_FILE_SIZE_MB = 2;
 const MAX_TOTAL_SIZE_MB = 7;
@@ -45,8 +49,12 @@ const fileSchema = z.custom<File>(f => f instanceof File, "Expected a file.")
 
 const emailFormSchema = z.object({
   subject: z.string().min(3, { message: "Subject must be at least 3 characters." }),
-  body: z.string().min(10, { message: "Email body must be at least 10 characters." }),
-  recipientUserIds: z.array(z.string()).min(1, { message: "Please select at least one recipient." }),
+  body: z.string().min(10, { message: "Body must be at least 10 characters." }),
+  recipientType: z.enum(['all', 'executive', 'participants', 'selected']).default('selected'),
+  recipientUserIds: z.array(z.string()).optional(),
+  eventId: z.string().optional(),
+  sendEmail: z.boolean().default(true),
+  sendPush: z.boolean().default(false),
   attachments: z.array(fileSchema).optional()
     .refine(files => {
         if (!files) return true;
@@ -71,6 +79,7 @@ export default function CommunicationPage() {
   const { toast } = useToast();
 
   const [members, setMembers] = useState<User[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [groups, setGroups] = useState<CommunicationGroup[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -91,10 +100,19 @@ export default function CommunicationPage() {
 
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailFormSchema),
-    defaultValues: { subject: "", body: "", recipientUserIds: [], attachments: [] },
+    defaultValues: {
+        subject: "",
+        body: "",
+        recipientType: 'selected',
+        recipientUserIds: [],
+        attachments: [],
+        sendEmail: true,
+        sendPush: false
+    },
   });
   
   const watchedAttachments = form.watch('attachments') || [];
+  const watchedRecipientType = form.watch('recipientType');
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
@@ -107,11 +125,13 @@ export default function CommunicationPage() {
   const fetchData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-        const [fetchedGroups, fetchedUsers] = await Promise.all([
+        const [fetchedGroups, fetchedUsers, fetchedEvents] = await Promise.all([
             getGroups(),
             getAllUsers(),
+            getEvents(),
         ]);
         setGroups(fetchedGroups);
+        setEvents(fetchedEvents);
         const approvedMembers = fetchedUsers.filter(u => u.status === 'approved' && ['admin', 'member', 'super_admin'].includes(u.role)).sort((a,b) => (a.name || "").localeCompare(b.name || ""));
         setMembers(approvedMembers);
     } catch (error) {
@@ -161,7 +181,7 @@ export default function CommunicationPage() {
         const result = await generateCommunication(input);
         form.setValue("subject", result.subject, { shouldValidate: true });
         form.setValue("body", result.body, { shouldValidate: true });
-        toast({ title: "Content Generated", description: "The email content has been generated." });
+        toast({ title: "Content Generated", description: "The content has been generated." });
     } catch (error) {
         console.error("Error generating AI content:", error);
         toast({ title: "AI Generation Failed", description: "Could not generate content. Please try again.", variant: "destructive"});
@@ -187,64 +207,113 @@ export default function CommunicationPage() {
     });
 
   const onSubmit = async (data: EmailFormValues) => {
-    setFormSubmitting(true);
-    
-    const recipients = data.recipientUserIds.map(userId => members.find(m => m.id === userId)).filter(Boolean) as User[];
-    const recipientEmails = recipients.map(r => r.email).filter(Boolean);
-    if(recipientEmails.length === 0) {
-        toast({ title: "No valid recipients", description: "Selected members do not have valid email addresses.", variant: "destructive"});
-        setFormSubmitting(false);
+    if (!data.sendEmail && !data.sendPush) {
+        toast({ title: "Select Method", description: "Please select at least one delivery method (Email or Push).", variant: "destructive"});
         return;
     }
-    
-    let attachmentsForApi: { filename: string, content: string, contentType: string }[] = [];
-    if (data.attachments && data.attachments.length > 0) {
-        try {
-            attachmentsForApi = await Promise.all(data.attachments.map(async (file) => ({
-                filename: file.name,
-                content: (await fileToBase64(file)).split(',')[1],
-                contentType: file.type
-            })));
-        } catch (error) {
-            toast({ title: "Attachment Error", description: "Could not process attachments. Please try again.", variant: "destructive" });
-            setFormSubmitting(false);
-            return;
-        }
+
+    if (data.recipientType === 'selected' && (!data.recipientUserIds || data.recipientUserIds.length === 0)) {
+        toast({ title: "Select Recipients", description: "Please select at least one recipient.", variant: "destructive"});
+        return;
     }
 
+    if (data.recipientType === 'participants' && !data.eventId) {
+        toast({ title: "Select Event", description: "Please select an event to target participants.", variant: "destructive"});
+        return;
+    }
+
+    setFormSubmitting(true);
 
     try {
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            to: recipientEmails.join(','), 
-            subject: data.subject, 
-            body: data.body,
-            attachments: attachmentsForApi
-        }),
-      });
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || `API request failed with status ${response.status}`);
+      if (data.sendEmail) {
+        let finalRecipients: string[] = [];
+        if (data.recipientType === 'all') {
+            finalRecipients = members.map(m => m.email).filter(Boolean);
+        } else if (data.recipientType === 'executive') {
+            finalRecipients = members.filter(m => m.role === 'admin' || m.role === 'super_admin').map(m => m.email).filter(Boolean);
+        } else if (data.recipientType === 'selected') {
+            finalRecipients = (data.recipientUserIds || []).map(id => members.find(m => m.id === id)?.email).filter(Boolean) as string[];
+        }
+        // Email for 'participants' type is complex via client-side fetch, usually better to handle via dedicated API if needed.
+        // For now, we only support Email for defined lists.
+
+        if (finalRecipients.length > 0) {
+            let attachmentsForApi: { filename: string, content: string, contentType: string }[] = [];
+            if (data.attachments && data.attachments.length > 0) {
+                attachmentsForApi = await Promise.all(data.attachments.map(async (file) => ({
+                    filename: file.name,
+                    content: (await fileToBase64(file)).split(',')[1],
+                    contentType: file.type
+                })));
+            }
+
+            const emailResponse = await fetch('/api/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: finalRecipients.join(','),
+                    subject: data.subject,
+                    body: data.body,
+                    attachments: attachmentsForApi
+                }),
+            });
+
+            if (!emailResponse.ok) {
+                const errorData = await emailResponse.json();
+                throw new Error(errorData.details || `Email API failed with status ${emailResponse.status}`);
+            }
+            toast({ title: "Emails Sent", description: `Successfully queued for ${finalRecipients.length} members.` });
+        } else if (data.recipientType !== 'participants') {
+            toast({ title: "No valid emails", description: "No members with email addresses found in the selected group.", variant: "destructive"});
+        }
       }
 
-      toast({ title: "Emails Sent", description: `Successfully sent email to ${recipients.length} member(s).` });
-      form.reset();
-      form.setValue("recipientUserIds", []);
+      if (data.sendPush) {
+          const pushResponse = await fetch('/api/notifications/send', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${idToken}`
+              },
+              body: JSON.stringify({
+                  title: data.subject,
+                  body: data.body.substring(0, 200),
+                  userIds: data.recipientUserIds,
+                  type: data.recipientType,
+                  eventId: data.eventId
+              }),
+          });
+
+          if (!pushResponse.ok) {
+              const errorData = await pushResponse.json();
+              throw new Error(errorData.error || `Push Notification failed with status ${pushResponse.status}`);
+          }
+
+          const result = await pushResponse.json();
+          toast({ title: "Push Notifications Sent", description: `Successfully sent to ${result.recipientCount || 0} registered devices.` });
+      }
+
+      form.reset({
+        ...form.getValues(),
+        subject: "",
+        body: "",
+        recipientUserIds: [],
+        attachments: []
+      });
       setAiTopic("");
 
     } catch (error: any) {
-      console.error("Failed to send email batch:", error);
-      toast({ title: "Email Send Error", description: `Failed to send emails: ${error.message}`, variant: "destructive" });
+      console.error("Communication Dispatch Error:", error);
+      toast({ title: "Dispatch Failed", description: error.message, variant: "destructive" });
     } finally {
       setFormSubmitting(false);
     }
   };
 
   const handleSelectAll = (checked: boolean) => {
-    const currentSelection = new Set(form.getValues("recipientUserIds"));
+    const currentSelection = new Set(form.getValues("recipientUserIds") || []);
     const filteredIds = new Set(filteredMembers.map(m => m.id));
 
     if (checked) {
@@ -256,13 +325,14 @@ export default function CommunicationPage() {
   };
   
   const handleSelectGroup = (memberIds: string[]) => {
-    const currentSelection = new Set(form.getValues("recipientUserIds"));
+    form.setValue("recipientType", 'selected');
+    const currentSelection = new Set(form.getValues("recipientUserIds") || []);
     memberIds.forEach(id => currentSelection.add(id));
     form.setValue("recipientUserIds", Array.from(currentSelection), { shouldValidate: true });
     toast({ title: "Group Selected", description: `${memberIds.length} members added to recipients.` });
   };
   
-  const watchedRecipients = form.watch("recipientUserIds");
+  const watchedRecipients = form.watch("recipientUserIds") || [];
 
   const handleOpenGroupForm = (group?: CommunicationGroup) => {
     if (group) {
@@ -327,23 +397,77 @@ export default function CommunicationPage() {
   
   return (
     <div className="container mx-auto py-4 sm:py-8 space-y-6">
-      <div className="flex items-center justify-between"><h1 className="text-2xl sm:text-3xl font-bold font-headline">Member Communication</h1></div>
+      <div className="flex items-center justify-between"><h1 className="text-2xl sm:text-3xl font-bold font-headline">Communication Hub</h1></div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card className="shadow-lg">
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div>
-                  <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary" /> Select Recipients</CardTitle>
-                  <CardDescription className="text-sm">Choose who will receive this official email.</CardDescription>
+                  <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary" /> Target Audience</CardTitle>
+                  <CardDescription className="text-sm">Who should receive this message?</CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              {isLoadingData ? (<Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />) : members.length > 0 ? (
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="recipientType"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="grid grid-cols-1 md:grid-cols-4 gap-4"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0 rounded-xl border p-4 bg-muted/20 cursor-pointer">
+                          <FormControl><RadioGroupItem value="all" /></FormControl>
+                          <FormLabel className="font-bold cursor-pointer">All Approved Members</FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0 rounded-xl border p-4 bg-muted/20 cursor-pointer">
+                          <FormControl><RadioGroupItem value="executive" /></FormControl>
+                          <FormLabel className="font-bold cursor-pointer">Executive Committee</FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0 rounded-xl border p-4 bg-muted/20 cursor-pointer">
+                          <FormControl><RadioGroupItem value="participants" /></FormControl>
+                          <FormLabel className="font-bold cursor-pointer">Event Participants</FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0 rounded-xl border p-4 bg-muted/20 cursor-pointer">
+                          <FormControl><RadioGroupItem value="selected" /></FormControl>
+                          <FormLabel className="font-bold cursor-pointer">Selected Members / Groups</FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {watchedRecipientType === 'participants' && (
+                  <FormField
+                    control={form.control}
+                    name="eventId"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="font-bold flex items-center"><Calendar className="mr-2 h-4 w-4"/> Select Event</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choose an event..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {events.map(event => (
+                                        <SelectItem key={event.id} value={event.id}>{event.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormDescription>Push notifications will be sent to members who marked attendance for this event.</FormDescription>
+                        </FormItem>
+                    )}
+                  />
+              )}
+
+              {watchedRecipientType === 'selected' && (
                 <>
-                  <div className="mb-4">
-                      <Label className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Quick Select Groups</Label>
+                  <div className="pt-4 border-t">
+                      <Label className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Mailing Groups</Label>
                       <div className="flex flex-wrap items-center gap-2 pt-2">
                         {groups.map(group => (
                            <Button 
@@ -364,7 +488,7 @@ export default function CommunicationPage() {
                         ))}
                         <Dialog open={isGroupFormOpen} onOpenChange={setIsGroupFormOpen}>
                           <DialogTrigger asChild>
-                             <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => handleOpenGroupForm()}> <Settings className="mr-2 h-4 w-4"/>Manage List Groups</Button>
+                             <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => handleOpenGroupForm()}> <Settings className="mr-2 h-4 w-4"/>Manage Groups</Button>
                           </DialogTrigger>
                            <DialogContent className="sm:max-w-3xl">
                              <DialogHeader><DialogTitle>Communication Groups</DialogTitle></DialogHeader>
@@ -435,89 +559,97 @@ export default function CommunicationPage() {
                     ) : (<p className="text-center text-sm text-muted-foreground py-10 italic">No users match your criteria.</p>)}
                   </ScrollArea><FormMessage className="mt-2">{form.formState.errors.recipientUserIds?.message}</FormMessage>
                 </>
-              ) : (<p className="text-center text-muted-foreground py-10 italic">No approved member accounts available.</p>)}
+              )}
             </CardContent>
           </Card>
           
-          <Card className="shadow-lg border-primary/10"><CardHeader className="bg-primary/5"><CardTitle className="flex items-center text-xl text-primary"><Sparkles className="mr-2 h-5 w-5" /> AI Content Assistant</CardTitle></CardHeader><CardContent className="space-y-4 pt-6"><Alert className="bg-blue-50 border-blue-100"><Info className="h-4 w-4 text-primary" /><AlertDescription className="text-xs leading-relaxed text-blue-800">Briefly describe the topic (e.g. "beach cleanup reminder") and the AI will draft a professional, engaging club email for you.</AlertDescription></Alert><div><Label htmlFor="ai-topic" className="font-bold">Topic for AI Draft</Label><div className="flex items-center gap-2 mt-1"><Input id="ai-topic" placeholder="e.g. Monthly meeting reminder for next Saturday at 10 AM" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} disabled={isGenerating || formSubmitting} className="rounded-xl"/><Button type="button" onClick={handleGenerateContent} disabled={isGenerating || formSubmitting} className="rounded-xl shadow-md">{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Draft Content</Button></div></div></CardContent></Card>
-          <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Official Email</CardTitle><CardDescription className="text-sm">Finalize the subject and body before sending.</CardDescription></CardHeader><CardContent className="space-y-4">
-            <FormField control={form.control} name="subject" render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-bold">Subject Line</FormLabel>
-                <FormControl>
-                  <Input placeholder="Important: Club Update Regarding..." {...field} className="rounded-xl" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}/>
-            <FormField control={form.control} name="body" render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-bold">Message Body</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="Dear members, we are writing to inform you that..." className="resize-y min-h-[200px] rounded-xl" {...field}/>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}/>
-            <FormItem><FormLabel className="flex items-center font-bold"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Append Signature</FormLabel><Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}><FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choose a signature template" /></SelectTrigger></FormControl><SelectContent>{Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (<SelectItem key={key} value={key}>{template.label}</SelectItem>))}</SelectContent></Select><FormDescription className="text-xs">This will be added to the end of your message.</FormDescription></FormItem>
+          <Card className="shadow-lg border-primary/10"><CardHeader className="bg-primary/5"><CardTitle className="flex items-center text-xl text-primary"><Sparkles className="mr-2 h-5 w-5" /> AI Content Assistant</CardTitle></CardHeader><CardContent className="space-y-4 pt-6"><Alert className="bg-blue-50 border-blue-100"><Info className="h-4 w-4 text-primary" /><AlertDescription className="text-xs leading-relaxed text-blue-800">Briefly describe the topic and the AI will draft a professional club communication for you.</AlertDescription></Alert><div><Label htmlFor="ai-topic" className="font-bold">Topic for AI Draft</Label><div className="flex items-center gap-2 mt-1"><Input id="ai-topic" placeholder="e.g. Monthly meeting reminder for next Saturday at 10 AM" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} disabled={isGenerating || formSubmitting} className="rounded-xl"/><Button type="button" onClick={handleGenerateContent} disabled={isGenerating || formSubmitting} className="rounded-xl shadow-md">{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Draft Content</Button></div></div></CardContent></Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <Card className="shadow-lg h-full"><CardHeader><CardTitle className="flex items-center text-xl"><Edit className="mr-2 h-5 w-5 text-primary" /> Compose Content</CardTitle><CardDescription className="text-sm">Enter the message details.</CardDescription></CardHeader><CardContent className="space-y-4">
+                <FormField control={form.control} name="subject" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Subject / Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Important: Club Update Regarding..." {...field} className="rounded-xl" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="body" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Message Content</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Dear members, we are writing to inform you that..." className="resize-y min-h-[200px] rounded-xl" {...field}/>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                <FormItem><FormLabel className="flex items-center font-bold"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Append Signature (Email Only)</FormLabel><Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}><FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choose a signature template" /></SelectTrigger></FormControl><SelectContent>{Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (<SelectItem key={key} value={key}>{template.label}</SelectItem>))}</SelectContent></Select><FormDescription className="text-xs">This will be added to the end of your email message.</FormDescription></FormItem>
+              </CardContent></Card>
+            </div>
             
-            <FormField
-              control={form.control}
-              name="attachments"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center font-bold"><Paperclip className="mr-1.5 h-4 w-4 text-muted-foreground" /> Add Attachments</FormLabel>
-                  <FormControl>
-                      <div>
-                        <input
-                            type="file"
-                            multiple
-                            ref={fileInputRef}
-                            className="hidden"
-                            onChange={(e) => {
-                                const newFiles = Array.from(e.target.files || []);
-                                const currentFiles = field.value || [];
-                                field.onChange([...currentFiles, ...newFiles]);
-                            }}
-                        />
-                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={formSubmitting} className="rounded-xl">
-                           <PlusCircle className="mr-2 h-4 w-4" /> Choose Files
-                        </Button>
+            <div className="space-y-6">
+              <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl font-bold"><Send className="mr-2 h-5 w-5 text-primary" /> Delivery Channels</CardTitle></CardHeader><CardContent className="space-y-4">
+                  <FormField control={form.control} name="sendEmail" render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-xl border p-4 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base font-bold flex items-center"><Mail className="mr-2 h-4 w-4" /> Send Email</FormLabel>
+                        <FormDescription className="text-xs">Via SendGrid (Official Communication)</FormDescription>
                       </div>
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                     Maximum total file size: {MAX_TOTAL_SIZE_MB}MB.
-                  </FormDescription>
-                  {watchedAttachments.length > 0 && (
-                    <div className="space-y-2 pt-2">
-                        {watchedAttachments.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 text-sm rounded-xl border bg-slate-50 shadow-sm">
-                                <span className="truncate pr-2 font-medium">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:bg-rose-50" onClick={() => {
-                                    const newFiles = [...watchedAttachments];
-                                    newFiles.splice(index, 1);
-                                    field.onChange(newFiles);
-                                }}>
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                         <div className="text-[10px] font-bold text-muted-foreground pt-1 uppercase tracking-widest">
-                            Storage Used: {(totalAttachmentSize / 1024 / 1024).toFixed(2)}MB / {MAX_TOTAL_SIZE_MB}MB
-                         </div>
-                    </div>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent></Card>
-          
-          <div className="flex justify-end"><Button type="submit" className="w-full sm:w-auto h-14 px-10 text-lg font-black shadow-xl rounded-2xl" disabled={formSubmitting || isLoadingData || watchedRecipients.length === 0}>{formSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}{formSubmitting ? "Delivering..." : `Dispatch to ${watchedRecipients.length} Recipient(s)`}</Button></div>
+                      <FormControl><Switch checked={field.value} onCheckedChange={field.onChange}/></FormControl>
+                    </FormItem>
+                  )}/>
+
+                  <FormField control={form.control} name="sendPush" render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-xl border p-4 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base font-bold flex items-center"><Bell className="mr-2 h-4 w-4" /> Push Notification</FormLabel>
+                        <FormDescription className="text-xs">Direct to Mobile/Desktop Devices</FormDescription>
+                      </div>
+                      <FormControl><Switch checked={field.value} onCheckedChange={field.onChange}/></FormControl>
+                    </FormItem>
+                  )}/>
+
+                  <FormField control={form.control} name="attachments" render={({ field }) => (
+                    <FormItem className="pt-2">
+                      <FormLabel className="flex items-center font-bold"><Paperclip className="mr-1.5 h-4 w-4 text-muted-foreground" /> Attachments (Email Only)</FormLabel>
+                      <FormControl>
+                          <div>
+                            <input type="file" multiple ref={fileInputRef} className="hidden" onChange={(e) => { const newFiles = Array.from(e.target.files || []); const currentFiles = field.value || []; field.onChange([...currentFiles, ...newFiles]); }}/>
+                            <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={formSubmitting || !form.watch('sendEmail')} className="rounded-xl w-full">
+                               <PlusCircle className="mr-2 h-4 w-4" /> Choose Files
+                            </Button>
+                          </div>
+                      </FormControl>
+                      {watchedAttachments.length > 0 && (
+                        <div className="space-y-2 pt-2">
+                            {watchedAttachments.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between p-2 text-[10px] rounded-lg border bg-slate-50">
+                                    <span className="truncate pr-2 font-medium">{file.name}</span>
+                                    <Button type="button" variant="ghost" size="icon" className="h-5 w-5 text-rose-500" onClick={() => { const newFiles = [...watchedAttachments]; newFiles.splice(index, 1); field.onChange(newFiles); }}>
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}/>
+              </CardContent></Card>
+
+              <Button type="submit" className="w-full h-20 text-xl font-black shadow-xl rounded-2xl" disabled={formSubmitting || isLoadingData}>
+                {formSubmitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Send className="mr-2 h-6 w-6" />}
+                {formSubmitting ? "Dispatching..." : `Send Communication`}
+              </Button>
+            </div>
+          </div>
         </form>
       </Form>
        <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
-        <AlertDialogContent className="rounded-2xl border-none shadow-2xl"><AlertDialogHeader><AlertDialogTitle>Delete Communication Group?</AlertDialogTitle><AlertDialogDescription>You are about to remove the "{groupToDelete?.name}" mailing group. This will not affect the user accounts, only the group list.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteGroup} className={cn(buttonVariants({ variant: "destructive" }), "rounded-xl")}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Delete Group'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl border-none shadow-2xl"><AlertDialogHeader><AlertDialogTitle>Delete Communication Group?</AlertDialogTitle><AlertDialogDescription>You are about to remove the "{groupToDelete?.name}" mailing group.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteGroup} className={cn(buttonVariants({ variant: "destructive" }), "rounded-xl")}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Delete Group'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
     </div>
   );
