@@ -1,3 +1,4 @@
+
 // src/hooks/use-fcm.ts
 import { useEffect, useState, useCallback } from 'react';
 import { getMessaging, getToken, isSupported } from 'firebase/messaging';
@@ -6,7 +7,6 @@ import type { User } from '@/types';
 import { updateFcmToken } from '@/services/userService';
 import { useToast } from './use-toast';
 
-// Web Push Certificate Public Key from Firebase Console
 const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BIc9bH71DzSMqmg3pBlve0gm14FLcVAh4EacFVw4Ovg4uEd3k11ETlLIimkEinqQgObmFoOLWdKb4ZKCN1Nn-oM";
 
 export function useFcm(user: User | null) {
@@ -23,18 +23,18 @@ export function useFcm(user: User | null) {
 
   const retrieveToken = useCallback(async (manualRequest = false) => {
     if (typeof window === 'undefined' || !user || !('serviceWorker' in navigator) || !('Notification' in window)) {
-        if (manualRequest) toast({ title: "Unsupported", description: "This browser does not support push notifications.", variant: "destructive" });
+        if (manualRequest) toast({ title: "Unsupported", description: "Browser does not support notifications.", variant: "destructive" });
         return null;
     }
 
     setIsRetrieving(true);
     try {
       const supported = await isSupported();
-      if (!supported) throw new Error("FCM is not supported in this environment.");
+      if (!supported) throw new Error("FCM not supported.");
 
       const registration = await navigator.serviceWorker.ready;
-      
       const messaging = getMessaging(app);
+      
       const currentToken = await getToken(messaging, { 
           vapidKey: VAPID_KEY,
           serviceWorkerRegistration: registration
@@ -42,25 +42,23 @@ export function useFcm(user: User | null) {
 
       if (currentToken) {
         setToken(currentToken);
-        // Only update if it's different to prevent redundant writes
         if (user.fcmToken !== currentToken) {
             await updateFcmToken(user.id, currentToken);
         }
-        if (manualRequest) toast({ title: "Token Active", description: "FCM token retrieved and secured." });
+        if (manualRequest) toast({ title: "Token Secured", description: "Your device is now synced." });
         return currentToken;
       } else {
-        throw new Error("No registration token available. Request permission first.");
+        throw new Error("No token returned.");
       }
     } catch (err: any) {
-      console.warn('FCM Error:', err);
-      if (manualRequest) toast({ title: "FCM Retrieval Error", description: err.message, variant: "destructive" });
+      console.warn('FCM_ERROR:', err);
+      if (manualRequest) toast({ title: "Retrieval Failed", description: err.message, variant: "destructive" });
       return null;
     } finally {
       setIsRetrieving(false);
     }
   }, [user, toast]);
 
-  // Handle auto-retrieval when permission is granted
   useEffect(() => {
     if (user && notificationPermissionStatus === 'granted' && !token) {
       retrieveToken(false);
@@ -78,11 +76,11 @@ export function useFcm(user: User | null) {
           await retrieveToken(true);
           return true;
         } else {
-          toast({ title: "Notifications Blocked", description: "Please enable notifications in site settings to receive updates.", variant: "destructive" });
+          toast({ title: "Access Blocked", description: "Notifications are disabled in your browser.", variant: "destructive" });
           return false;
         }
     } catch (error: any) {
-        console.error("Permission Request Error:", error);
+        console.error("Permission Error:", error);
         return false;
     }
   };

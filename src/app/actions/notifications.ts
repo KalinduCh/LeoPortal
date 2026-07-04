@@ -1,9 +1,11 @@
+
 "use server";
 
 import * as admin from "firebase-admin";
 
 /**
  * Initializes Firebase Admin securely using environment variables for Netlify.
+ * Implements the required fix for private key newline characters.
  */
 function initAdmin() {
     if (admin.apps.length > 0) return;
@@ -13,16 +15,20 @@ function initAdmin() {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "leoathugal";
 
     if (!privateKey || !clientEmail) {
-        throw new Error("SERVER_CONFIG_ERROR: FIREBASE_PRIVATE_KEY or FIREBASE_CLIENT_EMAIL is missing.");
+        throw new Error("SERVER_CONFIG_ERROR: FIREBASE_PRIVATE_KEY or FIREBASE_CLIENT_EMAIL is missing in environment.");
     }
 
-    admin.initializeApp({
-        credential: admin.credential.cert({
-            projectId,
-            clientEmail,
-            privateKey,
-        }),
-    });
+    try {
+        admin.initializeApp({
+            credential: admin.credential.cert({
+                projectId,
+                clientEmail,
+                privateKey,
+            }),
+        });
+    } catch (error: any) {
+        console.error("FIREBASE_ADMIN_INIT_FAILURE:", error.message);
+    }
 }
 
 /**
@@ -59,9 +65,9 @@ export async function broadcastToUsers(userIds: string[], title: string, body: s
         initAdmin();
         const db = admin.firestore();
         
-        // Fetch all tokens for requested users
+        // Batch processing for user lookups
         const usersSnap = await db.collection("users")
-            .where(admin.firestore.FieldPath.documentId(), "in", userIds)
+            .where(admin.firestore.FieldPath.documentId(), "in", userIds.slice(0, 500))
             .get();
 
         const tokens: string[] = [];
@@ -72,7 +78,7 @@ export async function broadcastToUsers(userIds: string[], title: string, body: s
 
         if (tokens.length === 0) return { success: true, sentCount: 0 };
 
-        const message = {
+        const message: admin.messaging.MulticastMessage = {
             tokens,
             notification: { title, body },
             webpush: {

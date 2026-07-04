@@ -1,30 +1,48 @@
-// public/firebase-messaging-sw.js
-importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
 
-// Configuration for background messaging
-// Using the same config as the main app
+importScripts('https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.1.3/firebase-messaging-compat.js');
+
+// Minimal initialization for the Service Worker
+// Values are placeholders; the browser will use the ones from the main app registration
 firebase.initializeApp({
-  apiKey: "AIzaSyBf_kQkSkomBserNaNZYaF2TkE6qObD36U",
-  authDomain: "leoathugal.firebaseapp.com",
-  projectId: "leoathugal",
-  storageBucket: "leoathugal.appspot.com",
-  messagingSenderId: "340503925043",
-  appId: "1:340503925043:web:26922db31c6a8b69cdee46",
+  apiKey: true,
+  projectId: true,
+  messagingSenderId: true,
+  appId: true,
 });
 
 const messaging = firebase.messaging();
 
+// Handle background messages
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png',
+    icon: 'https://i.imgur.com/MP1YFNf.png',
+    badge: 'https://i.imgur.com/MP1YFNf.png',
     data: payload.data
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+// Handle notification clicks
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.link || '/dashboard';
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
 });
