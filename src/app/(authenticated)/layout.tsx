@@ -1,4 +1,3 @@
-
 // src/app/(authenticated)/layout.tsx
 "use client";
 
@@ -6,8 +5,8 @@ import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/layout/app-shell";
-import { Loader2, BellRing, Settings, HelpCircle, Wifi, WifiOff, Smartphone } from "lucide-react";
-import { usePushNotifications } from "@/hooks/use-push-notifications";
+import { Loader2, BellRing, Wifi, WifiOff, Smartphone } from "lucide-react";
+import { useFcm } from "@/hooks/use-fcm";
 import { syncOfflineAttendance } from "@/services/offlineSyncService";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -20,11 +19,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { FirebaseErrorListener } from "@/components/FirebaseErrorListener";
-
 
 export default function AuthenticatedLayout({
   children,
@@ -34,14 +31,14 @@ export default function AuthenticatedLayout({
   const { user, isLoading, isAuthOperationInProgress, adminViewMode } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { subscribeUser, permission, isIosPwaEligible } = usePushNotifications(user);
+  const { requestPermission, notificationPermissionStatus } = useFcm(user);
   const { toast } = useToast();
   
   const [isPermissionDialogOpen, setIsPermissionDialogOpen] = React.useState(false);
   const [isIosPromptOpen, setIsIosPromptOpen] = React.useState(false);
   const [isOnline, setIsOnline] = React.useState(true);
 
-  // Effect for online/offline status detection
+  // Online/Offline Detection
   React.useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
@@ -82,23 +79,24 @@ export default function AuthenticatedLayout({
     };
   }, [toast]);
 
-  // Effect to ask for notification permission
+  // Request Notification Permission
   React.useEffect(() => {
-    if (user && !isLoading && permission === 'default' && !isIosPwaEligible) {
-      const timer = setTimeout(() => setIsPermissionDialogOpen(true), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [user, isLoading, permission, isIosPwaEligible]);
-
-  // Effect to handle iOS PWA prompt
-  React.useEffect(() => {
-    if (isIosPwaEligible) {
-      const dismissed = localStorage.getItem('iosPwaPromptDismissed');
-      if (!dismissed) {
-        setIsIosPromptOpen(true);
+    if (user && !isLoading && notificationPermissionStatus === 'default') {
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+      
+      if (isIos && !isStandalone) {
+          const dismissed = localStorage.getItem('iosPwaPromptDismissed');
+          if (!dismissed) {
+              const timer = setTimeout(() => setIsIosPromptOpen(true), 5000);
+              return () => clearTimeout(timer);
+          }
+      } else {
+          const timer = setTimeout(() => setIsPermissionDialogOpen(true), 5000);
+          return () => clearTimeout(timer);
       }
     }
-  }, [isIosPwaEligible]);
+  }, [user, isLoading, notificationPermissionStatus]);
 
   React.useEffect(() => {
     if (!isLoading && !user && !isAuthOperationInProgress) {
@@ -113,13 +111,11 @@ export default function AuthenticatedLayout({
     const isAdminPage = pathname.startsWith('/admin/');
     const isEntrivoPage = pathname.startsWith('/event-access');
 
-    // 1. Strict Isolation: Entrivo users cannot access Main Portal routes
     if (user.source === 'entrivo' && !isEntrivoPage) {
         router.replace('/event-access/admin');
         return;
     }
 
-    // 2. Standard Portal Permissions
     if (user.role === 'member' && isAdminPage) {
         router.replace('/dashboard');
         return;
@@ -130,7 +126,6 @@ export default function AuthenticatedLayout({
     }
 
   }, [user, isLoading, pathname, router, adminViewMode]);
-
 
   if (isLoading || (!user && isAuthOperationInProgress && !pathname.startsWith('/login'))) {
     return (
@@ -143,7 +138,7 @@ export default function AuthenticatedLayout({
   if (!user) return null;
 
   const handleAllowNotifications = async () => {
-    const success = await subscribeUser();
+    const success = await requestPermission();
     if (success) {
         toast({ title: "Notifications Enabled", description: "You will now receive updates on tasks and events." });
     }
@@ -181,24 +176,22 @@ export default function AuthenticatedLayout({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* iOS Help Alert: Push only works if added to Home Screen */}
-      {isIosPwaEligible && (
-        <AlertDialog open={isIosPromptOpen} onOpenChange={setIsIosPromptOpen}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center">
-                        <Smartphone className="mr-2 h-5 w-5 text-primary"/> Add to Home Screen
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                        To receive notifications on iPhone, you must add this app to your Home Screen. Tap the Share icon <span className="font-bold">Square with up arrow</span> and select <span className="font-bold">"Add to Home Screen"</span>.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogAction onClick={handleDismissIosPrompt}>Got it</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-      )}
+      {/* iOS Help Alert */}
+      <AlertDialog open={isIosPromptOpen} onOpenChange={setIsIosPromptOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center">
+                      <Smartphone className="mr-2 h-5 w-5 text-primary"/> Add to Home Screen
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                      To receive notifications on iPhone, you must add this app to your Home Screen. Tap the Share icon <span className="font-bold">Square with up arrow</span> and select <span className="font-bold">"Add to Home Screen"</span>.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogAction onClick={handleDismissIosPrompt}>Got it</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
 
       <FirebaseErrorListener />
     </>

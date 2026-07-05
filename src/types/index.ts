@@ -20,7 +20,7 @@ export interface User {
   photoUrl?: string;
   role: UserRole;
   status: 'pending' | 'approved' | 'rejected';
-  source?: 'portal' | 'entrivo'; // Distinguishes between Club Portal and District Access users
+  source?: 'portal' | 'entrivo'; 
   createdAt?: string; 
   designation?: string;
   nic?: string;
@@ -29,7 +29,6 @@ export interface User {
   mobileNumber?: string;
   badges?: BadgeId[];
   fcmToken?: string; 
-  pushSubscription?: any; 
   membershipFeeStatus?: 'paid' | 'pending' | 'partial';
   membershipFeeAmountPaid?: number;
   permissions?: Partial<Record<AdminPermission, boolean>>;
@@ -78,8 +77,8 @@ export interface AttendanceRecord {
   visitorComment?: string;
   markedLatitude?: number;
   markedLongitude?: number;
-  markedByAdminId?: string; // ID of admin who manually marked this
-  markedByAdminName?: string; // Name of admin who manually marked this
+  markedByAdminId?: string; 
+  markedByAdminName?: string; 
 }
 
 export interface ProjectIdea {
@@ -132,7 +131,7 @@ export interface EventParticipantSummary {
   visitorDesignation?: string;
   visitorClub?: string;
   visitorComment?: string;
-  markedByAdminName?: string; // Name of admin who manually marked this
+  markedByAdminName?: string; 
 }
 
 export interface CommunicationGroup {
