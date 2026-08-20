@@ -50,7 +50,6 @@ const adminNavItems: NavItem[] = [
 
 const superAdminNavItems: NavItem[] = [
     ...adminNavItems,
-    { href: "/admin/notifications-test", label: "Push Tester", icon: BellRing },
     { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
