@@ -11,13 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, HandCoins, PieChart as PieChartIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, HandCoins, PieChart as PieChartIcon, TrendingUp, TrendingDown, FileText, FileBarChart } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { getAllUsers } from '@/services/userService';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
 import { getTransactions } from '@/services/financeService';
-import { format, parseISO, isValid, getYear, getMonth } from 'date-fns';
+import { format, parseISO, isValid, getYear, getMonth, isWithinInterval, startOfMonth as startOfM, endOfMonth as endOfM } from 'date-fns';
 import Papa from 'papaparse';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -25,6 +25,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { cn } from '@/lib/utils';
 
 const PIE_CHART_COLORS = ["#2563eb", "#14b8a6", "#ef4444", "#f97316", "#8b5cf6", "#3b82f6", "#06b6d4", "#ec4899", "#84cc16"];
@@ -53,6 +56,11 @@ export default function ReportsPage() {
 
   const [financeYear, setFinanceYear] = useState<string>("all");
   const [financeMonth, setFinanceMonth] = useState<string>("all");
+
+  // Monthly Summary Dialog State
+  const [isMonthlySummaryOpen, setIsMonthlySummaryOpen] = useState(false);
+  const [reportYear, setReportYear] = useState<string>(new Date().getFullYear().toString());
+  const [reportMonth, setReportMonth] = useState<string>(new Date().getMonth().toString());
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
@@ -242,6 +250,164 @@ export default function ReportsPage() {
       toast({ title: "Error", description: `Could not export data.`, variant: "destructive" });
     }
     setIsExporting(null);
+  };
+
+  const handleGenerateMonthlySummary = () => {
+    setIsExporting('monthly_summary');
+    const yearInt = parseInt(reportYear);
+    const monthInt = parseInt(reportMonth);
+    const startDate = startOfM(new Date(yearInt, monthInt));
+    const endDate = endOfM(new Date(yearInt, monthInt));
+
+    const monthLabel = months.find(m => m.value === reportMonth)?.label;
+
+    try {
+        const doc = new jsPDF();
+        doc.setFontSize(22);
+        doc.setTextColor(37, 99, 235); // Primary Blue
+        doc.text(`Monthly Executive Summary`, 105, 20, { align: 'center' });
+        doc.setFontSize(14);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Leo Club of Athugalpura | ${monthLabel} ${reportYear}`, 105, 30, { align: 'center' });
+        
+        doc.setDrawColor(226, 232, 240);
+        doc.line(20, 35, 190, 35);
+
+        // 1. Financial Overview
+        const periodTransactions = allTransactions.filter(t => {
+            if (!t.date) return false;
+            const d = parseISO(t.date);
+            return isValid(d) && getYear(d) === yearInt && getMonth(d) === monthInt;
+        });
+        
+        let mIncome = 0;
+        let mExpense = 0;
+        periodTransactions.forEach(t => {
+            if (t.type === 'income') mIncome += t.amount;
+            else mExpense += t.amount;
+        });
+
+        doc.setFontSize(16);
+        doc.setTextColor(30, 41, 59);
+        doc.text("1. Financial Summary", 20, 50);
+        
+        autoTable(doc, {
+            startY: 55,
+            head: [['Description', 'Amount (LKR)']],
+            body: [
+                ['Total Income', mIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })],
+                ['Total Expenses', mExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })],
+                ['Net Monthly Balance', (mIncome - mExpense).toLocaleString('en-US', { minimumFractionDigits: 2 })],
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [37, 99, 235] },
+            styles: { fontSize: 10 }
+        });
+
+        // 2. New Members
+        const newMembers = allUsers.filter(u => {
+            if (!u.createdAt) return false;
+            const d = parseISO(u.createdAt);
+            return isValid(d) && getYear(d) === yearInt && getMonth(d) === monthInt;
+        });
+
+        doc.setFontSize(16);
+        doc.text("2. New Members Onboarded", 20, (doc as any).lastAutoTable.finalY + 15);
+        
+        if (newMembers.length > 0) {
+            autoTable(doc, {
+                startY: (doc as any).lastAutoTable.finalY + 20,
+                head: [['Name', 'Email', 'Role']],
+                body: newMembers.map(m => [m.name, m.email, m.role]),
+                theme: 'grid',
+                headStyles: { fillColor: [20, 184, 166] }, // Secondary Teal
+                styles: { fontSize: 9 }
+            });
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(148, 163, 184);
+            doc.text("No new members recorded this month.", 20, (doc as any).lastAutoTable.finalY + 22);
+            (doc as any).lastAutoTable.finalY += 10;
+        }
+
+        // 3. Projects & Attendance
+        const periodEvents = allEvents.filter(e => {
+            if (!e.startDate) return false;
+            const d = parseISO(e.startDate);
+            return isValid(d) && getYear(d) === yearInt && getMonth(d) === monthInt && e.eventType !== 'deadline';
+        });
+
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(16);
+        doc.text("3. Project Participation Ledger", 20, (doc as any).lastAutoTable.finalY + 15);
+        
+        if (periodEvents.length > 0) {
+            autoTable(doc, {
+                startY: (doc as any).lastAutoTable.finalY + 20,
+                head: [['Event Name', 'Date', 'Attendance Count']],
+                body: periodEvents.map(e => [
+                    e.name, 
+                    format(parseISO(e.startDate!), 'MMM dd'),
+                    allAttendance.filter(a => a.eventId === e.id).length
+                ]),
+                theme: 'striped',
+                headStyles: { fillColor: [37, 99, 235] },
+                styles: { fontSize: 9 }
+            });
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(148, 163, 184);
+            doc.text("No projects were held during this month.", 20, (doc as any).lastAutoTable.finalY + 22);
+            (doc as any).lastAutoTable.finalY += 10;
+        }
+
+        // 4. Top 5 Members
+        const periodAttendance = allAttendance.filter(a => {
+            const d = parseISO(a.timestamp);
+            return isValid(d) && getYear(d) === yearInt && getMonth(d) === monthInt;
+        });
+
+        const memberActivity: Record<string, number> = {};
+        periodAttendance.forEach(a => {
+            if (a.userId) memberActivity[a.userId] = (memberActivity[a.userId] || 0) + 1;
+        });
+
+        const topMembers = Object.entries(memberActivity)
+            .map(([uid, count]) => ({
+                name: allUsers.find(u => u.id === uid)?.name || 'Unknown',
+                count
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(16);
+        doc.text("4. Top 5 Most Active Members", 20, (doc as any).lastAutoTable.finalY + 15);
+        
+        if (topMembers.length > 0) {
+            autoTable(doc, {
+                startY: (doc as any).lastAutoTable.finalY + 20,
+                head: [['Rank', 'Member Name', 'Events Attended']],
+                body: topMembers.map((m, i) => [i + 1, m.name, m.count]),
+                theme: 'grid',
+                headStyles: { fillColor: [245, 158, 11] }, // Accent Amber
+                styles: { fontSize: 10 }
+            });
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(148, 163, 184);
+            doc.text("Insufficient activity data to rank members.", 20, (doc as any).lastAutoTable.finalY + 22);
+        }
+
+        doc.save(`LeoPortal_Monthly_Summary_${monthLabel}_${reportYear}.pdf`);
+        toast({ title: "Report Ready", description: "Your monthly executive summary has been generated." });
+    } catch (err) {
+        console.error("PDF_GEN_ERROR:", err);
+        toast({ title: "Error", description: "Failed to generate monthly summary PDF.", variant: "destructive" });
+    } finally {
+        setIsExporting(null);
+        setIsMonthlySummaryOpen(false);
+    }
   };
 
   const downloadCsv = (content: string, fileName: string) => {
@@ -457,9 +623,61 @@ export default function ReportsPage() {
             <ExportCard title="Events" icon={Calendar} type="events" isExporting={isExporting === 'events'} onExport={() => handleExport('events')} />
             <ExportCard title="Attendance" icon={BarChart} type="attendance" isExporting={isExporting === 'attendance'} onExport={() => handleExport('attendance')} />
             <ExportCard title="Finance" icon={HandCoins} type="transactions" isExporting={isExporting === 'transactions'} onExport={() => handleExport('transactions')} />
+            
+            <Card className="hover:shadow-lg transition-all duration-300 group border-t-2 hover:border-t-primary cursor-pointer" onClick={() => setIsMonthlySummaryOpen(true)}>
+                <CardHeader className="pb-3">
+                    <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                        <FileBarChart className="h-5 w-5 text-primary" />
+                    </div>
+                    <CardTitle className="text-base">Monthly Summary</CardTitle>
+                    <CardDescription className="text-xs">Generate a full PDF executive report for a specific month.</CardDescription>
+                </CardHeader>
+                <CardFooter>
+                    <Button variant="outline" size="sm" disabled={isExporting === 'monthly_summary'} className="w-full hover:bg-primary hover:text-white">
+                        {isExporting === 'monthly_summary' ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Download className="mr-2 h-3 w-3" />}
+                        {isExporting === 'monthly_summary' ? 'Generating...' : 'Download PDF'}
+                    </Button>
+                </CardFooter>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isMonthlySummaryOpen} onOpenChange={setIsMonthlySummaryOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Monthly Executive Summary</DialogTitle>
+                <DialogDescription>Select the period for which you want to generate the executive PDF report.</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+                <div className="space-y-2">
+                    <Label>Year</Label>
+                    <Select value={reportYear} onValueChange={setReportYear}>
+                        <SelectTrigger><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                            {availableFinanceYears.filter(y => y !== 'all').map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label>Month</Label>
+                    <Select value={reportMonth} onValueChange={setReportMonth}>
+                        <SelectTrigger><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                            {months.filter(m => m.value !== 'all').map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsMonthlySummaryOpen(false)}>Cancel</Button>
+                <Button onClick={handleGenerateMonthlySummary} disabled={isExporting === 'monthly_summary'}>
+                    {isExporting === 'monthly_summary' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                    Generate Summary
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
