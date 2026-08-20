@@ -1,5 +1,4 @@
 
-// src/app/(authenticated)/admin/reports/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -11,21 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-<<<<<<< HEAD
 import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, HandCoins, PieChart as PieChartIcon, TrendingUp, TrendingDown, FileText, FileBarChart } from "lucide-react";
-=======
-import { Download, Loader2, Users, Calendar, BarChart, ExternalLink, Award, Users2, HandCoins, PieChart as PieChartIcon, TrendingUp, TrendingDown } from "lucide-react";
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
 import { useToast } from '@/hooks/use-toast';
 import { getAllUsers } from '@/services/userService';
 import { getEvents } from '@/services/eventService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
 import { getTransactions } from '@/services/financeService';
-<<<<<<< HEAD
-import { format, parseISO, isValid, getYear, getMonth, isWithinInterval, startOfMonth as startOfM, endOfMonth as endOfM } from 'date-fns';
-=======
-import { format, parseISO, isValid, getYear, getMonth } from 'date-fns';
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
+import { format, parseISO, isValid, getYear, getMonth, startOfMonth as startOfM, endOfMonth as endOfM } from 'date-fns';
 import Papa from 'papaparse';
 import { calculateBadgeIds, BADGE_DEFINITIONS } from '@/services/badgeService';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -33,12 +24,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-<<<<<<< HEAD
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-=======
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
 import { cn } from '@/lib/utils';
 
 const PIE_CHART_COLORS = ["#2563eb", "#14b8a6", "#ef4444", "#f97316", "#8b5cf6", "#3b82f6", "#06b6d4", "#ec4899", "#84cc16"];
@@ -68,17 +56,14 @@ export default function ReportsPage() {
   const [financeYear, setFinanceYear] = useState<string>("all");
   const [financeMonth, setFinanceMonth] = useState<string>("all");
 
-<<<<<<< HEAD
   // Monthly Summary Dialog State
   const [isMonthlySummaryOpen, setIsMonthlySummaryOpen] = useState(false);
   const [reportYear, setReportYear] = useState<string>(new Date().getFullYear().toString());
   const [reportMonth, setReportMonth] = useState<string>(new Date().getMonth().toString());
 
-=======
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!authLoading && !isSuperOrAdmin) {
       router.replace('/dashboard');
     }
@@ -270,8 +255,6 @@ export default function ReportsPage() {
     setIsExporting('monthly_summary');
     const yearInt = parseInt(reportYear);
     const monthInt = parseInt(reportMonth);
-    const startDate = startOfM(new Date(yearInt, monthInt));
-    const endDate = endOfM(new Date(yearInt, monthInt));
 
     const monthLabel = months.find(m => m.value === reportMonth)?.label;
 
@@ -637,7 +620,6 @@ export default function ReportsPage() {
             <ExportCard title="Events" icon={Calendar} type="events" isExporting={isExporting === 'events'} onExport={() => handleExport('events')} />
             <ExportCard title="Attendance" icon={BarChart} type="attendance" isExporting={isExporting === 'attendance'} onExport={() => handleExport('attendance')} />
             <ExportCard title="Finance" icon={HandCoins} type="transactions" isExporting={isExporting === 'transactions'} onExport={() => handleExport('transactions')} />
-<<<<<<< HEAD
             
             <Card className="hover:shadow-lg transition-all duration-300 group border-t-2 hover:border-t-primary cursor-pointer" onClick={() => setIsMonthlySummaryOpen(true)}>
                 <CardHeader className="pb-3">
@@ -654,8 +636,6 @@ export default function ReportsPage() {
                     </Button>
                 </CardFooter>
             </Card>
-=======
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
           </div>
         </TabsContent>
       </Tabs>
