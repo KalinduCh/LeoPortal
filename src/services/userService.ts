@@ -1,5 +1,6 @@
+
 // src/services/userService.ts
-import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc, deleteDoc, collection, query, getDocs, where, orderBy } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc, deleteDoc, collection, query, getDocs, where, orderBy, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import type { User, UserRole } from '@/types';
 
@@ -187,4 +188,26 @@ export async function deleteUserProfile(uid: string): Promise<void> {
 export async function updateFcmToken(userId: string, token: string | null): Promise<void> {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, { fcmToken: token });
+}
+
+/**
+ * Resets membership fee status for all members.
+ * Used for the annual June 1st transition.
+ */
+export async function resetAllMemberFees(): Promise<number> {
+    const usersRef = collection(db, "users");
+    const snapshot = await getDocs(usersRef);
+    const batch = writeBatch(db);
+    let count = 0;
+
+    snapshot.forEach((docSnap) => {
+        batch.update(docSnap.ref, {
+            membershipFeeStatus: 'pending',
+            membershipFeeAmountPaid: 0,
+        });
+        count++;
+    });
+
+    await batch.commit();
+    return count;
 }
