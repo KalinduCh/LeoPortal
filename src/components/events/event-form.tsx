@@ -20,7 +20,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO, isValid } from 'date-fns';
-import { CalendarIcon, Loader2, MapPin, ExternalLink, Award, Image as ImageIcon, UploadCloud } from 'lucide-react';
+import { CalendarIcon, Loader2, MapPin, ExternalLink, Award, Image as ImageIcon, UploadCloud, Info } from 'lucide-react';
 import type { Event, EventType } from '@/types';
 import { cn } from '@/lib/utils';
 import { Label } from '../ui/label';
@@ -43,7 +43,6 @@ const eventFormSchema = z.object({
   galleryUrl: z.string().url({ message: "Invalid URL" }).or(z.literal("")).optional(),
   uploadUrl: z.string().url({ message: "Invalid URL" }).or(z.literal("")).optional(),
 }).refine(data => {
-  // For non-deadline events, if endDate exists, it must be after startDate
   if (data.eventType !== 'deadline' && data.endDate) {
     return data.endDate > data.startDate;
   }
@@ -361,7 +360,17 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
         )}
 
         <div className="space-y-4">
-            <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Project Gallery (Google Drive)</h3>
+            <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Project Photo Hub</h3>
+            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex gap-3 mb-4">
+                <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <p className="text-[10px] leading-relaxed text-slate-600 font-medium">
+                    <span className="font-bold block text-primary mb-1 uppercase tracking-tighter">Setup Guide:</span>
+                    1. Open the <strong>Master Gallery Folder</strong> (provided by the club).<br/>
+                    2. Create a new sub-folder for this specific event.<br/>
+                    3. Right-click the folder &gt; Share &gt; <strong>Change to 'Anyone with the link'</strong>.<br/>
+                    4. Paste that folder's link into the "View Link" field below.
+                </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
@@ -370,9 +379,9 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                     <FormItem>
                         <FormLabel className="flex items-center"><ImageIcon className="mr-1.5 h-4 w-4 text-muted-foreground" /> View Link</FormLabel>
                         <FormControl>
-                            <Input placeholder="Link to shared Drive folder..." {...field} />
+                            <Input placeholder="Link to specific sub-folder..." {...field} />
                         </FormControl>
-                        <FormDescription className="text-[10px]">Folder where project photos are stored for viewing.</FormDescription>
+                        <FormDescription className="text-[10px]">The Google Drive folder where members view photos.</FormDescription>
                         <FormMessage />
                     </FormItem>
                     )}
@@ -384,9 +393,9 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                     <FormItem>
                         <FormLabel className="flex items-center"><UploadCloud className="mr-1.5 h-4 w-4 text-muted-foreground" /> Upload Link</FormLabel>
                         <FormControl>
-                            <Input placeholder="Link to Google Form or Upload folder..." {...field} />
+                            <Input placeholder="Link to upload folder or form..." {...field} />
                         </FormControl>
-                        <FormDescription className="text-[10px]">Where members can contribute new photos.</FormDescription>
+                        <FormDescription className="text-[10px]">Direct link allowing members to contribute new photos.</FormDescription>
                         <FormMessage />
                     </FormItem>
                     )}

@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/gallery/page.tsx
 "use client";
 
@@ -8,10 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, ImageIcon, MapPin, Calendar, Camera, ChevronRight, Image as ImageIconLucide } from 'lucide-react';
+import { Loader2, Search, ImageIcon, MapPin, Calendar, Camera, ChevronRight, Image as ImageIconLucide, ExternalLink, FolderOpen } from 'lucide-react';
 import { format, parseISO, isValid, isPast } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+
+// The user-provided master link
+const MASTER_GALLERY_URL = "https://drive.google.com/drive/folders/1JPCb0U66_OznR4UIVvBIG8xkbPIfTQkY?usp=share_link";
 
 export default function ProjectGalleryHub() {
     const [projects, setProjects] = useState<Event[]>([]);
@@ -24,7 +28,7 @@ export default function ProjectGalleryHub() {
             setIsLoading(true);
             try {
                 const allEvents = await getEvents();
-                // Filter for events that are likely to have photos (exclude deadlines and non-projects)
+                // Filter for events that are likely to have photos (exclude deadlines)
                 // and sort by date descending
                 const filtered = allEvents
                     .filter(e => e.eventType !== 'deadline')
@@ -45,7 +49,7 @@ export default function ProjectGalleryHub() {
     const filteredProjects = useMemo(() => {
         return projects.filter(p => 
             p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.location.toLowerCase().includes(searchTerm.toLowerCase())
+            (p.location && p.location.toLowerCase().includes(searchTerm.toLowerCase()))
         );
     }, [projects, searchTerm]);
 
@@ -59,21 +63,30 @@ export default function ProjectGalleryHub() {
 
     return (
         <div className="container mx-auto py-10 px-4 space-y-10">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <div className="space-y-1">
-                    <h1 className="text-4xl font-bold font-headline text-slate-900 tracking-tight uppercase">Project Gallery</h1>
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                <div className="space-y-2">
+                    <h1 className="text-4xl font-black font-headline text-slate-900 tracking-tight uppercase">Project Gallery</h1>
                     <p className="text-slate-500 font-bold uppercase text-xs tracking-[0.2em] flex items-center">
                         <Camera className="h-4 w-4 mr-2 text-primary" /> Help us preserve every project, every moment.
                     </p>
                 </div>
-                <div className="relative w-full md:w-80">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input 
-                        placeholder="Search projects..." 
-                        className="pl-10 h-12 rounded-2xl bg-white border-none ring-1 ring-slate-200 shadow-sm" 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                    <div className="relative flex-grow sm:w-80">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input 
+                            placeholder="Search projects..." 
+                            className="pl-10 h-12 rounded-2xl bg-white border-none ring-1 ring-slate-200 shadow-sm" 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <Button 
+                        variant="outline" 
+                        className="h-12 rounded-2xl font-bold border-primary text-primary hover:bg-primary/5 shadow-sm"
+                        onClick={() => window.open(MASTER_GALLERY_URL, '_blank')}
+                    >
+                        <FolderOpen className="mr-2 h-4 w-4" /> Open Master Drive
+                    </Button>
                 </div>
             </div>
 

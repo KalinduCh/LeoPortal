@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/gallery/[eventId]/page.tsx
 "use client";
 
@@ -15,11 +16,13 @@ import {
 import { format, parseISO, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ProjectGalleryView() {
     const params = useParams();
     const eventId = params.eventId as string;
     const router = useRouter();
+    const { toast } = useToast();
     const [project, setProject] = useState<Event | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -37,6 +40,19 @@ export default function ProjectGalleryView() {
         fetchProject();
     }, [eventId]);
 
+    const handleShare = () => {
+        if (typeof navigator !== 'undefined' && navigator.share) {
+            navigator.share({
+                title: `${project?.name} - LeoPortal Gallery`,
+                text: `Check out the memories from ${project?.name}!`,
+                url: window.location.href,
+            }).catch(() => {});
+        } else {
+            navigator.clipboard.writeText(window.location.href);
+            toast({ title: "Link Copied", description: "URL copied to clipboard." });
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="flex h-[80vh] items-center justify-center">
@@ -49,7 +65,7 @@ export default function ProjectGalleryView() {
         return (
             <div className="container mx-auto py-20 px-4 text-center">
                 <h1 className="text-2xl font-bold">Project not found.</h1>
-                <Button onClick={() => router.push('/gallery')} className="mt-4">Back to Gallery</Button>
+                <Button onClick={() => router.push('/gallery')} className="mt-4">Back to Gallery Hub</Button>
             </div>
         );
     }
@@ -73,7 +89,7 @@ export default function ProjectGalleryView() {
                         </h1>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="icon" className="rounded-2xl h-12 w-12 shadow-sm"><Share2 className="h-5 w-5" /></Button>
+                        <Button variant="outline" size="icon" className="rounded-2xl h-12 w-12 shadow-sm" onClick={handleShare}><Share2 className="h-5 w-5" /></Button>
                         <Button variant="outline" size="icon" className="rounded-2xl h-12 w-12 shadow-sm text-rose-500"><Heart className="h-5 w-5" /></Button>
                     </div>
                 </div>
@@ -137,7 +153,7 @@ export default function ProjectGalleryView() {
                                 onClick={() => project.uploadUrl && window.open(project.uploadUrl, '_blank')}
                                 disabled={!project.uploadUrl}
                             >
-                                <UploadCloud className="mr-3 h-5 w-5" /> Upload Photos
+                                <UploadCloud className="mr-3 h-5 w-5" /> Upload Project Photos
                             </Button>
                             
                             <Button 
@@ -149,7 +165,7 @@ export default function ProjectGalleryView() {
                                 onClick={() => project.galleryUrl && window.open(project.galleryUrl, '_blank')}
                                 disabled={!project.galleryUrl}
                             >
-                                <FolderOpen className="mr-3 h-5 w-5 text-primary" /> View Gallery
+                                <FolderOpen className="mr-3 h-5 w-5 text-primary" /> View Folder Gallery
                             </Button>
 
                             {!project.galleryUrl && (
