@@ -1,6 +1,10 @@
 
 // src/services/userService.ts
+<<<<<<< HEAD
 import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc, deleteDoc, collection, query, getDocs, where, orderBy, writeBatch } from 'firebase/firestore';
+=======
+import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc, deleteDoc, collection, query, getDocs, where, orderBy } from 'firebase/firestore';
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
 import { db } from '@/lib/firebase/clientApp';
 import type { User, UserRole } from '@/types';
 
@@ -32,6 +36,10 @@ export async function createUserProfile(
     photoUrl: photoUrl || `https://placehold.co/100x100.png?text=${placeholderChar}`,
     membershipFeeStatus: 'pending',
     membershipFeeAmountPaid: 0,
+<<<<<<< HEAD
+=======
+    fcmToken: null,
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
     permissions: role === 'admin' ? { 
         members: true,
         events: true,
@@ -76,7 +84,12 @@ export async function getUserProfile(uid: string): Promise<User | null> {
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
         mobileNumber: data.mobileNumber,
+<<<<<<< HEAD
         fcmToken: data.fcmToken, 
+=======
+        fcmToken: data.fcmToken || null, 
+        pushSubscription: data.pushSubscription, 
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
         membershipFeeStatus: data.membershipFeeStatus || 'pending',
         membershipFeeAmountPaid: data.membershipFeeAmountPaid || 0,
         permissions: data.permissions || {},
@@ -89,6 +102,11 @@ export async function getUserProfile(uid: string): Promise<User | null> {
      return userProfile;
   }
   return null;
+}
+
+export async function updateFcmToken(userId: string, token: string | null): Promise<void> {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, { fcmToken: token });
 }
 
 export async function getAllUsers(): Promise<User[]> {
@@ -111,7 +129,12 @@ export async function getAllUsers(): Promise<User[]> {
             dateOfBirth: data.dateOfBirth,
             gender: data.gender,
             mobileNumber: data.mobileNumber,
+<<<<<<< HEAD
             fcmToken: data.fcmToken,
+=======
+            fcmToken: data.fcmToken || null,
+            pushSubscription: data.pushSubscription,
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
             membershipFeeStatus: data.membershipFeeStatus || 'pending',
             membershipFeeAmountPaid: data.membershipFeeAmountPaid || 0,
             permissions: data.permissions || {},
@@ -185,6 +208,7 @@ export async function deleteUserProfile(uid: string): Promise<void> {
     await deleteDoc(userRef);
 }
 
+<<<<<<< HEAD
 export async function updateFcmToken(userId: string, token: string | null): Promise<void> {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, { fcmToken: token });
@@ -210,4 +234,9 @@ export async function resetAllMemberFees(): Promise<number> {
 
     await batch.commit();
     return count;
+=======
+export async function updatePushSubscription(userId: string, subscription: any): Promise<void> {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, { pushSubscription: subscription });
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
 }

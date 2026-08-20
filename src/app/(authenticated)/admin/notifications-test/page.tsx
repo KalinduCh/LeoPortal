@@ -9,7 +9,7 @@ export default function NotificationsTestPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect away as this feature is removed
+    // Feature removed per request. Redirecting away.
     router.replace('/dashboard');
   }, [router]);
 

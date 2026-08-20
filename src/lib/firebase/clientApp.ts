@@ -1,4 +1,4 @@
-// src/lib/firebase/clientApp.ts
+
 import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
@@ -16,27 +16,15 @@ const firebaseConfig: FirebaseOptions = {
   measurementId: "G-Q8PYQMFSCD"
 };
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let functions: Functions;
+let app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+let auth: Auth = getAuth(app);
+let db: Firestore = getFirestore(app);
+let functions: Functions = getFunctions(app);
 let analytics: Analytics | undefined;
 let messaging: Messaging | undefined;
 
-// Initialize Firebase
-app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-auth = getAuth(app);
-db = getFirestore(app);
-functions = getFunctions(app);
-
-// Safe initialization for client-side only services
 if (typeof window !== 'undefined') {
-    // Analytics initialization
-    isAnalyticsSupported().then((supported) => {
-        if (supported) {
-            analytics = getAnalytics(app);
-        }
-    });
+    isAnalyticsSupported().then((supported) => { if (supported) analytics = getAnalytics(app); });
 }
 
 export { app, auth, db, analytics, messaging, functions };

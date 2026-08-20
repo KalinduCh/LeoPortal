@@ -1,4 +1,4 @@
-// src/components/layout/sidebar-nav.tsx
+
 "use client";
 
 import React from "react";
@@ -54,38 +54,23 @@ const superAdminNavItems: NavItem[] = [
     { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
-
 export function SidebarNav() {
   const pathname = usePathname();
   const { user, adminViewMode } = useAuth();
-  
   if (!user) return null;
-
   let itemsToShow: NavItem[];
-
-  if (user.role === 'super_admin') {
-      itemsToShow = superAdminNavItems;
-  } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
-      itemsToShow = adminNavItems.filter(item => {
-          if (!item.permission) return true;
-          return user.permissions?.[item.permission] === true;
-      });
-  } else {
-      itemsToShow = memberNavItems;
-  }
+  if (user.role === 'super_admin') itemsToShow = superAdminNavItems;
+  else if (user.role === 'admin' && adminViewMode === 'admin_view') {
+      itemsToShow = adminNavItems.filter(i => !i.permission || user.permissions?.[i.permission] === true);
+  } else itemsToShow = memberNavItems;
 
   return (
     <SidebarMenu>
       {itemsToShow.map((item) => (
         <SidebarMenuItem key={item.href}>
-          <SidebarMenuButton
-            asChild
-            isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))}
-            tooltip={{ children: item.label, className: "font-sans" }}
-          >
+          <SidebarMenuButton asChild isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))} tooltip={item.label}>
             <Link href={item.href} target={item.external ? "_blank" : undefined}>
-              <item.icon />
-              <span>{item.label}</span>
+              <item.icon /><span>{item.label}</span>
               {item.external && <ExternalLink className="ml-auto h-3 w-3 opacity-50" />}
             </Link>
           </SidebarMenuButton>

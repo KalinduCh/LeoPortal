@@ -20,7 +20,11 @@ export interface User {
   photoUrl?: string;
   role: UserRole;
   status: 'pending' | 'approved' | 'rejected';
+<<<<<<< HEAD
   source?: 'portal' | 'entrivo'; 
+=======
+  source?: 'portal' | 'entrivo'; // Distinguishes between Club Portal and District Access users
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
   createdAt?: string; 
   designation?: string;
   nic?: string;
@@ -28,7 +32,12 @@ export interface User {
   gender?: string;
   mobileNumber?: string;
   badges?: BadgeId[];
+<<<<<<< HEAD
   fcmToken?: string; 
+=======
+  fcmToken?: string | null; 
+  pushSubscription?: any; 
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
   membershipFeeStatus?: 'paid' | 'pending' | 'partial';
   membershipFeeAmountPaid?: number;
   permissions?: Partial<Record<AdminPermission, boolean>>;
@@ -48,8 +57,11 @@ export interface Event {
   reminderSent: boolean; 
   eventType?: EventType;
   points?: number;
+<<<<<<< HEAD
   galleryUrl?: string; // Link to view Drive folder
   uploadUrl?: string;  // Link to upload photos (Drive or Form)
+=======
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
 }
 
 export interface PointsEntry {
@@ -79,8 +91,13 @@ export interface AttendanceRecord {
   visitorComment?: string;
   markedLatitude?: number;
   markedLongitude?: number;
+<<<<<<< HEAD
   markedByAdminId?: string; 
   markedByAdminName?: string; 
+=======
+  markedByAdminId?: string; // ID of admin who manually marked this
+  markedByAdminName?: string; // Name of admin who manually marked this
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
 }
 
 export interface ProjectIdea {
@@ -133,7 +150,11 @@ export interface EventParticipantSummary {
   visitorDesignation?: string;
   visitorClub?: string;
   visitorComment?: string;
+<<<<<<< HEAD
   markedByAdminName?: string; 
+=======
+  markedByAdminName?: string; // Name of admin who manually marked this
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
 }
 
 export interface CommunicationGroup {

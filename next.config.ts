@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const withBundleAnalyzer = require('@next/bundle-analyzer')({

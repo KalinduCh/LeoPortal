@@ -3,8 +3,6 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
 import * as nodemailer from "nodemailer";
-// Note: In some environments, importing from ../../src/types may require specific tsconfig paths.
-// We use 'any' or local definitions for robustness within the function environment if needed.
 
 admin.initializeApp();
 
@@ -16,10 +14,7 @@ const GMAIL_APP_PASSWORD = "osng xjdz lhwu movh";
 
 const transporter = nodemailer.createTransport({
     service: "gmail",
-    auth: {
-        user: GMAIL_EMAIL,
-        pass: GMAIL_APP_PASSWORD,
-    },
+    auth: { user: GMAIL_EMAIL, pass: GMAIL_APP_PASSWORD },
 });
 
 const createEmailHtml = (bodyContent: string) => {
@@ -64,10 +59,6 @@ const createEmailHtml = (bodyContent: string) => {
     `;
 };
 
-
-/**
- * Sends a transactional email.
- */
 const sendEmail = async (to: string, subject: string, htmlBody: string) => {
     const fullHtml = createEmailHtml(htmlBody);
     const mailOptions = {
@@ -76,72 +67,41 @@ const sendEmail = async (to: string, subject: string, htmlBody: string) => {
         subject,
         html: fullHtml,
     };
-
     try {
         await transporter.sendMail(mailOptions);
-        console.log(`Email sent to ${to} with subject: ${subject}`);
     } catch (error) {
         console.error(`Failed to send email to ${to}:`, error);
     }
 };
 
-/**
- * Sends push notifications to a list of user IDs.
- */
-const sendPushToUsers = async (
-  userIds: string[],
-  title: string,
-  body: string,
-  link?: string,
-) => {
-  if (!userIds || userIds.length === 0) {
-    console.log("No user IDs provided, skipping notification.");
-    return;
+const sendPushToUsers = async (userIds: string[], title: string, body: string, link: string = "/dashboard") => {
+  if (userIds.length === 0) return;
+  const chunks = [];
+  for (let i = 0; i < userIds.length; i += 500) {
+    chunks.push(userIds.slice(i, i + 500));
   }
-
-  const tokens: string[] = [];
-  const usersSnapshot = await db.collection("users").where(
-    admin.firestore.FieldPath.documentId(),
-    "in",
-    userIds,
-  ).get();
-
-  usersSnapshot.forEach((doc) => {
-    const user = doc.data();
-    if (user.fcmToken) {
-      tokens.push(user.fcmToken);
+  for (const chunk of chunks) {
+    const usersSnap = await db.collection("users").where(admin.firestore.FieldPath.documentId(), "in", chunk).get();
+    const tokens: string[] = [];
+    usersSnap.forEach(doc => {
+      if (doc.data().fcmToken) tokens.push(doc.data().fcmToken);
+    });
+    if (tokens.length === 0) continue;
+    const message: admin.messaging.MulticastMessage = {
+      tokens,
+      notification: { title, body },
+      webpush: {
+        fcmOptions: { link },
+        notification: { icon: "https://i.imgur.com/MP1YFNf.png" },
+      },
+    };
+    try {
+      await messaging.sendEachForMulticast(message);
+    } catch (error) {
+      console.error("PUSH_DISPATCH_FAILURE:", error);
     }
-  });
-
-  if (tokens.length === 0) {
-    console.log("No valid FCM tokens found for the users.");
-    return;
-  }
-
-  const message: admin.messaging.MulticastMessage = {
-    tokens,
-    notification: {
-      title,
-      body,
-    },
-    webpush: {
-      fcmOptions: {
-        link: link || "https://leoathugal.web.app/dashboard",
-      },
-      notification: {
-        icon: "https://i.imgur.com/MP1YFNf.png",
-      },
-    },
-  };
-
-  try {
-    const response = await messaging.sendEachForMulticast(message);
-    console.log("Successfully sent message:", response);
-  } catch (error) {
-    console.error("Error sending message:", error);
   }
 };
-
 
 export const onUserStatusChange = functions.firestore
   .document("users/{userId}")
@@ -149,89 +109,53 @@ export const onUserStatusChange = functions.firestore
     const before = change.before.data();
     const after = change.after.data();
     const userId = context.params.userId;
-
     if (before.status === "pending" && after.status === "approved") {
-      const userEmail = after.email;
-      const userName = after.name || "Leo";
-
-      await sendPushToUsers(
-        [userId],
-        "Account Approved!",
-        `Welcome, ${userName}! Your account has been approved. You can now log in.`,
-        "/dashboard",
-      );
-
-      const subject = "Your LEO Portal Account has been Approved!";
-      const htmlBody = `
-        <p>Dear ${userName},</p>
-        <p>Congratulations! Your membership for the LEO Portal has been approved by an administrator.</p>
-        <p>You can now log in to your account to view upcoming events, track your participation, and connect with other members.</p>
-        <p>Welcome to the club!</p>
-      `;
-      if (userEmail) {
-        await sendEmail(userEmail, subject, htmlBody);
-      }
+      await sendPushToUsers([userId], "Account Approved!", `Welcome, ${after.name}! Your account has been approved.`, "/dashboard");
+      await sendEmail(after.email, "Account Approved", `<p>Dear ${after.name}, your LEO Portal account is approved.</p>`);
     }
-    
     if (before.status === "pending" && after.status === "rejected") {
-        const userEmail = after.email;
-        const userName = after.name || "Leo";
-        const subject = "Update on Your LEO Portal Registration";
-        const htmlBody = `<p>Dear ${userName},</p><p>Thank you for your interest in joining the LEO Portal. After careful review, we regret to inform you that your registration could not be approved at this time.</p>`;
-        if (userEmail) await sendEmail(userEmail, subject, htmlBody);
-        await db.collection("users").doc(userId).delete();
+      await sendEmail(after.email, "Registration Update", `<p>Dear ${after.name}, your registration could not be approved.</p>`);
+      await db.collection("users").doc(userId).delete();
     }
   });
-
 
 export const onEventCreated = functions.firestore
   .document("events/{eventId}")
   .onCreate(async (snap) => {
     const event = snap.data();
-    const usersSnapshot = await db.collection("users").where("status", "==", "approved").get();
-    const userIds = usersSnapshot.docs.map((doc) => doc.id);
-    await sendPushToUsers(userIds, "New Event Published!", `A new event has been scheduled: ${event.name}`, `/dashboard`);
+    const approvedUsers = await db.collection("users").where("status", "==", "approved").get();
+    const userIds = approvedUsers.docs.map(d => d.id);
+    await sendPushToUsers(userIds, "New Event Published!", `Join us for ${event.name}!`, "/calendar");
   });
 
 export const onEventDeleted = functions.firestore
   .document("events/{eventId}")
   .onDelete(async (snap) => {
     const event = snap.data();
-    const usersSnapshot = await db.collection("users").where("status", "==", "approved").get();
-    const userIds = usersSnapshot.docs.map((doc) => doc.id);
-    await sendPushToUsers(userIds, "Event Cancelled", `The event "${event.name}" has been cancelled. Please check the calendar for updates.`, "/calendar");
+    const approvedUsers = await db.collection("users").where("status", "==", "approved").get();
+    const userIds = approvedUsers.docs.map(d => d.id);
+    await sendPushToUsers(userIds, "Event Cancelled", `"${event.name}" has been removed.`, "/calendar");
   });
 
 export const onTaskCreated = functions.firestore
   .document("tasks/{taskId}")
   .onCreate(async (snap) => {
     const task = snap.data();
-    if (task.assigneeIds && task.assigneeIds.length > 0) {
-      await sendPushToUsers(task.assigneeIds, "New Task Assigned", `You have been assigned to: ${task.title}`, `/tasks/${snap.id}`);
+    if (task.assigneeIds?.length > 0) {
+        await sendPushToUsers(task.assigneeIds, "New Task Assigned", `Assigned: ${task.title}`, `/tasks/${snap.id}`);
     }
   });
 
 export const sendBirthdayWishes = functions.pubsub.schedule("0 9 * * *")
   .timeZone("Asia/Colombo")
   .onRun(async () => {
-    const today = new Date();
-    const todayStr = `${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
-    
-    const usersSnapshot = await db.collection("users").where("status", "==", "approved").get();
-    
-    const birthdayUserIds: string[] = [];
-    usersSnapshot.forEach(doc => {
-      const data = doc.data();
-      if (data.dateOfBirth && data.dateOfBirth.includes(todayStr)) {
-        birthdayUserIds.push(doc.id);
-      }
-    });
-
-    if (birthdayUserIds.length > 0) {
-      for (const userId of birthdayUserIds) {
-        const user = usersSnapshot.docs.find(d => d.id === userId)?.data();
-        await sendPushToUsers([userId], `Happy Birthday, ${user?.name}!`, "Wishing you a fantastic day from the Leo Club of Athugalpura! 🎉", "/profile");
-      }
+    const todayStr = new Date().toISOString().slice(5, 10);
+    const usersSnap = await db.collection("users").where("status", "==", "approved").get();
+    for (const doc of usersSnap.docs) {
+        const user = doc.data();
+        if (user.dateOfBirth?.includes(todayStr)) {
+            await sendPushToUsers([doc.id], `Happy Birthday, ${user.name}!`, "Best wishes from Leo Club of Athugalpura! 🎉", "/profile");
+        }
     }
   });
 
@@ -239,35 +163,16 @@ export const sendEventReminders = functions.pubsub.schedule("0 8 * * *")
     .timeZone("Asia/Colombo")
     .onRun(async () => {
         const now = new Date();
-        const usersSnapshot = await db.collection("users").where("status", "==", "approved").get();
-        const allUserIds = usersSnapshot.docs.map(doc => doc.id);
-
-        const eventsSnapshot = await db.collection("events").get();
-        
-        for (const doc of eventsSnapshot.docs) {
+        const eventsSnap = await db.collection("events").get();
+        const approvedUsers = await db.collection("users").where("status", "==", "approved").get();
+        const allUserIds = approvedUsers.docs.map(d => d.id);
+        for (const doc of eventsSnap.docs) {
             const event = doc.data();
             if (!event.startDate) continue;
-            
-            const startDate = new Date(event.startDate);
-            const diffDays = Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-            if (diffDays === 3) {
-                await sendPushToUsers(allUserIds, "Upcoming Event", `${event.name} is in 3 days! Get ready.`, "/dashboard");
-            } else if (diffDays === 1) {
-                await sendPushToUsers(allUserIds, "Event Tomorrow", `Reminder: ${event.name} starts tomorrow. See you there!`, "/dashboard");
-            } else if (diffDays === 0 && startDate.toDateString() === now.toDateString()) {
-                await sendPushToUsers(allUserIds, "Event Today!", `${event.name} is happening today! Don't miss it.`, "/dashboard");
+            const diffDays = Math.ceil((new Date(event.startDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            if (diffDays === 3 || diffDays === 1 || (diffDays === 0 && new Date(event.startDate).toDateString() === now.toDateString())) {
+                await sendPushToUsers(allUserIds, "Event Reminder", `${event.name} is coming up!`, "/calendar");
             }
-        }
-    });
-
-export const sendMonthlyReports = functions.pubsub.schedule("0 9 1 * *")
-    .timeZone("Asia/Colombo")
-    .onRun(async () => {
-        const adminsSnapshot = await db.collection("users").where("role", "in", ["admin", "super_admin"]).get();
-        const adminEmails = adminsSnapshot.docs.map((doc) => doc.data().email).filter(Boolean);
-        for (const email of adminEmails) {
-            await sendEmail(email, "Monthly Portal Report Ready", "<p>Your monthly summary report is now available in the portal dashboard.</p>");
         }
     });
 
@@ -278,18 +183,15 @@ export const onUserDocumentChanged = functions.firestore
     const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
     if (!GOOGLE_SHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) return;
-
     const auth = new google.auth.GoogleAuth({
       credentials: { client_email: GOOGLE_SERVICE_ACCOUNT_EMAIL, private_key: GOOGLE_PRIVATE_KEY },
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
     const sheets = google.sheets({ version: "v4", auth });
-    const userId = context.params.userId;
     if (!change.after.exists) return;
     const userData = change.after.data();
     if (!userData) return;
-
-    const values = [userId, userData.name || "", userData.email || "", userData.role || "member", new Date().toISOString()];
+    const values = [context.params.userId, userData.name || "", userData.email || "", userData.role || "member", new Date().toISOString()];
     await sheets.spreadsheets.values.append({
       spreadsheetId: GOOGLE_SHEET_ID,
       range: "Sheet1!A1",
@@ -298,37 +200,13 @@ export const onUserDocumentChanged = functions.firestore
     });
   });
 
-/**
- * Automatically resets all member fee statuses and amounts on June 1st every year.
- * This starts a fresh cycle for the new Leostic year.
- * Historical financial records (transactions) remain untouched in their collection.
- */
 export const annualMembershipFeeReset = functions.pubsub.schedule("0 0 1 6 *")
   .timeZone("Asia/Colombo")
-  .onRun(async (context) => {
+  .onRun(async () => {
     const usersSnapshot = await db.collection("users").get();
-    let batch = db.batch();
-    let operationCount = 0;
-
-    for (const doc of usersSnapshot.docs) {
-      batch.update(doc.ref, {
-        membershipFeeStatus: 'pending',
-        membershipFeeAmountPaid: 0
-      });
-      operationCount++;
-
-      // Firestore batches are limited to 500 operations
-      if (operationCount === 500) {
-        await batch.commit();
-        batch = db.batch();
-        operationCount = 0;
-      }
-    }
-
-    if (operationCount > 0) {
-      await batch.commit();
-    }
-    
-    console.log(`Annual Membership Reset: Successfully reset fee status for ${usersSnapshot.size} users.`);
-    return null;
+    const batch = db.batch();
+    usersSnapshot.forEach(doc => {
+      batch.update(doc.ref, { membershipFeeStatus: 'pending', membershipFeeAmountPaid: 0 });
+    });
+    await batch.commit();
   });

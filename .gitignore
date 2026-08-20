@@ -39,3 +39,9 @@ tsconfig.tsbuildinfo
 
 # pwa
 public/firebase-messaging-sw.js
+<<<<<<< HEAD
+=======
+service_key.json
+service_key.json
+service_key.json
+>>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7

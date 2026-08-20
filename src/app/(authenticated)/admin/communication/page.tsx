@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -60,8 +61,8 @@ type GroupFormState = { id?: string; name: string; memberIds: string[]; color?: 
 
 const SIGNATURE_TEMPLATES = {
     'none': { label: "No Signature", value: "\n\nBest Regards," },
-    'president': { label: "President's Signature", value: "\n\nBest Regards,\nJohn Doe\nClub President\nLeo Club of Athugalpura" },
-    'secretary': { label: "Secretary's Signature", value: "\n\nBest Regards,\nJane Smith\nClub Secretary\nLeo Club of Athugalpura" },
+    'president': { label: "President's Signature", value: "\n\nBest Regards,\nLeo Lion Menuka Wickramasinghe\nClub President\nLeo Club of Athugalpura" },
+    'secretary': { label: "Secretary's Signature", value: "\n\nBest Regards,\nLeo Club Secretary\nLeo Club of Athugalpura" },
     'general': { label: "General Club Signature", value: "\n\nBest Regards,\nLeo Club of Athugalpura\nLEO District 306 D9" }
 };
 
@@ -74,12 +75,9 @@ export default function CommunicationPage() {
   const [groups, setGroups] = useState<CommunicationGroup[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
-  
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState("");
-  
   const [recipientSearchTerm, setRecipientSearchTerm] = useState("");
-  
   const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
   const [isGroupSubmitting, setIsGroupSubmitting] = useState(false);
   const [selectedGroupForEdit, setSelectedGroupForEdit] = useState<GroupFormState | null>(null);
@@ -88,14 +86,12 @@ export default function CommunicationPage() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailFormSchema),
     defaultValues: { subject: "", body: "", recipientUserIds: [], attachments: [] },
   });
   
   const watchedAttachments = form.watch('attachments') || [];
-
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
   useEffect(() => {
@@ -107,25 +103,17 @@ export default function CommunicationPage() {
   const fetchData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-        const [fetchedGroups, fetchedUsers] = await Promise.all([
-            getGroups(),
-            getAllUsers(),
-        ]);
+        const [fetchedGroups, fetchedUsers] = await Promise.all([getGroups(), getAllUsers()]);
         setGroups(fetchedGroups);
-        const approvedMembers = fetchedUsers.filter(u => u.status === 'approved' && ['admin', 'member', 'super_admin'].includes(u.role)).sort((a,b) => (a.name || "").localeCompare(b.name || ""));
+        const approvedMembers = fetchedUsers.filter(u => u.status === 'approved').sort((a,b) => (a.name || "").localeCompare(b.name || ""));
         setMembers(approvedMembers);
     } catch (error) {
-        console.error("Failed to fetch data:", error);
-        toast({ title: "Error", description: "Could not load members or groups.", variant: "destructive"});
+        toast({ title: "Error", description: "Could not load data.", variant: "destructive"});
     }
     setIsLoadingData(false);
   }, [toast]);
   
-  useEffect(() => {
-    if (user && isSuperOrAdmin) {
-      fetchData();
-    }
-  }, [user, fetchData, isSuperOrAdmin]);
+  useEffect(() => { if (user && isSuperOrAdmin) fetchData(); }, [user, fetchData, isSuperOrAdmin]);
 
   const filteredMembers = useMemo(() => {
     return members.filter(member => 
@@ -137,121 +125,74 @@ export default function CommunicationPage() {
   const getInitials = (name?: string) => {
     if (!name) return "??";
     const names = name.split(' ');
-    if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
-    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
-  };
-
-  const getTextColorForBackground = (hexColor: string): 'black' | 'white' => {
-    if (!hexColor) return 'black';
-    const r = parseInt(hexColor.slice(1, 3), 16);
-    const g = parseInt(hexColor.slice(3, 5), 16);
-    const b = parseInt(hexColor.slice(5, 7), 16);
-    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    return (yiq >= 128) ? 'black' : 'white';
+    return (names.length === 1 ? names[0].substring(0, 2) : names[0][0] + names[names.length - 1][0]).toUpperCase();
   };
 
   const handleGenerateContent = async () => {
     if (!aiTopic.trim()) {
-        toast({ title: "Topic Required", description: "Please enter a topic for the AI to write about.", variant: "destructive"});
+        toast({ title: "Topic Required", variant: "destructive"});
         return;
     }
     setIsGenerating(true);
     try {
-        const input: GenerateCommunicationInput = { topic: aiTopic };
-        const result = await generateCommunication(input);
+        const result = await generateCommunication({ topic: aiTopic });
         form.setValue("subject", result.subject, { shouldValidate: true });
         form.setValue("body", result.body, { shouldValidate: true });
-        toast({ title: "Content Generated", description: "The email content has been generated." });
     } catch (error) {
-        console.error("Error generating AI content:", error);
-        toast({ title: "AI Generation Failed", description: "Could not generate content. Please try again.", variant: "destructive"});
+        toast({ title: "AI Failed", variant: "destructive"});
     }
     setIsGenerating(false);
   }
 
   const handleSignatureChange = (signatureKey: keyof typeof SIGNATURE_TEMPLATES) => {
     const currentBody = form.getValues("body");
-    const bodyWithoutSignature = Object.values(SIGNATURE_TEMPLATES).reduce(
-      (body, sig) => body.replace(sig.value, ''),
-      currentBody
-    );
-    const newBody = bodyWithoutSignature.trim() + (SIGNATURE_TEMPLATES[signatureKey].value || "");
-    form.setValue("body", newBody, { shouldValidate: true });
+    const bodyWithoutSignature = Object.values(SIGNATURE_TEMPLATES).reduce((body, sig) => body.replace(sig.value, ''), currentBody);
+    form.setValue("body", bodyWithoutSignature.trim() + SIGNATURE_TEMPLATES[signatureKey].value, { shouldValidate: true });
   };
   
-    const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
+  const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+  });
 
   const onSubmit = async (data: EmailFormValues) => {
     setFormSubmitting(true);
-    
     const recipients = data.recipientUserIds.map(userId => members.find(m => m.id === userId)).filter(Boolean) as User[];
     const recipientEmails = recipients.map(r => r.email).filter(Boolean);
     if(recipientEmails.length === 0) {
-        toast({ title: "No valid recipients", description: "Selected members do not have valid email addresses.", variant: "destructive"});
+        toast({ title: "No recipients", variant: "destructive"});
         setFormSubmitting(false);
         return;
     }
-    
-    let attachmentsForApi: { filename: string, content: string, contentType: string }[] = [];
-    if (data.attachments && data.attachments.length > 0) {
-        try {
-            attachmentsForApi = await Promise.all(data.attachments.map(async (file) => ({
-                filename: file.name,
-                content: (await fileToBase64(file)).split(',')[1],
-                contentType: file.type
-            })));
-        } catch (error) {
-            toast({ title: "Attachment Error", description: "Could not process attachments. Please try again.", variant: "destructive" });
-            setFormSubmitting(false);
-            return;
-        }
+    let attachmentsForApi = [];
+    if (data.attachments) {
+        attachmentsForApi = await Promise.all(data.attachments.map(async (file) => ({
+            filename: file.name,
+            content: (await fileToBase64(file)).split(',')[1],
+            contentType: file.type
+        })));
     }
-
-
     try {
       const response = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            to: recipientEmails.join(','), 
-            subject: data.subject, 
-            body: data.body,
-            attachments: attachmentsForApi
-        }),
+        body: JSON.stringify({ to: recipientEmails.join(','), subject: data.subject, body: data.body, attachments: attachmentsForApi }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || `API request failed with status ${response.status}`);
-      }
-
-      toast({ title: "Emails Sent", description: `Successfully sent email to ${recipients.length} member(s).` });
+      if (!response.ok) throw new Error("Failed to send");
+      toast({ title: "Emails Sent", description: `Sent to ${recipients.length} member(s).` });
       form.reset();
-      form.setValue("recipientUserIds", []);
       setAiTopic("");
-
     } catch (error: any) {
-      console.error("Failed to send email batch:", error);
-      toast({ title: "Email Send Error", description: `Failed to send emails: ${error.message}`, variant: "destructive" });
-    } finally {
-      setFormSubmitting(false);
+      toast({ title: "Send Error", description: error.message, variant: "destructive" });
     }
+    setFormSubmitting(false);
   };
 
   const handleSelectAll = (checked: boolean) => {
     const currentSelection = new Set(form.getValues("recipientUserIds"));
-    const filteredIds = new Set(filteredMembers.map(m => m.id));
-
-    if (checked) {
-        filteredIds.forEach(id => currentSelection.add(id));
-    } else {
-        filteredIds.forEach(id => currentSelection.delete(id));
-    }
+    filteredMembers.forEach(m => checked ? currentSelection.add(m.id) : currentSelection.delete(m.id));
     form.setValue("recipientUserIds", Array.from(currentSelection));
   };
   
@@ -259,40 +200,24 @@ export default function CommunicationPage() {
     const currentSelection = new Set(form.getValues("recipientUserIds"));
     memberIds.forEach(id => currentSelection.add(id));
     form.setValue("recipientUserIds", Array.from(currentSelection), { shouldValidate: true });
-    toast({ title: "Group Selected", description: `${memberIds.length} members added to recipients.` });
+    toast({ title: "Group Selected" });
   };
-  
-  const watchedRecipients = form.watch("recipientUserIds");
 
   const handleOpenGroupForm = (group?: CommunicationGroup) => {
-    if (group) {
-        setSelectedGroupForEdit({ id: group.id, name: group.name, memberIds: group.memberIds, color: group.color || '#cccccc' });
-    } else {
-        setSelectedGroupForEdit({ name: '', memberIds: [], color: '#cccccc' });
-    }
-    setGroupMemberSearchTerm('');
+    setSelectedGroupForEdit(group ? { id: group.id, name: group.name, memberIds: group.memberIds, color: group.color || '#cccccc' } : { name: '', memberIds: [], color: '#cccccc' });
     setIsGroupFormOpen(true);
   };
   
   const handleGroupFormSubmit = async () => {
-    if (!selectedGroupForEdit || !selectedGroupForEdit.name.trim()) {
-        toast({ title: "Group name is required.", variant: "destructive" });
-        return;
-    }
+    if (!selectedGroupForEdit?.name.trim()) return;
     setIsGroupSubmitting(true);
     try {
-        if (selectedGroupForEdit.id) {
-            await updateGroup(selectedGroupForEdit.id, { name: selectedGroupForEdit.name, memberIds: selectedGroupForEdit.memberIds, color: selectedGroupForEdit.color });
-            toast({ title: "Group Updated" });
-        } else {
-            await createGroup(selectedGroupForEdit.name, selectedGroupForEdit.memberIds, selectedGroupForEdit.color);
-            toast({ title: "Group Created" });
-        }
+        if (selectedGroupForEdit.id) await updateGroup(selectedGroupForEdit.id, selectedGroupForEdit);
+        else await createGroup(selectedGroupForEdit.name, selectedGroupForEdit.memberIds, selectedGroupForEdit.color);
         fetchData();
         setIsGroupFormOpen(false);
-        setSelectedGroupForEdit(null);
     } catch (error: any) {
-        toast({ title: "Error", description: `Could not save group: ${error.message}`, variant: "destructive"});
+        toast({ title: "Error", variant: "destructive"});
     }
     setIsGroupSubmitting(false);
   };
@@ -302,222 +227,124 @@ export default function CommunicationPage() {
     setIsGroupSubmitting(true);
     try {
         await deleteGroup(groupToDelete.id);
-        toast({ title: "Group Deleted" });
         fetchData();
     } catch (error: any) {
-         toast({ title: "Error", description: `Could not delete group: ${error.message}`, variant: "destructive"});
+         toast({ title: "Error", variant: "destructive"});
     }
     setIsGroupSubmitting(false);
     setIsDeleteAlertOpen(false);
-    setGroupToDelete(null);
   };
   
-  const filteredGroupMembers = useMemo(() => {
-    return members.filter(member => 
-        (member.name?.toLowerCase() || '').includes(groupMemberSearchTerm.toLowerCase()) ||
-        (member.email?.toLowerCase() || '').includes(groupMemberSearchTerm.toLowerCase())
-    );
-  }, [members, groupMemberSearchTerm]);
+  if (authLoading || isLoadingData || !user || !isSuperOrAdmin) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin" /></div>;
 
-  if (authLoading || isLoadingData || !user || !isSuperOrAdmin) {
-    return <div className="flex items-center justify-center h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
-  }
-  
-  const totalAttachmentSize = watchedAttachments.reduce((acc, file) => acc + file.size, 0);
-  
   return (
-    <div className="container mx-auto py-4 sm:py-8 space-y-6">
-      <div className="flex items-center justify-between"><h1 className="text-2xl sm:text-3xl font-bold font-headline">Member Communication</h1></div>
+    <div className="container mx-auto py-8 space-y-6">
+      <h1 className="text-3xl font-bold font-headline">Member Communication</h1>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card className="shadow-lg">
             <CardHeader>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                <div>
-                  <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary" /> Select Recipients</CardTitle>
-                  <CardDescription className="text-sm">Choose who will receive this official email.</CardDescription>
-                </div>
-              </div>
+              <CardTitle className="flex items-center text-xl"><Users className="mr-2 h-5 w-5 text-primary" /> Select Recipients</CardTitle>
+              <CardDescription>Choose who will receive this official email.</CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingData ? (<Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />) : members.length > 0 ? (
-                <>
-                  <div className="mb-4">
-                      <Label className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Quick Select Groups</Label>
-                      <div className="flex flex-wrap items-center gap-2 pt-2">
-                        {groups.map(group => (
-                           <Button 
-                              key={group.id} 
-                              type="button" 
-                              size="sm" 
-                              variant="secondary" 
-                              onClick={() => handleSelectGroup(group.memberIds)}
-                              style={{ 
-                                  backgroundColor: group.color || 'hsl(var(--secondary))',
-                                  color: getTextColorForBackground(group.color || '#ffffff'),
-                                  borderColor: group.color
-                              }}
-                              className="bg-opacity-20 hover:opacity-80 shadow-sm font-bold"
-                            >
-                              {group.name} ({group.memberIds.length})
-                            </Button>
-                        ))}
-                        <Dialog open={isGroupFormOpen} onOpenChange={setIsGroupFormOpen}>
-                          <DialogTrigger asChild>
-                             <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => handleOpenGroupForm()}> <Settings className="mr-2 h-4 w-4"/>Manage List Groups</Button>
-                          </DialogTrigger>
-                           <DialogContent className="sm:max-w-3xl">
-                             <DialogHeader><DialogTitle>Communication Groups</DialogTitle></DialogHeader>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                                <div className="space-y-4">
-                                  <h3 className="font-semibold text-sm uppercase tracking-widest text-muted-foreground">Existing Groups</h3>
-                                  <ScrollArea className="h-72 border rounded-xl p-2 bg-slate-50/50">
-                                    {groups.length > 0 ? (
-                                        <div className="space-y-2">
-                                          {groups.map(group => (
-                                            <div key={group.id} className="flex items-center justify-between p-3 rounded-lg bg-white border shadow-sm">
-                                              <div className="flex items-center gap-2">
-                                                <div className="h-4 w-4 rounded-full shadow-inner" style={{backgroundColor: group.color || '#ccc'}}></div>
-                                                <div>
-                                                  <p className="font-bold text-sm">{group.name}</p>
-                                                  <p className="text-[10px] text-muted-foreground uppercase">{group.memberIds.length} members</p>
-                                                </div>
-                                              </div>
-                                              <div className="flex items-center">
-                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenGroupForm(group)}><Edit className="h-4 w-4"/></Button>
-                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => {setGroupToDelete(group); setIsDeleteAlertOpen(true);}}><Trash2 className="h-4 w-4"/></Button>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                    ) : (<p className="text-center text-sm text-muted-foreground py-10 italic">No custom groups created.</p>)}
-                                  </ScrollArea>
-                                </div>
-                                <div className="space-y-4">
-                                  <h3 className="font-semibold text-sm uppercase tracking-widest text-primary">{selectedGroupForEdit?.id ? `Modify: ${selectedGroupForEdit.name}` : 'New Group Configuration'}</h3>
-                                  {selectedGroupForEdit && (
-                                    <div className="space-y-4 bg-white p-4 rounded-xl border shadow-sm">
-                                      <div className="flex items-end gap-2">
-                                        <div className="flex-grow"><Label htmlFor="group-name">Group Label</Label><Input id="group-name" value={selectedGroupForEdit.name} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, name: e.target.value})} placeholder="e.g. Executive Board"/></div>
-                                        <div><Label htmlFor="group-color">Color</Label><Input id="group-color" type="color" value={selectedGroupForEdit.color} onChange={(e) => setSelectedGroupForEdit({...selectedGroupForEdit, color: e.target.value})} className="h-10 w-12 p-1 cursor-pointer"/></div>
-                                      </div>
-                                      <div><Label>Add Members</Label><div className="relative mt-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search user list..." value={groupMemberSearchTerm} onChange={(e) => setGroupMemberSearchTerm(e.target.value)} className="pl-10"/></div>
-                                          <ScrollArea className="h-48 border rounded-md p-2 mt-2 bg-slate-50/30">
-                                            {filteredGroupMembers.length > 0 ? (
-                                              <div className="space-y-2">{filteredGroupMembers.map(member => (<div key={member.id} className="flex items-center space-x-3 p-2 rounded hover:bg-white hover:shadow-sm transition-all"><Checkbox id={`member-${member.id}`} checked={selectedGroupForEdit.memberIds.includes(member.id)} onCheckedChange={(checked) => { const newMemberIds = checked ? [...selectedGroupForEdit.memberIds, member.id] : selectedGroupForEdit.memberIds.filter(id => id !== member.id); setSelectedGroupForEdit({...selectedGroupForEdit, memberIds: newMemberIds});}}/><Avatar className="h-8 w-8"><AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="profile avatar" /><AvatarFallback className="bg-primary/20 text-primary font-semibold text-xs">{getInitials(member.name)}</AvatarFallback></Avatar><label htmlFor={`member-${member.id}`} className="text-sm font-medium leading-none cursor-pointer">{member.name}<p className="text-[10px] text-muted-foreground">{member.email}</p></label></div>))}</div>
-                                            ) : (<p className="text-center text-sm text-muted-foreground py-4">No users found.</p>)}
-                                          </ScrollArea><Badge variant="secondary" className="mt-2 font-bold">{selectedGroupForEdit.memberIds.length} selected</Badge>
-                                      </div>
-                                      <div className="flex justify-end gap-2 border-t pt-4">
-                                        <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedGroupForEdit({ name: '', memberIds: [], color: '#cccccc' })}>Clear All</Button>
-                                        <Button type="button" size="sm" onClick={handleGroupFormSubmit} disabled={isGroupSubmitting || !selectedGroupForEdit?.name.trim()}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (selectedGroupForEdit?.id ? 'Save Changes' : 'Activate Group')}</Button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <DialogClose asChild><Button type="button" variant="outline" disabled={isGroupSubmitting}>Close Manager</Button></DialogClose>
-                              </DialogFooter>
-                           </DialogContent>
-                        </Dialog>
-                      </div>
-                  </div>
-                  
-
-                  <div className="relative mb-4"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Filter by user name or email address..." value={recipientSearchTerm} onChange={(e) => setRecipientSearchTerm(e.target.value)} className="pl-10"/></div>
-                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-2 sm:space-y-0 mb-4 p-3 border rounded-xl bg-muted/30">
-                    <div className="flex items-center space-x-2"><Checkbox id="select-all-members" onCheckedChange={(checked) => handleSelectAll(checked as boolean)} checked={filteredMembers.length > 0 && filteredMembers.every(m => watchedRecipients.includes(m.id))} disabled={filteredMembers.length === 0}/><Label htmlFor="select-all-members" className="font-bold text-sm cursor-pointer">Select All Visible ({filteredMembers.length})</Label></div>
-                    <span className="text-xs text-muted-foreground sm:ml-auto font-medium">Recipients: {watchedRecipients.length} / {members.length}</span>
-                  </div>
-                  <ScrollArea className="h-60 border rounded-xl p-2 sm:p-4 bg-white">
-                    {filteredMembers.length > 0 ? (<FormField control={form.control} name="recipientUserIds" render={() => (<div className="space-y-2">{filteredMembers.map((member) => (<FormField key={member.id} control={form.control} name="recipientUserIds" render={({ field }) => (<FormItem key={member.id} className="flex flex-row items-center space-x-3 space-y-0 p-2 rounded-lg hover:bg-slate-50 transition-colors"><FormControl><Checkbox checked={field.value?.includes(member.id)} onCheckedChange={(checked) => { return checked ? field.onChange([...(field.value || []), member.id]) : field.onChange((field.value || []).filter((value) => value !== member.id)) }}/></FormControl><FormLabel className="font-normal text-sm cursor-pointer flex-1 font-medium">{member.name} <span className="text-[10px] text-muted-foreground uppercase ml-2 tracking-tighter">({member.email})</span></FormLabel></FormItem>)}/>))}</div>)}/>
-                    ) : (<p className="text-center text-sm text-muted-foreground py-10 italic">No users match your criteria.</p>)}
-                  </ScrollArea><FormMessage className="mt-2">{form.formState.errors.recipientUserIds?.message}</FormMessage>
-                </>
-              ) : (<p className="text-center text-muted-foreground py-10 italic">No approved member accounts available.</p>)}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {groups.map(group => (
+                  <Button key={group.id} type="button" size="sm" variant="secondary" onClick={() => handleSelectGroup(group.memberIds)} style={{ backgroundColor: group.color + '33', color: group.color, border: `1px solid ${group.color}` }} className="font-bold">
+                    {group.name} ({group.memberIds.length})
+                  </Button>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={() => handleOpenGroupForm()}> <Settings className="mr-2 h-4 w-4"/>Manage Groups</Button>
+              </div>
+              <div className="relative mb-4"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Filter members..." value={recipientSearchTerm} onChange={(e) => setRecipientSearchTerm(e.target.value)} className="pl-10"/></div>
+              <div className="flex items-center space-x-2 mb-4 p-3 border rounded-xl bg-muted/30">
+                <Checkbox id="select-all" onCheckedChange={(c) => handleSelectAll(c as boolean)} checked={filteredMembers.length > 0 && filteredMembers.every(m => form.watch('recipientUserIds').includes(m.id))} />
+                <Label htmlFor="select-all" className="font-bold cursor-pointer">Select All Visible ({filteredMembers.length})</Label>
+              </div>
+              <ScrollArea className="h-60 border rounded-xl p-4 bg-white">
+                {filteredMembers.map(member => (
+                  <FormField key={member.id} control={form.control} name="recipientUserIds" render={({ field }) => (
+                    <FormItem className="flex items-center space-x-3 space-y-0 p-2 rounded-lg hover:bg-slate-50">
+                      <FormControl><Checkbox checked={field.value?.includes(member.id)} onCheckedChange={(c) => c ? field.onChange([...field.value, member.id]) : field.onChange(field.value.filter(v => v !== member.id))} /></FormControl>
+                      <FormLabel className="flex-1 cursor-pointer font-medium">{member.name} <span className="text-[10px] text-muted-foreground ml-2">({member.email})</span></FormLabel>
+                    </FormItem>
+                  )} />
+                ))}
+              </ScrollArea>
             </CardContent>
           </Card>
           
-          <Card className="shadow-lg border-primary/10"><CardHeader className="bg-primary/5"><CardTitle className="flex items-center text-xl text-primary"><Sparkles className="mr-2 h-5 w-5" /> AI Content Assistant</CardTitle></CardHeader><CardContent className="space-y-4 pt-6"><Alert className="bg-blue-50 border-blue-100"><Info className="h-4 w-4 text-primary" /><AlertDescription className="text-xs leading-relaxed text-blue-800">Briefly describe the topic (e.g. "beach cleanup reminder") and the AI will draft a professional, engaging club email for you.</AlertDescription></Alert><div><Label htmlFor="ai-topic" className="font-bold">Topic for AI Draft</Label><div className="flex items-center gap-2 mt-1"><Input id="ai-topic" placeholder="e.g. Monthly meeting reminder for next Saturday at 10 AM" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} disabled={isGenerating || formSubmitting} className="rounded-xl"/><Button type="button" onClick={handleGenerateContent} disabled={isGenerating || formSubmitting} className="rounded-xl shadow-md">{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Draft Content</Button></div></div></CardContent></Card>
-          <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Official Email</CardTitle><CardDescription className="text-sm">Finalize the subject and body before sending.</CardDescription></CardHeader><CardContent className="space-y-4">
-            <FormField control={form.control} name="subject" render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-bold">Subject Line</FormLabel>
-                <FormControl>
-                  <Input placeholder="Important: Club Update Regarding..." {...field} className="rounded-xl" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}/>
-            <FormField control={form.control} name="body" render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-bold">Message Body</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="Dear members, we are writing to inform you that..." className="resize-y min-h-[200px] rounded-xl" {...field}/>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}/>
-            <FormItem><FormLabel className="flex items-center font-bold"><Edit className="mr-1.5 h-4 w-4 text-muted-foreground"/> Append Signature</FormLabel><Select onValueChange={(value) => handleSignatureChange(value as keyof typeof SIGNATURE_TEMPLATES)}><FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choose a signature template" /></SelectTrigger></FormControl><SelectContent>{Object.entries(SIGNATURE_TEMPLATES).map(([key, template]) => (<SelectItem key={key} value={key}>{template.label}</SelectItem>))}</SelectContent></Select><FormDescription className="text-xs">This will be added to the end of your message.</FormDescription></FormItem>
-            
-            <FormField
-              control={form.control}
-              name="attachments"
-              render={({ field }) => (
+          <Card className="shadow-lg border-primary/10">
+            <CardHeader className="bg-primary/5"><CardTitle className="flex items-center text-xl text-primary"><Sparkles className="mr-2 h-5 w-5" /> AI Draft Assistant</CardTitle></CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <Label className="font-bold">Topic</Label>
+              <div className="flex gap-2"><Input placeholder="e.g. beach cleanup reminder" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} /><Button type="button" onClick={handleGenerateContent} disabled={isGenerating}>{isGenerating ? <Loader2 className="animate-spin mr-2"/> : <Sparkles className="mr-2"/>}Draft</Button></div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg">
+            <CardHeader><CardTitle className="flex items-center text-xl"><Mail className="mr-2 h-5 w-5 text-primary" /> Compose Email</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <FormField control={form.control} name="subject" render={({ field }) => (
+                <FormItem><FormLabel>Subject</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
+              )}/>
+              <FormField control={form.control} name="body" render={({ field }) => (
+                <FormItem><FormLabel>Body</FormLabel><FormControl><Textarea className="min-h-[200px] rounded-xl" {...field}/></FormControl><FormMessage /></FormItem>
+              )}/>
+              <div className="space-y-2">
+                <Label>Append Signature</Label>
+                <Select onValueChange={(v) => handleSignatureChange(v as any)}>
+                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select signature" /></SelectTrigger>
+                    <SelectContent>{Object.entries(SIGNATURE_TEMPLATES).map(([k, t]) => <SelectItem key={k} value={k}>{t.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <FormField control={form.control} name="attachments" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center font-bold"><Paperclip className="mr-1.5 h-4 w-4 text-muted-foreground" /> Add Attachments</FormLabel>
-                  <FormControl>
-                      <div>
-                        <input
-                            type="file"
-                            multiple
-                            ref={fileInputRef}
-                            className="hidden"
-                            onChange={(e) => {
-                                const newFiles = Array.from(e.target.files || []);
-                                const currentFiles = field.value || [];
-                                field.onChange([...currentFiles, ...newFiles]);
-                            }}
-                        />
-                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={formSubmitting} className="rounded-xl">
-                           <PlusCircle className="mr-2 h-4 w-4" /> Choose Files
-                        </Button>
-                      </div>
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                     Maximum total file size: {MAX_TOTAL_SIZE_MB}MB.
-                  </FormDescription>
-                  {watchedAttachments.length > 0 && (
-                    <div className="space-y-2 pt-2">
-                        {watchedAttachments.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 text-sm rounded-xl border bg-slate-50 shadow-sm">
-                                <span className="truncate pr-2 font-medium">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:bg-rose-50" onClick={() => {
-                                    const newFiles = [...watchedAttachments];
-                                    newFiles.splice(index, 1);
-                                    field.onChange(newFiles);
-                                }}>
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                         <div className="text-[10px] font-bold text-muted-foreground pt-1 uppercase tracking-widest">
-                            Storage Used: {(totalAttachmentSize / 1024 / 1024).toFixed(2)}MB / {MAX_TOTAL_SIZE_MB}MB
-                         </div>
-                    </div>
-                  )}
-                  <FormMessage />
+                  <FormLabel>Attachments</FormLabel>
+                  <div className="space-y-2">
+                    <input type="file" multiple ref={fileInputRef} className="hidden" onChange={(e) => field.onChange([...(field.value || []), ...Array.from(e.target.files || [])])} />
+                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="rounded-xl"><Paperclip className="mr-2 h-4 w-4"/>Choose Files</Button>
+                    <div className="flex flex-wrap gap-2">{watchedAttachments.map((f, i) => <Badge key={i} variant="secondary" className="pr-1">{f.name}<X className="ml-1 h-3 w-3 cursor-pointer" onClick={() => field.onChange(watchedAttachments.filter((_, idx) => idx !== i))}/></Badge>)}</div>
+                  </div>
                 </FormItem>
-              )}
-            />
-          </CardContent></Card>
-          
-          <div className="flex justify-end"><Button type="submit" className="w-full sm:w-auto h-14 px-10 text-lg font-black shadow-xl rounded-2xl" disabled={formSubmitting || isLoadingData || watchedRecipients.length === 0}>{formSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}{formSubmitting ? "Delivering..." : `Dispatch to ${watchedRecipients.length} Recipient(s)`}</Button></div>
+              )}/>
+            </CardContent>
+          </Card>
+          <div className="flex justify-end"><Button type="submit" size="lg" className="h-14 px-10 text-lg font-black rounded-2xl shadow-xl" disabled={formSubmitting || form.watch('recipientUserIds').length === 0}>{formSubmitting ? <Loader2 className="animate-spin mr-2" /> : <Send className="mr-2" />} Dispatch</Button></div>
         </form>
       </Form>
-       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
-        <AlertDialogContent className="rounded-2xl border-none shadow-2xl"><AlertDialogHeader><AlertDialogTitle>Delete Communication Group?</AlertDialogTitle><AlertDialogDescription>You are about to remove the "{groupToDelete?.name}" mailing group. This will not affect the user accounts, only the group list.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteGroup} className={cn(buttonVariants({ variant: "destructive" }), "rounded-xl")}>{isGroupSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Delete Group'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+
+      <Dialog open={isGroupFormOpen} onOpenChange={setIsGroupFormOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Mailing Groups</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            <ScrollArea className="h-64 border rounded-lg p-2">
+              {groups.map(g => (
+                <div key={g.id} className="flex items-center justify-between p-2 mb-2 bg-slate-50 rounded-lg">
+                  <span className="font-bold text-sm" style={{ color: g.color }}>{g.name}</span>
+                  <div className="flex"><Button size="icon" variant="ghost" onClick={() => handleOpenGroupForm(g)}><Edit className="h-4 w-4"/></Button><Button size="icon" variant="ghost" className="text-rose-500" onClick={() => { setGroupToDelete(g); setIsDeleteAlertOpen(true); }}><Trash2 className="h-4 w-4"/></Button></div>
+                </div>
+              ))}
+            </ScrollArea>
+            <div className="space-y-3">
+              <Input placeholder="Group Name" value={selectedGroupForEdit?.name} onChange={e => setSelectedGroupForEdit(p => p ? {...p, name: e.target.value} : null)} />
+              <Input type="color" value={selectedGroupForEdit?.color} onChange={e => setSelectedGroupForEdit(p => p ? {...p, color: e.target.value} : null)} className="h-10 p-1" />
+              <ScrollArea className="h-40 border rounded-lg p-2">
+                {members.map(m => (
+                  <div key={m.id} className="flex items-center gap-2 p-1">
+                    <Checkbox checked={selectedGroupForEdit?.memberIds.includes(m.id)} onCheckedChange={c => setSelectedGroupForEdit(p => p ? {...p, memberIds: c ? [...p.memberIds, m.id] : p.memberIds.filter(id => id !== m.id)} : null)} />
+                    <span className="text-xs">{m.name}</span>
+                  </div>
+                ))}
+              </ScrollArea>
+              <Button className="w-full" onClick={handleGroupFormSubmit} disabled={isGroupSubmitting}>Save Group</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Group?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteGroup} className="bg-rose-600">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
     </div>
   );
