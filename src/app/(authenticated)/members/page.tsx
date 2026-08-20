@@ -186,7 +186,7 @@ export default function MemberManagementPage() {
       await performAdminAuthOperation(async () => {
         const userCredential = await createUserWithEmailAndPassword(firebaseAuth, data.email, data.password);
         const newAuthUser = userCredential.user;
-        await createUserProfile(newAuthUser.uid, data.email, data.name, data.role, 'approved', undefined, undefined, undefined, undefined, undefined, data.designation);
+        await createUserProfile(newAuthUser.uid, data.email, name, data.role, 'approved', undefined, undefined, undefined, undefined, undefined, data.designation);
         if (firebaseAuth.currentUser && firebaseAuth.currentUser.uid === newAuthUser.uid) {
           await signOut(firebaseAuth);
         }
@@ -562,7 +562,7 @@ export default function MemberManagementPage() {
                       </CardContent>
                       <CardFooter className="flex justify-end space-x-1 pt-2 pb-3 px-3 border-t bg-muted/5">
                           <Button variant="outline" size="sm" onClick={() => handleOpenFeeModal(memberItem)} className="h-8 text-[10px] border-primary text-primary font-bold"><CreditCard className="mr-1 h-3.5 w-3.5" /> Fees</Button>
-                          <Button variant="outline" size="sm" onClick={() => handleOpenEditForm(memberItem)} className="h-8 text-[10px] font-bold"><Edit className="mr-1 h-3.5 w-3.5" /> Edit</Button>
+                          <Button variant="outline" size="sm" onClick={() => handleOpenEditForm(memberItem)} className="h-8 text-[10px] font-bold"><Edit className="mr-1.5 h-3.5 w-3.5" /> Edit</Button>
                       </CardFooter>
                     </Card>
                 ))}
@@ -589,14 +589,16 @@ export default function MemberManagementPage() {
                 <RotateCcw className="h-6 w-6" />
                 <AlertDialogTitle className="text-xl font-headline uppercase">Annual Cycle Reset</AlertDialogTitle>
             </div>
-            <AlertDialogDescription className="text-slate-600 font-medium">
-              You are about to start a new Leostic Year cycle. This will:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Reset all members to <span className="font-black text-rose-600">Pending</span> fee status.</li>
-                <li>Clear all "Amount Paid" values to 0.</li>
-                <li>Archive current data for the period <span className="font-bold">{leosticRange.start}</span>.</li>
-              </ul>
-              <p className="mt-4 font-black">This action is irreversible. Proceed?</p>
+            <AlertDialogDescription asChild>
+              <div className="text-slate-600 font-medium">
+                You are about to start a new Leostic Year cycle. This will:
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Reset all members to <span className="font-black text-rose-600">Pending</span> fee status.</li>
+                  <li>Clear all "Amount Paid" values to 0.</li>
+                  <li>Archive current data for the period <span className="font-bold">{leosticRange.start}</span>.</li>
+                </ul>
+                <p className="mt-4 font-black">This action is irreversible. Proceed?</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
