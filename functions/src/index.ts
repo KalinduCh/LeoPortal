@@ -297,3 +297,38 @@ export const onUserDocumentChanged = functions.firestore
       requestBody: { values: [values] },
     });
   });
+
+/**
+ * Automatically resets all member fee statuses and amounts on June 1st every year.
+ * This starts a fresh cycle for the new Leostic year.
+ * Historical financial records (transactions) remain untouched in their collection.
+ */
+export const annualMembershipFeeReset = functions.pubsub.schedule("0 0 1 6 *")
+  .timeZone("Asia/Colombo")
+  .onRun(async (context) => {
+    const usersSnapshot = await db.collection("users").get();
+    let batch = db.batch();
+    let operationCount = 0;
+
+    for (const doc of usersSnapshot.docs) {
+      batch.update(doc.ref, {
+        membershipFeeStatus: 'pending',
+        membershipFeeAmountPaid: 0
+      });
+      operationCount++;
+
+      // Firestore batches are limited to 500 operations
+      if (operationCount === 500) {
+        await batch.commit();
+        batch = db.batch();
+        operationCount = 0;
+      }
+    }
+
+    if (operationCount > 0) {
+      await batch.commit();
+    }
+    
+    console.log(`Annual Membership Reset: Successfully reset fee status for ${usersSnapshot.size} users.`);
+    return null;
+  });
