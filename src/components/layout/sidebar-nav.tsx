@@ -1,4 +1,3 @@
-
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -14,7 +13,7 @@ import {
 import { 
   LayoutDashboard, CalendarDays, Users, Mail, 
   Lightbulb, HandCoins, Settings, Trophy, BarChart, 
-  Calendar, ListChecks, QrCode, ExternalLink, FileSpreadsheet, BellRing 
+  Calendar, ListChecks, QrCode, ExternalLink, FileSpreadsheet, Image as ImageIcon 
 } from "lucide-react"; 
 import type { AdminPermission } from "@/types";
 
@@ -30,6 +29,7 @@ const memberNavItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
+  { href: "/gallery", label: "Project Gallery", icon: ImageIcon },
   { href: "/project-ideas", label: "Project Ideas", icon: Lightbulb },
   { href: "/tasks", label: "My Tasks", icon: ListChecks },
 ];
@@ -37,6 +37,7 @@ const memberNavItems: NavItem[] = [
 const adminNavItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/calendar", label: "Calendar", icon: Calendar },
+  { href: "/gallery", label: "Project Gallery", icon: ImageIcon },
   { href: "/tasks", label: "Tasks", icon: ListChecks, permission: 'tasks' },
   { href: "/members", label: "Members", icon: Users, permission: 'members' },
   { href: "/events", label: "Events", icon: CalendarDays, permission: 'events' },

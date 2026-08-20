@@ -48,6 +48,8 @@ export interface Event {
   reminderSent: boolean; 
   eventType?: EventType;
   points?: number;
+  galleryUrl?: string; // Link to view Drive folder
+  uploadUrl?: string;  // Link to upload photos (Drive or Form)
 }
 
 export interface PointsEntry {

@@ -1,4 +1,3 @@
-
 // src/services/eventService.ts
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp, query, orderBy, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
@@ -13,6 +12,8 @@ export async function createEvent(data: EventFormValues): Promise<string> {
     startDate: data.startDate.toISOString(),
     description: data.description,
     reminderSent: false,
+    galleryUrl: data.galleryUrl || null,
+    uploadUrl: data.uploadUrl || null,
   };
 
   if (data.eventType !== 'deadline' && data.endDate) {
@@ -58,6 +59,8 @@ export async function getEvents(): Promise<Event[]> {
         reminderSent: data.reminderSent || false,
         eventType: data.eventType,
         points: data.points,
+        galleryUrl: data.galleryUrl,
+        uploadUrl: data.uploadUrl,
       };
       if (data.endDate) {
         event.endDate = data.endDate;
@@ -87,6 +90,8 @@ export async function getEvent(eventId: string): Promise<Event | null> {
       reminderSent: data.reminderSent || false,
       eventType: data.eventType,
       points: data.points,
+      galleryUrl: data.galleryUrl,
+      uploadUrl: data.uploadUrl,
     };
     if (data.endDate) {
       event.endDate = data.endDate;
@@ -103,6 +108,8 @@ export async function updateEvent(eventId: string, data: EventFormValues): Promi
     startDate: data.startDate.toISOString(),
     description: data.description,
     eventType: data.eventType || deleteField(),
+    galleryUrl: data.galleryUrl || deleteField(),
+    uploadUrl: data.uploadUrl || deleteField(),
   };
 
   if (data.eventType === 'deadline') {
