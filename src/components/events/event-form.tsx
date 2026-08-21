@@ -1,13 +1,14 @@
-
 "use client";
 
-import React, { useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import React, { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
 import {
   Form,
   FormControl,
@@ -16,69 +17,142 @@ import {
   FormLabel,
   FormMessage,
   FormDescription,
-} from '@/components/ui/form';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { format, parseISO, isValid } from 'date-fns';
-<<<<<<< HEAD
-import { CalendarIcon, Loader2, MapPin, ExternalLink, Award, Image as ImageIcon, UploadCloud, Info } from 'lucide-react';
-=======
-import { CalendarIcon, Loader2, MapPin, ExternalLink, Award } from 'lucide-react';
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
-import type { Event, EventType } from '@/types';
-import { cn } from '@/lib/utils';
-import { Label } from '../ui/label';
-import { Checkbox } from '../ui/checkbox';
-import Link from 'next/link';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-<<<<<<< HEAD
-import { Separator } from '../ui/separator';
-=======
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
+} from "@/components/ui/form";
 
-const eventFormSchema = z.object({
-  name: z.string().min(3, { message: "Event name must be at least 3 characters." }),
-  startDate: z.date({ required_error: "Event start date is required." }),
-  endDate: z.date().optional(),
-  location: z.string().optional(),
-  description: z.string().min(10, { message: "Description must be at least 10 characters." }),
-  enableGeoRestriction: z.boolean().optional(),
-  latitude: z.coerce.number().optional(),
-  longitude: z.coerce.number().optional(),
-  eventType: z.enum(['club_project', 'district_project', 'joint_project', 'official_visit', 'deadline', 'other']).optional(),
-  points: z.coerce.number().int().min(0, "Points must be a positive number.").optional(),
-<<<<<<< HEAD
-  galleryUrl: z.string().url({ message: "Invalid URL" }).or(z.literal("")).optional(),
-  uploadUrl: z.string().url({ message: "Invalid URL" }).or(z.literal("")).optional(),
-}).refine(data => {
-=======
-}).refine(data => {
-  // For non-deadline events, if endDate exists, it must be after startDate
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
-  if (data.eventType !== 'deadline' && data.endDate) {
-    return data.endDate > data.startDate;
-  }
-  return true;
-}, {
-  message: "End date must be after start date.",
-  path: ["endDate"], 
-}).refine(data => {
-  if (data.enableGeoRestriction) {
-    return data.latitude !== undefined && data.longitude !== undefined && !isNaN(data.latitude) && !isNaN(data.longitude);
-  }
-  return true;
-}, {
-  message: "Latitude and Longitude are required if geo-restriction is enabled.",
-  path: ["latitude"], 
-}).refine(data => {
-    if (data.eventType !== 'deadline') {
-        return !!data.location && data.location.length >= 3;
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+import { Calendar } from "@/components/ui/calendar";
+import { format, parseISO, isValid } from "date-fns";
+
+import {
+  CalendarIcon,
+  Loader2,
+  MapPin,
+  ExternalLink,
+  Award,
+  Image as ImageIcon,
+  UploadCloud,
+  Info,
+} from "lucide-react";
+
+import type { Event, EventType } from "@/types";
+import { cn } from "@/lib/utils";
+import { Label } from "../ui/label";
+import { Checkbox } from "../ui/checkbox";
+import Link from "next/link";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+
+const eventFormSchema = z
+  .object({
+    name: z
+      .string()
+      .min(3, { message: "Event name must be at least 3 characters." }),
+
+    startDate: z.date({
+      required_error: "Event start date is required.",
+    }),
+
+    endDate: z.date().optional(),
+
+    location: z.string().optional(),
+
+    description: z
+      .string()
+      .min(10, { message: "Description must be at least 10 characters." }),
+
+    enableGeoRestriction: z.boolean().optional(),
+
+    latitude: z.coerce.number().optional(),
+
+    longitude: z.coerce.number().optional(),
+
+    eventType: z
+      .enum([
+        "club_project",
+        "district_project",
+        "joint_project",
+        "official_visit",
+        "deadline",
+        "other",
+      ])
+      .optional(),
+
+    points: z
+      .coerce
+      .number()
+      .int()
+      .min(0, "Points must be a positive number.")
+      .optional(),
+
+    galleryUrl: z
+      .string()
+      .url({ message: "Invalid URL" })
+      .or(z.literal(""))
+      .optional(),
+
+    uploadUrl: z
+      .string()
+      .url({ message: "Invalid URL" })
+      .or(z.literal(""))
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      // For non-deadline events, if endDate exists, it must be after startDate
+      if (data.eventType !== "deadline" && data.endDate) {
+        return data.endDate > data.startDate;
+      }
+
+      return true;
+    },
+    {
+      message: "End date must be after start date.",
+      path: ["endDate"],
     }
-    return true;
-}, {
-    message: "Location is required for this event type.",
-    path: ["location"],
-});
+  )
+  .refine(
+    (data) => {
+      if (data.enableGeoRestriction) {
+        return (
+          data.latitude !== undefined &&
+          data.longitude !== undefined &&
+          !isNaN(data.latitude) &&
+          !isNaN(data.longitude)
+        );
+      }
+
+      return true;
+    },
+    {
+      message:
+        "Latitude and Longitude are required if geo-restriction is enabled.",
+      path: ["latitude"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.eventType !== "deadline") {
+        return !!data.location && data.location.length >= 3;
+      }
+
+      return true;
+    },
+    {
+      message: "Location is required for this event type.",
+      path: ["location"],
+    }
+  );
 
 export type EventFormValues = z.infer<typeof eventFormSchema>;
 
@@ -89,99 +163,142 @@ interface EventFormProps {
   isLoading?: boolean;
 }
 
-const DateTimePicker = ({ field, label }: { field: any, label: string }) => {
-    const handleDateSelect = (date: Date | undefined) => {
-        const newDate = date || field.value || new Date();
-        const currentTime = field.value || new Date(); 
-        newDate.setHours(currentTime.getHours());
-        newDate.setMinutes(currentTime.getMinutes());
-        field.onChange(newDate);
-    };
+const DateTimePicker = ({
+  field,
+  label,
+}: {
+  field: any;
+  label: string;
+}) => {
+  const handleDateSelect = (date: Date | undefined) => {
+    const newDate = date || field.value || new Date();
+    const currentTime = field.value || new Date();
 
-    const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const [hours, minutes] = e.target.value.split(':').map(Number);
-        const newDate = new Date(field.value || Date.now());
-        newDate.setHours(hours);
-        newDate.setMinutes(minutes);
-        field.onChange(newDate);
-    };
+    newDate.setHours(currentTime.getHours());
+    newDate.setMinutes(currentTime.getMinutes());
 
-    return (
-        <FormItem className="flex flex-col">
-          <FormLabel>{label}</FormLabel>
-          <Popover>
-            <PopoverTrigger asChild>
-              <FormControl>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-full pl-3 text-left font-normal",
-                    !field.value && "text-muted-foreground"
-                  )}
-                >
-                  {field.value ? (
-                    format(field.value, "PPP HH:mm")
-                  ) : (
-                    <span>Pick a date and time</span>
-                  )}
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                </Button>
-              </FormControl>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={field.value}
-                onSelect={handleDateSelect}
-                captionLayout="dropdown-buttons"
-                fromYear={new Date().getFullYear() - 10}
-                toYear={new Date().getFullYear() + 10}
-              />
-               <div className="p-2 border-t border-border">
-                <Label htmlFor={`time-${field.name}`} className="text-sm">Time</Label>
-                <Input
-                  id={`time-${field.name}`}
-                  type="time"
-                  defaultValue={field.value ? format(field.value, "HH:mm") : ""}
-                  onChange={handleTimeChange}
-                  className="mt-1"
-                />
-              </div>
-            </PopoverContent>
-          </Popover>
-          <FormMessage />
-        </FormItem>
-    );
+    field.onChange(newDate);
+  };
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const [hours, minutes] = e.target.value.split(":").map(Number);
+
+    const newDate = new Date(field.value || Date.now());
+
+    newDate.setHours(hours);
+    newDate.setMinutes(minutes);
+
+    field.onChange(newDate);
+  };
+
+  return (
+    <FormItem className="flex flex-col">
+      <FormLabel>{label}</FormLabel>
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <FormControl>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full pl-3 text-left font-normal",
+                !field.value && "text-muted-foreground"
+              )}
+            >
+              {field.value ? (
+                format(field.value, "PPP HH:mm")
+              ) : (
+                <span>Pick a date and time</span>
+              )}
+
+              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+            </Button>
+          </FormControl>
+        </PopoverTrigger>
+
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={field.value}
+            onSelect={handleDateSelect}
+            captionLayout="dropdown-buttons"
+            fromYear={new Date().getFullYear() - 10}
+            toYear={new Date().getFullYear() + 10}
+          />
+
+          <div className="p-2 border-t border-border">
+            <Label htmlFor={`time-${field.name}`} className="text-sm">
+              Time
+            </Label>
+
+            <Input
+              id={`time-${field.name}`}
+              type="time"
+              defaultValue={
+                field.value ? format(field.value, "HH:mm") : ""
+              }
+              onChange={handleTimeChange}
+              className="mt-1"
+            />
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <FormMessage />
+    </FormItem>
+  );
 };
 
-const eventTypeOptions: { value: EventType, label: string }[] = [
-    { value: 'club_project', label: 'Club Project' },
-    { value: 'district_project', label: 'District Project' },
-    { value: 'joint_project', label: 'Joint Project' },
-    { value: 'official_visit', label: 'Official Visit' },
-    { value: 'deadline', label: 'Deadline/Submission' },
-    { value: 'other', label: 'Other' },
+const eventTypeOptions: {
+  value: EventType;
+  label: string;
+}[] = [
+  { value: "club_project", label: "Club Project" },
+  { value: "district_project", label: "District Project" },
+  { value: "joint_project", label: "Joint Project" },
+  { value: "official_visit", label: "Official Visit" },
+  { value: "deadline", label: "Deadline/Submission" },
+  { value: "other", label: "Other" },
 ];
 
-export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormProps) {
+export function EventForm({
+  event,
+  onSubmit,
+  onCancel,
+  isLoading,
+}: EventFormProps) {
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
+
     defaultValues: {
       name: event?.name || "",
-      startDate: event?.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : new Date(),
-      endDate: event?.endDate && isValid(parseISO(event.endDate)) ? parseISO(event.endDate) : undefined,
+
+      startDate:
+        event?.startDate && isValid(parseISO(event.startDate))
+          ? parseISO(event.startDate)
+          : new Date(),
+
+      endDate:
+        event?.endDate && isValid(parseISO(event.endDate))
+          ? parseISO(event.endDate)
+          : undefined,
+
       location: event?.location || "",
       description: event?.description || "",
-      enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
+
+      enableGeoRestriction: !!(
+        event?.latitude !== undefined &&
+        event?.longitude !== undefined
+      ),
+
       latitude: event?.latitude ?? undefined,
       longitude: event?.longitude ?? undefined,
-      eventType: event?.eventType || 'other',
+
+      eventType: event?.eventType || "other",
       points: event?.points || 0,
-<<<<<<< HEAD
+
       galleryUrl: event?.galleryUrl || "",
       uploadUrl: event?.uploadUrl || "",
-=======
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
     },
   });
 
@@ -190,40 +307,51 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
   useEffect(() => {
     form.reset({
       name: event?.name || "",
-      startDate: event?.startDate && isValid(parseISO(event.startDate)) ? parseISO(event.startDate) : new Date(),
-      endDate: event?.endDate && isValid(parseISO(event.endDate)) ? parseISO(event.endDate) : undefined,
+
+      startDate:
+        event?.startDate && isValid(parseISO(event.startDate))
+          ? parseISO(event.startDate)
+          : new Date(),
+
+      endDate:
+        event?.endDate && isValid(parseISO(event.endDate))
+          ? parseISO(event.endDate)
+          : undefined,
+
       location: event?.location || "",
       description: event?.description || "",
-      enableGeoRestriction: !!(event?.latitude !== undefined && event?.longitude !== undefined),
+
+      enableGeoRestriction: !!(
+        event?.latitude !== undefined &&
+        event?.longitude !== undefined
+      ),
+
       latitude: event?.latitude ?? undefined,
       longitude: event?.longitude ?? undefined,
-      eventType: event?.eventType || 'other',
+
+      eventType: event?.eventType || "other",
       points: event?.points || 0,
-<<<<<<< HEAD
+
       galleryUrl: event?.galleryUrl || "",
       uploadUrl: event?.uploadUrl || "",
-=======
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
     });
   }, [event, form]);
 
   const handleFormSubmit = async (values: EventFormValues) => {
     const submissionValues: EventFormValues = { ...values };
-    if (!values.enableGeoRestriction || values.eventType === 'deadline') {
+
+    if (!values.enableGeoRestriction || values.eventType === "deadline") {
       submissionValues.latitude = undefined;
       submissionValues.longitude = undefined;
     }
-     if (values.eventType === 'deadline') {
-        submissionValues.location = undefined;
-        submissionValues.enableGeoRestriction = false;
-<<<<<<< HEAD
-        submissionValues.endDate = undefined; 
-        submissionValues.points = 0; 
-=======
-        submissionValues.endDate = undefined; // Ensure end date is not sent for deadlines
-        submissionValues.points = 0; // Deadlines don't have participation points
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
+
+    if (values.eventType === "deadline") {
+      submissionValues.location = undefined;
+      submissionValues.enableGeoRestriction = false;
+      submissionValues.endDate = undefined;
+      submissionValues.points = 0;
     }
+
     await onSubmit(submissionValues);
   };
 
@@ -231,240 +359,152 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-<<<<<<< HEAD
+      <form
+        onSubmit={form.handleSubmit(handleFormSubmit)}
+        className="space-y-6"
+      >
+        {/* Primary Details */}
         <div className="space-y-4">
-            <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Primary Details</h3>
-            <FormField
+          <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">
+            Primary Details
+          </h3>
+
+          <FormField
             control={form.control}
             name="name"
             render={({ field }) => (
-                <FormItem>
+              <FormItem>
                 <FormLabel>Event Name</FormLabel>
+
                 <FormControl>
-                    <Input placeholder="Annual Charity Gala" {...field} />
+                  <Input placeholder="Annual Charity Gala" {...field} />
                 </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
 
-            <FormField
-            control={form.control}
-            name="eventType"
-            render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Event Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select an event type" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                            {eventTypeOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-            )}
-            />
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                    <DateTimePicker 
-                        field={field} 
-                        label={watchedEventType === 'deadline' ? 'Deadline' : 'Start Date & Time'} 
-                    />
-                )}
-                />
-                {watchedEventType !== 'deadline' && (
-                <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => <DateTimePicker field={field} label="End Date & Time (Optional)" />}
-                />
-                )}
-            </div>
-        </div>
-
-        {watchedEventType !== 'deadline' && (
-            <div className="space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Logistics & Rewards</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="points"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center"><Award className="mr-1.5 h-4 w-4 text-muted-foreground"/>Participation Points</FormLabel>
-                            <FormControl>
-                            <Input type="number" min="0" placeholder="e.g., 500" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} />
-                            </FormControl>
-                            <FormDescription className="text-xs">Points awarded for attendance.</FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="location"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center"><MapPin className="mr-1.5 h-4 w-4 text-muted-foreground" /> Location</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Venue address" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                </div>
-
-                <FormField
-                control={form.control}
-                name="enableGeoRestriction"
-                render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-                    <FormControl>
-                        <Checkbox
-                        checked={field.value}
-                        onCheckedChange={(checked) => {
-                            field.onChange(checked);
-                            if (!checked) {
-                            form.setValue("latitude", undefined, { shouldValidate: true });
-                            form.setValue("longitude", undefined, { shouldValidate: true });
-                            }
-                        }}
-                        />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                        <FormLabel>Enable Geo-restriction for Attendance</FormLabel>
-                        <FormDescription className="text-xs">Members must be within a radius to mark attendance.</FormDescription>
-                    </div>
-                    </FormItem>
-                )}
-                />
-                
-                {geoRestrictionEnabled && (
-                <div className="p-4 border rounded-md shadow-sm bg-muted/30 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                        control={form.control}
-                        name="latitude"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel className="text-xs uppercase font-bold">Latitude</FormLabel>
-                            <FormControl>
-                                <Input type="number" step="any" placeholder="e.g., 6.9271" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                        <FormField
-                        control={form.control}
-                        name="longitude"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel className="text-xs uppercase font-bold">Longitude</FormLabel>
-                            <FormControl>
-                                <Input type="number" step="any" placeholder="e.g., 79.8612" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                    </div>
-                    <Link href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-bold hover:underline inline-flex items-center">
-                        Find on Google Maps <ExternalLink className="ml-1 h-3 w-3" />
-                    </Link>
-                </div>
-                )}
-            </div>
-=======
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Event Name</FormLabel>
-              <FormControl>
-                <Input placeholder="Annual Charity Gala" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="eventType"
-          render={({ field }) => (
-              <FormItem>
-                  <FormLabel>Event Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select an event type" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                          {eventTypeOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                      </SelectContent>
-                  </Select>
-                  <FormMessage />
-              </FormItem>
-          )}
-        />
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="startDate"
-              render={({ field }) => (
-                  <DateTimePicker 
-                      field={field} 
-                      label={watchedEventType === 'deadline' ? 'Deadline' : 'Start Date & Time'} 
-                  />
-              )}
-            />
-            {watchedEventType !== 'deadline' && (
-             <FormField
-              control={form.control}
-              name="endDate"
-              render={({ field }) => <DateTimePicker field={field} label="End Date & Time (Optional)" />}
-            />
-            )}
-        </div>
-
-        {watchedEventType !== 'deadline' && (
-          <FormField
-            control={form.control}
-            name="points"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center"><Award className="mr-1.5 h-4 w-4 text-muted-foreground"/>Participation Points</FormLabel>
-                <FormControl>
-                  <Input type="number" min="0" placeholder="e.g., 500" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} />
-                </FormControl>
-                <FormDescription className="text-xs">Points awarded to members for attending this event.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
-        )}
-        
-        {watchedEventType !== 'deadline' && (
-          <>
+
+          <FormField
+            control={form.control}
+            name="eventType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Event Type</FormLabel>
+
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an event type" />
+                    </SelectTrigger>
+                  </FormControl>
+
+                  <SelectContent>
+                    {eventTypeOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="location"
+              name="startDate"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Community Hall, Main Street" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                <DateTimePicker
+                  field={field}
+                  label={
+                    watchedEventType === "deadline"
+                      ? "Deadline"
+                      : "Start Date & Time"
+                  }
+                />
               )}
             />
+
+            {watchedEventType !== "deadline" && (
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <DateTimePicker
+                    field={field}
+                    label="End Date & Time (Optional)"
+                  />
+                )}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Logistics & Rewards */}
+        {watchedEventType !== "deadline" && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">
+              Logistics & Rewards
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="points"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <Award className="mr-1.5 h-4 w-4 text-muted-foreground" />
+                      Participation Points
+                    </FormLabel>
+
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="e.g., 500"
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(parseInt(e.target.value) || 0)
+                        }
+                      />
+                    </FormControl>
+
+                    <FormDescription className="text-xs">
+                      Points awarded for attendance.
+                    </FormDescription>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <MapPin className="mr-1.5 h-4 w-4 text-muted-foreground" />
+                      Location
+                    </FormLabel>
+
+                    <FormControl>
+                      <Input placeholder="Venue address" {...field} />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}
@@ -476,17 +516,25 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                       checked={field.value}
                       onCheckedChange={(checked) => {
                         field.onChange(checked);
+
                         if (!checked) {
-                          form.setValue("latitude", undefined, { shouldValidate: true });
-                          form.setValue("longitude", undefined, { shouldValidate: true });
+                          form.setValue("latitude", undefined, {
+                            shouldValidate: true,
+                          });
+
+                          form.setValue("longitude", undefined, {
+                            shouldValidate: true,
+                          });
                         }
                       }}
                     />
                   </FormControl>
+
                   <div className="space-y-1 leading-none">
                     <FormLabel>
                       Enable Geo-restriction for Attendance
                     </FormLabel>
+
                     <FormDescription className="text-xs">
                       Members must be within a radius to mark attendance.
                     </FormDescription>
@@ -494,134 +542,216 @@ export function EventForm({ event, onSubmit, onCancel, isLoading }: EventFormPro
                 </FormItem>
               )}
             />
-            
+
             {geoRestrictionEnabled && (
               <div className="p-4 border rounded-md shadow-sm bg-muted/30 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
+                  <FormField
                     control={form.control}
                     name="latitude"
                     render={({ field }) => (
-                        <FormItem>
-                        <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Latitude</FormLabel>
+                      <FormItem>
+                        <FormLabel className="text-xs uppercase font-bold">
+                          Latitude
+                        </FormLabel>
+
                         <FormControl>
-                            <Input type="number" step="any" placeholder="e.g., 6.9271" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                          <Input
+                            type="number"
+                            step="any"
+                            placeholder="e.g., 6.9271"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === ""
+                                  ? undefined
+                                  : parseFloat(e.target.value)
+                              )
+                            }
+                          />
                         </FormControl>
+
                         <FormMessage />
-                        </FormItem>
+                      </FormItem>
                     )}
-                    />
-                    <FormField
+                  />
+
+                  <FormField
                     control={form.control}
                     name="longitude"
                     render={({ field }) => (
-                        <FormItem>
-                        <FormLabel className="flex items-center"><MapPin className="mr-1 h-4 w-4 text-muted-foreground"/>Longitude</FormLabel>
+                      <FormItem>
+                        <FormLabel className="text-xs uppercase font-bold">
+                          Longitude
+                        </FormLabel>
+
                         <FormControl>
-                            <Input type="number" step="any" placeholder="e.g., 79.8612" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                          <Input
+                            type="number"
+                            step="any"
+                            placeholder="e.g., 79.8612"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === ""
+                                  ? undefined
+                                  : parseFloat(e.target.value)
+                              )
+                            }
+                          />
                         </FormControl>
+
                         <FormMessage />
-                        </FormItem>
+                      </FormItem>
                     )}
-                    />
+                  />
                 </div>
-                <Link href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline inline-flex items-center">
-                    Find on Google Maps <ExternalLink className="ml-1 h-3 w-3" />
+
+                <Link
+                  href="https://www.google.com/maps"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary font-bold hover:underline inline-flex items-center"
+                >
+                  Find on Google Maps
+                  <ExternalLink className="ml-1 h-3 w-3" />
                 </Link>
               </div>
             )}
-          </>
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
+          </div>
         )}
 
+        {/* Project Photo Hub */}
         <div className="space-y-4">
-            <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Project Photo Hub</h3>
-            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex gap-3 mb-4">
-                <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <p className="text-[10px] leading-relaxed text-slate-600 font-medium">
-                    <span className="font-bold block text-primary mb-1 uppercase tracking-tighter">Setup Guide:</span>
-                    1. Open the <strong>Master Gallery Folder</strong> (provided by the club).<br/>
-                    2. Create a new sub-folder for this specific event.<br/>
-                    3. Right-click the folder &gt; Share &gt; <strong>Change to 'Anyone with the link'</strong>.<br/>
-                    4. Paste that folder's link into the "View Link" field below.
-                </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                    control={form.control}
-                    name="galleryUrl"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="flex items-center"><ImageIcon className="mr-1.5 h-4 w-4 text-muted-foreground" /> View Link</FormLabel>
-                        <FormControl>
-                            <Input placeholder="Link to specific sub-folder..." {...field} />
-                        </FormControl>
-                        <FormDescription className="text-[10px]">The Google Drive folder where members view photos.</FormDescription>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-<<<<<<< HEAD
-                <FormField
-                    control={form.control}
-                    name="uploadUrl"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="flex items-center"><UploadCloud className="mr-1.5 h-4 w-4 text-muted-foreground" /> Upload Link</FormLabel>
-                        <FormControl>
-                            <Input placeholder="Link to upload folder or form..." {...field} />
-                        </FormControl>
-                        <FormDescription className="text-[10px]">Direct link allowing members to contribute new photos.</FormDescription>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-            </div>
+          <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">
+            Project Photo Hub
+          </h3>
+
+          <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex gap-3 mb-4">
+            <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+
+            <p className="text-[10px] leading-relaxed text-slate-600 font-medium">
+              <span className="font-bold block text-primary mb-1 uppercase tracking-tighter">
+                Setup Guide:
+              </span>
+
+              1. Open the <strong>Master Gallery Folder</strong> (provided by
+              the club).
+              <br />
+              2. Create a new sub-folder for this specific event.
+              <br />
+              3. Right-click the folder &gt; Share &gt;{" "}
+              <strong>Change to &apos;Anyone with the link&apos;</strong>.
+              <br />
+              4. Paste that folder&apos;s link into the &quot;View Link&quot;
+              field below.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="galleryUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center">
+                    <ImageIcon className="mr-1.5 h-4 w-4 text-muted-foreground" />
+                    View Link
+                  </FormLabel>
+
+                  <FormControl>
+                    <Input
+                      placeholder="Link to specific sub-folder..."
+                      {...field}
+                    />
+                  </FormControl>
+
+                  <FormDescription className="text-[10px]">
+                    The Google Drive folder where members view photos.
+                  </FormDescription>
+
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="uploadUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center">
+                    <UploadCloud className="mr-1.5 h-4 w-4 text-muted-foreground" />
+                    Upload Link
+                  </FormLabel>
+
+                  <FormControl>
+                    <Input
+                      placeholder="Link to upload folder or form..."
+                      {...field}
+                    />
+                  </FormControl>
+
+                  <FormDescription className="text-[10px]">
+                    Direct link allowing members to contribute new photos.
+                  </FormDescription>
+
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
+        {/* Description */}
         <div className="space-y-4">
-            <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">Description</h3>
-            <FormField
+          <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b pb-1">
+            Description
+          </h3>
+
+          <FormField
             control={form.control}
             name="description"
             render={({ field }) => (
-                <FormItem>
+              <FormItem>
                 <FormControl>
-                    <Textarea
+                  <Textarea
                     placeholder="Tell us more about the event..."
                     className="resize-y min-h-[120px]"
                     {...field}
-                    />
+                  />
                 </FormControl>
+
                 <FormMessage />
-                </FormItem>
+              </FormItem>
             )}
-            />
+          />
         </div>
-        
+
+        {/* Actions */}
         <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading} className="h-11 px-6 rounded-xl">Cancel</Button>
-            <Button type="submit" disabled={isLoading} className="h-11 px-8 rounded-xl font-bold shadow-lg">
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {event ? 'Save Changes' : 'Publish Event'}
-            </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isLoading}
+            className="h-11 px-6 rounded-xl"
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="h-11 px-8 rounded-xl font-bold shadow-lg"
+          >
+            {isLoading && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+
+            {event ? "Save Changes" : "Publish Event"}
+          </Button>
         </div>
-=======
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>Cancel</Button>
-            <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {event ? 'Save Changes' : 'Create Event'}
-            </Button>
-        </div>
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
-        
       </form>
     </Form>
   );

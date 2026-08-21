@@ -1,110 +1,190 @@
-
 "use server";
 
-<<<<<<< HEAD
-/**
- * Notifications Server Actions
- * Note: Test push feature has been removed.
- * Future server-side notification logic should be implemented here
- * using environment variables (FIREBASE_PRIVATE_KEY, etc.) to initialize
- * the Firebase Admin SDK securely.
- */
-
-export async function sendNotificationAction() {
-  // Logic for triggered notifications can be placed here if needed
-  return { success: false, error: "Feature not implemented" };
-=======
 import * as admin from "firebase-admin";
 
 /**
- * Initializes Firebase Admin securely using environment variables for Netlify.
- * Implements the required fix for private key newline characters.
+ * Initialize Firebase Admin securely using environment variables.
  */
 function initAdmin() {
-    if (admin.apps.length > 0) return;
+  if (admin.apps.length > 0) {
+    return;
+  }
 
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "leoathugal";
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const projectId =
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "leoathugal";
 
-    if (!privateKey || !clientEmail) {
-        throw new Error("SERVER_CONFIG_ERROR: FIREBASE_PRIVATE_KEY or FIREBASE_CLIENT_EMAIL is missing in environment.");
-    }
+  if (!privateKey || !clientEmail) {
+    throw new Error(
+      "SERVER_CONFIG_ERROR: FIREBASE_PRIVATE_KEY or FIREBASE_CLIENT_EMAIL is missing."
+    );
+  }
 
-    try {
-        admin.initializeApp({
-            credential: admin.credential.cert({
-                projectId,
-                clientEmail,
-                privateKey,
-            }),
-        });
-    } catch (error: any) {
-        console.error("FIREBASE_ADMIN_INIT_FAILURE:", error.message);
-    }
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
+  });
 }
 
 /**
- * Dispatches a push notification to a specific FCM token.
+ * Compatibility action retained in case older code still imports it.
  */
-export async function sendPushNotification(token: string, title: string, body: string, link: string = "/dashboard") {
-    try {
-        initAdmin();
-        const message = {
-            token: token,
-            notification: { title, body },
-            webpush: {
-                fcmOptions: { link },
-                notification: {
-                    icon: "https://i.imgur.com/MP1YFNf.png",
-                    badge: "https://i.imgur.com/MP1YFNf.png"
-                }
-            },
-        };
-
-        const response = await admin.messaging().send(message);
-        return { success: true, messageId: response };
-    } catch (error: any) {
-        console.error("FCM_DISPATCH_ERROR:", error);
-        return { success: false, error: error.message };
-    }
+export async function sendNotificationAction() {
+  return {
+    success: false,
+    error: "Use sendPushNotification or broadcastToUsers instead.",
+  };
 }
 
 /**
- * Broadcasts a notification to multiple user IDs.
+ * Send a push notification to one FCM token.
  */
-export async function broadcastToUsers(userIds: string[], title: string, body: string, link: string = "/dashboard") {
-    try {
-        initAdmin();
-        const db = admin.firestore();
-        
-        // Batch processing for user lookups
-        const usersSnap = await db.collection("users")
-            .where(admin.firestore.FieldPath.documentId(), "in", userIds.slice(0, 500))
-            .get();
+export async function sendPushNotification(
+  token: string,
+  title: string,
+  body: string,
+  link: string = "/dashboard"
+) {
+  try {
+    initAdmin();
 
-        const tokens: string[] = [];
-        usersSnap.forEach(doc => {
-            const data = doc.data();
-            if (data.fcmToken) tokens.push(data.fcmToken);
-        });
+    const message: admin.messaging.Message = {
+      token,
+      notification: {
+        title,
+        body,
+      },
+      webpush: {
+        fcmOptions: {
+          link,
+        },
+        notification: {
+          icon: "/icons/icon-192x192.png",
+          badge: "/icons/icon-192x192.png",
+        },
+      },
+    };
 
-        if (tokens.length === 0) return { success: true, sentCount: 0 };
+    const response = await admin.messaging().send(message);
 
-        const message: admin.messaging.MulticastMessage = {
-            tokens,
-            notification: { title, body },
-            webpush: {
-                fcmOptions: { link },
-                notification: { icon: "https://i.imgur.com/MP1YFNf.png" }
-            }
-        };
+    return {
+      success: true,
+      messageId: response,
+    };
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Unknown notification error";
 
-        const response = await admin.messaging().sendEachForMulticast(message);
-        return { success: true, sentCount: response.successCount, failedCount: response.failureCount };
-    } catch (error: any) {
-        console.error("BROADCAST_ERROR:", error);
-        return { success: false, error: error.message };
+    console.error("FCM_DISPATCH_ERROR:", error);
+
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Broadcast a notification to multiple users.
+ *
+ * Firestore "in" queries must be handled in smaller batches,
+ * so user IDs are processed in groups of 30.
+ */
+export async function broadcastToUsers(
+  userIds: string[],
+  title: string,
+  body: string,
+  link: string = "/dashboard"
+) {
+  try {
+    initAdmin();
+
+    if (userIds.length === 0) {
+      return {
+        success: true,
+        sentCount: 0,
+        failedCount: 0,
+      };
     }
->>>>>>> afdd58ef4c8924862d7464aa0f98299bd7ae03e7
+
+    const db = admin.firestore();
+    const tokens: string[] = [];
+
+    for (let i = 0; i < userIds.length; i += 30) {
+      const batch = userIds.slice(i, i + 30);
+
+      const usersSnap = await db
+        .collection("users")
+        .where(admin.firestore.FieldPath.documentId(), "in", batch)
+        .get();
+
+      usersSnap.forEach((doc) => {
+        const data = doc.data();
+
+        if (typeof data.fcmToken === "string" && data.fcmToken.length > 0) {
+          tokens.push(data.fcmToken);
+        }
+      });
+    }
+
+    const uniqueTokens = [...new Set(tokens)];
+
+    if (uniqueTokens.length === 0) {
+      return {
+        success: true,
+        sentCount: 0,
+        failedCount: 0,
+      };
+    }
+
+    let sentCount = 0;
+    let failedCount = 0;
+
+    // FCM multicast supports up to 500 tokens per request.
+    for (let i = 0; i < uniqueTokens.length; i += 500) {
+      const tokenBatch = uniqueTokens.slice(i, i + 500);
+
+      const message: admin.messaging.MulticastMessage = {
+        tokens: tokenBatch,
+        notification: {
+          title,
+          body,
+        },
+        webpush: {
+          fcmOptions: {
+            link,
+          },
+          notification: {
+            icon: "/icons/icon-192x192.png",
+            badge: "/icons/icon-192x192.png",
+          },
+        },
+      };
+
+      const response = await admin.messaging().sendEachForMulticast(message);
+
+      sentCount += response.successCount;
+      failedCount += response.failureCount;
+    }
+
+    return {
+      success: true,
+      sentCount,
+      failedCount,
+    };
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Unknown broadcast error";
+
+    console.error("BROADCAST_ERROR:", error);
+
+    return {
+      success: false,
+      error: message,
+    };
+  }
 }
