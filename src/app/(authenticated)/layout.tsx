@@ -72,15 +72,25 @@ export default function AuthenticatedLayout({
   }, [toast]);
 
   React.useEffect(() => {
+    // Only prompt if user is logged in, loading is done, and permission is default
     if (user && !isLoading && notificationPermissionStatus === 'default') {
+      // Check if user has already dismissed the prompt in this browser
+      const isPromptDismissed = localStorage.getItem('fcmPromptDismissed');
+      if (isPromptDismissed === 'true') return;
+
       const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
-      if (isIos && !isStandalone) {
-          const dismissed = localStorage.getItem('iosPwaPromptDismissed');
-          if (!dismissed) setTimeout(() => setIsIosPromptOpen(true), 5000);
-      } else {
-          setTimeout(() => setIsPermissionDialogOpen(true), 5000);
-      }
+      
+      const timer = setTimeout(() => {
+        if (isIos && !isStandalone) {
+            const dismissed = localStorage.getItem('iosPwaPromptDismissed');
+            if (dismissed !== 'true') setIsIosPromptOpen(true);
+        } else {
+            setIsPermissionDialogOpen(true);
+        }
+      }, 5000);
+
+      return () => clearTimeout(timer);
     }
   }, [user, isLoading, notificationPermissionStatus]);
 
@@ -95,6 +105,17 @@ export default function AuthenticatedLayout({
     if (user.role === 'admin' && adminViewMode === 'member_view' && isAdminPage) router.replace('/dashboard');
   }, [user, isLoading, pathname, router, adminViewMode]);
 
+  const handleDismissPrompt = () => {
+    setIsPermissionDialogOpen(false);
+    // Persist dismissal so it doesn't show again on refresh
+    localStorage.setItem('fcmPromptDismissed', 'true');
+  };
+
+  const handleAcceptPrompt = async () => {
+    setIsPermissionDialogOpen(false);
+    await requestPermission();
+  };
+
   if (isLoading || (!user && isAuthOperationInProgress && !pathname.startsWith('/login'))) {
     return <div className="flex h-screen w-screen items-center justify-center"><Loader2 className="h-12 w-12 animate-spin" /></div>;
   }
@@ -108,26 +129,34 @@ export default function AuthenticatedLayout({
       </DndProvider>
 
       <AlertDialog open={isPermissionDialogOpen} onOpenChange={setIsPermissionDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center"><BellRing className="mr-2 h-5 w-5 text-primary"/> Stay Updated</AlertDialogTitle>
-            <AlertDialogDescription>Allow notifications for alerts on tasks, events, and club announcements.</AlertDialogDescription>
+            <AlertDialogTitle className="flex items-center text-primary font-headline uppercase tracking-tight">
+              <BellRing className="mr-3 h-6 w-6 text-primary animate-pulse"/> Stay Updated
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600 font-medium">
+              Would you like to receive push notifications for task assignments, event reminders, and club announcements?
+            </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsPermissionDialogOpen(false)}>Maybe Later</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { requestPermission(); setIsPermissionDialogOpen(false); }}>Enable Notifications</AlertDialogAction>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel onClick={handleDismissPrompt} className="rounded-xl border-slate-200">Maybe Later</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAcceptPrompt} className="rounded-xl bg-primary font-bold shadow-lg">Enable Notifications</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       <AlertDialog open={isIosPromptOpen} onOpenChange={setIsIosPromptOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent className="rounded-3xl">
               <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center"><Smartphone className="mr-2 h-5 w-5 text-primary"/> Add to Home Screen</AlertDialogTitle>
-                  <AlertDialogDescription>To receive notifications on iOS, add this app to your Home Screen using the Share menu.</AlertDialogDescription>
+                  <AlertDialogTitle className="flex items-center font-headline uppercase">
+                    <Smartphone className="mr-3 h-6 w-6 text-primary"/> Add to Home Screen
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-slate-600">
+                    To receive notifications on iOS, please add this app to your Home Screen using the <strong>Share</strong> menu in Safari, then open it as a standalone app.
+                  </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                  <AlertDialogAction onClick={() => { setIsIosPromptOpen(false); localStorage.setItem('iosPwaPromptDismissed', 'true'); }}>Got it</AlertDialogAction>
+                  <AlertDialogAction onClick={() => { setIsIosPromptOpen(false); localStorage.setItem('iosPwaPromptDismissed', 'true'); }} className="rounded-xl bg-primary font-bold">Got it</AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
       </AlertDialog>
