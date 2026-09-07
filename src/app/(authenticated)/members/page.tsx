@@ -17,8 +17,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { addTransaction } from '@/services/financeService';
+import { format, parseISO, isValid } from 'date-fns';
 
 import {
   AlertDialog,
@@ -34,11 +36,8 @@ import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/fire
 import { db, auth as firebaseAuth } from '@/lib/firebase/clientApp'; 
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { createUserProfile, updateUserProfile, approveUser as approveUserService, rejectUser as rejectUserService, deleteUserProfile, resetAllMemberFees } from '@/services/userService';
-import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX, CreditCard, CalendarClock, RotateCcw, HandCoins } from "lucide-react";
+import { Users as UsersIcon, Search, Edit, Trash2, Loader2, UploadCloud, FileText, PlusCircle, Mail, Briefcase, UserCheck, UserX, CreditCard, CalendarClock, RotateCcw, HandCoins, Copy, Phone } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import type { MemberEditFormValues } from '@/components/members/member-edit-form';
-import type { MemberAddFormValues } from '@/components/members/member-add-form';
 
 const MemberEditForm = dynamic(() => import('@/components/members/member-edit-form').then(mod => mod.MemberEditForm), {
     ssr: false,
@@ -49,7 +48,6 @@ const MemberAddForm = dynamic(() => import('@/components/members/member-add-form
     ssr: false,
     loading: () => <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
 });
-
 
 type FeeStatus = 'paid' | 'pending' | 'partial';
 
@@ -70,6 +68,10 @@ export default function MemberManagementPage() {
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   
+  // Member details view states
+  const [selectedMemberForView, setSelectedMemberForView] = useState<User | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
   const [memberToUpdateFee, setMemberToUpdateFee] = useState<User | null>(null);
   const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
   const [feeStatus, setFeeStatus] = useState<FeeStatus>('pending');
@@ -77,7 +79,6 @@ export default function MemberManagementPage() {
   
   const [memberToDelete, setMemberToDelete] = useState<User | null>(null);
   const [isSingleDeleteAlertOpen, setIsSingleDeleteAlertOpen] = useState(false);
-  const [isBulkDeleteAlertOpen, setIsBulkDeleteAlertOpen] = useState(false);
   const [isAnnualResetAlertOpen, setIsAnnualResetAlertOpen] = useState(false);
   
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -157,6 +158,19 @@ export default function MemberManagementPage() {
   const handleOpenEditForm = (memberToEdit: User) => {
     setSelectedMemberForEdit(memberToEdit);
     setIsEditFormOpen(true);
+  };
+
+  const handleOpenViewDetails = (member: User) => {
+    setSelectedMemberForView(member);
+    setIsViewModalOpen(true);
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+        title: "Copied!",
+        description: `${label} copied to clipboard.`,
+    });
   };
   
   const handleEditFormSubmit = async (data: MemberEditFormValues) => {
@@ -271,34 +285,6 @@ export default function MemberManagementPage() {
     }
   };
 
-  const confirmBulkDelete = async () => {
-    if (selectedRows.length === 0) return;
-    setIsSubmitting(true);
-    let successCount = 0;
-    let errorCount = 0;
-    
-    const rowsToDelete = selectedRows.filter(id => id !== user?.id);
-    for (const memberId of rowsToDelete) {
-        try {
-            await deleteUserProfile(memberId);
-            successCount++;
-        } catch (error) {
-            errorCount++;
-        }
-    }
-    
-    toast({
-        title: "Bulk Deletion Complete",
-        description: `${successCount} user(s) removed. ${errorCount > 0 ? `${errorCount} failed.` : ''}`,
-        variant: errorCount > 0 ? "destructive" : "default"
-    });
-    
-    fetchMembers();
-    setSelectedRows([]);
-    setIsSubmitting(false);
-    setIsBulkDeleteAlertOpen(false);
-  };
-  
   const handleAnnualReset = async () => {
     setIsSubmitting(true);
     try {
@@ -319,76 +305,6 @@ export default function MemberManagementPage() {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
     setSelectedRows([]);
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setCsvFile(event.target.files[0]);
-    } else {
-      setCsvFile(null);
-    }
-  };
-
-  const parseCSV = (csvText: string): { header: string[], data: Record<string, string>[] } => {
-    const lines = csvText.trim().split(/\r\n|\n/);
-    if (lines.length === 0) return { header: [], data: [] };
-    const header = lines[0].split(',').map(h => h.trim());
-    const data: Record<string, string>[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
-      if (values.length === header.length) {
-        const row: Record<string, string> = {};
-        header.forEach((col, index) => {
-          row[col] = values[index];
-        });
-        data.push(row);
-      }
-    }
-    return { header, data };
-  };
-
-  const handleImportMembers = async () => {
-    if (!csvFile) {
-      toast({ title: "No File Selected", description: "Please select a CSV file to import.", variant: "destructive" });
-      return;
-    }
-    setIsImporting(true);
-    setAuthOperationInProgress(true); 
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const csvText = e.target?.result as string;
-      if (!csvText) {
-        toast({ title: "Error Reading File", description: "Could not read the CSV file.", variant: "destructive" });
-        setIsImporting(false); setAuthOperationInProgress(false);
-        return;
-      }
-      const { header, data } = parseCSV(csvText);
-      const requiredHeaders = ["Type", "Name", "Email", "NIC", "DateOfBirth", "Gender", "MobileNumber", "Designation"];
-      if (!requiredHeaders.every(h => header.includes(h))) {
-        toast({ title: "Invalid CSV Format", description: `CSV must contain headers: ${requiredHeaders.join(", ")}`, variant: "destructive" });
-        setIsImporting(false); setAuthOperationInProgress(false);
-        return;
-      }
-
-      let successCount = 0;
-      for (const row of data) {
-        const { Email: email, NIC: password, Name: name, Type: type, NIC: nic, DateOfBirth: dateOfBirth, Gender: gender, MobileNumber: mobileNumber, Designation: designation } = row;
-        const role = type?.toLowerCase() === 'admin' ? 'admin' : 'member';
-        try {
-          const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-          await createUserProfile(userCredential.user.uid, email, name, role, 'approved', undefined, nic, dateOfBirth, gender, mobileNumber, designation);
-          successCount++;
-        } catch (error) {}
-      } 
-      
-      fetchMembers(); 
-      toast({ title: "Import Complete", description: `${successCount} users imported.` });
-      setCsvFile(null);
-      setIsImporting(false);
-      setAuthOperationInProgress(false);
-    };
-    reader.readAsText(csvFile);
   };
 
   const getInitials = (name?: string) => {
@@ -526,8 +442,14 @@ export default function MemberManagementPage() {
                       <TableRow key={memberItem.id}>
                         <TableCell><Checkbox onCheckedChange={(checked) => handleSelectRow(memberItem.id, checked as boolean)} checked={selectedRows.includes(memberItem.id)} /></TableCell>
                         <TableCell className="font-medium flex items-center gap-3">
-                           <Avatar className="h-9 w-9"><AvatarImage src={memberItem.photoUrl} alt={memberItem.name} /><AvatarFallback>{getInitials(memberItem.name)}</AvatarFallback></Avatar>
-                           <div><p className="text-sm font-bold">{memberItem.name}</p><p className="text-[10px] text-muted-foreground">{memberItem.email}</p></div>
+                           <Avatar className="h-9 w-9 cursor-pointer" onClick={() => handleOpenViewDetails(memberItem)}>
+                             <AvatarImage src={memberItem.photoUrl} alt={memberItem.name} />
+                             <AvatarFallback>{getInitials(memberItem.name)}</AvatarFallback>
+                           </Avatar>
+                           <div className="cursor-pointer group" onClick={() => handleOpenViewDetails(memberItem)}>
+                             <p className="text-sm font-bold group-hover:text-primary transition-colors">{memberItem.name}</p>
+                             <p className="text-[10px] text-muted-foreground">{memberItem.email}</p>
+                           </div>
                         </TableCell>
                         <TableCell className="capitalize text-xs">{memberItem.designation || 'N/A'}</TableCell>
                         <TableCell><Badge variant={memberItem.role === 'admin' || memberItem.role === 'super_admin' ? 'default' : 'secondary'} className="text-[10px] uppercase font-black">{memberItem.role.replace('_', ' ')}</Badge></TableCell>
@@ -537,9 +459,9 @@ export default function MemberManagementPage() {
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right space-x-1">
-                          <Button variant="outline" size="icon" onClick={() => handleOpenFeeModal(memberItem)} className="h-8 w-8 border-primary/20 text-primary"><CreditCard className="h-4 w-4" /></Button>
-                          <Button variant="outline" size="icon" onClick={() => handleOpenEditForm(memberItem)} className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
-                          <Button variant="destructive" size="icon" onClick={() => handleSingleDelete(memberItem)} disabled={memberItem.id === user?.id} className="h-8 w-8"><Trash2 className="h-4 w-4" /></Button>
+                          <Button variant="outline" size="icon" onClick={() => handleOpenFeeModal(memberItem)} className="h-8 w-8 border-primary/20 text-primary" title="Update Fees"><CreditCard className="h-4 w-4" /></Button>
+                          <Button variant="outline" size="icon" onClick={() => handleOpenEditForm(memberItem)} className="h-8 w-8" title="Edit Profile"><Edit className="h-4 w-4" /></Button>
+                          <Button variant="destructive" size="icon" onClick={() => handleSingleDelete(memberItem)} disabled={memberItem.id === user?.id} className="h-8 w-8" title="Delete Account"><Trash2 className="h-4 w-4" /></Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -550,8 +472,10 @@ export default function MemberManagementPage() {
                 {paginatedMembers.map((memberItem) => (
                     <Card key={memberItem.id} className="shadow-sm">
                       <CardContent className="p-4 flex items-start space-x-3">
-                        <Avatar className="h-10 w-10"><AvatarFallback>{getInitials(memberItem.name)}</AvatarFallback></Avatar>
-                        <div className="flex-grow min-w-0">
+                        <Avatar className="h-10 w-10 cursor-pointer" onClick={() => handleOpenViewDetails(memberItem)}>
+                            <AvatarFallback>{getInitials(memberItem.name)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-grow min-w-0 cursor-pointer" onClick={() => handleOpenViewDetails(memberItem)}>
                             <p className="font-bold text-primary truncate">{memberItem.name}</p>
                             <p className="text-[10px] text-muted-foreground truncate uppercase font-bold">{memberItem.designation || 'Member'}</p>
                             <div className="mt-2 flex items-center gap-2">
@@ -581,6 +505,61 @@ export default function MemberManagementPage() {
         </CardContent>
       </Card>
       
+      {/* View Member Details Overlay */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-[2rem] overflow-hidden p-0 border-none shadow-2xl">
+            {selectedMemberForView && (
+                <div className="flex flex-col">
+                    <div className="bg-slate-900 p-8 text-white text-center space-y-4">
+                        <Avatar className="h-28 w-28 mx-auto border-4 border-primary ring-4 ring-primary/20 shadow-xl">
+                            <AvatarImage src={selectedMemberForView.photoUrl} alt={selectedMemberForView.name} />
+                            <AvatarFallback className="text-3xl font-black bg-primary/20 text-primary">{getInitials(selectedMemberForView.name)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <h3 className="text-2xl font-black font-headline tracking-tight leading-tight">{selectedMemberForView.name}</h3>
+                            <p className="text-primary font-bold uppercase tracking-widest text-xs mt-1">{selectedMemberForView.designation || 'Club Member'}</p>
+                        </div>
+                        <Badge className="bg-white/10 text-white border-white/20 uppercase text-[9px] font-black tracking-widest">
+                            {selectedMemberForView.role.replace('_', ' ')}
+                        </Badge>
+                    </div>
+                    
+                    <div className="p-8 space-y-6 bg-white">
+                        <div className="grid grid-cols-1 gap-4">
+                            <DetailItem 
+                                icon={Mail} 
+                                label="Email Address" 
+                                value={selectedMemberForView.email} 
+                                onCopy={() => copyToClipboard(selectedMemberForView.email, "Email")} 
+                            />
+                            <DetailItem 
+                                icon={Phone} 
+                                label="Mobile Number" 
+                                value={selectedMemberForView.mobileNumber} 
+                                onCopy={selectedMemberForView.mobileNumber ? () => copyToClipboard(selectedMemberForView.mobileNumber!, "Phone number") : undefined} 
+                            />
+                            <DetailItem icon={Briefcase} label="Official NIC" value={selectedMemberForView.nic} />
+                            <DetailItem 
+                                icon={CalendarClock} 
+                                label="Date of Birth" 
+                                value={selectedMemberForView.dateOfBirth && isValid(parseISO(selectedMemberForView.dateOfBirth)) 
+                                    ? format(parseISO(selectedMemberForView.dateOfBirth), "MMMM d, yyyy") 
+                                    : selectedMemberForView.dateOfBirth
+                                } 
+                            />
+                        </div>
+                        
+                        <div className="pt-4 flex justify-center">
+                            <Button variant="ghost" onClick={() => setIsViewModalOpen(false)} className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                                Close Profile
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </DialogContent>
+      </Dialog>
+
       {/* Annual Reset Dialog */}
       <AlertDialog open={isAnnualResetAlertOpen} onOpenChange={setIsAnnualResetAlertOpen}>
         <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
@@ -659,4 +638,31 @@ export default function MemberManagementPage() {
       </Dialog>
     </div>
   );
+}
+
+function DetailItem({ icon: Icon, label, value, onCopy }: { icon: any, label: string, value?: string | number, onCopy?: () => void }) {
+    return (
+        <div className="flex items-start gap-4 p-3 rounded-2xl bg-slate-50 border border-slate-100 group transition-all hover:bg-slate-100">
+            <div className="p-2.5 bg-white rounded-xl shadow-sm ring-1 ring-slate-200">
+                <Icon className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-grow min-w-0">
+                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-0.5">{label}</p>
+                <p className="font-bold text-sm text-slate-900 break-words leading-tight">{value || <span className="italic text-slate-300 font-normal">Not specified</span>}</p>
+            </div>
+            {onCopy && value && (
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-slate-300 hover:text-primary transition-colors" 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onCopy();
+                    }}
+                >
+                    <Copy className="h-4 w-4" />
+                </Button>
+            )}
+        </div>
+    );
 }
