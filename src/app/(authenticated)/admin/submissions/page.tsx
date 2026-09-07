@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -10,9 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  PlusCircle, ExternalLink, Settings, 
-  Loader2, Trash2, Eye, LayoutGrid, CheckCircle, Clock, XCircle, 
-  Lightbulb, Search, MoreHorizontal, User, ClipboardCopy, FileText, ImageIcon, X, UploadCloud, Share2, Globe, Shield, Users, Check, MessageSquare
+  PlusCircle, LayoutGrid, Lightbulb, FileText, 
+  Loader2, Trash2, Eye, Search, MoreHorizontal, ClipboardCopy, 
+  Settings, Share2, Globe, Shield, Users, Check, MessageSquare,
+  Archive, FolderOpen, ExternalLink, UploadCloud, X, ImageIcon
 } from 'lucide-react';
 import { getForms, deleteForm, updateForm, createForm } from '@/services/formService';
 import { getProjectIdeasForAdmin } from '@/services/projectIdeaService';
@@ -28,6 +30,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { MonthlyReportingTab } from '@/components/reporting/monthly-reporting-tab';
 
 const MAX_BANNER_SIZE = 1 * 1024 * 1024; // 1MB
 
@@ -202,14 +205,15 @@ export default function SubmissionsAdminDashboard() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold font-headline text-primary uppercase">Submissions & Review</h1>
-          <p className="text-muted-foreground">Manage external Google Forms and member proposals.</p>
+          <p className="text-muted-foreground">Manage forms, member proposals, and monthly reporting.</p>
         </div>
       </div>
 
       <Tabs defaultValue="forms" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md h-12 bg-muted p-1 mb-8">
+        <TabsList className="grid w-full grid-cols-3 max-w-xl h-12 bg-muted p-1 mb-8">
           <TabsTrigger value="forms" className="font-bold"><LayoutGrid className="mr-2 h-4 w-4" /> Form Modules</TabsTrigger>
           <TabsTrigger value="ideas" className="font-bold"><Lightbulb className="mr-2 h-4 w-4" /> Idea Review</TabsTrigger>
+          <TabsTrigger value="reporting" className="font-bold"><Archive className="mr-2 h-4 w-4" /> Monthly Reporting</TabsTrigger>
         </TabsList>
 
         <TabsContent value="forms" className="space-y-6">
@@ -356,6 +360,10 @@ export default function SubmissionsAdminDashboard() {
                 </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="reporting">
+          <MonthlyReportingTab />
         </TabsContent>
       </Tabs>
 

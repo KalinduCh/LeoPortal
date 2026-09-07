@@ -213,3 +213,18 @@ export interface FormRecord {
   createdBy: string;
   createdAt: string;
 }
+
+export interface ReportFile {
+    name: string;
+    url: string;
+    uploadedAt: string;
+}
+
+export interface MonthlyReport {
+    id: string;
+    month: number; // 0-11
+    year: number;
+    folderUrl?: string;
+    files: ReportFile[];
+    updatedAt: string;
+}
