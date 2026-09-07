@@ -22,6 +22,13 @@ import { Switch } from '@/components/ui/switch';
 import { generateFormFromAi } from '@/ai/flows/generate-form-flow';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog";
 
 const MAX_BANNER_SIZE = 1 * 1024 * 1024; // 1MB
 
@@ -409,9 +416,13 @@ export default function FormBuilderPage() {
       {/* AI GENERATION DIALOG */}
       <Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
         <DialogContent className="sm:max-w-xl rounded-3xl overflow-hidden p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>AI Form Architect</DialogTitle>
+            <DialogDescription>Generate a form structure using AI prompt.</DialogDescription>
+          </DialogHeader>
           <div className="bg-slate-900 p-8 text-white">
             <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary mb-4">
-              <Wand2 className="h-6 w-6" />
+              < Wand2 className="h-6 w-6" />
             </div>
             <h2 className="text-2xl font-black font-headline uppercase tracking-tight">AI Form Architect</h2>
             <p className="text-slate-400 mt-1">Describe the form you want to create and let Gemini build the schema.</p>
@@ -440,13 +451,6 @@ export default function FormBuilderPage() {
     </div>
   );
 }
-
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 function BuilderAction({ icon: Icon, label, onClick }: { icon: any, label: string, onClick: () => void }) {
   return (

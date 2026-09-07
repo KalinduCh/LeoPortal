@@ -1,5 +1,3 @@
-
-// src/app/(authenticated)/members/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -112,6 +110,7 @@ export default function MemberManagementPage() {
                 photoUrl: data.photoUrl,
                 role: role,
                 status: data.status || 'approved',
+                source: data.source || 'portal',
                 designation: data.designation,
                 nic: data.nic,
                 dateOfBirth: data.dateOfBirth,
@@ -508,6 +507,10 @@ export default function MemberManagementPage() {
       {/* View Member Details Overlay */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
         <DialogContent className="sm:max-w-md rounded-[2rem] overflow-hidden p-0 border-none shadow-2xl">
+            <DialogHeader className="sr-only">
+                <DialogTitle>Member Details</DialogTitle>
+                <DialogDescription>Full profile and contact information for the selected club member.</DialogDescription>
+            </DialogHeader>
             {selectedMemberForView && (
                 <div className="flex flex-col">
                     <div className="bg-slate-900 p-8 text-white text-center space-y-4">

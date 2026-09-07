@@ -70,9 +70,9 @@ const SheetContent = React.forwardRef<
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>
       {/* Adding sr-only title and description for accessibility */}
-      <SheetPrimitive.Title className="sr-only">Sheet</SheetPrimitive.Title>
+      <SheetPrimitive.Title className="sr-only">Sheet Navigation</SheetPrimitive.Title>
       <SheetPrimitive.Description className="sr-only">
-        A sheet component that slides in from the edge of the screen.
+        Application navigation and utility menu.
       </SheetPrimitive.Description>
     </SheetPrimitive.Content>
   </SheetPortal>
