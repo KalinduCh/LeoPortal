@@ -37,7 +37,11 @@ export function AppShell({ children }: AppShellProps) {
   const { user } = useAuth();
   const logoUrl = "https://i.imgur.com/aRktweQ.png";
 
-  const president = { name: 'Leo Lion Menuka Wickramasinghe', email: 'isanthamenuka@gmail.com', phone: '+9477 352 3893' };
+  const itManager = { 
+    name: 'Leo Kalindu Athapaththu', 
+    email: 'chamikarakc@gmail.com', 
+    phone: '+9477 2137638' 
+  };
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -73,24 +77,24 @@ export function AppShell({ children }: AppShellProps) {
               <DialogHeader>
                 <DialogTitle>Help & Support</DialogTitle>
                 <DialogDescription>
-                  If you have any questions or need assistance, please contact the administrator below.
+                  If you have any questions or need technical assistance, please contact the IT Manager.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-2">
                 <div>
-                  <h4 className="font-semibold text-primary mb-2">Club President</h4>
+                  <h4 className="font-semibold text-primary mb-2">IT Manager</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <UserCircle className="h-4 w-4 text-muted-foreground" />
-                      <span>{president.name}</span>
+                      <span>{itManager.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href={`mailto:${president.email}`} className="hover:underline">{president.email}</a>
+                      <a href={`mailto:${itManager.email}`} className="text-primary hover:underline font-medium">{itManager.email}</a>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href={`tel:${president.phone.replace(/\s/g, '')}`} className="hover:underline">{president.phone}</a>
+                      <a href={`tel:${itManager.phone.replace(/\s/g, '')}`} className="text-primary hover:underline font-medium">{itManager.phone}</a>
                     </div>
                   </div>
                 </div>
@@ -98,7 +102,7 @@ export function AppShell({ children }: AppShellProps) {
             </DialogContent>
           </Dialog>
           {user && (
-             <p className="text-xs text-muted-foreground mt-2 group-data-[collapsible=icon]:hidden">Logged in as {user.role}</p>
+             <p className="text-xs text-muted-foreground mt-2 group-data-[collapsible=icon]:hidden">Logged in as {user.role.replace('_', ' ')}</p>
           )}
         </SidebarFooter>
       </Sidebar>
