@@ -12,7 +12,7 @@ import interactionPlugin, { type DateClickArg } from '@fullcalendar/interaction'
 import { getEvents } from '@/services/eventService';
 import type { Event as MyEvent } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Calendar as CalendarIcon, MapPin, Info, Clock, Navigation, CalendarPlus } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, MapPin, Info, Clock, Navigation, CalendarPlus, FileDown } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ import { format, parseISO, isValid, isWithinInterval, isPast, getMonth, getYear,
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { downloadIcsFile } from '@/lib/ics-utils';
 
 
 const eventTypeColors: Record<MyEvent['eventType'] & string, { backgroundColor: string; borderColor: string; }> = {
@@ -152,11 +153,25 @@ export default function CalendarPage() {
     }
   };
 
+  const handleExportIcs = () => {
+    if (clubEvents.length === 0) {
+      toast({ title: "No events to export", variant: "destructive" });
+      return;
+    }
+    downloadIcsFile(clubEvents);
+    toast({ title: "Export Started", description: "ICS file is being generated for your website." });
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold font-headline">Year Plan Calendar</h1>
-        <p className="text-muted-foreground">Visualize all club, district, and multiple projects throughout the year.</p>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold font-headline">Year Plan Calendar</h1>
+          <p className="text-muted-foreground">Visualize all club, district, and multiple projects throughout the year.</p>
+        </div>
+        <Button onClick={handleExportIcs} variant="outline" className="w-full md:w-auto h-11 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all">
+          <FileDown className="mr-2 h-4 w-4" /> Export for Website (.ics)
+        </Button>
       </div>
       
        <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2">
