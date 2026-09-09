@@ -12,7 +12,7 @@ import interactionPlugin, { type DateClickArg } from '@fullcalendar/interaction'
 import { getEvents } from '@/services/eventService';
 import type { Event as MyEvent } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Calendar as CalendarIcon, MapPin, Info, Clock, Navigation, CalendarPlus, FileDown } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, MapPin, Info, Clock, Navigation, CalendarPlus, FileDown, Link as LinkIcon, Check } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +46,7 @@ export default function CalendarPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetEvents, setSheetEvents] = useState<MyEvent[]>([]);
   const [sheetDate, setSheetDate] = useState<Date | null>(null);
-
+  const [isCopied, setIsCopied] = useState(false);
 
   const fetchCalendarEvents = useCallback(async () => {
     setIsLoading(true);
@@ -153,13 +153,21 @@ export default function CalendarPage() {
     }
   };
 
+  const handleCopyFeedUrl = () => {
+    const url = `${window.location.origin}/calendar.ics`;
+    navigator.clipboard.writeText(url);
+    setIsCopied(true);
+    toast({ title: "Feed URL Copied", description: "Use this link in your WordPress calendar plugin for auto-sync." });
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
   const handleExportIcs = () => {
     if (clubEvents.length === 0) {
       toast({ title: "No events to export", variant: "destructive" });
       return;
     }
     downloadIcsFile(clubEvents);
-    toast({ title: "Export Started", description: "ICS file is being generated for your website." });
+    toast({ title: "Export Started", description: "Static ICS file is being generated." });
   };
 
   return (
@@ -169,9 +177,15 @@ export default function CalendarPage() {
           <h1 className="text-3xl font-bold font-headline">Year Plan Calendar</h1>
           <p className="text-muted-foreground">Visualize all club, district, and multiple projects throughout the year.</p>
         </div>
-        <Button onClick={handleExportIcs} variant="outline" className="w-full md:w-auto h-11 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all">
-          <FileDown className="mr-2 h-4 w-4" /> Export for Website (.ics)
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <Button onClick={handleCopyFeedUrl} variant="outline" className="h-11 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all">
+            {isCopied ? <Check className="mr-2 h-4 w-4" /> : <LinkIcon className="mr-2 h-4 w-4" />}
+            Copy Feed URL for Website
+          </Button>
+          <Button onClick={handleExportIcs} variant="ghost" size="sm" className="h-11 text-muted-foreground font-medium">
+            <FileDown className="mr-2 h-4 w-4" /> Download Static .ics
+          </Button>
+        </div>
       </div>
       
        <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2">
@@ -411,3 +425,4 @@ function EventDetails({ event }: { event: MyEvent }) {
     </div>
   );
 }
+
