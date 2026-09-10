@@ -8,11 +8,10 @@ import nodemailer from 'nodemailer';
 const PLATFORM_REGISTRATIONS = 'accessRegistrations';
 const PLATFORM_EVENTS = 'accessEvents';
 
-// District Credentials
+// Credentials from Environment
 const DISTRICT_SENDER = process.env.DISTRICT_GMAIL_EMAIL || "districtconference306d9@gmail.com";
 const DISTRICT_PASSWORD = process.env.DISTRICT_GMAIL_APP_PASSWORD || "ceth hegq xouv nrvl";
 
-// Club Credentials
 const CLUB_SENDER = process.env.CLUB_GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
 const CLUB_PASSWORD = process.env.CLUB_GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
 
@@ -30,7 +29,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Resolve event scope to determine sender credentials
+    // Determine sender based on event scope
     const eventRef = doc(db, PLATFORM_EVENTS, eventId);
     const eventSnap = await getDoc(eventRef);
     const eventData = eventSnap.exists() ? eventSnap.data() : null;
@@ -39,6 +38,8 @@ export async function POST(req: Request) {
     const senderEmail = scope === 'club' ? CLUB_SENDER : DISTRICT_SENDER;
     const senderPass = scope === 'club' ? CLUB_PASSWORD : DISTRICT_PASSWORD;
     const organizationName = scope === 'club' ? "Leo Club of Athugalpura" : "LeoEntrivo District Platform";
+
+    console.log(`[LeoEntrivo] Attempting registration for ${name} via ${senderEmail} (Scope: ${scope})`);
 
     const ticketId = `ENT-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
     const qrPayload = JSON.stringify({ ticketId, eventId });
@@ -49,44 +50,45 @@ export async function POST(req: Request) {
     });
 
     let finalEmailStatus: 'success' | 'failed' = 'failed';
+    let smtpError = null;
 
     if (senderEmail && senderPass) {
       try {
         const transporter = nodemailer.createTransport({
           service: 'gmail',
           auth: { user: senderEmail, pass: senderPass },
-          pool: true,
-          maxConnections: 5,
         });
+
+        // Verify connection for debugging
+        await transporter.verify();
+        console.log(`[SMTP] Connection verified for ${senderEmail}`);
 
         const foodLabel = foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian';
         const defaultBody = `Your registration for <strong>${eventName}</strong> is successful. Please show the QR code below at the check-in desk for entry.`;
         const emailContent = customEmailBody ? customEmailBody.replace(/\n/g, '<br>') : defaultBody;
 
         const emailHtml = `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
             <div style="background-color: #1e3a8a; padding: 40px; text-align: center; color: white;">
-              <h1 style="margin: 0; font-size: 24px; text-transform: uppercase;">Entry Pass Issued</h1>
-              <p style="margin: 5px 0 0 0; opacity: 0.9; font-weight: 500;">${eventName}</p>
+              <h1 style="margin: 0; font-size: 24px;">Entry Pass Issued</h1>
+              <p style="margin: 5px 0 0 0; opacity: 0.9;">${eventName}</p>
             </div>
             <div style="padding: 40px; background-color: white;">
-              <p style="font-size: 18px; color: #1e293b; margin-top: 0;">Dear <strong>${name}</strong>,</p>
+              <p style="font-size: 18px; color: #1e293b;">Dear <strong>${name}</strong>,</p>
               <p style="color: #475569; line-height: 1.6;">${emailContent}</p>
               
               <div style="text-align: center; margin: 35px 0; padding: 30px; border: 2px dashed #cbd5e1; border-radius: 15px; background-color: #f8fafc;">
                 <img src="cid:qrcode" alt="QR Pass" style="width: 200px; height: 200px; display: block; margin: 0 auto;" />
                 <p style="font-family: monospace; font-weight: bold; font-size: 20px; margin: 15px 0 0 0; color: #1e3a8a;">${ticketId}</p>
-                ${tierName ? `<p style="font-size: 11px; color: #64748b; margin: 5px 0 0 0;">${tierName} Category • LKR ${priceAtRegistration.toLocaleString()}</p>` : ''}
               </div>
 
               <div style="background-color: #f1f5f9; padding: 20px; border-radius: 10px;">
                 <p style="margin: 0; font-size: 14px; color: #334155;">📅 <strong>${eventDate}</strong> at <strong>${eventTime}</strong></p>
                 <p style="margin: 5px 0 0 0; font-size: 14px; color: #334155;">📍 <strong>${eventLocation}</strong></p>
-                <p style="margin: 5px 0 0 0; font-size: 14px; color: #334155;">🍽️ Meal: <strong>${foodLabel}</strong></p>
               </div>
             </div>
-            <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
-               <p style="margin: 0; font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; letter-spacing: 0.1em;">Issued by ${organizationName}</p>
+            <div style="background-color: #f8fafc; padding: 20px; text-align: center;">
+               <p style="margin: 0; font-size: 10px; color: #94a3b8;">Issued by ${organizationName}</p>
             </div>
           </div>
         `;
@@ -113,10 +115,15 @@ export async function POST(req: Request) {
           html: emailHtml,
           attachments: mailAttachments
         });
+        
+        console.log(`[SMTP] Email successfully sent to ${email}`);
         finalEmailStatus = 'success';
-      } catch (err) {
-        console.error("LEOENTRIVO_MAIL_ERROR:", err);
+      } catch (err: any) {
+        smtpError = err.message;
+        console.error(`[SMTP_ERROR] Failed to send via ${senderEmail}:`, err);
       }
+    } else {
+        console.warn(`[SMTP_WARN] Missing credentials for ${scope} scope.`);
     }
 
     const registrationData: any = {
@@ -139,9 +146,15 @@ export async function POST(req: Request) {
 
     await addDoc(collection(db, PLATFORM_REGISTRATIONS), registrationData);
 
-    return NextResponse.json({ success: true, ticketId, emailStatus: finalEmailStatus });
+    return NextResponse.json({ 
+        success: true, 
+        ticketId, 
+        emailStatus: finalEmailStatus,
+        debug: smtpError ? { error: smtpError } : undefined 
+    });
 
   } catch (error: any) {
+    console.error("[API_ERROR]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
