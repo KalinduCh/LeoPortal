@@ -213,6 +213,7 @@ export default function PlatformPublicRegistration() {
   const isManuallyClosed = event.isRegistrationClosed;
   const isPastClosingDate = event.registrationClosingDate && new Date() > new Date(event.registrationClosingDate + 'T23:59:59');
   const isRegistrationOver = isManuallyClosed || isPastClosingDate;
+  const isClubEvent = event.scope === 'club';
 
   return (
     <div className="min-h-screen bg-[#f8fafc] py-12 px-4">
@@ -282,14 +283,17 @@ export default function PlatformPublicRegistration() {
           <Card className="shadow-2xl border-none rounded-3xl bg-white overflow-hidden">
             <CardHeader className="bg-slate-900 p-8 text-white">
               <CardTitle className="text-2xl font-headline">Secure Entry Registration</CardTitle>
-              <CardDescription className="text-slate-400 text-sm">Choose your method and fill in the details below.</CardDescription>
+              <CardDescription className="text-slate-400 text-sm">Fill in the details below to receive your digital entry pass.</CardDescription>
             </CardHeader>
             
             <Tabs defaultValue="single" className="w-full">
               <div className="px-8 pt-6">
-                <TabsList className="grid w-full grid-cols-2 h-14 bg-slate-100 rounded-2xl p-1.5 ring-1 ring-slate-200">
+                <TabsList className={cn(
+                    "grid w-full h-14 bg-slate-100 rounded-2xl p-1.5 ring-1 ring-slate-200",
+                    isClubEvent ? "grid-cols-1" : "grid-cols-2"
+                )}>
                   <TabsTrigger value="single" className="rounded-xl font-bold h-full data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Single Entry</TabsTrigger>
-                  <TabsTrigger value="bulk" className="rounded-xl font-bold h-full data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Club Bulk Upload</TabsTrigger>
+                  {!isClubEvent && <TabsTrigger value="bulk" className="rounded-xl font-bold h-full data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Club Bulk Upload</TabsTrigger>}
                 </TabsList>
               </div>
 
@@ -353,31 +357,33 @@ export default function PlatformPublicRegistration() {
                 </CardContent>
               </TabsContent>
 
-              <TabsContent value="bulk">
-                <CardContent className="p-8 space-y-8">
-                  <div className="bg-slate-50 ring-1 ring-slate-200 rounded-3xl p-6 space-y-6">
-                    <h3 className="font-black uppercase tracking-tight flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Submitter Identity</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input placeholder="Your Name" className="h-11 rounded-xl bg-white" value={submitterData.name} onChange={e => setSubmitterData({...submitterData, name: e.target.value})} />
-                        <Input placeholder="Designation" className="h-11 rounded-xl bg-white" value={submitterData.designation} onChange={e => setSubmitterData({...submitterData, designation: e.target.value})} />
-                        <Select value={submitterData.club} onValueChange={v => setSubmitterData({...submitterData, club: v})}>
-                            <SelectTrigger className="h-11 rounded-xl bg-white"><SelectValue placeholder="Choose club" /></SelectTrigger>
-                            <SelectContent>{CLUB_NAMES.map(name => <SelectItem key={name} value={`Leo Club of ${name}`}>Leo Club of {name}</SelectItem>)}</SelectContent>
-                        </Select>
-                        <Input placeholder="Contact Number" className="h-11 rounded-xl bg-white" value={submitterData.contact} onChange={e => setSubmitterData({...submitterData, contact: e.target.value})} />
-                        <Input type="email" placeholder="Professional Email" className="h-11 rounded-xl bg-white sm:col-span-2" value={submitterData.email} onChange={e => setSubmitterData({...submitterData, email: e.target.value})} />
+              {!isClubEvent && (
+                <TabsContent value="bulk">
+                    <CardContent className="p-8 space-y-8">
+                    <div className="bg-slate-50 ring-1 ring-slate-200 rounded-3xl p-6 space-y-6">
+                        <h3 className="font-black uppercase tracking-tight flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Submitter Identity</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Input placeholder="Your Name" className="h-11 rounded-xl bg-white" value={submitterData.name} onChange={e => setSubmitterData({...submitterData, name: e.target.value})} />
+                            <Input placeholder="Designation" className="h-11 rounded-xl bg-white" value={submitterData.designation} onChange={e => setSubmitterData({...submitterData, designation: e.target.value})} />
+                            <Select value={submitterData.club} onValueChange={v => setSubmitterData({...submitterData, club: v})}>
+                                <SelectTrigger className="h-11 rounded-xl bg-white"><SelectValue placeholder="Choose club" /></SelectTrigger>
+                                <SelectContent>{CLUB_NAMES.map(name => <SelectItem key={name} value={`Leo Club of ${name}`}>Leo Club of {name}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Input placeholder="Contact Number" className="h-11 rounded-xl bg-white" value={submitterData.contact} onChange={e => setSubmitterData({...submitterData, contact: e.target.value})} />
+                            <Input type="email" placeholder="Professional Email" className="h-11 rounded-xl bg-white sm:col-span-2" value={submitterData.email} onChange={e => setSubmitterData({...submitterData, email: e.target.value})} />
+                        </div>
                     </div>
-                  </div>
 
-                  <div className="relative group">
-                    <Input type="file" accept=".csv" onChange={handleBulkCsvUpload} className="hidden" id="bulk-csv-input" disabled={isBulkProcessing} />
-                    <label htmlFor="bulk-csv-input" className="flex flex-col items-center justify-center gap-4 p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-all">
-                      <div className="h-16 w-16 rounded-full bg-white shadow-md flex items-center justify-center text-primary"><Upload className="h-8 w-8" /></div>
-                      <p className="font-black text-slate-900 uppercase tracking-tighter">Upload Club CSV List</p>
-                    </label>
-                  </div>
-                </CardContent>
-              </TabsContent>
+                    <div className="relative group">
+                        <Input type="file" accept=".csv" onChange={handleBulkCsvUpload} className="hidden" id="bulk-csv-input" disabled={isBulkProcessing} />
+                        <label htmlFor="bulk-csv-input" className="flex flex-col items-center justify-center gap-4 p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-all">
+                        <div className="h-16 w-16 rounded-full bg-white shadow-md flex items-center justify-center text-primary"><Upload className="h-8 w-8" /></div>
+                        <p className="font-black text-slate-900 uppercase tracking-tighter">Upload Club CSV List</p>
+                        </label>
+                    </div>
+                    </CardContent>
+                </TabsContent>
+              )}
             </Tabs>
           </Card>
         )}
