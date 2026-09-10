@@ -8,12 +8,12 @@ import nodemailer from 'nodemailer';
 const PLATFORM_REGISTRATIONS = 'accessRegistrations';
 const PLATFORM_EVENTS = 'accessEvents';
 
-// Credentials from Environment
-const DISTRICT_SENDER = process.env.DISTRICT_GMAIL_EMAIL || "districtconference306d9@gmail.com";
-const DISTRICT_PASSWORD = process.env.DISTRICT_GMAIL_APP_PASSWORD || "ceth hegq xouv nrvl";
+// Mapped to user's specific Netlify variable names
+const DISTRICT_SENDER = process.env.GMAIL_TICKET_EMAIL || "districtconference306d9@gmail.com";
+const DISTRICT_PASSWORD = process.env.GMAIL_TICKET_APP_PASSWORD || "ceth hegq xouv nrvl";
 
-const CLUB_SENDER = process.env.CLUB_GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
-const CLUB_PASSWORD = process.env.CLUB_GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
+const CLUB_SENDER = process.env.GMAIL_TICKET_CLUB_EMAIL || "athugalpuraleoclub306d9@gmail.com";
+const CLUB_PASSWORD = process.env.GMAIL_TICKET_CLUB_PASSWORD || "osng xjdz lhwu movh";
 
 export async function POST(req: Request) {
   try {
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     const senderPass = scope === 'club' ? CLUB_PASSWORD : DISTRICT_PASSWORD;
     const organizationName = scope === 'club' ? "Leo Club of Athugalpura" : "LeoEntrivo District Platform";
 
-    console.log(`[LeoEntrivo] Attempting registration for ${name} via ${senderEmail} (Scope: ${scope})`);
+    console.log(`[LeoEntrivo] Registration attempt for ${name} via ${senderEmail} (Scope: ${scope})`);
 
     const ticketId = `ENT-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
     const qrPayload = JSON.stringify({ ticketId, eventId });
@@ -59,13 +59,7 @@ export async function POST(req: Request) {
           auth: { user: senderEmail, pass: senderPass },
         });
 
-        // Verify connection for debugging
-        await transporter.verify();
-        console.log(`[SMTP] Connection verified for ${senderEmail}`);
-
-        const foodLabel = foodPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian';
-        const defaultBody = `Your registration for <strong>${eventName}</strong> is successful. Please show the QR code below at the check-in desk for entry.`;
-        const emailContent = customEmailBody ? customEmailBody.replace(/\n/g, '<br>') : defaultBody;
+        const emailContent = customEmailBody ? customEmailBody.replace(/\n/g, '<br>') : `Your registration for <strong>${eventName}</strong> is successful. Please show the QR code below at the check-in desk for entry.`;
 
         const emailHtml = `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
@@ -116,14 +110,11 @@ export async function POST(req: Request) {
           attachments: mailAttachments
         });
         
-        console.log(`[SMTP] Email successfully sent to ${email}`);
         finalEmailStatus = 'success';
       } catch (err: any) {
         smtpError = err.message;
-        console.error(`[SMTP_ERROR] Failed to send via ${senderEmail}:`, err);
+        console.error(`[LEOENTRIVO_SMTP_ERROR] via ${senderEmail}:`, err);
       }
-    } else {
-        console.warn(`[SMTP_WARN] Missing credentials for ${scope} scope.`);
     }
 
     const registrationData: any = {
@@ -150,7 +141,7 @@ export async function POST(req: Request) {
         success: true, 
         ticketId, 
         emailStatus: finalEmailStatus,
-        debug: smtpError ? { error: smtpError } : undefined 
+        error: smtpError 
     });
 
   } catch (error: any) {

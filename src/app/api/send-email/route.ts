@@ -21,10 +21,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const GMAIL_EMAIL = process.env.CLUB_GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
-    const GMAIL_APP_PASSWORD = process.env.CLUB_GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
+    // Mapped to user's specific Netlify variable names
+    const GMAIL_EMAIL = process.env.GMAIL_TICKET_CLUB_EMAIL || "athugalpuraleoclub306d9@gmail.com";
+    const GMAIL_APP_PASSWORD = process.env.GMAIL_TICKET_CLUB_PASSWORD || "osng xjdz lhwu movh";
 
-    console.log(`[Communication] Sending manual email to ${to} via ${GMAIL_EMAIL}`);
+    console.log(`[Communication] Sending email to ${to} via ${GMAIL_EMAIL}`);
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -33,13 +34,6 @@ export async function POST(request: Request) {
         pass: GMAIL_APP_PASSWORD,
       },
     });
-
-    try {
-        await transporter.verify();
-    } catch (vErr: any) {
-        console.error("[SMTP_VERIFY_FAILED]", vErr.message);
-        return NextResponse.json({ error: 'SMTP connection failed', details: vErr.message }, { status: 500 });
-    }
 
     const emailHtml = `
       <div style="font-family: sans-serif; line-height: 1.6; color: #333; padding: 25px; background-color: #f9fafb;">
@@ -69,8 +63,6 @@ export async function POST(request: Request) {
     }
 
     await transporter.sendMail(mailOptions);
-    console.log("[SMTP] Manual email sent successfully.");
-
     return NextResponse.json({ message: 'Email sent successfully' }, { status: 200 });
 
   } catch (err: any) {

@@ -9,9 +9,9 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-// Standardizing on CLUB credentials for automated portal functions
-const GMAIL_EMAIL = process.env.CLUB_GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
-const GMAIL_APP_PASSWORD = process.env.CLUB_GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
+// Mapped to user's specific Netlify variable names
+const GMAIL_EMAIL = process.env.GMAIL_TICKET_CLUB_EMAIL || "athugalpuraleoclub306d9@gmail.com";
+const GMAIL_APP_PASSWORD = process.env.GMAIL_TICKET_CLUB_PASSWORD || "osng xjdz lhwu movh";
 
 const transporter = nodemailer.createTransport({
     service: "gmail",
