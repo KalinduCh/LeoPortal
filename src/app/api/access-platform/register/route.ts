@@ -1,14 +1,20 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase/clientApp';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
 
 const PLATFORM_REGISTRATIONS = 'accessRegistrations';
+const PLATFORM_EVENTS = 'accessEvents';
 
-const OFFICIAL_SENDER = process.env.GMAIL_TICKET_EMAIL || "noreplydistrictconferenced9@gmail.com";
-const GMAIL_PASSWORD = process.env.GMAIL_TICKET_APP_PASSWORD || "ceth hegq xouv nrvl";
+// District Credentials
+const DISTRICT_SENDER = process.env.GMAIL_TICKET_EMAIL || "districtconference306d9@gmail.com";
+const DISTRICT_PASSWORD = process.env.GMAIL_TICKET_APP_PASSWORD || "ceth hegq xouv nrvl";
+
+// Club Credentials
+const CLUB_SENDER = process.env.GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
+const CLUB_PASSWORD = process.env.GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
 
 export async function POST(req: Request) {
   try {
@@ -24,6 +30,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Resolve event scope to determine sender credentials
+    const eventRef = doc(db, PLATFORM_EVENTS, eventId);
+    const eventSnap = await getDoc(eventRef);
+    const eventData = eventSnap.exists() ? eventSnap.data() : null;
+    const scope = eventData?.scope || 'district';
+
+    const senderEmail = scope === 'club' ? CLUB_SENDER : DISTRICT_SENDER;
+    const senderPass = scope === 'club' ? CLUB_PASSWORD : DISTRICT_PASSWORD;
+    const organizationName = scope === 'club' ? "Leo Club of Athugalpura" : "LeoEntrivo District Platform";
+
     const ticketId = `ENT-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
     const qrPayload = JSON.stringify({ ticketId, eventId });
     const qrBase64 = await QRCode.toDataURL(qrPayload, {
@@ -34,11 +50,11 @@ export async function POST(req: Request) {
 
     let finalEmailStatus: 'success' | 'failed' = 'failed';
 
-    if (OFFICIAL_SENDER && GMAIL_PASSWORD) {
+    if (senderEmail && senderPass) {
       try {
         const transporter = nodemailer.createTransport({
           service: 'gmail',
-          auth: { user: OFFICIAL_SENDER, pass: GMAIL_PASSWORD },
+          auth: { user: senderEmail, pass: senderPass },
           pool: true,
           maxConnections: 5,
         });
@@ -69,6 +85,9 @@ export async function POST(req: Request) {
                 <p style="margin: 5px 0 0 0; font-size: 14px; color: #334155;">🍽️ Meal: <strong>${foodLabel}</strong></p>
               </div>
             </div>
+            <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
+               <p style="margin: 0; font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; letter-spacing: 0.1em;">Issued by ${organizationName}</p>
+            </div>
           </div>
         `;
 
@@ -88,7 +107,7 @@ export async function POST(req: Request) {
         }
 
         await transporter.sendMail({
-          from: `"LeoEntrivo" <${OFFICIAL_SENDER}>`,
+          from: `"${organizationName}" <${senderEmail}>`,
           to: email,
           subject: `Entry Pass: ${eventName} (${ticketId})`,
           html: emailHtml,

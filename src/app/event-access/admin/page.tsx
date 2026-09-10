@@ -19,11 +19,14 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { 
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+} from '@/components/ui/select';
+import { 
   PlusCircle, CalendarDays, MapPin, Settings, Loader2, 
-  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, CalendarIcon, Clock, Trash2, AlertTriangle, Link as LinkIcon, Lock, Banknote, History
+  ExternalLink, QrCode, MoreVertical, Edit3, Eye, Image as ImageIcon, Mail, Paperclip, X, CalendarIcon, Clock, Trash2, AlertTriangle, Link as LinkIcon, Lock, Banknote, History, Globe, Layout
 } from 'lucide-react';
 import { getPlatformEvents, createPlatformEvent, updatePlatformEvent, deletePlatformEvent } from '@/services/accessPlatformService';
-import type { AccessEvent, PricingTier } from '@/types/access-platform';
+import type { AccessEvent, PricingTier, AccessEventScope } from '@/types/access-platform';
 import { useToast } from '@/hooks/use-toast';
 import { format, isValid, parseISO } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
@@ -53,6 +56,7 @@ export default function PlatformAdminOverview() {
     time: '',
     location: '',
     description: '',
+    scope: 'district' as AccessEventScope,
     capacity: '',
     imageUrl: '',
     customEmailBody: '',
@@ -94,6 +98,7 @@ export default function PlatformAdminOverview() {
         time: event.time || '',
         location: event.location,
         description: event.description || '',
+        scope: event.scope || 'district',
         capacity: event.capacity?.toString() || '',
         imageUrl: event.imageUrl || '',
         customEmailBody: event.customEmailBody || '',
@@ -107,7 +112,7 @@ export default function PlatformAdminOverview() {
       setEditingEvent(null);
       setFormData({ 
         name: '', date: '', time: '', location: '', description: '', capacity: '',
-        imageUrl: '', customEmailBody: '', attachmentUrl: '', attachmentName: '',
+        scope: 'district', imageUrl: '', customEmailBody: '', attachmentUrl: '', attachmentName: '',
         isRegistrationClosed: false, registrationClosingDate: '',
         pricingTiers: [],
       });
@@ -192,6 +197,7 @@ export default function PlatformAdminOverview() {
         time: formData.time,
         location: formData.location,
         description: formData.description,
+        scope: formData.scope,
         capacity: isNaN(capacityValue as number) ? undefined : capacityValue,
         imageUrl: formData.imageUrl,
         customEmailBody: formData.customEmailBody,
@@ -344,7 +350,7 @@ export default function PlatformAdminOverview() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b pb-8">
         <div>
           <h1 className="text-4xl font-bold font-headline text-slate-900 tracking-tight uppercase">LeoEntrivo Dashboard</h1>
-          <p className="text-slate-500 mt-1">Manage registration and entry passes for your district events.</p>
+          <p className="text-slate-500 mt-1">Manage registration and entry passes for your district or club events.</p>
         </div>
         <Button size="lg" onClick={() => handleOpenDialog()} className="shadow-xl bg-primary hover:bg-primary/90 h-14 px-8 text-lg font-bold">
           <PlusCircle className="mr-2 h-6 w-6" /> Add New Event
@@ -370,6 +376,12 @@ export default function PlatformAdminOverview() {
                             <ImageIcon className="h-10 w-10" />
                         </div>
                     )}
+                    <div className="absolute top-2 left-2">
+                        <Badge className={cn("font-black uppercase text-[8px] tracking-widest", event.scope === 'district' ? 'bg-blue-600' : 'bg-purple-600')}>
+                            {event.scope === 'district' ? <Globe className="h-2.5 w-2.5 mr-1" /> : <Layout className="h-2.5 w-2.5 mr-1" />}
+                            {event.scope || 'District'}
+                        </Badge>
+                    </div>
                     {isLocked && (
                         <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center">
                             <Badge variant="destructive" className="font-black px-4 py-1 uppercase tracking-widest shadow-lg">
@@ -450,7 +462,7 @@ export default function PlatformAdminOverview() {
           <div className="col-span-full py-32 flex flex-col items-center justify-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
             <QrCode className="h-16 w-16 text-slate-300 mb-4" />
             <h3 className="text-xl font-bold text-slate-900">No Active Events</h3>
-            <p className="text-slate-500">Add your first district event above.</p>
+            <p className="text-slate-500">Add your first district or club event above.</p>
           </div>
         )}
       </div>
@@ -489,10 +501,27 @@ export default function PlatformAdminOverview() {
           <form onSubmit={handleSaveEvent} className="space-y-8 py-4">
             <div className="space-y-4">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b pb-1">Basic Information</h3>
-                <div className="space-y-2">
-                    <Label>Event Name</Label>
-                    <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. District Installation 2026" className="h-12 rounded-xl" />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Event Name</Label>
+                        <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Installation 2026" className="h-12 rounded-xl" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Event Scope</Label>
+                        <Select value={formData.scope} onValueChange={(v: AccessEventScope) => setFormData({ ...formData, scope: v })}>
+                            <SelectTrigger className="h-12 rounded-xl">
+                                <SelectValue placeholder="Select scope" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="district">🌍 District Event</SelectItem>
+                                <SelectItem value="club">🦁 Club Event</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-slate-400 italic px-1">Controls which email address is used for ticketing.</p>
+                    </div>
                 </div>
+
                 <PlatformDateTimePicker fieldName="date" label="Event Schedule (Date & Time)" />
                 <div className="space-y-2">
                     <Label>Venue Location</Label>

@@ -1,5 +1,6 @@
 
 export type AccessRegistrationStatus = 'registered' | 'checked_in';
+export type AccessEventScope = 'district' | 'club';
 
 export interface PricingTier {
   id: string;
@@ -16,6 +17,7 @@ export interface AccessEvent {
   time: string;
   location: string;
   description: string;
+  scope: AccessEventScope;
   imageUrl?: string; // Banner image for the registration page
   customEmailBody?: string; // Custom message for the ticketing email
   attachmentUrl?: string; // Optional attachment for the ticketing email (base64 or link)

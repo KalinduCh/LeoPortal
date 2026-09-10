@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -13,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Users, CheckCircle, Clock, Download, QrCode, Search, 
   Loader2, Trash2, ArrowLeft, BarChart3, Mail, ShieldAlert, 
-  ShieldCheck, PieChart as PieChartIcon, Utensils, Zap, AlertTriangle, Banknote, Ticket
+  ShieldCheck, PieChart as PieChartIcon, Utensils, Zap, AlertTriangle, Banknote, Ticket, Globe, Layout
 } from 'lucide-react';
 import { getPlatformEvent, subscribeToPlatformRegistrations, deletePlatformRegistration } from '@/services/accessPlatformService';
 import type { AccessEvent, AccessRegistration, AccessPlatformStats } from '@/types/access-platform';
@@ -212,7 +213,13 @@ export default function PlatformEventDashboard() {
           <Button variant="ghost" size="sm" onClick={() => router.push('/event-access/admin')} className="pl-0 text-primary font-bold">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Events
           </Button>
-          <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900 uppercase">{event.name}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900 uppercase">{event.name}</h1>
+            <Badge variant="outline" className={cn("uppercase font-black text-[10px] tracking-widest px-3 h-6", event.scope === 'district' ? 'border-blue-200 text-blue-700 bg-blue-50' : 'border-purple-200 text-purple-700 bg-purple-50')}>
+                {event.scope === 'district' ? <Globe className="h-3 w-3 mr-1.5" /> : <Layout className="h-3 w-3 mr-1.5" />}
+                {event.scope || 'District'}
+            </Badge>
+          </div>
           <p className="text-slate-500 uppercase text-xs tracking-widest font-black">LeoEntrivo Command Center</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
@@ -261,7 +268,7 @@ export default function PlatformEventDashboard() {
             <CardHeader className="bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="text-lg">Attendee Registry</CardTitle>
-                <CardDescription>Manage and search all issued passes.</CardDescription>
+                <CardDescription>Manage and search all issued passes for this {event.scope || 'district'} event.</CardDescription>
               </div>
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
