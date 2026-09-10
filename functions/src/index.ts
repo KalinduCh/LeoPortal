@@ -9,8 +9,9 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-const GMAIL_EMAIL = "athugalpuraleoclub306d9@gmail.com";
-const GMAIL_APP_PASSWORD = "osng xjdz lhwu movh";
+// Standardizing on CLUB credentials for automated portal functions
+const GMAIL_EMAIL = process.env.CLUB_GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
+const GMAIL_APP_PASSWORD = process.env.CLUB_GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
 
 const transporter = nodemailer.createTransport({
     service: "gmail",

@@ -25,10 +25,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields: to, subject, and body are required.' }, { status: 400 });
     }
 
-    const { GMAIL_EMAIL, GMAIL_APP_PASSWORD } = process.env;
+    // Defaulting to Club credentials for general portal communication
+    const GMAIL_EMAIL = process.env.CLUB_GMAIL_EMAIL;
+    const GMAIL_APP_PASSWORD = process.env.CLUB_GMAIL_APP_PASSWORD;
 
     if (!GMAIL_EMAIL || !GMAIL_APP_PASSWORD) {
-        console.error("Missing GMAIL_EMAIL or GMAIL_APP_PASSWORD from environment variables.");
+        console.error("Missing CLUB_GMAIL_EMAIL or CLUB_GMAIL_APP_PASSWORD from environment variables.");
         return NextResponse.json({ error: 'Server configuration error: Email credentials are not set.' }, { status: 500 });
     }
 
@@ -38,7 +40,6 @@ export async function POST(request: Request) {
         user: GMAIL_EMAIL,
         pass: GMAIL_APP_PASSWORD,
       },
-      // Increase pool size for potentially better performance with many emails
       pool: true,
       maxConnections: 5,
       maxMessages: 100,
@@ -87,12 +88,11 @@ export async function POST(request: Request) {
 
     const mailOptions: nodemailer.SendMailOptions = {
         from: `"LEO CLUB OF ATHUGALPURA" <${GMAIL_EMAIL}>`,
-        to: to, // Can be a single email or a comma-separated list
+        to: to,
         subject: subject,
         html: emailHtml,
     };
     
-    // Add attachments if they exist
     if (attachments && attachments.length > 0) {
         mailOptions.attachments = attachments.map(att => ({
             filename: att.filename,
@@ -108,13 +108,10 @@ export async function POST(request: Request) {
 
   } catch (err: any) {
     console.error("Error in /api/send-email:", err);
-    // Provide a more specific error message if available
     const errorMessage = err.message || 'An unknown error occurred while sending the email.';
-    if (err.code === 'EENVELOPE') { // Specific Nodemailer error for large payload
+    if (err.code === 'EENVELOPE') {
         return NextResponse.json({ error: 'Failed to send email', details: 'Attachments are too large. Please reduce the total size and try again.' }, { status: 413 });
     }
     return NextResponse.json({ error: 'Failed to send email', details: errorMessage }, { status: 500 });
   }
 }
-
-    

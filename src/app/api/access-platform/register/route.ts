@@ -9,12 +9,12 @@ const PLATFORM_REGISTRATIONS = 'accessRegistrations';
 const PLATFORM_EVENTS = 'accessEvents';
 
 // District Credentials
-const DISTRICT_SENDER = process.env.GMAIL_TICKET_EMAIL || "districtconference306d9@gmail.com";
-const DISTRICT_PASSWORD = process.env.GMAIL_TICKET_APP_PASSWORD || "ceth hegq xouv nrvl";
+const DISTRICT_SENDER = process.env.DISTRICT_GMAIL_EMAIL || "districtconference306d9@gmail.com";
+const DISTRICT_PASSWORD = process.env.DISTRICT_GMAIL_APP_PASSWORD || "ceth hegq xouv nrvl";
 
 // Club Credentials
-const CLUB_SENDER = process.env.GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
-const CLUB_PASSWORD = process.env.GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
+const CLUB_SENDER = process.env.CLUB_GMAIL_EMAIL || "athugalpuraleoclub306d9@gmail.com";
+const CLUB_PASSWORD = process.env.CLUB_GMAIL_APP_PASSWORD || "osng xjdz lhwu movh";
 
 export async function POST(req: Request) {
   try {

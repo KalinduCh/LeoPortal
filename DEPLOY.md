@@ -1,41 +1,36 @@
 
-# 🚀 Deployment Guide: Firebase Functions & Push Notifications
+# 🚀 Deployment Guide: Firebase Functions & Email Configuration
 
-To activate the task assignment triggers and other automated notifications, you must deploy the backend functions to your Firebase project.
+To activate task assignments, event triggers, and automated ticketing, you must configure your secrets and deploy the backend.
 
-## 1. Prerequisites
-- Ensure you have the [Firebase CLI](https://firebase.google.com/docs/cli) installed: `npm install -g firebase-tools`
-- Log in to your account: `firebase login`
-- Link your project (if not already): `firebase use --add`
+## 1. Configure Email Credentials (Gmail)
+The platform uses two separate Gmail accounts for routing. Generate an **App Password** for each (Account > Security > 2-Step Verification > App Passwords).
 
-## 2. Configure Secrets
-The backend functions require your Gmail credentials to send emails. You can set these using Firebase Secrets (recommended) or an environment file.
+Run these commands to set the secrets:
 
-### Option A: Firebase Secrets (Recommended)
-Run these commands in your terminal:
+### Club Portal & Internal Alerts
 ```bash
-firebase functions:secrets:set GMAIL_EMAIL
-firebase functions:secrets:set GMAIL_APP_PASSWORD
+firebase functions:secrets:set CLUB_GMAIL_EMAIL
+firebase functions:secrets:set CLUB_GMAIL_APP_PASSWORD
 ```
 
-### Option B: .env file
-I have created a `functions/.env` file in the project. Ensure it contains:
-```text
-GMAIL_EMAIL=your-club-email@gmail.com
-GMAIL_APP_PASSWORD=your-16-digit-app-password
+### LeoEntrivo District Ticketing
+```bash
+firebase functions:secrets:set DISTRICT_GMAIL_EMAIL
+firebase functions:secrets:set DISTRICT_GMAIL_APP_PASSWORD
 ```
 
-## 3. Deploy Functions
+## 2. Deploy Functions
 Run the following command from the project root:
 ```bash
 firebase deploy --only functions
 ```
 
-## 4. Verification
+## 3. Verification
 Once deployed, you can verify the status in the [Firebase Console](https://console.firebase.google.com/):
 1. Go to **Build > Functions**.
 2. You should see `onUserStatusChange`, `onEventCreated`, `onTaskCreated`, and `onTaskUpdated` listed.
-3. Check the **Logs** tab if notifications aren't appearing as expected.
+3. Check the **Logs** tab if notifications or emails aren't appearing as expected.
 
 ---
 © 2026 Leo Club of Athugalpura.
