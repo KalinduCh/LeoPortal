@@ -12,7 +12,7 @@ export interface Badge {
   icon: ElementType;
 }
 
-export type AdminPermission = 'members' | 'events' | 'finance' | 'communication' | 'project_ideas' | 'reports' | 'leaderboard' | 'tasks' | 'district_access';
+export type AdminPermission = 'members' | 'events' | 'finance' | 'communication' | 'project_ideas' | 'reports' | 'leaderboard' | 'tasks' | 'district_access' | 'entrivo_scope_club' | 'entrivo_scope_district';
 
 export interface User {
   id: string; 

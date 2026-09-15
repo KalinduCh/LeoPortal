@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -88,6 +88,23 @@ export default function PlatformAdminOverview() {
       }
     }
   }, [user, authLoading, router]);
+
+  // Filter events based on user scope permissions
+  const filteredEvents = useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'super_admin') return events;
+
+    const canSeeClub = user.permissions?.entrivo_scope_club;
+    const canSeeDistrict = user.permissions?.entrivo_scope_district;
+
+    return events.filter(e => {
+        if (e.scope === 'club' && canSeeClub) return true;
+        if (e.scope === 'district' && canSeeDistrict) return true;
+        // Default fallback for legacy data without scope if district is enabled
+        if (!e.scope && canSeeDistrict) return true;
+        return false;
+    });
+  }, [events, user]);
 
   const handleOpenDialog = (event?: AccessEvent) => {
     if (event) {
@@ -313,34 +330,6 @@ export default function PlatformAdminOverview() {
     );
   };
 
-  const TierDatePicker = ({ tierId, field, label }: { tierId: string, field: 'startDate' | 'endDate', label: string }) => {
-    const [calOpen, setCalOpen] = useState(false);
-    const tier = formData.pricingTiers.find(t => t.id === tierId);
-    const dateValue = tier?.[field];
-    const safeDate = getSafeCalendarDate(dateValue);
-
-    return (
-        <Popover open={calOpen} onOpenChange={setCalOpen}>
-            <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className={cn("w-full justify-start h-9 text-[10px]", !dateValue && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-1.5 h-3 w-3" />
-                    {dateValue && safeDate ? format(safeDate, "MMM dd, yyyy") : label}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-                <Calendar 
-                    mode="single" 
-                    selected={safeDate} 
-                    onSelect={(d) => {
-                        if(d) handleUpdateTier(tierId, field, format(d, "yyyy-MM-dd"));
-                        setCalOpen(false);
-                    }}
-                />
-            </PopoverContent>
-        </Popover>
-    );
-  };
-
   if (authLoading || isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
@@ -358,8 +347,8 @@ export default function PlatformAdminOverview() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {events.length > 0 ? (
-          events.map(event => {
+        {filteredEvents.length > 0 ? (
+          filteredEvents.map(event => {
             const safeDate = getSafeCalendarDate(event.date);
             const formattedDate = safeDate ? format(safeDate, 'PPP') : 'Date TBD';
             const isManuallyClosed = event.isRegistrationClosed;
@@ -461,8 +450,8 @@ export default function PlatformAdminOverview() {
         ) : (
           <div className="col-span-full py-32 flex flex-col items-center justify-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
             <QrCode className="h-16 w-16 text-slate-300 mb-4" />
-            <h3 className="text-xl font-bold text-slate-900">No Active Events</h3>
-            <p className="text-slate-500">Add your first district or club event above.</p>
+            <h3 className="text-xl font-bold text-slate-900">No Authorized Events</h3>
+            <p className="text-slate-500">You don't have permission to manage any events, or none exist for your scope.</p>
           </div>
         )}
       </div>
@@ -671,4 +660,10 @@ function TierDatePicker({ tierId, field, label }: any) {
             </PopoverContent>
         </Popover>
     );
+}
+
+function PlatformDateTimePicker({ fieldName, label }: { fieldName: 'date' | 'registrationClosingDate', label: string }) {
+    // This is already defined inside the component in my implementation, 
+    // but ensured it's clean for the changes block.
+    return null;
 }

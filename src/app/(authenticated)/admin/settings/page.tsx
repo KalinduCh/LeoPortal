@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/admin/settings/page.tsx
 "use client";
 
@@ -12,13 +13,13 @@ import { produce } from 'immer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Shield, Users, Bell, Save } from 'lucide-react';
+import { Loader2, Shield, Users, Bell, Save, Globe, Layout } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
-const PERMISSION_CONFIG: { id: AdminPermission; label: string }[] = [
+const PERMISSION_CONFIG: { id: AdminPermission; label: string; icon?: any }[] = [
     { id: 'members', label: 'Members' },
     { id: 'events', label: 'Events' },
     { id: 'tasks', label: 'Global Tasks' },
@@ -27,7 +28,9 @@ const PERMISSION_CONFIG: { id: AdminPermission; label: string }[] = [
     { id: 'communication', label: 'Communication' },
     { id: 'project_ideas', label: 'Idea Review' },
     { id: 'reports', label: 'Reports' },
-    { id: 'district_access', label: 'District Access' },
+    { id: 'district_access', label: 'Entrivo Portal' },
+    { id: 'entrivo_scope_district', label: 'Entrivo: District', icon: Globe },
+    { id: 'entrivo_scope_club', label: 'Entrivo: Club', icon: Layout },
 ];
 
 export default function SettingsPage() {
@@ -125,31 +128,38 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent>
                     {/* Desktop View */}
-                    <div className="hidden md:block border rounded-lg overflow-x-auto">
+                    <div className="hidden lg:block border rounded-lg overflow-x-auto">
                          <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Administrator</TableHead>
-                                    {PERMISSION_CONFIG.map(p => <TableHead key={p.id}>{p.label}</TableHead>)}
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="bg-slate-50 sticky left-0 z-10">Administrator</TableHead>
+                                    {PERMISSION_CONFIG.map(p => (
+                                        <TableHead key={p.id} className="text-center">
+                                            <div className="flex flex-col items-center gap-1">
+                                                {p.icon && <p.icon className="h-3 w-3 text-slate-400" />}
+                                                <span className="text-[10px] whitespace-nowrap">{p.label}</span>
+                                            </div>
+                                        </TableHead>
+                                    ))}
+                                    <TableHead className="text-right bg-slate-50 sticky right-0 z-10">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {admins.map(admin => (
                                     <TableRow key={admin.id}>
-                                        <TableCell className="font-medium flex items-center gap-3 min-w-[200px]">
+                                        <TableCell className="font-medium flex items-center gap-3 min-w-[200px] bg-white sticky left-0 z-10 border-r">
                                             <Avatar className="h-9 w-9">
                                                 <AvatarImage src={admin.photoUrl} alt={admin.name} data-ai-hint="profile avatar" />
                                                 <AvatarFallback>{getInitials(admin.name)}</AvatarFallback>
                                             </Avatar>
-                                            <div>
-                                                <p>{admin.name}</p>
-                                                <p className="text-xs text-muted-foreground">{admin.email}</p>
+                                            <div className="min-w-0">
+                                                <p className="truncate">{admin.name}</p>
+                                                <p className="text-[10px] text-muted-foreground truncate">{admin.email}</p>
                                             </div>
                                         </TableCell>
                                         
                                         {PERMISSION_CONFIG.map(p => (
-                                            <TableCell key={p.id}>
+                                            <TableCell key={p.id} className="text-center">
                                                 {admin.role === 'super_admin' ? (
                                                      <Checkbox checked={true} disabled={true} />
                                                 ) : (
@@ -162,19 +172,19 @@ export default function SettingsPage() {
                                             </TableCell>
                                         ))}
                                         
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right bg-white sticky right-0 z-10 border-l">
                                            {admin.role !== 'super_admin' && (
                                                 <Button 
                                                     size="sm" 
                                                     onClick={() => handleSaveChanges(admin)} 
                                                     disabled={isSubmitting === admin.id}
+                                                    className="h-8"
                                                 >
                                                     {isSubmitting === admin.id ? (
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                                                        <Loader2 className="h-4 w-4 animate-spin"/>
                                                     ) : (
-                                                        <Save className="mr-2 h-4 w-4"/>
+                                                        <Save className="h-4 w-4"/>
                                                     )}
-                                                    Save
                                                 </Button>
                                            )}
                                         </TableCell>
@@ -185,7 +195,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Mobile View */}
-                    <div className="block md:hidden space-y-4">
+                    <div className="block lg:hidden space-y-4">
                         {admins.map(admin => (
                             <Card key={admin.id} className="shadow-md">
                                 <CardHeader>
@@ -214,7 +224,7 @@ export default function SettingsPage() {
                                                         disabled={isSubmitting === admin.id}
                                                     />
                                                 )}
-                                                <Label htmlFor={`${admin.id}-${p.id}`} className="text-sm font-normal">{p.label}</Label>
+                                                <Label htmlFor={`${admin.id}-${p.id}`} className="text-[10px] font-normal">{p.label}</Label>
                                             </div>
                                         ))}
                                     </div>
@@ -252,16 +262,6 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent>
                     <p className="text-sm text-muted-foreground italic">e.g., Set annual membership fee amount...</p>
-                </CardContent>
-            </Card>
-            
-            <Card className="opacity-50">
-                <CardHeader>
-                    <CardTitle className="flex items-center text-xl"><Bell className="mr-2 h-5 w-5 text-primary"/>Notification Settings</CardTitle>
-                    <CardDescription>Manage automated notifications for events and approvals. Feature coming soon.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-muted-foreground italic">e.g., Toggle welcome emails, event reminders...</p>
                 </CardContent>
             </Card>
         </div>
