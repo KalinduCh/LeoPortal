@@ -378,9 +378,6 @@ export default function PlatformPublicRegistration() {
                       </button>
                     ))}
                   </div>
-                  <p className="text-[10px] text-slate-400 font-bold italic text-center">
-                    {activeTiers.length > 1 ? "Officers: Use the 'Ticket Type' column in CSV to register a mix of different tickets." : "The selected ticket type will apply to all registrations in the batch."}
-                  </p>
                 </div>
               )}
 
@@ -448,7 +445,10 @@ export default function PlatformPublicRegistration() {
                 <TabsContent value="bulk">
                     <CardContent className="p-8 space-y-8">
                     <div className="bg-slate-50 ring-1 ring-slate-200 rounded-3xl p-6 space-y-6">
-                        <h3 className="font-black uppercase tracking-tight flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Submitter Identity</h3>
+                        <div className="space-y-1">
+                          <h3 className="font-black uppercase tracking-tight flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Officer Identification</h3>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest pl-7">Please provide your details to authorize this bulk upload.</p>
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <Input placeholder="Your Name" className="h-11 rounded-xl bg-white" value={submitterData.name} onChange={e => setSubmitterData({...submitterData, name: e.target.value})} />
                             <Input placeholder="Designation" className="h-11 rounded-xl bg-white" value={submitterData.designation} onChange={e => setSubmitterData({...submitterData, designation: e.target.value})} />
@@ -464,8 +464,8 @@ export default function PlatformPublicRegistration() {
                     <div className="flex flex-col gap-4">
                         <div className="flex items-center justify-between border-b pb-2">
                              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Step 2: Upload Data</h3>
-                             <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-8 text-[10px] font-bold border-primary text-primary hover:bg-primary/5">
-                                 <Download className="mr-1.5 h-3 w-3" /> Download CSV Template
+                             <Button onClick={handleDownloadTemplate} className="h-9 px-4 font-bold shadow-md">
+                                 <Download className="mr-1.5 h-3.5 w-3.5" /> Download Template (.CSV)
                              </Button>
                         </div>
                         
@@ -473,33 +473,15 @@ export default function PlatformPublicRegistration() {
                             <Input type="file" accept=".csv" onChange={handleBulkCsvUpload} className="hidden" id="bulk-csv-input" disabled={isBulkProcessing} />
                             <label htmlFor="bulk-csv-input" className="flex flex-col items-center justify-center gap-4 p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-all">
                             <div className="h-16 w-16 rounded-full bg-white shadow-md flex items-center justify-center text-primary"><Upload className="h-8 w-8" /></div>
-                            <p className="font-black text-slate-900 uppercase tracking-tighter">Upload Club CSV List</p>
+                            <p className="font-black text-slate-900 uppercase tracking-tighter text-center">
+                              {submitterData.name ? 'Click to select CSV File' : 'Complete Step 1 to Unlock Upload'}
+                            </p>
                             {isBulkProcessing && <div className="w-full max-w-[200px] mt-2"><Progress value={processProgress} className="h-1" /></div>}
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">Max 2MB .CSV File</p>
                             </label>
                         </div>
-                    </div>
-
-                    <div className="bg-primary/5 border border-primary/10 rounded-3xl p-6 space-y-4">
-                        <div className="flex items-center gap-2 text-primary font-black uppercase text-xs">
-                             <InfoIcon className="h-4 w-4" /> Data Formatting Guide
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-[10px]">
-                            <div className="space-y-2">
-                                <p className="font-bold text-slate-700 uppercase">Column Values:</p>
-                                <ul className="space-y-1 text-slate-500 font-medium">
-                                    <li><span className="text-slate-900 font-bold">Type:</span> Leo, Lion, or Other</li>
-                                    <li><span className="text-slate-900 font-bold">Food:</span> Veg or Non-Veg</li>
-                                    <li><span className="text-slate-900 font-bold">Ticket Type:</span> (Matches exact tier names above)</li>
-                                </ul>
-                            </div>
-                            <div className="space-y-2">
-                                <p className="font-bold text-slate-700 uppercase">Tip for Mixed Lists:</p>
-                                <p className="text-slate-500 leading-relaxed font-medium">
-                                    If your club has people attending different sessions, ensure the <span className="font-bold">Ticket Type</span> column in your CSV matches the names listed in the cards above exactly.
-                                </p>
-                            </div>
-                        </div>
+                        <p className="text-[10px] text-slate-400 font-bold italic text-center">
+                          Officers: Use the 'Ticket Type' column in your CSV to register a mix of different sessions or ticket tiers.
+                        </p>
                     </div>
                     </CardContent>
                 </TabsContent>
