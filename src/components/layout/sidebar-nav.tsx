@@ -49,6 +49,10 @@ const adminNavItems: NavItem[] = [
   { href: "/event-access/admin", label: "District Access", icon: QrCode, permission: 'district_access' },
 ];
 
+const entrivoNativeNavItems: NavItem[] = [
+    { href: "/event-access/admin", label: "Entrivo Events", icon: QrCode, permission: 'district_access' },
+];
+
 const superAdminNavItems: NavItem[] = [
     ...adminNavItems,
     { href: "/admin/settings", label: "Settings", icon: Settings },
@@ -58,11 +62,20 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { user, adminViewMode } = useAuth();
   if (!user) return null;
+
   let itemsToShow: NavItem[];
-  if (user.role === 'super_admin') itemsToShow = superAdminNavItems;
-  else if (user.role === 'admin' && adminViewMode === 'admin_view') {
+
+  if (user.role === 'super_admin') {
+      itemsToShow = superAdminNavItems;
+  } else if (user.source === 'entrivo') {
+      // Entrivo organizers NEVER see Club modules
+      itemsToShow = entrivoNativeNavItems.filter(i => !i.permission || user.permissions?.[i.permission] === true);
+  } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
+      // Club Admins see items based on their granted permissions
       itemsToShow = adminNavItems.filter(i => !i.permission || user.permissions?.[i.permission] === true);
-  } else itemsToShow = memberNavItems;
+  } else {
+      itemsToShow = memberNavItems;
+  }
 
   return (
     <SidebarMenu>

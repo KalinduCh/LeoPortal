@@ -13,7 +13,7 @@ import { produce } from 'immer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Shield, Users, Bell, Save, Globe, Layout, LayoutDashboard, Calendar, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Shield, Users, Bell, Save, Globe, Layout, LayoutDashboard, Calendar, Image as ImageIcon, QrCode } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ const PERMISSION_CONFIG: { id: AdminPermission; label: string; icon?: any }[] = 
     { id: 'communication', label: 'Communication' },
     { id: 'project_ideas', label: 'Idea Review' },
     { id: 'reports', label: 'Reports' },
-    { id: 'district_access', label: 'Entrivo Portal' },
+    { id: 'district_access', label: 'Entrivo Portal', icon: QrCode },
     { id: 'entrivo_scope_district', label: 'Entrivo: District', icon: Globe },
     { id: 'entrivo_scope_club', label: 'Entrivo: Club', icon: Layout },
 ];
@@ -156,8 +156,8 @@ export default function SettingsPage() {
                                                 <AvatarFallback>{getInitials(admin.name)}</AvatarFallback>
                                             </Avatar>
                                             <div className="min-w-0">
-                                                <p className="truncate">{admin.name}</p>
-                                                <p className="text-[10px] text-muted-foreground truncate">{admin.email}</p>
+                                                <p className="truncate font-bold text-slate-900">{admin.name}</p>
+                                                <p className="text-[9px] text-primary uppercase font-black tracking-tighter">{admin.source === 'entrivo' ? 'District Native' : 'Club Native'}</p>
                                             </div>
                                         </TableCell>
                                         
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                                         </Avatar>
                                         <div>
                                             <CardTitle className="text-base">{admin.name}</CardTitle>
-                                            <CardDescription className="text-xs">{admin.email}</CardDescription>
+                                            <CardDescription className="text-xs uppercase font-black text-primary tracking-tighter">{admin.source || 'portal'}</CardDescription>
                                         </div>
                                     </div>
                                 </CardHeader>

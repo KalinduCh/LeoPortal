@@ -2,8 +2,9 @@
 // src/app/(authenticated)/dashboard/page.tsx
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
+import { useRouter } from 'next/navigation';
 import { AdminDashboard } from '@/app/(authenticated)/dashboard/admin-dashboard';
 import { MemberDashboard } from '@/app/(authenticated)/dashboard/member-dashboard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +14,15 @@ import { CelebrationOverlay } from '@/components/celebration-overlay';
 
 export default function DashboardPage() {
   const { user, isLoading, adminViewMode } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    // If an Entrivo native user somehow lands here, push them to Entrivo Admin immediately
+    // as they have no business in the Club Portal dashboard.
+    if (!isLoading && user?.source === 'entrivo') {
+        router.replace('/event-access/admin');
+    }
+  }, [user, isLoading, router]);
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -29,6 +39,9 @@ export default function DashboardPage() {
       </Alert>
     );
   }
+
+  // District Organizers should never reach this render cycle due to useEffect
+  if (user.source === 'entrivo') return null;
 
   const isSuperAdmin = user.role === 'super_admin';
   const isAdmin = user.role === 'admin';

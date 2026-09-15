@@ -635,7 +635,7 @@ export default function PlatformAdminOverview() {
             <DialogFooter className="pt-4 gap-2">
               <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => setIsDialogOpen(false)} disabled={isProcessing}>Cancel</Button>
               <Button type="submit" disabled={isProcessing} className="h-12 px-6 shadow-lg flex-1 bg-primary rounded-xl font-bold uppercase tracking-tight">
-                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingEvent ? "Update Event" : "Create Event")}
+                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin mr-2" /> : (editingEvent ? "Update Event" : "Create Event")}
               </Button>
             </DialogFooter>
           </form>
@@ -660,10 +660,4 @@ function TierDatePicker({ tierId, field, label }: any) {
             </PopoverContent>
         </Popover>
     );
-}
-
-function PlatformDateTimePicker({ fieldName, label }: { fieldName: 'date' | 'registrationClosingDate', label: string }) {
-    // This is already defined inside the component in my implementation, 
-    // but ensured it's clean for the changes block.
-    return null;
 }
