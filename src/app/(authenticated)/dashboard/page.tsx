@@ -1,3 +1,4 @@
+
 // src/app/(authenticated)/dashboard/page.tsx
 "use client";
 
@@ -37,8 +38,12 @@ export default function DashboardPage() {
       if (isSuperAdmin) {
         return <AdminDashboard user={user} />;
       }
-      if (isAdmin) {
-        return adminViewMode === 'admin_view' ? <AdminDashboard user={user} /> : <MemberDashboard user={user} />;
+      if (isAdmin && adminViewMode === 'admin_view') {
+        // Fallback to MemberDashboard if Admin Dashboard permission is explicitly revoked
+        if (user.permissions?.admin_dashboard === false) {
+           return <MemberDashboard user={user} />;
+        }
+        return <AdminDashboard user={user} />;
       }
       return <MemberDashboard user={user} />;
   }

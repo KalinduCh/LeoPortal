@@ -34,6 +34,9 @@ export async function createUserProfile(
     membershipFeeAmountPaid: 0,
     fcmToken: null,
     permissions: role === 'admin' ? { 
+        admin_dashboard: true,
+        admin_calendar: true,
+        admin_gallery: true,
         members: true,
         events: true,
         tasks: true,

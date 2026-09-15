@@ -35,9 +35,9 @@ const memberNavItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/calendar", label: "Calendar", icon: Calendar },
-  { href: "/gallery", label: "Project Gallery", icon: ImageIcon },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: 'admin_dashboard' },
+  { href: "/calendar", label: "Calendar", icon: Calendar, permission: 'admin_calendar' },
+  { href: "/gallery", label: "Project Gallery", icon: ImageIcon, permission: 'admin_gallery' },
   { href: "/tasks", label: "Tasks", icon: ListChecks, permission: 'tasks' },
   { href: "/members", label: "Members", icon: Users, permission: 'members' },
   { href: "/events", label: "Events", icon: CalendarDays, permission: 'events' },

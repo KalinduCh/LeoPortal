@@ -13,16 +13,19 @@ import { produce } from 'immer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Shield, Users, Bell, Save, Globe, Layout } from 'lucide-react';
+import { Loader2, Shield, Users, Bell, Save, Globe, Layout, LayoutDashboard, Calendar, Image as ImageIcon } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
 const PERMISSION_CONFIG: { id: AdminPermission; label: string; icon?: any }[] = [
-    { id: 'members', label: 'Members' },
-    { id: 'events', label: 'Events' },
-    { id: 'tasks', label: 'Global Tasks' },
+    { id: 'admin_dashboard', label: 'Admin Dash', icon: LayoutDashboard },
+    { id: 'admin_calendar', label: 'Admin Calendar', icon: Calendar },
+    { id: 'admin_gallery', label: 'Gallery Mgmt', icon: ImageIcon },
+    { id: 'members', label: 'Members', icon: Users },
+    { id: 'events', label: 'Events', icon: Calendar },
+    { id: 'tasks', label: 'Global Tasks', icon: Layout },
     { id: 'finance', label: 'Finance' },
     { id: 'leaderboard', label: 'Leaderboard' },
     { id: 'communication', label: 'Communication' },
