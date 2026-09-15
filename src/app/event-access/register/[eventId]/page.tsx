@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Calendar, MapPin, Loader2, CheckCircle, 
-  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck, Lock, MessageCircle, Banknote, Sparkles
+  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck, Lock, MessageCircle, Banknote, Sparkles, Check
 } from 'lucide-react';
 import { getPlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent, RegistrationSubmitter, PricingTier } from '@/types/access-platform';
@@ -59,6 +59,8 @@ export default function PlatformPublicRegistration() {
     foodPreference: 'non_veg' as 'veg' | 'non_veg'
   });
 
+  const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
+
   const [submitterData, setSubmitterData] = useState<RegistrationSubmitter>({
     name: '',
     designation: '',
@@ -73,22 +75,35 @@ export default function PlatformPublicRegistration() {
   useEffect(() => {
     const fetchEvent = async () => {
       const data = await getPlatformEvent(eventId);
-      if (data) setEvent(data);
+      if (data) {
+        setEvent(data);
+        // Pre-select the first active tier if available
+        const active = getActiveTiers(data);
+        if (active.length > 0) {
+            setSelectedTierId(active[0].id);
+        }
+      }
       setIsLoading(false);
     };
     fetchEvent();
   }, [eventId]);
 
-  const activePricing = useMemo(() => {
-    if (!event || !event.pricingTiers || event.pricingTiers.length === 0) return null;
+  const getActiveTiers = (eventObj: AccessEvent) => {
+    if (!eventObj || !eventObj.pricingTiers || eventObj.pricingTiers.length === 0) return [];
     const now = new Date();
-    return event.pricingTiers.find(tier => {
+    return eventObj.pricingTiers.filter(tier => {
       const start = parseISO(tier.startDate + 'T00:00:00');
       const end = parseISO(tier.endDate + 'T23:59:59');
       if (!isValid(start) || !isValid(end)) return false;
       return now >= start && now <= end;
     });
-  }, [event]);
+  };
+
+  const activeTiers = useMemo(() => event ? getActiveTiers(event) : [], [event]);
+  
+  const selectedTier = useMemo(() => 
+    activeTiers.find(t => t.id === selectedTierId) || activeTiers[0] || null
+  , [activeTiers, selectedTierId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +113,11 @@ export default function PlatformPublicRegistration() {
 
     if (!formData.name || !formData.email || !finalClub || !formData.contactNumber) {
         toast({ title: "Required Fields", description: "Please fill in all contact details.", variant: "destructive" });
+        return;
+    }
+
+    if (activeTiers.length > 0 && !selectedTierId) {
+        toast({ title: "Ticket Required", description: "Please select a ticket type.", variant: "destructive" });
         return;
     }
 
@@ -117,8 +137,8 @@ export default function PlatformPublicRegistration() {
           customEmailBody: event.customEmailBody,
           attachmentUrl: event.attachmentUrl,
           attachmentName: event.attachmentName,
-          tierName: activePricing?.name || 'Standard',
-          priceAtRegistration: activePricing?.price || 0,
+          tierName: selectedTier?.name || 'Standard',
+          priceAtRegistration: selectedTier?.price || 0,
         }),
       });
 
@@ -163,6 +183,12 @@ export default function PlatformPublicRegistration() {
           try {
             if (!row.Name || !row.Email) continue;
             
+            // Tier Logic: 1. CSV Column "Ticket" or "Tier", 2. Default selected on UI
+            const csvTierName = row.Ticket || row.Tier || row['Ticket Type'];
+            const matchedTier = csvTierName 
+                ? activeTiers.find(t => t.name.toLowerCase() === csvTierName.toString().toLowerCase()) 
+                : selectedTier;
+
             const response = await fetch('/api/access-platform/register', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -182,8 +208,8 @@ export default function PlatformPublicRegistration() {
                 role: row.Type || 'Leo',
                 foodPreference: (row.Food?.toLowerCase().includes('veg') && !row.Food?.toLowerCase().includes('non')) ? 'veg' : 'non_veg',
                 submitterInfo: submitterData,
-                tierName: activePricing?.name || 'Standard',
-                priceAtRegistration: activePricing?.price || 0,
+                tierName: matchedTier?.name || selectedTier?.name || 'Standard',
+                priceAtRegistration: matchedTier?.price || selectedTier?.price || 0,
               }),
             });
 
@@ -238,23 +264,6 @@ export default function PlatformPublicRegistration() {
              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200 text-xs font-bold text-slate-500"><Clock className="h-4 w-4 text-primary" /> {event.time}</div>
              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm ring-1 ring-slate-200 text-xs font-bold text-slate-500"><MapPin className="h-4 w-4 text-primary" /> {event.location}</div>
           </div>
-
-          {activePricing && (
-              <div className="flex justify-center pt-2">
-                  <div className="bg-primary/5 border border-primary/20 px-6 py-3 rounded-2xl flex items-center gap-4 shadow-sm animate-in zoom-in-95 duration-500">
-                      <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white">
-                          <Banknote className="h-5 w-5" />
-                      </div>
-                      <div className="text-left">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-primary leading-none mb-1">{activePricing.name} Tier</p>
-                          <p className="text-xl font-black text-slate-900 leading-none">LKR {activePricing.price.toLocaleString()}</p>
-                      </div>
-                      <div className="ml-2">
-                          <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
-                      </div>
-                  </div>
-              </div>
-          )}
         </header>
 
         {success ? (
@@ -296,6 +305,48 @@ export default function PlatformPublicRegistration() {
                   {!isClubEvent && <TabsTrigger value="bulk" className="rounded-xl font-bold h-full data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Club Bulk Upload</TabsTrigger>}
                 </TabsList>
               </div>
+
+              {/* TICKET SELECTION (Global for both tabs) */}
+              {activeTiers.length > 0 && (
+                <div className="px-8 pt-8 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
+                    <Banknote className="h-3.5 w-3.5 text-primary" /> Select Ticket Type
+                  </h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    {activeTiers.map((tier) => (
+                      <button
+                        key={tier.id}
+                        type="button"
+                        onClick={() => setSelectedTierId(tier.id)}
+                        className={cn(
+                            "relative flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-300 text-left group",
+                            selectedTierId === tier.id 
+                                ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20" 
+                                : "border-slate-100 bg-slate-50/50 hover:border-slate-200"
+                        )}
+                      >
+                        <div className="space-y-1">
+                          <p className={cn("text-sm font-black uppercase tracking-tight", selectedTierId === tier.id ? "text-primary" : "text-slate-600")}>
+                            {tier.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-medium">Valid until: {format(parseISO(tier.endDate), 'MMM dd, yyyy')}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={cn("text-xl font-black", selectedTierId === tier.id ? "text-primary" : "text-slate-900")}>
+                            LKR {tier.price.toLocaleString()}
+                          </p>
+                          <div className={cn(
+                            "absolute -top-2 -right-2 h-6 w-6 rounded-full bg-primary flex items-center justify-center text-white shadow-lg transition-all",
+                            selectedTierId === tier.id ? "scale-100 opacity-100" : "scale-0 opacity-0"
+                          )}>
+                            <Check className="h-3.5 w-3.5" />
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <TabsContent value="single">
                 <CardContent className="p-8">
@@ -379,6 +430,7 @@ export default function PlatformPublicRegistration() {
                         <label htmlFor="bulk-csv-input" className="flex flex-col items-center justify-center gap-4 p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-all">
                         <div className="h-16 w-16 rounded-full bg-white shadow-md flex items-center justify-center text-primary"><Upload className="h-8 w-8" /></div>
                         <p className="font-black text-slate-900 uppercase tracking-tighter">Upload Club CSV List</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">Required Columns: Name, Email, Contact, Type, Food, Ticket Type (Optional)</p>
                         </label>
                     </div>
                     </CardContent>
