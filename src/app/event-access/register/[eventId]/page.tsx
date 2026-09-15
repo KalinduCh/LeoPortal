@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -10,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Calendar, MapPin, Loader2, CheckCircle, 
-  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck, Lock, MessageCircle, Banknote, Sparkles, Check
+  User, Mail, Building2, ArrowRight, Clock, Phone, Utensils, Users2, Upload, FileSpreadsheet, Download, AlertCircle, ShieldCheck, Lock, MessageCircle, Banknote, Sparkles, Check, Info, InfoIcon
 } from 'lucide-react';
 import { getPlatformEvent } from '@/services/accessPlatformService';
 import type { AccessEvent, RegistrationSubmitter, PricingTier } from '@/types/access-platform';
@@ -22,6 +21,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Papa from 'papaparse';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const CLUB_NAMES = [
   "Athugalpura", 
@@ -154,6 +154,39 @@ export default function PlatformPublicRegistration() {
       toast({ title: "Error", description: err.message || "Submission failed.", variant: "destructive" });
     }
     setIsSubmitting(false);
+  };
+
+  const handleDownloadTemplate = () => {
+    if (!event) return;
+    
+    const headers = ["Name", "Email", "Contact", "Type", "Food", "Ticket Type"];
+    
+    // Sample rows
+    const sampleRows = [
+      ["Leo John Doe", "john@example.com", "0771234567", "Leo", "Non-Veg", activeTiers[0]?.name || "Standard"],
+      ["Lion Jane Smith", "jane@example.com", "0719876543", "Lion", "Veg", activeTiers[0]?.name || "Standard"]
+    ];
+
+    // If there are multiple tiers, add examples for them
+    if (activeTiers.length > 1) {
+        activeTiers.slice(1).forEach((tier, i) => {
+            sampleRows.push([`Guest ${i+3}`, `guest${i+3}@example.com`, "0700000000", "Other", "Non-Veg", tier.name]);
+        });
+    }
+
+    const csvContent = [
+      headers.join(","),
+      ...sampleRows.map(row => row.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${event.name.replace(/\s+/g, '_')}_LeoEntrivo_Template.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleBulkCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,6 +378,9 @@ export default function PlatformPublicRegistration() {
                       </button>
                     ))}
                   </div>
+                  <p className="text-[10px] text-slate-400 font-bold italic text-center">
+                    {activeTiers.length > 1 ? "Officers: Use the 'Ticket Type' column in CSV to register a mix of different tickets." : "The selected ticket type will apply to all registrations in the batch."}
+                  </p>
                 </div>
               )}
 
@@ -425,13 +461,45 @@ export default function PlatformPublicRegistration() {
                         </div>
                     </div>
 
-                    <div className="relative group">
-                        <Input type="file" accept=".csv" onChange={handleBulkCsvUpload} className="hidden" id="bulk-csv-input" disabled={isBulkProcessing} />
-                        <label htmlFor="bulk-csv-input" className="flex flex-col items-center justify-center gap-4 p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-all">
-                        <div className="h-16 w-16 rounded-full bg-white shadow-md flex items-center justify-center text-primary"><Upload className="h-8 w-8" /></div>
-                        <p className="font-black text-slate-900 uppercase tracking-tighter">Upload Club CSV List</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">Required Columns: Name, Email, Contact, Type, Food, Ticket Type (Optional)</p>
-                        </label>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between border-b pb-2">
+                             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Step 2: Upload Data</h3>
+                             <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-8 text-[10px] font-bold border-primary text-primary hover:bg-primary/5">
+                                 <Download className="mr-1.5 h-3 w-3" /> Download CSV Template
+                             </Button>
+                        </div>
+                        
+                        <div className="relative group">
+                            <Input type="file" accept=".csv" onChange={handleBulkCsvUpload} className="hidden" id="bulk-csv-input" disabled={isBulkProcessing} />
+                            <label htmlFor="bulk-csv-input" className="flex flex-col items-center justify-center gap-4 p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-all">
+                            <div className="h-16 w-16 rounded-full bg-white shadow-md flex items-center justify-center text-primary"><Upload className="h-8 w-8" /></div>
+                            <p className="font-black text-slate-900 uppercase tracking-tighter">Upload Club CSV List</p>
+                            {isBulkProcessing && <div className="w-full max-w-[200px] mt-2"><Progress value={processProgress} className="h-1" /></div>}
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">Max 2MB .CSV File</p>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="bg-primary/5 border border-primary/10 rounded-3xl p-6 space-y-4">
+                        <div className="flex items-center gap-2 text-primary font-black uppercase text-xs">
+                             <InfoIcon className="h-4 w-4" /> Data Formatting Guide
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-[10px]">
+                            <div className="space-y-2">
+                                <p className="font-bold text-slate-700 uppercase">Column Values:</p>
+                                <ul className="space-y-1 text-slate-500 font-medium">
+                                    <li><span className="text-slate-900 font-bold">Type:</span> Leo, Lion, or Other</li>
+                                    <li><span className="text-slate-900 font-bold">Food:</span> Veg or Non-Veg</li>
+                                    <li><span className="text-slate-900 font-bold">Ticket Type:</span> (Matches exact tier names above)</li>
+                                </ul>
+                            </div>
+                            <div className="space-y-2">
+                                <p className="font-bold text-slate-700 uppercase">Tip for Mixed Lists:</p>
+                                <p className="text-slate-500 leading-relaxed font-medium">
+                                    If your club has people attending different sessions, ensure the <span className="font-bold">Ticket Type</span> column in your CSV matches the names listed in the cards above exactly.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                     </CardContent>
                 </TabsContent>
