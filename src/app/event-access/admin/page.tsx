@@ -604,11 +604,19 @@ export default function PlatformAdminOverview() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1.5">
                                         <Label className="text-[10px] font-bold uppercase text-slate-500">Active From</Label>
-                                        <TierDatePicker tierId={tier.id} field="startDate" label="Start Date" />
+                                        <TierDatePicker 
+                                          value={tier.startDate} 
+                                          onChange={(val) => handleUpdateTier(tier.id, 'startDate', val)} 
+                                          label="Start Date" 
+                                        />
                                     </div>
                                     <div className="space-y-1.5">
                                         <Label className="text-[10px] font-bold uppercase text-slate-500">Active Until</Label>
-                                        <TierDatePicker tierId={tier.id} field="endDate" label="End Date" />
+                                        <TierDatePicker 
+                                          value={tier.endDate} 
+                                          onChange={(val) => handleUpdateTier(tier.id, 'endDate', val)} 
+                                          label="End Date" 
+                                        />
                                     </div>
                                 </div>
                                 <Button 
@@ -645,18 +653,30 @@ export default function PlatformAdminOverview() {
   );
 }
 
-function TierDatePicker({ tierId, field, label }: any) {
+function TierDatePicker({ value, onChange, label }: { value?: string, onChange: (date: string) => void, label: string }) {
     const [calOpen, setCalOpen] = useState(false);
+    const safeDate = value ? parseISO(value) : undefined;
+    
     return (
         <Popover open={calOpen} onOpenChange={setCalOpen}>
             <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full justify-start h-9 text-[10px] font-medium">
+                <Button variant="outline" type="button" size="sm" className="w-full justify-start h-9 text-[10px] font-medium rounded-lg">
                     <CalendarIcon className="mr-1.5 h-3 w-3 text-primary" />
-                    {label}
+                    {value && isValid(safeDate) ? format(safeDate!, "MMM dd, yyyy") : label}
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" initialFocus onSelect={() => setCalOpen(false)} />
+                <Calendar 
+                    mode="single" 
+                    selected={safeDate} 
+                    onSelect={(date) => {
+                        if (date) {
+                            onChange(format(date, "yyyy-MM-dd"));
+                            setCalOpen(false);
+                        }
+                    }} 
+                    initialFocus 
+                />
             </PopoverContent>
         </Popover>
     );
