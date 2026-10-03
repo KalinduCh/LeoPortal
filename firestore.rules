@@ -126,7 +126,15 @@ service cloud.firestore {
     }
 
     // =========================
-    // 📝 Submissions & Review (New)
+    // 📊 Monthly Reporting
+    // =========================
+    match /monthlyReports/{reportId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // =========================
+    // 📝 Submissions & Review
     // =========================
     match /forms/{formId} {
       allow read: if true;

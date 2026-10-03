@@ -9,10 +9,11 @@ import {
   orderBy,
   serverTimestamp,
   setDoc,
-  deleteDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import type { MonthlyReport, ReportFile } from '@/types';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const REPORTS_COLLECTION = 'monthlyReports';
 
@@ -35,18 +36,22 @@ const docToReport = (docSnap: any): MonthlyReport => {
  * Fetches all reports for a specific year.
  */
 export async function getReportsByYear(year: number): Promise<MonthlyReport[]> {
-  const q = query(
-    collection(db, REPORTS_COLLECTION),
-    where('year', '==', year),
-    orderBy('month', 'asc')
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(docToReport);
+  try {
+    const q = query(
+      collection(db, REPORTS_COLLECTION),
+      where('year', '==', year),
+      orderBy('month', 'asc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docToReport);
+  } catch (err) {
+    console.error("GET_REPORTS_FAILED:", err);
+    return [];
+  }
 }
 
 /**
- * Upserts a monthly report record.
- * Uses a deterministic ID for direct access.
+ * Upserts a monthly report record using a non-blocking pattern.
  */
 export async function updateMonthlyReport(month: number, year: number, updates: Partial<MonthlyReport>): Promise<void> {
   const reportId = `${year}-${month}`;
@@ -54,25 +59,43 @@ export async function updateMonthlyReport(month: number, year: number, updates: 
   
   const currentSnap = await getDoc(reportRef);
   
+  const payload: any = {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  };
+
   if (currentSnap.exists()) {
-    await updateDoc(reportRef, {
-      ...updates,
-      updatedAt: serverTimestamp(),
-    });
+    updateDoc(reportRef, payload)
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: reportRef.path,
+          operation: 'update',
+          requestResourceData: payload,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      });
   } else {
-    await setDoc(reportRef, {
+    const newDoc = {
       month,
       year,
       files: [],
       folderUrl: '',
-      ...updates,
-      updatedAt: serverTimestamp(),
-    });
+      ...payload,
+    };
+    setDoc(reportRef, newDoc)
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: reportRef.path,
+          operation: 'create',
+          requestResourceData: newDoc,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 }
 
 /**
- * Adds a file link to a specific monthly report.
+ * Adds a file link to a specific monthly report using non-blocking pattern.
  */
 export async function addFileToReport(reportId: string, file: ReportFile): Promise<void> {
   const reportRef = doc(db, REPORTS_COLLECTION, reportId);
@@ -81,15 +104,24 @@ export async function addFileToReport(reportId: string, file: ReportFile): Promi
   if (reportSnap.exists()) {
     const data = reportSnap.data();
     const files = data.files || [];
-    await updateDoc(reportRef, {
-      files: [...files, file],
+    const newFiles = [...files, file];
+    
+    updateDoc(reportRef, {
+      files: newFiles,
       updatedAt: serverTimestamp(),
-    });
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: reportRef.path,
+          operation: 'update',
+          requestResourceData: { files: newFiles },
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 }
 
 /**
- * Removes a file link from a specific report.
+ * Removes a file link using non-blocking pattern.
  */
 export async function removeFileFromReport(reportId: string, fileName: string): Promise<void> {
   const reportRef = doc(db, REPORTS_COLLECTION, reportId);
@@ -98,9 +130,17 @@ export async function removeFileFromReport(reportId: string, fileName: string): 
   if (reportSnap.exists()) {
     const data = reportSnap.data();
     const files = (data.files || []).filter((f: ReportFile) => f.name !== fileName);
-    await updateDoc(reportRef, {
+    
+    updateDoc(reportRef, {
       files,
       updatedAt: serverTimestamp(),
-    });
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: reportRef.path,
+          operation: 'update',
+          requestResourceData: { files },
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 }

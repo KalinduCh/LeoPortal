@@ -57,12 +57,28 @@ export function MonthlyReportingTab() {
     const handleSaveConfig = async () => {
         setIsSavingConfig(true);
         try {
+            // Optimistic update of local state
+            const reportId = `${selectedYear}-${configData.month}`;
+            const existing = reports.find(r => r.id === reportId);
+            const updatedReport: MonthlyReport = {
+                id: reportId,
+                month: configData.month,
+                year: selectedYear,
+                folderUrl: configData.folderUrl,
+                files: existing?.files || [],
+                updatedAt: new Date().toISOString()
+            };
+            
+            setReports(prev => {
+                const filtered = prev.filter(r => r.id !== reportId);
+                return [...filtered, updatedReport].sort((a,b) => a.month - b.month);
+            });
+
             await updateMonthlyReport(configData.month, selectedYear, { folderUrl: configData.folderUrl });
-            toast({ title: "Configuration Saved", description: "Monthly repository link updated." });
+            toast({ title: "Configuration Updated", description: "Link has been queued for synchronization." });
             setIsConfigOpen(false);
-            fetchReports();
         } catch (error) {
-            toast({ title: "Error", description: "Could not save repository settings.", variant: "destructive" });
+            toast({ title: "Error", description: "Operation failed.", variant: "destructive" });
         }
         setIsSavingConfig(false);
     };
@@ -75,15 +91,18 @@ export function MonthlyReportingTab() {
                 ...newFileData,
                 uploadedAt: new Date().toISOString()
             };
-            await addFileToReport(selectedReport.id, newFile);
-            toast({ title: "Link Registered", description: "Report file added to the registry." });
-            setNewFileData({ name: '', url: '' });
             
-            // Refresh local report state
-            const updatedReports = await getReportsByYear(selectedYear);
-            setReports(updatedReports);
-            const freshReport = updatedReports.find(r => r.id === selectedReport.id);
-            if (freshReport) setSelectedReport(freshReport);
+            // Optimistic update
+            const updatedReport = {
+                ...selectedReport,
+                files: [...selectedReport.files, newFile]
+            };
+            setSelectedReport(updatedReport);
+            setReports(prev => prev.map(r => r.id === selectedReport.id ? updatedReport : r));
+
+            await addFileToReport(selectedReport.id, newFile);
+            toast({ title: "File Logged", description: "Report file added to the registry." });
+            setNewFileData({ name: '', url: '' });
         } catch (error) {
             toast({ title: "Error", description: "Failed to link file.", variant: "destructive" });
         }
@@ -93,14 +112,16 @@ export function MonthlyReportingTab() {
     const handleDeleteFile = async (fileName: string) => {
         if (!selectedReport) return;
         try {
+            // Optimistic update
+            const updatedReport = {
+                ...selectedReport,
+                files: selectedReport.files.filter(f => f.name !== fileName)
+            };
+            setSelectedReport(updatedReport);
+            setReports(prev => prev.map(r => r.id === selectedReport.id ? updatedReport : r));
+
             await removeFileFromReport(selectedReport.id, fileName);
             toast({ title: "File Removed" });
-            
-            // Refresh local report state
-            const updatedReports = await getReportsByYear(selectedYear);
-            setReports(updatedReports);
-            const freshReport = updatedReports.find(r => r.id === selectedReport.id);
-            if (freshReport) setSelectedReport(freshReport);
         } catch (error) {
             toast({ title: "Error", description: "Could not delete link.", variant: "destructive" });
         }
