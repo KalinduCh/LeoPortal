@@ -1,4 +1,3 @@
-
 import type { ReactElement, ElementType } from 'react';
 
 export type UserRole = 'super_admin' | 'admin' | 'member';
@@ -224,7 +223,7 @@ export interface MonthlyReport {
     id: string;
     month: number; // 0-11
     year: number;
-    folderUrl?: string;
-    files: ReportFile[];
+    viewUrl?: string;
+    uploadUrl?: string;
     updatedAt: string;
 }

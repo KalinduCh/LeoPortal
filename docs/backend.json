@@ -30,6 +30,19 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "type", "embedUrl", "status"]
+    },
+    "MonthlyReport": {
+      "title": "Monthly Report",
+      "description": "Repository links for periodic club reports",
+      "type": "object",
+      "properties": {
+        "month": { "type": "number", "description": "0-11 index" },
+        "year": { "type": "number" },
+        "viewUrl": { "type": "string", "format": "uri" },
+        "uploadUrl": { "type": "string", "format": "uri" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["month", "year"]
     }
   },
   "auth": {
@@ -43,6 +56,10 @@
     "/forms/{formId}": {
       "schema": "#/backend/entities/Form",
       "description": "Collection of connected forms"
+    },
+    "/monthlyReports/{reportId}": {
+      "schema": "#/backend/entities/MonthlyReport",
+      "description": "Archive of monthly report folder links"
     }
   }
 }

@@ -130,7 +130,7 @@ service cloud.firestore {
     // =========================
     match /monthlyReports/{reportId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.project_ideas == true);
     }
 
     // =========================
