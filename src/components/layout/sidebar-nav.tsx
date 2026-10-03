@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from "react";
@@ -46,7 +45,7 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/communication", label: "Communication", icon: Mail, permission: 'communication' },
   { href: "/admin/submissions", label: "Submissions & Review", icon: FileSpreadsheet, permission: 'project_ideas' },
   { href: "/admin/reports", label: "Reports", icon: BarChart, permission: 'reports' },
-  { href: "/event-access/admin", label: "District Access", icon: QrCode, permission: 'district_access' },
+  { href: "/event-access/admin", label: "LeoEntrivo", icon: QrCode, permission: 'district_access' },
 ];
 
 const entrivoNativeNavItems: NavItem[] = [
