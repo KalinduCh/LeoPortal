@@ -1,7 +1,5 @@
-
 import {
   collection,
-  addDoc,
   getDocs,
   getDoc,
   doc,
@@ -10,8 +8,8 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  Timestamp,
-  setDoc
+  setDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/clientApp';
 import type { MonthlyReport, ReportFile } from '@/types';
@@ -48,6 +46,7 @@ export async function getReportsByYear(year: number): Promise<MonthlyReport[]> {
 
 /**
  * Upserts a monthly report record.
+ * Uses a deterministic ID for direct access.
  */
 export async function updateMonthlyReport(month: number, year: number, updates: Partial<MonthlyReport>): Promise<void> {
   const reportId = `${year}-${month}`;
@@ -84,6 +83,23 @@ export async function addFileToReport(reportId: string, file: ReportFile): Promi
     const files = data.files || [];
     await updateDoc(reportRef, {
       files: [...files, file],
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+
+/**
+ * Removes a file link from a specific report.
+ */
+export async function removeFileFromReport(reportId: string, fileName: string): Promise<void> {
+  const reportRef = doc(db, REPORTS_COLLECTION, reportId);
+  const reportSnap = await getDoc(reportRef);
+  
+  if (reportSnap.exists()) {
+    const data = reportSnap.data();
+    const files = (data.files || []).filter((f: ReportFile) => f.name !== fileName);
+    await updateDoc(reportRef, {
+      files,
       updatedAt: serverTimestamp(),
     });
   }
