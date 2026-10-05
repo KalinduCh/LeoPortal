@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -130,7 +129,7 @@ export default function CommunicationPage() {
 
   const handleGenerateContent = async () => {
     if (!aiTopic.trim()) {
-        toast({ title: "Topic Required", variant: "destructive"});
+        toast({ title: "Topic Required", description: "Please enter a topic for the draft.", variant: "destructive"});
         return;
     }
     setIsGenerating(true);
@@ -138,8 +137,14 @@ export default function CommunicationPage() {
         const result = await generateCommunication({ topic: aiTopic });
         form.setValue("subject", result.subject, { shouldValidate: true });
         form.setValue("body", result.body, { shouldValidate: true });
-    } catch (error) {
-        toast({ title: "AI Failed", variant: "destructive"});
+        toast({ title: "Draft Ready", description: "AI has successfully generated a new email draft." });
+    } catch (error: any) {
+        console.error("AI Generation Error:", error);
+        toast({ 
+            title: "AI Assistant Failed", 
+            description: error.message || "An unexpected error occurred during generation. Check server logs.",
+            variant: "destructive"
+        });
     }
     setIsGenerating(false);
   }
@@ -278,7 +283,14 @@ export default function CommunicationPage() {
             <CardHeader className="bg-primary/5"><CardTitle className="flex items-center text-xl text-primary"><Sparkles className="mr-2 h-5 w-5" /> AI Draft Assistant</CardTitle></CardHeader>
             <CardContent className="pt-6 space-y-4">
               <Label className="font-bold">Topic</Label>
-              <div className="flex gap-2"><Input placeholder="e.g. beach cleanup reminder" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} /><Button type="button" onClick={handleGenerateContent} disabled={isGenerating}>{isGenerating ? <Loader2 className="animate-spin mr-2"/> : <Sparkles className="mr-2"/>}Draft</Button></div>
+              <div className="flex gap-2">
+                <Input placeholder="e.g. beach cleanup reminder" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} />
+                <Button type="button" onClick={handleGenerateContent} disabled={isGenerating}>
+                    {isGenerating ? <Loader2 className="animate-spin mr-2"/> : <Sparkles className="mr-2"/>}
+                    {isGenerating ? 'Generating...' : 'Draft'}
+                </Button>
+              </div>
+              <p className="text-[10px] text-slate-400 italic">Gemini 1.5 will generate a subject and body based on your topic. Placeholder details will be left in brackets.</p>
             </CardContent>
           </Card>
 
