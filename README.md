@@ -12,80 +12,44 @@ LeoPortal is a comprehensive, modern web application designed to streamline club
 
 ---
 
+## 🛠️ Environment Configuration
+
+To run this project locally or in production, create a `.env.local` file in the root directory. Use the following variables:
+
+### 1. Generative AI (Gemini)
+- `GOOGLE_GENAI_API_KEY`: Your Google AI Studio API Key (Free tier). Required for proposal generation and communication drafts.
+
+### 2. Push Notifications (FCM)
+- `NEXT_PUBLIC_FIREBASE_VAPID_KEY`: Found in Firebase Console > Project Settings > Cloud Messaging > Web Push certificates.
+- `FIREBASE_CLIENT_EMAIL`: Service Account Email from Firebase Console > Project Settings > Service Accounts.
+- `FIREBASE_PRIVATE_KEY`: Service Account Private Key. (Note: In production/Netlify, ensure newlines are handled: `replace(/\\n/g, '\n')`).
+
+### 3. Email Configuration (Gmail SMTP)
+These are used for sending tickets, registration approvals, and member communications.
+- **Club Portal Alerts:**
+  - `GMAIL_TICKET_CLUB_EMAIL`: The club's official notification email.
+  - `GMAIL_TICKET_CLUB_PASSWORD`: Gmail App Password (NOT your regular password).
+- **LeoEntrivo (District) Platform:**
+  - `GMAIL_TICKET_EMAIL`: The district notification email.
+  - `GMAIL_TICKET_APP_PASSWORD`: Gmail App Password for the district account.
+
+---
+
 ## ✨ Key Features
 
 ### 🎟️ LeoEntrivo - District Access Platform
-A professional-grade event ticketing and entrance management system tailored for District 306 D9.
-- **Dual Registration Engine**: Supports seamless single-entry registrations and high-volume Club Bulk Uploads via CSV.
-- **Officer Security Layer**: Mandatory identification for bulk submittals (President/Secretary details) to ensure a secure audit trail.
-- **Participation Analytics**: Real-time dashboard with arrival velocity charts, registration source tracking, and demographic breakdowns.
-- **Digital QR Passes**: Automated generation and email delivery of unique entry tickets with anti-spam verification.
-- **Ground Command Center**: Real-time arrival feed and attendee registry management for organizers.
-- **Pro Entrance Scanner**: Mobile-optimized QR scanner featuring haptic feedback and explicit verification states.
+A professional-grade event ticketing and entrance management system.
+- **Dual Registration Engine**: Supports single-entry and Club Bulk Uploads via CSV.
+- **Pro Entrance Scanner**: Mobile-optimized QR scanner featuring haptic feedback.
+- **Digital QR Passes**: Automated generation and email delivery of unique entry tickets.
 
-### 📸 Project Gallery (Photo Hub)
-A project-centric archival system to preserve club memories without expensive cloud storage costs.
-- **Google Drive Integration**: Each project is linked to specific Drive sub-folders for viewing and contribution.
-- **Master Shared Hub**: Quick access to the root club archive directly from the portal.
-- **Contributor UX**: Members can easily find a project and contribute their own photos to help build the club's impact history.
+### 📸 Project Gallery & Reporting
+- **Photo Hub**: Project-centric archival system linked to Google Drive.
+- **Monthly Reporting**: Secure repository for periodic club documentation with View/Upload workflows.
 
 ### 💡 AI Project Proposal Hub
-- **Proposal Architect**: Transform raw project ideas into structured, professional proposals using Gemini 1.5 Flash.
-- **Full Action Plans**: AI generates objectives, execution schedules (Pre/During/Post event), PR plans, and estimated budgets in LKR.
-- **PDF Export**: Generate high-quality, formatted PDF proposals for printing or official submission.
-- **Review Workflow**: Members submit proposals for Admin review, with feedback loops for revisions.
-
-### 📋 Task & Project Management
-- **Kanban Board**: Drag-and-drop task management for club projects.
-- **Sub-tasks & Checklists**: Track granular progress within larger project goals.
-- **Collaborative Comments**: Real-time communication on tasks with automatic push notifications.
-
-### 🏆 Gamification & Engagement
-- **Impact Leaderboard**: Monthly rankings based on member participation and leadership roles.
-- **Automated Badges**: Members earn achievements like "Top Volunteer," "Active Leo," and "Club Leader" based on Firestore activity triggers.
-- **Points System**: Integrated points allocation for meeting attendance, project participation, and executive roles.
-
-### 📱 PWA & Push Notifications
-- **Progressive Web App**: Fully installable on Android and iOS (16.4+) with offline support.
-- **Firebase Cloud Messaging (FCM)**: Reliable web push notifications for task assignments, event alerts, and announcements.
-- **Offline Sync**: Attendance records are queued locally if connection is lost and synced automatically upon reconnection.
-
-### 📅 Club Operations
-- **Interactive Year Plan**: Color-coded calendar for club, district, and multiple projects with "Add to Google Calendar" support.
-- **Finance Ledger**: Comprehensive income and expense tracking with PDF/CSV reporting.
-- **Smart Attendance**: QR-based marking with Geolocation-restriction (GPS validation) to ensure physical presence.
-- **Executive Summaries**: One-click generation of monthly performance reports (PDF).
-
----
-
-## 🏗️ System Architecture
-
-### Frontend (The UI Layer)
-- **Next.js 15 (App Router)**: Utilizing Server Components for performance and Client Components for high interactivity.
-- **Shadcn/UI & Tailwind**: A utility-first CSS approach with accessible, professional components.
-- **React Hook Form & Zod**: Robust client-side validation for all registration and data entry forms.
-
-### Backend (The Data Layer)
-- **Firebase Auth**: Secure authentication with role-based access control (RBAC).
-- **Cloud Firestore**: Real-time NoSQL database with granular security rules.
-- **Firebase Functions**: Node.js backend triggers for automated emails, birthday wishes, and push notifications.
-- **Firebase Cloud Messaging**: Cross-platform messaging service for PWAs.
-
-### Intelligence (The AI Layer)
-- **Google Genkit**: A framework for building and deploying production-ready AI features.
-- **Gemini 1.5 Flash**: Optimized LLM for high-speed content generation and structured data extraction.
-
----
-
-## 🛠️ Technology Stack
-- **Framework**: Next.js 15
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS / Shadcn
-- **Database**: Firestore
-- **AI**: Google Genkit / Gemini
-- **Messaging**: FCM (Web Push)
-- **Email**: NodeMailer / Gmail SMTP
-- **Reporting**: jsPDF / html2canvas / Recharts
+- **Proposal Architect**: Transform raw project ideas into professional proposals using Gemini 1.5 Flash-8B.
+- **PDF Export**: Generate high-quality, formatted PDF proposals for official submission.
 
 ---
 
@@ -96,15 +60,13 @@ A project-centric archival system to preserve club memories without expensive cl
 npm install
 ```
 
-### 2. Environment Setup
-Create a `.env` file in the root and `functions/` directory.
-- `GOOGLE_GENAI_API_KEY`: Your Gemini API Key.
-- `GMAIL_EMAIL`: System email for notifications.
-- `GMAIL_APP_PASSWORD`: App password for Gmail SMTP.
-- `NEXT_PUBLIC_FIREBASE_VAPID_KEY`: Public key for Web Push.
+### 2. Local Development
+```bash
+npm run dev
+```
 
-### 3. Deploy Backend
-To activate push notifications and automated emails:
+### 3. Deploy Backend (Functions)
+To activate automated emails and scheduled birthday wishes:
 ```bash
 firebase deploy --only functions
 ```
