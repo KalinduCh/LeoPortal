@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow for generating email communications for a LEO club.
@@ -9,6 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { runWithAiFallback } from '@/ai/model-selector';
 
 const GenerateCommunicationInputSchema = z.object({
   topic: z.string().describe('The topic or purpose of the email communication.'),
@@ -25,7 +27,6 @@ export type GenerateCommunicationOutput = z.infer<typeof GenerateCommunicationOu
  * Server action to generate communication content using Genkit.
  */
 export async function generateCommunication(input: GenerateCommunicationInput): Promise<GenerateCommunicationOutput> {
-  // Use the defined flow for execution to ensure observability and middleware support
   return generateCommunicationFlow(input);
 }
 
@@ -39,12 +40,9 @@ const generateCommunicationFlow = ai.defineFlow(
     outputSchema: GenerateCommunicationOutputSchema,
   },
   async (input) => {
-    if (!process.env.GOOGLE_GENAI_API_KEY) {
-      throw new Error("AI Configuration Error: GOOGLE_GENAI_API_KEY is not set in the server environment.");
-    }
-
-    try {
+    return runWithAiFallback(async (model) => {
       const response = await ai.generate({
+        model,
         system: `You are a helpful communication assistant for a LEO Club, a youth community service organization.
         Your tone should be professional, friendly, and encouraging.
         Based on the provided topic, generate a concise and engaging email subject line and a full email body.
@@ -61,10 +59,6 @@ const generateCommunicationFlow = ai.defineFlow(
       }
 
       return response.output;
-    } catch (error: any) {
-      console.error("GENKIT_GENERATION_FAILURE:", error);
-      // Propagate a clean error message to the client
-      throw new Error(error.message || "Failed to generate a draft. Please try again with a more specific topic.");
-    }
+    });
   }
 );

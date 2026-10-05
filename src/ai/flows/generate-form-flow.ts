@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow for generating a structured form schema from text, descriptions, or vision analysis.
@@ -5,6 +6,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { runWithAiFallback } from '@/ai/model-selector';
 
 const FormComponentSchema = z.object({
     type: z.enum(['text', 'paragraph', 'number', 'date', 'time', 'select', 'radio', 'checkbox', 'file', 'header', 'divider']),
@@ -59,7 +61,9 @@ const generateFormFlow = ai.defineFlow(
     outputSchema: GenerateFormOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    return runWithAiFallback(async (model) => {
+        const {output} = await prompt(input, { model });
+        return output!;
+    });
   }
 );

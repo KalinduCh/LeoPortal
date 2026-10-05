@@ -3,8 +3,9 @@ import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
 /**
- * Genkit initialization using Gemini 1.5 Flash-8B.
- * This is the lightest free model available, optimized for speed and efficiency.
+ * Genkit initialization.
+ * Dynamic model selection is now handled via the model-selector service
+ * to ensure compatibility with the Google AI Free Tier and avoid 404 errors.
  */
 if (!process.env.GOOGLE_GENAI_API_KEY && typeof window === 'undefined') {
   console.warn("⚠️ WARNING: GOOGLE_GENAI_API_KEY is not set. AI features will fail on the server.");
@@ -14,5 +15,5 @@ export const ai = genkit({
   plugins: [
     googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY }),
   ],
-  model: 'googleai/gemini-1.5-flash-8b',
+  // Default model removed to favor dynamic discovery in flows.
 });

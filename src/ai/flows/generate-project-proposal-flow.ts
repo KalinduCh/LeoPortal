@@ -5,8 +5,8 @@
  */
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { runWithAiFallback } from '@/ai/model-selector';
 
-// Input from the member's form remains the same
 const GenerateProjectProposalInputSchema = z.object({
   projectName: z.string().describe('The name of the project.'),
   goal: z.string().describe('The main goal or impact of the project. What problem is it solving?'),
@@ -17,7 +17,6 @@ const GenerateProjectProposalInputSchema = z.object({
 });
 export type GenerateProjectProposalInput = z.infer<typeof GenerateProjectProposalInputSchema>;
 
-// The structured output we want from the AI, based on the new template
 const GenerateProjectProposalOutputSchema = z.object({
     projectIdea: z.string().describe("A brief, compelling description of the project idea."),
     
@@ -49,13 +48,11 @@ const GenerateProjectProposalOutputSchema = z.object({
 });
 export type GenerateProjectProposalOutput = z.infer<typeof GenerateProjectProposalOutputSchema>;
 
-
 export async function generateProjectProposal(
   input: GenerateProjectProposalInput
 ): Promise<GenerateProjectProposalOutput> {
   return generateProjectProposalFlow(input);
 }
-
 
 const prompt = ai.definePrompt({
   name: 'generateProjectProposalPrompt',
@@ -80,8 +77,6 @@ For the "PR Plan", create a sample table of activities.
 For the "Estimated Net Expenses", create a sample budget breakdown that fits within the user's estimated budget range. The currency for all costs MUST be LKR. For example: "cost": "15000.00".
 If the member mentions potential partners in special considerations, list them in the "Resource Personals" section.
 The "Implementation Challenges" and "Challenge Solutions" should be thoughtful and relevant to a youth organization.
-
-Generate the full proposal and ensure the output matches the required JSON schema. Do not add any fields or sections that are meant for admin approval (e.g., "Approval granted", "President's Signature").
 `,
 });
 
@@ -97,7 +92,11 @@ const generateProjectProposalFlow = ai.defineFlow(
       delete sanitizedInput.specialConsiderations;
     }
 
-    const {output} = await prompt(sanitizedInput as GenerateProjectProposalInput);
-    return output!;
+    return runWithAiFallback(async (model) => {
+        const {output} = await prompt(sanitizedInput as GenerateProjectProposalInput, {
+            model
+        });
+        return output!;
+    });
   }
 );
