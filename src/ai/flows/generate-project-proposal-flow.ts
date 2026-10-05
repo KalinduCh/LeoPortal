@@ -1,7 +1,6 @@
-
 'use server';
 /**
- * @fileOverview A Genkit flow for generating a detailed project proposal from a member's idea, based on a specific club template.
+ * @fileOverview A Genkit flow for generating a detailed project proposal from a member's idea.
  */
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
@@ -9,42 +8,35 @@ import { runWithAiFallback } from '@/ai/model-selector';
 
 const GenerateProjectProposalInputSchema = z.object({
   projectName: z.string().describe('The name of the project.'),
-  goal: z.string().describe('The main goal or impact of the project. What problem is it solving?'),
-  targetAudience: z.string().describe('The target audience for the project (e.g., community, school, youth).'),
-  budget: z.string().describe('The estimated budget range for the project.'),
-  timeline: z.string().describe('The preferred timeline for the project (e.g., days, weeks, months).'),
-  specialConsiderations: z.string().optional().describe('Any special considerations like partnerships, locations, etc.'),
+  goal: z.string().describe('The main goal or impact of the project.'),
+  targetAudience: z.string().describe('The target audience for the project.'),
+  budget: z.string().describe('The estimated budget range.'),
+  timeline: z.string().describe('The preferred timeline.'),
+  specialConsiderations: z.string().optional().describe('Any special considerations.'),
 });
 export type GenerateProjectProposalInput = z.infer<typeof GenerateProjectProposalInputSchema>;
 
 const GenerateProjectProposalOutputSchema = z.object({
     projectIdea: z.string().describe("A brief, compelling description of the project idea."),
-    
     proposedActionPlan: z.object({
         objective: z.string().describe("The main objective of the project."),
         preEventPlan: z.array(z.string()).describe("A list of tasks to be done before the event."),
         executionPlan: z.array(z.string()).describe("A list of tasks/schedule to be done during the event."),
-        postEventPlan: z.array(z.string()).describe("A list of tasks to be done after the event (e.g., cleanup, thank you notes).")
+        postEventPlan: z.array(z.string()).describe("A list of tasks to be done after the event.")
     }).describe("The detailed action plan for the project."),
-
-    implementationChallenges: z.array(z.string()).describe("A list of identified challenges to implementing this project (e.g., monetary, resource personnel)."),
-    
-    challengeSolutions: z.array(z.string()).describe("A list of proposed solutions for how the project plan addresses the identified challenges."),
-
-    communityInvolvement: z.array(z.string()).describe("A list of ways the benefiting community will be involved in the project."),
-
+    implementationChallenges: z.array(z.string()).describe("Identified challenges."),
+    challengeSolutions: z.array(z.string()).describe("Proposed solutions."),
+    communityInvolvement: z.array(z.string()).describe("Ways the community will be involved."),
     prPlan: z.array(z.object({
-        activity: z.string().describe("The PR activity (e.g., Flyer Design, Social Media Teasers)."),
-        date: z.string().describe("The target date or timeframe for the activity."),
-        time: z.string().describe("The target time for the activity (e.g., Ongoing, 10 AM / 7 PM)."),
-    })).describe("The Public Relations plan for the project."),
-
+        activity: z.string().describe("PR activity."),
+        date: z.string().describe("Target date."),
+        time: z.string().describe("Target time."),
+    })).describe("The Public Relations plan."),
     estimatedExpenses: z.array(z.object({
-        item: z.string().describe("The budget item (e.g., Refreshments, Gift Packs)."),
-        cost: z.string().describe("The estimated cost for the item as a string (e.g., '15000.00')."),
-    })).describe("A breakdown of the estimated net expenses for the project."),
-
-    resourcePersonals: z.array(z.string()).describe("A list of any potential resource personnel who could be involved."),
+        item: z.string().describe("Budget item."),
+        cost: z.string().describe("Estimated cost in LKR (e.g. '15000.00')."),
+    })).describe("Estimated expenses breakdown."),
+    resourcePersonals: z.array(z.string()).describe("Potential resource personnel."),
 });
 export type GenerateProjectProposalOutput = z.infer<typeof GenerateProjectProposalOutputSchema>;
 
@@ -54,32 +46,6 @@ export async function generateProjectProposal(
   return generateProjectProposalFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateProjectProposalPrompt',
-  input: {schema: GenerateProjectProposalInputSchema},
-  output: {schema: GenerateProjectProposalOutputSchema},
-  prompt: `You are an expert project manager for a LEO Club, a youth community service organization. Your task is to take a member's raw idea and transform it into a professional, structured, and actionable project proposal based on the club's standard template.
-The tone should be formal but youth-friendly, encouraging, and clear.
-
-Use the following details provided by the member:
-- Project Name: {{{projectName}}}
-- Goal/Impact: {{{goal}}}
-- Target Audience: {{{targetAudience}}}
-- Budget: {{{budget}}}
-- Timeline: {{{timeline}}}
-{{#if specialConsiderations}}
-- Special Considerations: {{{specialConsiderations}}}
-{{/if}}
-
-Based on this, generate a comprehensive project proposal that fits the output schema precisely. Use the provided example structure for guidance.
-Create realistic and detailed examples for each section.
-For the "PR Plan", create a sample table of activities.
-For the "Estimated Net Expenses", create a sample budget breakdown that fits within the user's estimated budget range. The currency for all costs MUST be LKR. For example: "cost": "15000.00".
-If the member mentions potential partners in special considerations, list them in the "Resource Personals" section.
-The "Implementation Challenges" and "Challenge Solutions" should be thoughtful and relevant to a youth organization.
-`,
-});
-
 const generateProjectProposalFlow = ai.defineFlow(
   {
     name: 'generateProjectProposalFlow',
@@ -87,16 +53,16 @@ const generateProjectProposalFlow = ai.defineFlow(
     outputSchema: GenerateProjectProposalOutputSchema,
   },
   async input => {
-    const sanitizedInput: Partial<GenerateProjectProposalInput> = { ...input };
-    if (!sanitizedInput.specialConsiderations?.trim()) {
-      delete sanitizedInput.specialConsiderations;
-    }
+    const systemPrompt = `You are an expert project manager for a LEO Club. Your task is to transform a member's raw idea into a professional, structured project proposal. 
+    The tone should be formal but youth-friendly. Use LKR for currency.`;
 
-    return runWithAiFallback(async (model) => {
-        const {output} = await prompt(sanitizedInput as GenerateProjectProposalInput, {
-            model
-        });
-        return output!;
-    });
+    const userPrompt = `Project Name: ${input.projectName}
+        Goal: ${input.goal}
+        Target Audience: ${input.targetAudience}
+        Budget: ${input.budget}
+        Timeline: ${input.timeline}
+        ${input.specialConsiderations ? `Special Considerations: ${input.specialConsiderations}` : ''}`;
+
+    return runWithAiFallback(userPrompt, GenerateProjectProposalOutputSchema, systemPrompt);
   }
 );

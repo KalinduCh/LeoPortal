@@ -1,129 +1,126 @@
-
 'use server';
 /**
  * @fileOverview AI Model Selector and Discovery Service.
  * 
- * This service handles dynamic discovery of available Gemini models to avoid 404 errors
- * and ensures only free-tier (Flash) models are used.
+ * Migrated to Google's recommended Interactions API using the gemini-3.8-flash model.
  */
 
 import { z } from 'zod';
 
-const ModelSchema = z.object({
-  name: z.string(),
-  supportedGenerationMethods: z.array(z.string()),
-});
-
-const ModelsResponseSchema = z.object({
-  models: z.array(ModelSchema),
-});
-
-// Singleton cache for the selected model name to avoid redundant API calls
-let cachedModelName: string | null = null;
+const MODEL_NAME = "gemini-3.8-flash";
+const API_VERSION = "v1beta";
+const INTERACTIONS_URL = `https://generativelanguage.googleapis.com/${API_VERSION}/interactions`;
 
 /**
- * Dynamically retrieves the best available free Gemini model from the Google AI API.
- * This satisfies the requirement to avoid hardcoded model names and 404 errors.
+ * Higher-order function to execute AI operations using the Interactions API.
+ * This ensures the application remains on the FREE tier with the latest model.
  */
-export async function getBestFreeModel(): Promise<string> {
-  if (cachedModelName) return cachedModelName;
+export async function runWithAiFallback<T>(
+    prompt: string,
+    outputSchema: z.ZodSchema<T>,
+    systemPrompt?: string
+): Promise<T> {
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+    if (!apiKey) {
+        throw new Error("GOOGLE_GENAI_API_KEY is missing in server environment.");
+    }
 
-  const apiKey = process.env.GOOGLE_GENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GOOGLE_GENAI_API_KEY is missing in server environment.");
-  }
+    // Enhance prompt to request structured JSON output
+    const enhancedPrompt = `${systemPrompt ? `SYSTEM: ${systemPrompt}\n\n` : ''}USER: ${prompt}\n\nIMPORTANT: Respond ONLY with a valid JSON object matching this description: ${outputSchema.description || 'data structure'}. Do not include markdown formatting or extra text.`;
 
-  try {
-    // Requirement 3: Use the Gemini Models API
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    
-    if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-            throw new Error("AI Configuration Error: Invalid or unauthorized API Key.");
-        }
+    try {
+        const response = await fetch(`${INTERACTIONS_URL}?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: MODEL_NAME,
+                input: enhancedPrompt
+            }),
+        });
+
         if (response.status === 429) {
             throw new Error("AI Assistant limit reached. Please try again later.");
         }
-        throw new Error(`AI Service Error: HTTP ${response.status}`);
+
+        if (response.status === 404) {
+            console.error(`[AI Selector] Model ${MODEL_NAME} not found. Attempting discovery fallback...`);
+            return await handleDiscoveryFallback(enhancedPrompt, outputSchema);
+        }
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error?.message || `AI Service Error: HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        // The Interactions API usually returns the model's text in an 'output' or 'response' field.
+        const rawText = data.output || data.response || data.text || "";
+        
+        return parseModelOutput(rawText, outputSchema);
+    } catch (error: any) {
+        console.error("AI_INTEGRATION_FAILURE:", error);
+        throw new Error(error.message || "AI Assistant currently unavailable. Please try again later.");
     }
+}
 
-    const data = await response.json();
-    const parsed = ModelsResponseSchema.safeParse(data);
-
-    if (!parsed.success) {
-        throw new Error("AI Service Error: Invalid response structure from models registry.");
-    }
-
-    // Requirement 4: Identify a currently available Gemini Flash model that supports generateContent
-    const candidates = parsed.data.models.filter(m => 
+/**
+ * Fallback logic if the primary model is unavailable.
+ * Requirement 9: choose another available FREE Flash model.
+ */
+async function handleDiscoveryFallback<T>(prompt: string, schema: z.ZodSchema<T>): Promise<T> {
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+    const modelsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    
+    if (!modelsResponse.ok) throw new Error("AI Service Error: Failed to retrieve models registry.");
+    
+    const data = await modelsResponse.json();
+    const candidates = data.models?.filter((m: any) => 
         m.supportedGenerationMethods.includes('generateContent') && 
         m.name.toLowerCase().includes('flash')
-    );
+    ) || [];
 
-    if (candidates.length === 0) {
-        throw new Error("AI Assistant limit reached. Please try again later. (No suitable free models found)");
-    }
+    if (candidates.length === 0) throw new Error("AI Assistant limit reached. Please try again later.");
 
-    // We pick the first suitable candidate (e.g., gemini-1.5-flash)
-    const selected = candidates[0].name.replace('models/', '');
-    cachedModelName = selected;
+    const fallbackModel = candidates[0].name.replace('models/', '');
+    console.log(`[AI Fallback] Using discovered model: ${fallbackModel}`);
+
+    // Fallback uses the older generateContent API as interactions is model-specific
+    const genResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+        }),
+    });
+
+    if (!genResponse.ok) throw new Error("AI Fallback Service Error.");
+
+    const genData = await genResponse.json();
+    const fallbackText = genData.candidates?.[0]?.content?.parts?.[0]?.text || "";
     
-    console.log(`[AI Model Selector] Discovered and selected model: ${selected}`);
-    return selected;
-  } catch (error: any) {
-    console.error("AI_MODEL_DISCOVERY_FAILURE:", error);
-    throw error;
-  }
+    return parseModelOutput(fallbackText, schema);
 }
 
 /**
- * Forces a refresh of the model cache and re-queries the API.
+ * Robust JSON extraction and validation.
  */
-export async function refreshModelCache(): Promise<string> {
-  cachedModelName = null;
-  return getBestFreeModel();
-}
+function parseModelOutput<T>(text: string, schema: z.ZodSchema<T>): T {
+    if (!text) throw new Error("AI Service Error: Empty response from model.");
 
-/**
- * Higher-order function to execute AI operations with automatic 404 fallback and error translation.
- */
-export async function runWithAiFallback<T>(
-    operation: (modelName: string) => Promise<T>
-): Promise<T> {
-    let attempts = 0;
-    const maxAttempts = 2;
-
-    while (attempts < maxAttempts) {
-        try {
-            const modelName = await getBestFreeModel();
-            // Genkit expects the provider prefix
-            return await operation(`googleai/${modelName}`);
-        } catch (error: any) {
-            attempts++;
-            
-            // Extract status code from various error formats (SDK vs REST)
-            const status = error.status || error.code || 
-                          (error.message?.includes('404') ? 404 : 
-                           error.message?.includes('429') ? 429 : 
-                           error.message?.includes('401') ? 401 : 500);
-            
-            if (status === 429) {
-                throw new Error("AI Assistant limit reached. Please try again later.");
-            }
-
-            if (status === 404) {
-                console.warn(`[AI Fallback] Model not found (404). Refreshing list and retrying...`);
-                await refreshModelCache();
-                if (attempts < maxAttempts) continue;
-            }
-
-            if (status === 401 || status === 403) {
-                throw new Error("AI Assistant unauthorized. Please check API key configuration.");
-            }
-
-            // For other errors, re-throw a clean message
-            throw new Error(error.message || "AI Assistant currently unavailable. Please try again later.");
+    try {
+        // Attempt direct parse
+        const cleaned = text.replace(/```json|```/g, "").trim();
+        const parsed = JSON.parse(cleaned);
+        return schema.parse(parsed);
+    } catch (e) {
+        // Fallback: extract JSON with regex if model included chatter
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            try {
+                const parsed = JSON.parse(jsonMatch[0]);
+                return schema.parse(parsed);
+            } catch (innerE) {}
         }
+        throw new Error("AI Assistant returned an invalid format. Please try re-phrasing your request.");
     }
-    throw new Error("AI Assistant currently unavailable. Please try again later.");
 }

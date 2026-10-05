@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A simple flow to verify the Gemini AI connection status.
@@ -9,14 +8,17 @@ import { z } from 'genkit';
 import { runWithAiFallback } from '@/ai/model-selector';
 
 const TestAiConnectionInputSchema = z.string();
-const TestAiConnectionOutputSchema = z.string();
+const TestAiConnectionOutputSchema = z.object({
+    message: z.string()
+});
 
 /**
  * Server action to verify the AI connection.
  * Requirement 15: "Test the integration with a simple request"
  */
 export async function testAiConnection(): Promise<string> {
-  return testAiConnectionFlow("Verify connection");
+  const result = await testAiConnectionFlow("Verify connection");
+  return result.message;
 }
 
 const testAiConnectionFlow = ai.defineFlow(
@@ -26,12 +28,10 @@ const testAiConnectionFlow = ai.defineFlow(
     outputSchema: TestAiConnectionOutputSchema,
   },
   async () => {
-    return runWithAiFallback(async (model) => {
-      const response = await ai.generate({
-        model,
-        prompt: "Reply with: Gemini connection successful.",
-      });
-      return response.text;
-    });
+    return runWithAiFallback(
+        "Reply with: Gemini connection successful.",
+        TestAiConnectionOutputSchema,
+        "You are a verification assistant. Respond only with the requested confirmation message in JSON."
+    );
   }
 );

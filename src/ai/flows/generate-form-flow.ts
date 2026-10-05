@@ -1,7 +1,6 @@
-
 'use server';
 /**
- * @fileOverview A Genkit flow for generating a structured form schema from text, descriptions, or vision analysis.
+ * @fileOverview A Genkit flow for generating a structured form schema.
  */
 
 import {ai} from '@/ai/genkit';
@@ -19,7 +18,6 @@ const FormComponentSchema = z.object({
 
 const GenerateFormInputSchema = z.object({
   prompt: z.string().describe('The description or list of questions for the form.'),
-  photoDataUri: z.string().optional().describe('A photo or PDF of a form to analyze (optional).'),
 });
 export type GenerateFormInput = z.infer<typeof GenerateFormInputSchema>;
 
@@ -34,26 +32,6 @@ export async function generateFormFromAi(input: GenerateFormInput): Promise<Gene
   return generateFormFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateFormPrompt',
-  input: {schema: GenerateFormInputSchema},
-  output: {schema: GenerateFormOutputSchema},
-  prompt: `You are an expert form designer for a LEO Club. 
-Your task is to analyze the user's input and generate a professional, structured form schema.
-
-Use the following guidelines:
-1. Identify the most appropriate field type for each question (e.g., "Email" -> text/email, "Select one" -> radio, "Selection list" -> select).
-2. Generate helpful placeholders and descriptions where appropriate.
-3. Organize the form logically with headers and dividers if necessary.
-4. For "Upload" or "CV" fields, use the 'file' type.
-
-User Prompt: {{{prompt}}}
-{{#if photoDataUri}}
-Analyze the provided image to extract questions, types, and options:
-{{media url=photoDataUri}}
-{{/if}}`,
-});
-
 const generateFormFlow = ai.defineFlow(
   {
     name: 'generateFormFlow',
@@ -61,9 +39,7 @@ const generateFormFlow = ai.defineFlow(
     outputSchema: GenerateFormOutputSchema,
   },
   async input => {
-    return runWithAiFallback(async (model) => {
-        const {output} = await prompt(input, { model });
-        return output!;
-    });
+    const systemPrompt = `You are an expert form designer for a LEO Club. Create a professional, structured form schema based on the input.`;
+    return runWithAiFallback(`Build a form structure for: ${input.prompt}`, GenerateFormOutputSchema, systemPrompt);
   }
 );

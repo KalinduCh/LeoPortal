@@ -1,11 +1,8 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow for generating email communications for a LEO club.
  *
  * - generateCommunication - A function that handles generating an email subject and body from a topic.
- * - GenerateCommunicationInput - The input type for the generateCommunication function.
- * - GenerateCommunicationOutput - The return type for the generateCommunication function.
  */
 
 import { ai } from '@/ai/genkit';
@@ -23,16 +20,10 @@ const GenerateCommunicationOutputSchema = z.object({
 });
 export type GenerateCommunicationOutput = z.infer<typeof GenerateCommunicationOutputSchema>;
 
-/**
- * Server action to generate communication content using Genkit.
- */
 export async function generateCommunication(input: GenerateCommunicationInput): Promise<GenerateCommunicationOutput> {
   return generateCommunicationFlow(input);
 }
 
-/**
- * Internal Genkit flow definition.
- */
 const generateCommunicationFlow = ai.defineFlow(
   {
     name: 'generateCommunicationFlow',
@@ -40,25 +31,16 @@ const generateCommunicationFlow = ai.defineFlow(
     outputSchema: GenerateCommunicationOutputSchema,
   },
   async (input) => {
-    return runWithAiFallback(async (model) => {
-      const response = await ai.generate({
-        model,
-        system: `You are a helpful communication assistant for a LEO Club, a youth community service organization.
+    const systemPrompt = `You are a helpful communication assistant for a LEO Club, a youth community service organization.
         Your tone should be professional, friendly, and encouraging.
         Based on the provided topic, generate a concise and engaging email subject line and a full email body.
         The body should be ready to send, but MUST leave placeholders like "[Event Date]" or "[Location]" if specific details are not provided in the topic.
-        Do not include a salutation like "Dear members," as that is already part of the template. Just provide the core message.`,
-        prompt: `Generate an email communication about: ${input.topic}`,
-        output: {
-          schema: GenerateCommunicationOutputSchema,
-        },
-      });
-
-      if (!response.output) {
-        throw new Error("The AI model was unable to generate a structured response for this topic.");
-      }
-
-      return response.output;
-    });
+        Do not include a salutation like "Dear members," as that is already part of the template. Just provide the core message.`;
+    
+    return runWithAiFallback(
+        `Generate an email communication about: ${input.topic}`,
+        GenerateCommunicationOutputSchema,
+        systemPrompt
+    );
   }
 );
