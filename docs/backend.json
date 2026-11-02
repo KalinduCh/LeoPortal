@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -14,6 +15,19 @@
         "permissions": { "type": "object" }
       },
       "required": ["uid", "email", "name", "role", "status"]
+    },
+    "AiKnowledge": {
+      "title": "AI Knowledge Entry",
+      "description": "Factual entries used by LEO AI for RAG context",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "visibility": { "type": "string", "enum": ["public", "members", "admin_only"] },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["title", "content", "category", "visibility"]
     },
     "Form": {
       "title": "Form",
@@ -52,6 +66,10 @@
     "/users/{userId}": {
       "schema": "#/backend/entities/UserProfile",
       "description": "Collection of user profiles"
+    },
+    "/leo_ai_knowledge/{id}": {
+      "schema": "#/backend/entities/AiKnowledge",
+      "description": "The LEO AI Brain knowledge base"
     },
     "/forms/{formId}": {
       "schema": "#/backend/entities/Form",

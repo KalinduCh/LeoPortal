@@ -22,6 +22,7 @@ import {
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { FirebaseErrorListener } from "@/components/FirebaseErrorListener";
+import { LeoAIWidget } from "@/components/leo-ai/leo-ai-widget";
 
 export default function AuthenticatedLayout({
   children,
@@ -72,9 +73,7 @@ export default function AuthenticatedLayout({
   }, [toast]);
 
   React.useEffect(() => {
-    // Only prompt if user is logged in, loading is done, and permission is default
     if (user && !isLoading && notificationPermissionStatus === 'default') {
-      // Check if user has already dismissed the prompt in this browser
       const isPromptDismissed = localStorage.getItem('fcmPromptDismissed');
       if (isPromptDismissed === 'true') return;
 
@@ -107,7 +106,6 @@ export default function AuthenticatedLayout({
 
   const handleDismissPrompt = () => {
     setIsPermissionDialogOpen(false);
-    // Persist dismissal so it doesn't show again on refresh
     localStorage.setItem('fcmPromptDismissed', 'true');
   };
 
@@ -125,7 +123,10 @@ export default function AuthenticatedLayout({
   return (
     <>
       <DndProvider backend={HTML5Backend}>
-        <AppShell>{children}</AppShell>
+        <AppShell>
+            {children}
+            <LeoAIWidget />
+        </AppShell>
       </DndProvider>
 
       <AlertDialog open={isPermissionDialogOpen} onOpenChange={setIsPermissionDialogOpen}>

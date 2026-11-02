@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from "react";
@@ -12,7 +13,8 @@ import {
 import { 
   LayoutDashboard, CalendarDays, Users, Mail, 
   Lightbulb, HandCoins, Settings, Trophy, BarChart, 
-  Calendar, ListChecks, QrCode, ExternalLink, FileSpreadsheet, Image as ImageIcon 
+  Calendar, ListChecks, QrCode, ExternalLink, FileSpreadsheet, 
+  Image as ImageIcon, BrainCircuit 
 } from "lucide-react"; 
 import type { AdminPermission } from "@/types";
 
@@ -54,6 +56,7 @@ const entrivoNativeNavItems: NavItem[] = [
 
 const superAdminNavItems: NavItem[] = [
     ...adminNavItems,
+    { href: "/admin/leo-ai", label: "LEO AI", icon: BrainCircuit },
     { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -67,10 +70,8 @@ export function SidebarNav() {
   if (user.role === 'super_admin') {
       itemsToShow = superAdminNavItems;
   } else if (user.source === 'entrivo') {
-      // Entrivo organizers NEVER see Club modules
       itemsToShow = entrivoNativeNavItems.filter(i => !i.permission || user.permissions?.[i.permission] === true);
   } else if (user.role === 'admin' && adminViewMode === 'admin_view') {
-      // Club Admins see items based on their granted permissions
       itemsToShow = adminNavItems.filter(i => !i.permission || user.permissions?.[i.permission] === true);
   } else {
       itemsToShow = memberNavItems;

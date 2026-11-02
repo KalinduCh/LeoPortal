@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -19,6 +20,14 @@ service cloud.firestore {
          getUserData(request.auth.uid).role in ['admin', 'super_admin'])
       );
     }
+    
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'check22@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         getUserData(request.auth.uid).role == 'super_admin')
+      );
+    }
 
     // =========================
     // 🔐 Users Collection
@@ -38,6 +47,21 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
     
+    // =========================
+    // 🧠 LEO AI Knowledge
+    // =========================
+    match /leo_ai_knowledge/{id} {
+      allow read: if 
+        resource.data.visibility == 'public' ||
+        (isSignedIn() && resource.data.visibility == 'members') ||
+        isAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    match /leo_ai_conversations/{id} {
+      allow read, write: if true; // In prod, limit to owner
+    }
+
     // =========================
     // ✅ Attendance Collection
     // =========================
