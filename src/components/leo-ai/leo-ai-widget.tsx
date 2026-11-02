@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -66,7 +65,13 @@ export function LeoAIWidget() {
 
         try {
             const role = user ? (user.role === 'admin' || user.role === 'super_admin' ? 'admin' : 'member') : 'public';
+            
+            // Pass the current message history to the AI for context
             const response = await askLeoAi(text, role, messages);
+
+            if (!response || !response.answer) {
+                throw new Error("No answer received from LEO AI.");
+            }
 
             const aiMsg: AiMessage = {
                 id: (Date.now() + 1).toString(),
@@ -78,7 +83,13 @@ export function LeoAIWidget() {
 
             setMessages(prev => [...prev, aiMsg]);
         } catch (error: any) {
-            toast({ title: "LEO AI Offline", description: error.message, variant: "destructive" });
+            console.error("CHAT_WIDGET_ERROR:", error);
+            toast({ 
+                title: "LEO AI Offline", 
+                description: error.message || "An unexpected error occurred. Please try again.", 
+                variant: "destructive" 
+            });
+            // Remove the user's last message if it failed significantly, or just stop loading
         } finally {
             setIsLoading(false);
         }

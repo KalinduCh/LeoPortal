@@ -73,9 +73,16 @@ export async function callGeminiWithRetry(prompt: string, systemInstruction?: st
         throw new Error(data.error?.message || `Gemini API Error: ${response.status}`);
       }
 
-      // Successful response extraction
-      // The interactions API usually returns the text in a 'text' or 'output' field
-      return data.text || data.output || "";
+      // The interactions API returns the text in the 'output' field.
+      // We check multiple fields for future-proofing.
+      const result = data.output || data.text || "";
+
+      if (!result && !data.error) {
+        console.error("GEMINI_EMPTY_RESPONSE:", data);
+        throw new Error("AI Assistant returned an empty response. Please try rephrasing.");
+      }
+
+      return result;
 
     } catch (error: any) {
       lastError = error;

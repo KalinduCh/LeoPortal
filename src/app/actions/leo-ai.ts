@@ -47,13 +47,22 @@ export async function askLeoAiAction(
   const context = await getRelevantContext(userQuery, visibilityScope);
   const contextString = context.map(c => `[SOURCE: ${c.title}]\n${c.content}`).join('\n\n');
   
-  // 2. Construct System Prompt
+  // 2. Format History for stateless Interactions API
+  const historyString = history
+    .slice(-5) // Take last 5 messages for context
+    .map(m => `${m.role === 'user' ? 'User' : 'LEO AI'}: ${m.content}`)
+    .join('\n');
+
+  // 3. Construct System Prompt
   const systemPrompt = `You are LEO AI, the intelligent assistant for the Leo Club of Athugalpura.
   Your tone is professional, helpful, and premium.
   You represent a youth community service organization.
   
   USE THE FOLLOWING KNOWLEDGE CONTEXT TO ANSWER THE USER:
-  ${contextString}
+  ${contextString || 'No specific club knowledge found for this query.'}
+  
+  CONVERSATION HISTORY:
+  ${historyString || 'No previous messages.'}
   
   GUIDELINES:
   1. If the answer is in the context, use it.
@@ -65,10 +74,14 @@ export async function askLeoAiAction(
   User Role: ${userRole}`;
 
   try {
-    // 3. Call AI via Interactions API (Server-Side)
+    // 4. Call AI via Interactions API (Server-Side)
     const aiResponse = await callGeminiWithRetry(userQuery, systemPrompt);
     
-    // 4. Extract which sources were actually referenced in the response
+    if (!aiResponse) {
+      throw new Error("LEO AI was unable to generate a response text.");
+    }
+
+    // 5. Extract which sources were actually referenced in the response
     const usedSources = context
         .filter(c => aiResponse.toLowerCase().includes(c.title.toLowerCase()))
         .map(c => ({ title: c.title, id: c.id }));
