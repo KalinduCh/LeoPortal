@@ -17,7 +17,7 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.token.email == 'check22@gmail.com' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         getUserData(request.auth.uid).role in ['admin', 'super_admin'])
+         getUserData(request.auth.uid).get('role', 'member') in ['admin', 'super_admin'])
       );
     }
     
@@ -25,7 +25,7 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.token.email == 'check22@gmail.com' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         getUserData(request.auth.uid).role == 'super_admin')
+         getUserData(request.auth.uid).get('role', 'member') == 'super_admin')
       );
     }
 
@@ -52,25 +52,25 @@ service cloud.firestore {
     // =========================
     match /leo_ai_knowledge/{id} {
       allow read: if 
-        resource.data.visibility == 'public' ||
-        (isSignedIn() && resource.data.visibility == 'members') ||
+        resource.data.get('visibility', 'public') == 'public' ||
+        (isSignedIn() && resource.data.get('visibility', 'members') == 'members') ||
         isAdmin();
       allow write: if isSuperAdmin();
     }
 
     match /leo_ai_conversations/{id} {
-      allow read, write: if true; // In prod, limit to owner
+      allow read, write: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // =========================
     // ✅ Attendance Collection
     // =========================
     match /attendance/{attendanceId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow read: if isSignedIn() && (isAdmin() || resource.data.get('userId', '') == request.auth.uid);
       allow create: if 
         isAdmin() ||
-        (!isSignedIn() && request.resource.data.attendanceType == 'visitor') ||
-        (isSignedIn() && request.resource.data.attendanceType == 'member' && request.resource.data.userId == request.auth.uid);
+        (!isSignedIn() && request.resource.data.get('attendanceType', '') == 'visitor') ||
+        (isSignedIn() && request.resource.data.get('attendanceType', '') == 'member' && request.resource.data.get('userId', '') == request.auth.uid);
       allow update, delete: if isAdmin();
     }
 
@@ -79,13 +79,13 @@ service cloud.firestore {
     // =========================
     match /accessEvents/{eventId} {
       allow read, get: if true; 
-      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.district_access == true);
+      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).get('permissions', {}).get('district_access', false) == true);
     }
     
     match /accessRegistrations/{regId} {
       allow create: if true;
-      allow read, get, list: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.district_access == true);
-      allow update, delete: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.district_access == true);
+      allow read, get, list: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).get('permissions', {}).get('district_access', false) == true);
+      allow update, delete: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).get('permissions', {}).get('district_access', false) == true);
     }
 
     // =========================
@@ -133,14 +133,14 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && (request.auth.uid in resource.data.assigneeIds || isAdmin());
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.get('assigneeIds', []) || isAdmin());
       allow delete: if isAdmin();
     }
 
     match /tasks/{taskId}/comments/{commentId} {
         allow read, list: if isSignedIn();
         allow create: if isSignedIn();
-        allow update, delete: if isSignedIn() && getUserData(request.auth.uid).id == resource.data.authorId;
+        allow update, delete: if isSignedIn() && request.auth.uid == resource.data.authorId;
     }
     
      match /tasks/{taskId}/activity/{activityId} {
@@ -154,7 +154,7 @@ service cloud.firestore {
     // =========================
     match /monthlyReports/{reportId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.project_ideas == true);
+      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).get('permissions', {}).get('project_ideas', false) == true);
     }
 
     // =========================
@@ -162,7 +162,7 @@ service cloud.firestore {
     // =========================
     match /forms/{formId} {
       allow read: if true;
-      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).permissions.project_ideas == true);
+      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).get('permissions', {}).get('project_ideas', false) == true);
     }
   }
 }

@@ -1,3 +1,4 @@
+
 import {
   collection,
   getDocs,
@@ -33,10 +34,16 @@ export async function getReportsByYear(year: number): Promise<MonthlyReport[]> {
       } as MonthlyReport;
     });
 
-    // Sort by month index ascending in JavaScript to avoid composite index requirement
     return reports.sort((a, b) => a.month - b.month);
-  } catch (err) {
-    console.error("GET_REPORTS_FAILED:", err);
+  } catch (error: any) {
+    if (error.code === 'permission-denied') {
+      const permissionError = new FirestorePermissionError({
+        path: REPORTS_COLLECTION,
+        operation: 'list',
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
+    }
+    console.error("GET_REPORTS_FAILED:", error);
     return [];
   }
 }
@@ -55,7 +62,6 @@ export async function updateMonthlyReport(month: number, year: number, data: { v
     updatedAt: serverTimestamp(),
   };
 
-  // Using non-blocking setDoc for maximum performance
   setDoc(reportRef, payload, { merge: true })
     .catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({

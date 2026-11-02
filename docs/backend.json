@@ -12,7 +12,10 @@
         "role": { "type": "string", "enum": ["member", "admin", "super_admin"] },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
         "source": { "type": "string", "enum": ["portal", "entrivo"] },
-        "permissions": { "type": "object" }
+        "permissions": { "type": "object" },
+        "membershipFeeStatus": { "type": "string", "enum": ["paid", "pending", "partial"] },
+        "membershipFeeAmountPaid": { "type": "number" },
+        "fcmToken": { "type": "string" }
       },
       "required": ["uid", "email", "name", "role", "status"]
     },
@@ -25,25 +28,11 @@
         "content": { "type": "string" },
         "category": { "type": "string" },
         "visibility": { "type": "string", "enum": ["public", "members", "admin_only"] },
-        "isActive": { "type": "boolean" }
-      },
-      "required": ["title", "content", "category", "visibility"]
-    },
-    "Form": {
-      "title": "Form",
-      "description": "Metadata for a connected Google Form",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "type": { "type": "string", "enum": ["google_form"] },
-        "embedUrl": { "type": "string" },
-        "sheetApiUrl": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "closed", "draft"] },
+        "isActive": { "type": "boolean" },
         "createdBy": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["title", "type", "embedUrl", "status"]
+      "required": ["title", "content", "category", "visibility", "isActive"]
     },
     "MonthlyReport": {
       "title": "Monthly Report",
@@ -71,13 +60,13 @@
       "schema": "#/backend/entities/AiKnowledge",
       "description": "The LEO AI Brain knowledge base"
     },
-    "/forms/{formId}": {
-      "schema": "#/backend/entities/Form",
-      "description": "Collection of connected forms"
-    },
     "/monthlyReports/{reportId}": {
       "schema": "#/backend/entities/MonthlyReport",
       "description": "Archive of monthly report folder links"
+    },
+    "/leo_ai_conversations/{id}": {
+      "schema": "object",
+      "description": "Transient AI chat history"
     }
   }
 }
