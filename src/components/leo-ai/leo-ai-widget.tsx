@@ -7,8 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { 
     BrainCircuit, X, Minimize2, Maximize2, Send, 
-    Loader2, Sparkles, HelpCircle, MessageCircle,
-    History, Trash2, Globe, Shield, User
+    Loader2, Sparkles, HelpCircle, Trash2, Globe, Shield, User
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { AiMessage } from '@/types/leo-ai';
@@ -16,6 +15,7 @@ import { askLeoAi } from '@/services/leoAiService';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 const SUGGESTED_QUESTIONS = [
     "Tell me about our club.",
@@ -42,11 +42,11 @@ export function LeoAIWidget() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const scrollAnchorRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        if (scrollAnchorRef.current) {
+            scrollAnchorRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [messages, isLoading]);
 
@@ -137,7 +137,7 @@ export function LeoAIWidget() {
                 <>
                     {/* Chat Area */}
                     <CardContent className="flex-1 overflow-hidden p-0 flex flex-col bg-slate-50/30">
-                        <ScrollArea className="flex-1 px-5 pt-6 pb-4" viewportRef={scrollRef}>
+                        <ScrollArea className="flex-1 px-5 pt-6 pb-4">
                             <div className="space-y-6">
                                 {messages.map((msg) => (
                                     <div key={msg.id} className={cn(
@@ -182,6 +182,7 @@ export function LeoAIWidget() {
                                         </div>
                                     </div>
                                 )}
+                                <div ref={scrollAnchorRef} />
                             </div>
                         </ScrollArea>
 

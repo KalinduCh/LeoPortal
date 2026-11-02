@@ -10,7 +10,7 @@ import {
   BrainCircuit, PlusCircle, Database, MessageSquare, 
   Search, Loader2, Edit, Trash2, Shield, Eye, Globe, 
   AlertCircle, ArrowRight, BarChart3, HelpCircle, 
-  FileText, CheckCircle2, XCircle
+  FileText, CheckCircle2, XCircle, Lock
 } from 'lucide-react';
 import { 
   getAllKnowledge, createKnowledge, updateKnowledge, deleteKnowledge 
