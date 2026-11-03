@@ -18,9 +18,11 @@ async function getFilteredContext(userRole: 'public' | 'member' | 'admin'): Prom
     if (userRole === 'member' || userRole === 'admin') allowedVisibilities.push('members');
     if (userRole === 'admin') allowedVisibilities.push('admin_only');
 
+    // Simplified retrieval for Free Tier: fetch most recent active documents
     const snapshot = await adminDb().collection('leo_ai_knowledge')
       .where('isActive', '==', true)
-      .limit(30)
+      .orderBy('updatedAt', 'desc')
+      .limit(20)
       .get();
     
     const allKnowledge = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AiKnowledge));
@@ -50,9 +52,9 @@ export async function askLeoAiAction(
   const context = await getFilteredContext(userRole);
   const contextString = context.map(c => `DOCUMENT [${c.title}]:\n${c.content}`).join('\n\n');
   
-  // 2. Format history for stateless generation
+  // 2. Format history for context-aware generation
   const historyString = history
-    .slice(-6)
+    .slice(-4)
     .map(m => `${m.role === 'user' ? 'Member' : 'LEO AI'}: ${m.content}`)
     .join('\n');
 
@@ -73,11 +75,12 @@ export async function askLeoAiAction(
   - User role is: ${userRole.toUpperCase()}. Never disclose "Admin Only" info if the role is MEMBER or PUBLIC.`;
 
   try {
-    // 4. Generate Answer
+    // 4. Generate Answer via standard generateContent bridge
     const aiResponse = await callGeminiSimple(userQuery, systemPrompt);
+    
     if (!aiResponse) throw new Error("LEO AI returned an empty response.");
 
-    // 5. Detect Sources
+    // 5. Detect Sources mentioned in response
     const usedSources = context
         .filter(c => aiResponse.toLowerCase().includes(c.title.toLowerCase().substring(0, 8)))
         .map(c => ({ title: c.title, id: c.id }));
@@ -91,7 +94,7 @@ export async function askLeoAiAction(
         await chatRef.set({
             userId,
             userType: userRole,
-            messages: [...history, userMsg, assistantMsg].slice(-20), // Cap history at 20 messages
+            messages: [...history, userMsg, assistantMsg].slice(-20), 
             lastMessageAt: Timestamp.now()
         }, { merge: true });
     }
