@@ -5,7 +5,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { callGeminiWithRetry } from '@/ai/model-selector';
 
 const GenerateCommunicationInputSchema = z.object({
   topic: z.string().describe('The topic or purpose of the email communication.'),
@@ -29,23 +28,32 @@ const generateCommunicationFlow = ai.defineFlow(
     outputSchema: GenerateCommunicationOutputSchema,
   },
   async (input) => {
-    const system = `You are a helpful communication assistant for a LEO Club.
-    Your tone is professional, friendly, and encouraging.
-    Generate a JSON object with "subject" and "body" keys based on the topic: ${input.topic}.
-    Leave placeholders like "[Event Date]" for missing details.
-    Return ONLY valid raw JSON.`;
-
-    const prompt = `Generate an email communication about: ${input.topic}`;
+    if (!process.env.GOOGLE_GENAI_API_KEY) {
+      throw new Error("AI Configuration Error: GOOGLE_GENAI_API_KEY is not set in the server environment.");
+    }
 
     try {
-      const responseText = await callGeminiWithRetry(prompt, system);
-      
-      // Extract JSON from potential markdown wrapping
-      const cleanJson = responseText.replace(/```json|```/gi, '').trim();
-      return JSON.parse(cleanJson);
+      const response = await ai.generate({
+        system: `You are a helpful communication assistant for a LEO Club, a youth community service organization.
+        Your tone should be professional, friendly, and encouraging.
+        Based on the provided topic, generate a concise and engaging email subject line and a full email body.
+        The body should be ready to send, but MUST leave placeholders like "[Event Date]" or "[Location]" if specific details are not provided in the topic.
+        Do not include a salutation like "Dear members," as that is already part of the template. Just provide the core message.`,
+        prompt: `Generate an email communication about: ${input.topic}`,
+        output: {
+          schema: GenerateCommunicationOutputSchema,
+        },
+      });
+
+      if (!response.output) {
+        throw new Error("The AI model was unable to generate a structured response for this topic.");
+      }
+
+      return response.output;
     } catch (error: any) {
       console.error("GENKIT_GENERATION_FAILURE:", error);
-      throw new Error(error.message || "Failed to generate draft.");
+      // Propagate a clean error message to the client
+      throw new Error(error.message || "Failed to generate a draft. Please try again with a more specific topic.");
     }
   }
 );

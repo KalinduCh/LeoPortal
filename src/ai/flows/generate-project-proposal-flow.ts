@@ -1,10 +1,10 @@
 'use server';
 /**
- * @fileOverview A flow for generating a detailed project proposal using Gemini 3.8 Flash via Interactions API.
+ * @fileOverview A Genkit flow for generating a detailed project proposal from a member's idea.
  */
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { callGeminiWithRetry } from '@/ai/model-selector';
+import { runWithAiFallback } from '@/ai/model-selector';
 
 const GenerateProjectProposalInputSchema = z.object({
   projectName: z.string().describe('The name of the project.'),
@@ -17,30 +17,32 @@ const GenerateProjectProposalInputSchema = z.object({
 export type GenerateProjectProposalInput = z.infer<typeof GenerateProjectProposalInputSchema>;
 
 const GenerateProjectProposalOutputSchema = z.object({
-    projectIdea: z.string(),
+    projectIdea: z.string().describe("A brief, compelling description of the project idea."),
     proposedActionPlan: z.object({
-        objective: z.string(),
-        preEventPlan: z.array(z.string()),
-        executionPlan: z.array(z.string()),
-        postEventPlan: z.array(z.string())
-    }),
-    implementationChallenges: z.array(z.string()),
-    challengeSolutions: z.array(z.string()),
-    communityInvolvement: z.array(z.string()),
+        objective: z.string().describe("The main objective of the project."),
+        preEventPlan: z.array(z.string()).describe("A list of tasks to be done before the event."),
+        executionPlan: z.array(z.string()).describe("A list of tasks/schedule to be done during the event."),
+        postEventPlan: z.array(z.string()).describe("A list of tasks to be done after the event.")
+    }).describe("The detailed action plan for the project."),
+    implementationChallenges: z.array(z.string()).describe("Identified challenges."),
+    challengeSolutions: z.array(z.string()).describe("Proposed solutions."),
+    communityInvolvement: z.array(z.string()).describe("Ways the community will be involved."),
     prPlan: z.array(z.object({
-        activity: z.string(),
-        date: z.string(),
-        time: z.string(),
-    })),
+        activity: z.string().describe("PR activity."),
+        date: z.string().describe("Target date."),
+        time: z.string().describe("Target time."),
+    })).describe("The Public Relations plan."),
     estimatedExpenses: z.array(z.object({
-        item: z.string(),
-        cost: z.string(),
-    })),
-    resourcePersonals: z.array(z.string()),
+        item: z.string().describe("Budget item."),
+        cost: z.string().describe("Estimated cost in LKR (e.g. '15000.00')."),
+    })).describe("Estimated expenses breakdown."),
+    resourcePersonals: z.array(z.string()).describe("Potential resource personnel."),
 });
 export type GenerateProjectProposalOutput = z.infer<typeof GenerateProjectProposalOutputSchema>;
 
-export async function generateProjectProposal(input: GenerateProjectProposalInput): Promise<GenerateProjectProposalOutput> {
+export async function generateProjectProposal(
+  input: GenerateProjectProposalInput
+): Promise<GenerateProjectProposalOutput> {
   return generateProjectProposalFlow(input);
 }
 
@@ -50,36 +52,17 @@ const generateProjectProposalFlow = ai.defineFlow(
     inputSchema: GenerateProjectProposalInputSchema,
     outputSchema: GenerateProjectProposalOutputSchema,
   },
-  async (input) => {
-    const system = `You are an expert project manager for a LEO Club.
-    Transform the user's idea into a professional project proposal.
-    Return ONLY a valid JSON object matching this schema structure:
-    {
-      "projectIdea": "string",
-      "proposedActionPlan": { "objective": "string", "preEventPlan": [], "executionPlan": [], "postEventPlan": [] },
-      "implementationChallenges": [],
-      "challengeSolutions": [],
-      "communityInvolvement": [],
-      "prPlan": [{ "activity": "string", "date": "string", "time": "string" }],
-      "estimatedExpenses": [{ "item": "string", "cost": "string" }],
-      "resourcePersonals": []
-    }
-    Use LKR for currency.`;
+  async input => {
+    const systemPrompt = `You are an expert project manager for a LEO Club. Your task is to transform a member's raw idea into a professional, structured project proposal. 
+    The tone should be formal but youth-friendly. Use LKR for currency.`;
 
-    const prompt = `Project Name: ${input.projectName}
-    Goal: ${input.goal}
-    Audience: ${input.targetAudience}
-    Budget: ${input.budget}
-    Timeline: ${input.timeline}
-    Considerations: ${input.specialConsiderations || 'None'}`;
+    const userPrompt = `Project Name: ${input.projectName}
+        Goal: ${input.goal}
+        Target Audience: ${input.targetAudience}
+        Budget: ${input.budget}
+        Timeline: ${input.timeline}
+        ${input.specialConsiderations ? `Special Considerations: ${input.specialConsiderations}` : ''}`;
 
-    try {
-      const responseText = await callGeminiWithRetry(prompt, system);
-      const cleanJson = responseText.replace(/```json|```/gi, '').trim();
-      return JSON.parse(cleanJson);
-    } catch (error: any) {
-      console.error("PROPOSAL_GEN_FAILURE:", error);
-      throw new Error(error.message || "Failed to generate proposal.");
-    }
+    return runWithAiFallback(userPrompt, GenerateProjectProposalOutputSchema, systemPrompt);
   }
 );
