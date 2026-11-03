@@ -1,18 +1,18 @@
 
 'use server';
 /**
- * @fileOverview AI Model Selector for Gemini 3.8 Flash using Interactions API.
- * Includes robust retry logic and exponential backoff for high-demand scenarios.
+ * @fileOverview AI Model Selector for Gemini 3.8 Flash using stable generateContent API.
+ * Includes robust retry logic and exponential backoff.
  */
 
 import { z } from 'zod';
 
 const MODEL_NAME = "gemini-3.8-flash";
 const API_VERSION = "v1beta";
-const INTERACTIONS_URL = `https://generativelanguage.googleapis.com/${API_VERSION}/interactions`;
+const BASE_URL = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${MODEL_NAME}:generateContent`;
 
 /**
- * Executes an AI operation using the Interactions API with exponential backoff retry.
+ * Executes an AI operation using the standard generateContent API with retry logic.
  */
 export async function runWithAiFallback<T>(
     prompt: string,
@@ -24,22 +24,30 @@ export async function runWithAiFallback<T>(
         throw new Error("AI Configuration Error: Missing API Key.");
     }
 
-    // Interactions API is a single string input. We inject instructions into the user prompt.
-    const enhancedPrompt = `${systemPrompt ? `SYSTEM: ${systemPrompt}\n\n` : ''}USER: ${prompt}\n\nIMPORTANT: Respond ONLY with a valid JSON object matching this description: ${outputSchema.description || 'data structure'}. Do not include markdown formatting or extra text.`;
+    // Prepare the request body for generateContent
+    const requestBody = {
+        contents: [
+            {
+                role: "user",
+                parts: [{ text: `${systemPrompt ? `SYSTEM: ${systemPrompt}\n\n` : ''}USER: ${prompt}\n\nIMPORTANT: Respond ONLY with a valid JSON object matching this description: ${outputSchema.description || 'data structure'}. Do not include markdown formatting.` }]
+            }
+        ],
+        generationConfig: {
+            responseMimeType: "application/json",
+        }
+    };
 
-    const resultText = await callGeminiWithRetry(enhancedPrompt);
+    const resultText = await callGeminiWithRetry(requestBody);
     return parseModelOutput(resultText, outputSchema);
 }
 
 /**
  * Reliable wrapper for calling Gemini with retry logic.
  */
-export async function callGeminiWithRetry(prompt: string, systemPrompt?: string): Promise<string> {
+export async function callGeminiWithRetry(requestBody: any): Promise<string> {
     const apiKey = process.env.GOOGLE_GENAI_API_KEY;
     if (!apiKey) throw new Error("AI Configuration Error: Missing API Key.");
 
-    const input = systemPrompt ? `SYSTEM: ${systemPrompt}\n\nUSER: ${prompt}` : prompt;
-    
     let lastError = null;
     const delays = [0, 2000, 4000]; // 0ms (immediate), 2s, 4s
 
@@ -49,20 +57,16 @@ export async function callGeminiWithRetry(prompt: string, systemPrompt?: string)
         }
 
         try {
-            const response = await fetch(`${INTERACTIONS_URL}?key=${apiKey}`, {
+            const response = await fetch(`${BASE_URL}?key=${apiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: MODEL_NAME,
-                    input: input
-                }),
+                body: JSON.stringify(requestBody),
             });
 
             if (response.status === 429) {
                 throw new Error("AI Assistant limit reached. Please try again later.");
             }
 
-            // Retry for 503 or 404 (if model is temporarily down) or specific capacity messages
             if (response.status === 503 || response.status === 500) {
                 lastError = new Error("AI Assistant is temporarily busy due to high demand. Please try again shortly.");
                 continue;
@@ -75,18 +79,18 @@ export async function callGeminiWithRetry(prompt: string, systemPrompt?: string)
 
             const data = await response.json();
             
-            // Check for high-demand message inside successful response if applicable
-            const text = data.output || data.response || data.text || "";
-            if (text.toLowerCase().includes("high demand") || text.toLowerCase().includes("try again later")) {
-                lastError = new Error("AI Assistant is temporarily busy due to high demand. Please try again shortly.");
-                continue;
+            // Extract text from the candidate structure
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            
+            if (!text && data.promptFeedback?.blockReason) {
+                throw new Error(`AI blocked the response: ${data.promptFeedback.blockReason}`);
             }
 
             return text;
 
         } catch (error: any) {
             if (error.message.includes("limit reached") || error.message.includes("Missing API Key")) {
-                throw error; // Don't retry these
+                throw error; 
             }
             lastError = error;
             console.warn(`[Gemini Attempt ${attempt + 1}] failed:`, error.message);
@@ -94,6 +98,21 @@ export async function callGeminiWithRetry(prompt: string, systemPrompt?: string)
     }
 
     throw lastError || new Error("AI Assistant currently unavailable.");
+}
+
+/**
+ * Non-JSON version for the Chat Widget
+ */
+export async function callGeminiSimple(prompt: string, systemPrompt?: string): Promise<string> {
+    const requestBody = {
+        contents: [
+            {
+                role: "user",
+                parts: [{ text: `${systemPrompt ? `SYSTEM: ${systemPrompt}\n\n` : ''}${prompt}` }]
+            }
+        ]
+    };
+    return callGeminiWithRetry(requestBody);
 }
 
 /**

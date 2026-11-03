@@ -7,36 +7,28 @@
  */
 
 import { adminDb } from '@/lib/firebase/admin/config';
-import { callGeminiWithRetry } from '@/ai/model-selector';
+import { callGeminiSimple } from '@/ai/model-selector';
 import type { AiKnowledge, AiKnowledgeVisibility, AiMessage } from '@/types/leo-ai';
 
 /**
- * Fetches relevant context using Admin SDK to bypass security rule conflicts.
- * Filtering is performed in code to ensure absolute reliability.
+ * Fetches relevant context using Admin SDK.
+ * Simplified retrieval to minimize overhead and bypass index requirements.
  */
-async function getFilteredContext(queryText: string, userRole: 'public' | 'member' | 'admin'): Promise<AiKnowledge[]> {
+async function getFilteredContext(userRole: 'public' | 'member' | 'admin'): Promise<AiKnowledge[]> {
   try {
     const allowedVisibilities: AiKnowledgeVisibility[] = ['public'];
     if (userRole === 'member' || userRole === 'admin') allowedVisibilities.push('members');
     if (userRole === 'admin') allowedVisibilities.push('admin_only');
 
-    // Fetch all active knowledge (typically small enough for this scale)
+    // Fetch the most recent active entries (capped for context window size)
     const snapshot = await adminDb().collection('leo_ai_knowledge')
       .where('isActive', '==', true)
+      .limit(25)
       .get();
     
     const allKnowledge = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AiKnowledge));
 
-    // Simple keyword filtering to keep prompt size optimized
-    return allKnowledge
-      .filter(k => allowedVisibilities.includes(k.visibility))
-      .filter(k => {
-          const content = (k.title + ' ' + k.content).toLowerCase();
-          const query = queryText.toLowerCase();
-          // Heuristic: check if any word from query is in content
-          return query.split(' ').some(word => word.length > 3 && content.includes(word)) || queryText.length < 5;
-      })
-      .slice(0, 10); // Limit to top 10 matches
+    return allKnowledge.filter(k => allowedVisibilities.includes(k.visibility));
   } catch (error) {
     console.error("LEO_AI_CONTEXT_FETCH_FAILURE:", error);
     return [];
@@ -52,44 +44,41 @@ export async function askLeoAiAction(
   history: AiMessage[] = []
 ): Promise<{ answer: string; sources: { title: string; id: string }[] }> {
   
-  // 1. Retrieve & Filter Context securely on server
-  const context = await getFilteredContext(userQuery, userRole);
+  // 1. Retrieve context based on role
+  const context = await getFilteredContext(userRole);
   const contextString = context.map(c => `[SOURCE: ${c.title}]\n${c.content}`).join('\n\n');
   
-  // 2. Prepare History for stateless Interactions API
+  // 2. Prepare History
   const historyString = history
-    .slice(-5) // Last 5 messages for context
+    .slice(-5)
     .map(m => `${m.role === 'user' ? 'User' : 'LEO AI'}: ${m.content}`)
     .join('\n');
 
-  // 3. Construct the Premium System Prompt
+  // 3. System Prompt
   const systemPrompt = `You are LEO AI, the premium intelligent assistant for the Leo Club of Athugalpura.
-  Your tone is professional, friendly, and community-oriented.
+  Your tone is professional, friendly, and helpful.
   
-  USE THE FOLLOWING KNOWLEDGE CONTEXT TO ANSWER:
-  ${contextString || 'No specific club information found for this query.'}
+  KNOWLEDGE BASE:
+  ${contextString || 'No specific club documents are available for this query.'}
   
   CONVERSATION HISTORY:
-  ${historyString || 'New conversation.'}
+  ${historyString || 'New conversation started.'}
   
-  GUIDELINES:
-  1. If the context contains the answer, use it and be specific.
-  2. If the context is missing info, use your general knowledge about Leoism/Lions but mention it's general info.
-  3. Never reveal internal "Admin Only" data to "Public" or "Member" roles.
-  4. User is asking as a: ${userRole.toUpperCase()}.
-  5. Keep responses well-structured and concise.
-  
-  Current User Query: ${userQuery}`;
+  INSTRUCTIONS:
+  1. Use the KNOWLEDGE BASE to provide accurate answers about the club.
+  2. If the answer is not in the knowledge base, use your general intelligence but note it is general info.
+  3. User role is: ${userRole.toUpperCase()}. Never disclose "Admin Only" info to others.
+  4. Be concise and helpful.`;
 
   try {
-    // 4. Secure API Call
-    const aiResponse = await callGeminiWithRetry(userQuery, systemPrompt);
+    // 4. API Call
+    const aiResponse = await callGeminiSimple(userQuery, systemPrompt);
     
-    if (!aiResponse) throw new Error("LEO AI returned an empty response.");
+    if (!aiResponse) throw new Error("LEO AI is thinking, but the answer was empty.");
 
-    // 5. Track used sources
+    // 5. Track used sources (simple name matching)
     const usedSources = context
-        .filter(c => aiResponse.toLowerCase().includes(c.title.toLowerCase()))
+        .filter(c => aiResponse.toLowerCase().includes(c.title.toLowerCase().substring(0, 10)))
         .map(c => ({ title: c.title, id: c.id }));
 
     return {
