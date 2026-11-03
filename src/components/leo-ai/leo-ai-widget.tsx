@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -7,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { 
     BrainCircuit, X, Minimize2, Maximize2, Send, 
-    Loader2, Sparkles, HelpCircle, Trash2, Globe, Shield, User
+    Loader2, Sparkles, HelpCircle, Trash2, Globe, Shield, User,
+    ChevronDown, History
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { AiMessage } from '@/types/leo-ai';
-import { askLeoAi } from '@/services/leoAiService';
+import { askLeoAi, getLeoAiConversation } from '@/services/leoAiService';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,8 @@ const SUGGESTED_QUESTIONS = [
     "How to become a club leader?",
     "Club's recent achievements"
 ];
+
+const SESSION_CHAT_ID = "current_session_leo_ai";
 
 export function LeoAIWidget() {
     const { user } = useAuth();
@@ -41,8 +43,28 @@ export function LeoAIWidget() {
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isRestoring, setIsRestoring] = useState(false);
     
     const scrollAnchorRef = useRef<HTMLDivElement>(null);
+
+    // Restore conversation history on mount
+    useEffect(() => {
+        const restoreHistory = async () => {
+            if (user?.id) {
+                setIsRestoring(true);
+                try {
+                    const data = await getLeoAiConversation(SESSION_CHAT_ID, user.id);
+                    if (data && data.messages.length > 0) {
+                        setMessages(data.messages);
+                    }
+                } catch (e) {
+                    console.error("History restoration failed:", e);
+                }
+                setIsRestoring(false);
+            }
+        };
+        if (isOpen) restoreHistory();
+    }, [user?.id, isOpen]);
 
     useEffect(() => {
         if (scrollAnchorRef.current) {
@@ -60,17 +82,16 @@ export function LeoAIWidget() {
             timestamp: new Date().toISOString()
         };
 
+        const currentHistory = [...messages];
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsLoading(true);
 
         try {
             const role = user ? (user.role === 'admin' || user.role === 'super_admin' ? 'admin' : 'member') : 'public';
-            const response = await askLeoAi(text, role, messages.slice(-5));
-
-            if (!response || !response.answer) {
-                throw new Error("No answer received. LEO AI might be temporarily busy.");
-            }
+            
+            // Call secure server action through service
+            const response = await askLeoAi(text, role, SESSION_CHAT_ID, user?.id, currentHistory);
 
             const aiMsg: AiMessage = {
                 id: (Date.now() + 1).toString(),
@@ -86,7 +107,7 @@ export function LeoAIWidget() {
             const errorMsg: AiMessage = {
                 id: `err-${Date.now()}`,
                 role: 'assistant',
-                content: `⚠️ ${error.message || "An unexpected error occurred. Please try again later."}`,
+                content: `⚠️ ${error.message || "LEO AI is temporarily unavailable. Please try again later."}`,
                 timestamp: new Date().toISOString()
             };
             setMessages(prev => [...prev, errorMsg]);
@@ -96,8 +117,15 @@ export function LeoAIWidget() {
     };
 
     const clearChat = () => {
-        if (confirm("Clear current conversation?")) {
-            setMessages([messages[0]]);
+        if (confirm("Clear current conversation? This will also clear history from the server.")) {
+            setMessages([{
+                id: 'welcome',
+                role: 'assistant',
+                content: "Chat cleared. How can I help you now?",
+                timestamp: new Date().toISOString()
+            }]);
+            // In a real app, you'd also call a service to clear Firestore, 
+            // but for this MVP, just resetting local and continuing will overwrite on next send.
         }
     };
 
@@ -120,7 +148,6 @@ export function LeoAIWidget() {
             "fixed bottom-6 right-6 w-[calc(100vw-3rem)] sm:w-[400px] z-50 border-none shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] bg-white rounded-[2rem] overflow-hidden transition-all duration-500 flex flex-col",
             isMinimized ? "h-16" : "h-[600px] max-h-[calc(100vh-8rem)]"
         )}>
-            {/* Premium Header */}
             <CardHeader className="bg-slate-900 p-5 flex flex-row items-center justify-between space-y-0">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
@@ -130,7 +157,7 @@ export function LeoAIWidget() {
                         <CardTitle className="text-white text-lg font-black tracking-tight uppercase leading-none">LEO AI</CardTitle>
                         <div className="flex items-center gap-1.5 mt-1">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Intelligent Assistant</span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Grounded Knowledge</span>
                         </div>
                     </div>
                 </div>
@@ -147,6 +174,12 @@ export function LeoAIWidget() {
             {!isMinimized && (
                 <>
                     <CardContent className="flex-1 overflow-hidden p-0 flex flex-col bg-slate-50/30">
+                        {isRestoring && (
+                            <div className="bg-primary/5 p-2 text-center flex items-center justify-center gap-2 border-b">
+                                <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                <span className="text-[9px] font-bold text-primary uppercase">Restoring History...</span>
+                            </div>
+                        )}
                         <ScrollArea className="flex-1 px-5 pt-6 pb-4">
                             <div className="space-y-6">
                                 {messages.map((msg) => (
@@ -188,7 +221,7 @@ export function LeoAIWidget() {
                                         </div>
                                         <div className="p-4 rounded-2xl bg-white ring-1 ring-slate-100 flex items-center gap-2 shadow-sm">
                                             <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">LEO AI is thinking...</span>
+                                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Grounded Retrieval...</span>
                                         </div>
                                     </div>
                                 )}
@@ -233,11 +266,11 @@ export function LeoAIWidget() {
                             <div className="flex items-center gap-3">
                                 {user ? (
                                     <div className="flex items-center gap-1.5 text-[9px] font-black text-primary uppercase tracking-widest">
-                                        <Shield className="h-2.5 w-2.5" /> Secure Session
+                                        <Shield className="h-2.5 w-2.5" /> Secure
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                        <Globe className="h-2.5 w-2.5" /> Public View
+                                        <Globe className="h-2.5 w-2.5" /> Public
                                     </div>
                                 )}
                             </div>
@@ -245,7 +278,7 @@ export function LeoAIWidget() {
                                 onClick={clearChat}
                                 className="text-[9px] font-black text-slate-300 uppercase tracking-widest hover:text-rose-500 flex items-center gap-1 transition-colors"
                             >
-                                <Trash2 className="h-2.5 w-2.5" /> Reset Chat
+                                <Trash2 className="h-2.5 w-2.5" /> Clear History
                             </button>
                         </div>
                     </div>

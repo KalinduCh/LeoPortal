@@ -1,13 +1,11 @@
-
 'use server';
 /**
- * @fileOverview AI Model Selector for Gemini 3.8 Flash using stable generateContent API.
- * Includes robust retry logic and exponential backoff.
+ * @fileOverview AI Model Selector for Gemini 1.5 Flash using the stable Free Tier API.
  */
 
 import { z } from 'zod';
 
-const MODEL_NAME = "gemini-3.8-flash";
+const MODEL_NAME = "gemini-1.5-flash";
 const API_VERSION = "v1beta";
 const BASE_URL = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${MODEL_NAME}:generateContent`;
 
@@ -24,7 +22,6 @@ export async function runWithAiFallback<T>(
         throw new Error("AI Configuration Error: Missing API Key.");
     }
 
-    // Prepare the request body for generateContent
     const requestBody = {
         contents: [
             {
@@ -49,7 +46,7 @@ export async function callGeminiWithRetry(requestBody: any): Promise<string> {
     if (!apiKey) throw new Error("AI Configuration Error: Missing API Key.");
 
     let lastError = null;
-    const delays = [0, 2000, 4000]; // 0ms (immediate), 2s, 4s
+    const delays = [0, 2000, 4000];
 
     for (let attempt = 0; attempt < delays.length; attempt++) {
         if (delays[attempt] > 0) {
@@ -67,19 +64,12 @@ export async function callGeminiWithRetry(requestBody: any): Promise<string> {
                 throw new Error("AI Assistant limit reached. Please try again later.");
             }
 
-            if (response.status === 503 || response.status === 500) {
-                lastError = new Error("AI Assistant is temporarily busy due to high demand. Please try again shortly.");
-                continue;
-            }
-
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
                 throw new Error(errData.error?.message || `AI Service Error: HTTP ${response.status}`);
             }
 
             const data = await response.json();
-            
-            // Extract text from the candidate structure
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
             
             if (!text && data.promptFeedback?.blockReason) {
@@ -101,7 +91,7 @@ export async function callGeminiWithRetry(requestBody: any): Promise<string> {
 }
 
 /**
- * Non-JSON version for the Chat Widget
+ * Stable bridge for LEO AI text chat
  */
 export async function callGeminiSimple(prompt: string, systemPrompt?: string): Promise<string> {
     const requestBody = {
@@ -115,12 +105,8 @@ export async function callGeminiSimple(prompt: string, systemPrompt?: string): P
     return callGeminiWithRetry(requestBody);
 }
 
-/**
- * Robust JSON extraction and validation.
- */
 function parseModelOutput<T>(text: string, schema: z.ZodSchema<T>): T {
     if (!text) throw new Error("AI Service Error: Empty response from model.");
-
     try {
         const cleaned = text.replace(/```json|```/g, "").trim();
         const parsed = JSON.parse(cleaned);

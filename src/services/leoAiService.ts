@@ -1,4 +1,3 @@
-
 import {
   collection,
   addDoc,
@@ -14,7 +13,7 @@ import { db } from '@/lib/firebase/clientApp';
 import type { AiKnowledge, AiMessage } from '@/types/leo-ai';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-import { askLeoAiAction } from '@/app/actions/leo-ai';
+import { askLeoAiAction, getLeoAiConversationAction } from '@/app/actions/leo-ai';
 
 const KNOWLEDGE_COLLECTION = 'leo_ai_knowledge';
 
@@ -108,13 +107,18 @@ export async function getAllKnowledge(): Promise<AiKnowledge[]> {
 
 /**
  * --- LEO AI Chat Bridge ---
- * Securely delegates to server actions to protect the Gemini API Key.
  */
 
 export async function askLeoAi(
   userQuery: string, 
   userRole: 'public' | 'member' | 'admin',
+  conversationId: string,
+  userId?: string,
   history: AiMessage[] = []
 ): Promise<{ answer: string; sources: { title: string; id: string }[] }> {
-  return askLeoAiAction(userQuery, userRole, history);
+  return askLeoAiAction(userQuery, userRole, conversationId, userId, history);
+}
+
+export async function getLeoAiConversation(conversationId: string, userId: string) {
+    return getLeoAiConversationAction(conversationId, userId);
 }
