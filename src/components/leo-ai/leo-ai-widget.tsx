@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -20,8 +21,8 @@ const SUGGESTED_QUESTIONS = [
     "Tell me about our club.",
     "What is Leoism?",
     "Who are Lions?",
-    "What are the responsibilities of a Leo President?",
-    "Tell me about our club's achievements."
+    "How to become a club leader?",
+    "Club's recent achievements"
 ];
 
 export function LeoAIWidget() {
@@ -34,7 +35,7 @@ export function LeoAIWidget() {
         {
             id: 'welcome',
             role: 'assistant',
-            content: "Hello! I'm LEO AI, your intelligent LeoPortal assistant. Ask me anything about our club, Leoism, Lions International, leadership or community service. I'm here to help!",
+            content: "Hello! I'm LEO AI, your intelligent LeoPortal assistant. Ask me anything about our club, Leoism, or community service. I'm here to help!",
             timestamp: new Date().toISOString()
         }
     ]);
@@ -65,12 +66,10 @@ export function LeoAIWidget() {
 
         try {
             const role = user ? (user.role === 'admin' || user.role === 'super_admin' ? 'admin' : 'member') : 'public';
-            
-            // Pass the current message history to the AI for context
-            const response = await askLeoAi(text, role, messages);
+            const response = await askLeoAi(text, role, messages.slice(-5));
 
             if (!response || !response.answer) {
-                throw new Error("No answer received from LEO AI.");
+                throw new Error("No answer received. LEO AI might be temporarily busy.");
             }
 
             const aiMsg: AiMessage = {
@@ -83,13 +82,14 @@ export function LeoAIWidget() {
 
             setMessages(prev => [...prev, aiMsg]);
         } catch (error: any) {
-            console.error("CHAT_WIDGET_ERROR:", error);
-            toast({ 
-                title: "LEO AI Offline", 
-                description: error.message || "An unexpected error occurred. Please try again.", 
-                variant: "destructive" 
-            });
-            // Remove the user's last message if it failed significantly, or just stop loading
+            console.error("LEO_AI_CHAT_ERROR:", error);
+            const errorMsg: AiMessage = {
+                id: `err-${Date.now()}`,
+                role: 'assistant',
+                content: `⚠️ ${error.message || "An unexpected error occurred. Please try again later."}`,
+                timestamp: new Date().toISOString()
+            };
+            setMessages(prev => [...prev, errorMsg]);
         } finally {
             setIsLoading(false);
         }
@@ -120,7 +120,7 @@ export function LeoAIWidget() {
             "fixed bottom-6 right-6 w-[calc(100vw-3rem)] sm:w-[400px] z-50 border-none shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] bg-white rounded-[2rem] overflow-hidden transition-all duration-500 flex flex-col",
             isMinimized ? "h-16" : "h-[600px] max-h-[calc(100vh-8rem)]"
         )}>
-            {/* Header */}
+            {/* Premium Header */}
             <CardHeader className="bg-slate-900 p-5 flex flex-row items-center justify-between space-y-0">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
@@ -146,7 +146,6 @@ export function LeoAIWidget() {
 
             {!isMinimized && (
                 <>
-                    {/* Chat Area */}
                     <CardContent className="flex-1 overflow-hidden p-0 flex flex-col bg-slate-50/30">
                         <ScrollArea className="flex-1 px-5 pt-6 pb-4">
                             <div className="space-y-6">
@@ -165,7 +164,7 @@ export function LeoAIWidget() {
                                             <div className={cn(
                                                 "p-4 rounded-2xl text-sm leading-relaxed shadow-sm ring-1",
                                                 msg.role === 'assistant' 
-                                                    ? "bg-white ring-slate-100 text-slate-700" 
+                                                    ? (msg.content.startsWith('⚠️') ? "bg-rose-50 ring-rose-100 text-rose-800" : "bg-white ring-slate-100 text-slate-700") 
                                                     : "bg-primary ring-primary/10 text-white font-medium"
                                             )}>
                                                 {msg.content}
@@ -197,7 +196,6 @@ export function LeoAIWidget() {
                             </div>
                         </ScrollArea>
 
-                        {/* Suggestions */}
                         {messages.length < 3 && !isLoading && (
                             <div className="px-5 py-3 overflow-x-auto whitespace-nowrap hide-scrollbar flex gap-2 border-t bg-white/50">
                                 {SUGGESTED_QUESTIONS.map((q) => (
@@ -213,14 +211,13 @@ export function LeoAIWidget() {
                         )}
                     </CardContent>
 
-                    {/* Input Area */}
                     <div className="p-5 bg-white border-t border-slate-100">
                         <div className="flex items-center gap-2 relative">
                             <Input 
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                placeholder="Ask LEO AI something..."
+                                placeholder="Ask LEO AI..."
                                 className="h-12 rounded-2xl pr-12 bg-slate-50 border-none ring-1 ring-slate-100 focus-visible:ring-primary/20 placeholder:text-slate-400"
                                 disabled={isLoading}
                             />
@@ -236,11 +233,11 @@ export function LeoAIWidget() {
                             <div className="flex items-center gap-3">
                                 {user ? (
                                     <div className="flex items-center gap-1.5 text-[9px] font-black text-primary uppercase tracking-widest">
-                                        <Shield className="h-2.5 w-2.5" /> Authenticated
+                                        <Shield className="h-2.5 w-2.5" /> Secure Session
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                        <Globe className="h-2.5 w-2.5" /> Public Access
+                                        <Globe className="h-2.5 w-2.5" /> Public View
                                     </div>
                                 )}
                             </div>
@@ -248,7 +245,7 @@ export function LeoAIWidget() {
                                 onClick={clearChat}
                                 className="text-[9px] font-black text-slate-300 uppercase tracking-widest hover:text-rose-500 flex items-center gap-1 transition-colors"
                             >
-                                <Trash2 className="h-2.5 w-2.5" /> Clear History
+                                <Trash2 className="h-2.5 w-2.5" /> Reset Chat
                             </button>
                         </div>
                     </div>

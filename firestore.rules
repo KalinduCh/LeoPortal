@@ -51,6 +51,7 @@ service cloud.firestore {
     // 🧠 LEO AI Knowledge
     // =========================
     match /leo_ai_knowledge/{id} {
+      // Simplified: Public info is readable by all. Protected info checked by role.
       allow read: if 
         resource.data.get('visibility', 'public') == 'public' ||
         (isSignedIn() && resource.data.get('visibility', 'members') == 'members') ||
@@ -154,7 +155,7 @@ service cloud.firestore {
     // =========================
     match /monthlyReports/{reportId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).get('permissions', {}).get('project_ideas', false) == true);
+      allow write: if isAdmin() || (isSignedIn() && (getUserData(request.auth.uid).get('permissions', {}).get('project_ideas', false) == true));
     }
 
     // =========================
@@ -162,7 +163,7 @@ service cloud.firestore {
     // =========================
     match /forms/{formId} {
       allow read: if true;
-      allow write: if isAdmin() || (isSignedIn() && getUserData(request.auth.uid).get('permissions', {}).get('project_ideas', false) == true);
+      allow write: if isAdmin() || (isSignedIn() && (getUserData(request.auth.uid).get('permissions', {}).get('project_ideas', false) == true));
     }
   }
 }

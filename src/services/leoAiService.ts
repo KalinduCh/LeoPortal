@@ -1,3 +1,4 @@
+
 import {
   collection,
   addDoc,
@@ -18,7 +19,7 @@ import { askLeoAiAction } from '@/app/actions/leo-ai';
 const KNOWLEDGE_COLLECTION = 'leo_ai_knowledge';
 
 /**
- * --- Knowledge Management (Super Admin) ---
+ * --- Knowledge Management (Super Admin Only) ---
  */
 
 export async function createKnowledge(data: Omit<AiKnowledge, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
@@ -100,13 +101,14 @@ export async function getAllKnowledge(): Promise<AiKnowledge[]> {
       } satisfies SecurityRuleContext);
       errorEmitter.emit('permission-error', permissionError);
     }
-    throw error;
+    console.error("KNOWLEDGE_FETCH_DENIED:", error);
+    return [];
   }
 }
 
 /**
  * --- LEO AI Chat Bridge ---
- * Now calls the secure Server Action instead of running on the client.
+ * Securely delegates to server actions to protect the Gemini API Key.
  */
 
 export async function askLeoAi(
@@ -114,6 +116,5 @@ export async function askLeoAi(
   userRole: 'public' | 'member' | 'admin',
   history: AiMessage[] = []
 ): Promise<{ answer: string; sources: { title: string; id: string }[] }> {
-  // Delegate to the secure server action to protect the Gemini API Key
   return askLeoAiAction(userQuery, userRole, history);
 }

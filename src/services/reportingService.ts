@@ -16,7 +16,7 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/e
 const REPORTS_COLLECTION = 'monthlyReports';
 
 /**
- * Normalized fetch that avoids Index Errors by sorting on client side.
+ * Normalized fetch that avoids Index Errors by filtering on year and sorting locally.
  */
 export async function getReportsByYear(year: number): Promise<MonthlyReport[]> {
   try {
@@ -49,7 +49,7 @@ export async function getReportsByYear(year: number): Promise<MonthlyReport[]> {
 }
 
 /**
- * Simplistic "Gallery Style" Upsert for Monthly Reports.
+ * Updates or creates a monthly reporting link module.
  */
 export async function updateMonthlyReport(month: number, year: number, data: { viewUrl?: string; uploadUrl?: string }): Promise<void> {
   const reportId = `${year}-${month}`;
@@ -64,11 +64,13 @@ export async function updateMonthlyReport(month: number, year: number, data: { v
 
   setDoc(reportRef, payload, { merge: true })
     .catch(async (serverError) => {
-      const permissionError = new FirestorePermissionError({
-        path: reportRef.path,
-        operation: 'write',
-        requestResourceData: payload,
-      } satisfies SecurityRuleContext);
-      errorEmitter.emit('permission-error', permissionError);
+      if (serverError.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
+          path: reportRef.path,
+          operation: 'update',
+          requestResourceData: payload,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      }
     });
 }
