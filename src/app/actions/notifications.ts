@@ -1,44 +1,7 @@
 "use server";
 
 import * as admin from "firebase-admin";
-
-/**
- * Initialize Firebase Admin securely using environment variables.
- */
-function initAdmin() {
-  if (admin.apps.length > 0) {
-    return;
-  }
-
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const projectId =
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "leoathugal";
-
-  if (!privateKey || !clientEmail) {
-    throw new Error(
-      "SERVER_CONFIG_ERROR: FIREBASE_PRIVATE_KEY or FIREBASE_CLIENT_EMAIL is missing."
-    );
-  }
-
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
-  });
-}
-
-/**
- * Compatibility action retained in case older code still imports it.
- */
-export async function sendNotificationAction() {
-  return {
-    success: false,
-    error: "Use sendPushNotification or broadcastToUsers instead.",
-  };
-}
+import { getAdminApp } from "@/lib/firebase/admin/config";
 
 /**
  * Send a push notification to one FCM token.
@@ -50,7 +13,7 @@ export async function sendPushNotification(
   link: string = "/dashboard"
 ) {
   try {
-    initAdmin();
+    const app = getAdminApp();
 
     const message: admin.messaging.Message = {
       token,
@@ -63,13 +26,13 @@ export async function sendPushNotification(
           link,
         },
         notification: {
-          icon: "/icons/icon-192x192.png",
-          badge: "/icons/icon-192x192.png",
+          icon: "https://i.imgur.com/MP1YFNf.png",
+          badge: "https://i.imgur.com/MP1YFNf.png",
         },
       },
     };
 
-    const response = await admin.messaging().send(message);
+    const response = await admin.messaging(app).send(message);
 
     return {
       success: true,
@@ -101,7 +64,7 @@ export async function broadcastToUsers(
   link: string = "/dashboard"
 ) {
   try {
-    initAdmin();
+    const app = getAdminApp();
 
     if (userIds.length === 0) {
       return {
@@ -111,7 +74,7 @@ export async function broadcastToUsers(
       };
     }
 
-    const db = admin.firestore();
+    const db = admin.firestore(app);
     const tokens: string[] = [];
 
     for (let i = 0; i < userIds.length; i += 30) {
@@ -159,13 +122,13 @@ export async function broadcastToUsers(
             link,
           },
           notification: {
-            icon: "/icons/icon-192x192.png",
-            badge: "/icons/icon-192x192.png",
+            icon: "https://i.imgur.com/MP1YFNf.png",
+            badge: "https://i.imgur.com/MP1YFNf.png",
           },
         },
       };
 
-      const response = await admin.messaging().sendEachForMulticast(message);
+      const response = await admin.messaging(app).sendEachForMulticast(message);
 
       sentCount += response.successCount;
       failedCount += response.failureCount;
