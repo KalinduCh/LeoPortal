@@ -100,7 +100,6 @@ export async function getAllKnowledge(): Promise<AiKnowledge[]> {
       } satisfies SecurityRuleContext);
       errorEmitter.emit('permission-error', permissionError);
     }
-    console.error("KNOWLEDGE_FETCH_DENIED:", error);
     return [];
   }
 }
@@ -116,6 +115,7 @@ export async function askLeoAi(
   userId?: string,
   history: AiMessage[] = []
 ): Promise<{ answer: string; sources: { title: string; id: string }[] }> {
+  // Directly invoke the Server Action for maximum security and API key isolation
   return askLeoAiAction(userQuery, userRole, conversationId, userId, history);
 }
 

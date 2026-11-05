@@ -1,40 +1,47 @@
 'use server';
 
 /**
- * @fileOverview Secure Server Actions for LEO AI with Retrieval-Augmented Generation (RAG).
+ * @fileOverview LEO AI Server Action: Full-Context Expert Engine.
+ * Retrieves all relevant club knowledge for zero-cost, high-accuracy responses.
  */
 
 import { adminDb } from '@/lib/firebase/admin/config';
-import { callGeminiSimple } from '@/ai/model-selector';
+import { runWithAiSimple } from '@/ai/model-selector';
 import type { AiKnowledge, AiKnowledgeVisibility, AiMessage } from '@/types/leo-ai';
 import { Timestamp } from 'firebase-admin/firestore';
 
 /**
- * Fetches knowledge context grounded in user role.
+ * Retrieves the full knowledge base accessible to the user's role.
  */
-async function getFilteredContext(userRole: 'public' | 'member' | 'admin'): Promise<AiKnowledge[]> {
+async function getRoleBasedKnowledgeBase(userRole: 'public' | 'member' | 'admin'): Promise<string> {
   try {
     const allowedVisibilities: AiKnowledgeVisibility[] = ['public'];
     if (userRole === 'member' || userRole === 'admin') allowedVisibilities.push('members');
     if (userRole === 'admin') allowedVisibilities.push('admin_only');
 
-    // Simplified retrieval for Free Tier: fetch most recent active documents
+    // Fetch all active knowledge documents (up to 100 - effectively the whole brain)
     const snapshot = await adminDb().collection('leo_ai_knowledge')
       .where('isActive', '==', true)
-      .orderBy('updatedAt', 'desc')
-      .limit(20)
+      .limit(100)
       .get();
     
-    const allKnowledge = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AiKnowledge));
-    return allKnowledge.filter(k => allowedVisibilities.includes(k.visibility));
+    const relevantDocs = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() } as AiKnowledge))
+      .filter(k => allowedVisibilities.includes(k.visibility));
+
+    if (relevantDocs.length === 0) return "No official documents are available for your role currently.";
+
+    return relevantDocs
+      .map(doc => `[FACT: ${doc.title}]\n${doc.content}`)
+      .join('\n\n---\n\n');
   } catch (error) {
-    console.error("LEO_AI_CONTEXT_RETRIEVAL_ERROR:", error);
-    return [];
+    console.error("LEO_AI_KNOWLEDGE_FETCH_ERROR:", error);
+    return "The club knowledge base is temporarily unreachable.";
   }
 }
 
 /**
- * Core AI Agent logic with context grounding and persistence.
+ * Core AI Processing Logic.
  */
 export async function askLeoAiAction(
   userQuery: string, 
@@ -45,77 +52,76 @@ export async function askLeoAiAction(
 ): Promise<{ answer: string; sources: { title: string; id: string }[] }> {
   
   if (!process.env.GOOGLE_GENAI_API_KEY) {
-      throw new Error("LEO AI Offline — AI Assistant Configuration Error: Missing API Key.");
+      throw new Error("LEO AI Offline: Missing API Key.");
   }
 
-  // 1. Retrieve role-based context
-  const context = await getFilteredContext(userRole);
-  const contextString = context.map(c => `DOCUMENT [${c.title}]:\n${c.content}`).join('\n\n');
+  // 1. Fetch the entire applicable "Club Manual" for this role
+  const manualContext = await getRoleBasedKnowledgeBase(userRole);
   
-  // 2. Format history for context-aware generation
+  // 2. Format history for contextual continuity
   const historyString = history
-    .slice(-4)
+    .slice(-6) // Keep last 3 turns for context
     .map(m => `${m.role === 'user' ? 'Member' : 'LEO AI'}: ${m.content}`)
     .join('\n');
 
-  // 3. Construct grounded system prompt
+  // 3. Construct the Grounded Expert Prompt
   const systemPrompt = `You are LEO AI, the official intelligent assistant for the Leo Club of Athugalpura.
-  Your goal is to provide accurate information based on the provided club documents.
+  You are an expert on the club because you have access to the "OFFICIAL CLUB MANUAL" provided below.
   
-  CLUB DOCUMENTS:
-  ${contextString || 'No official documents found for this query.'}
+  OFFICIAL CLUB MANUAL:
+  ${manualContext}
   
   CONVERSATION HISTORY:
-  ${historyString}
+  ${historyString || 'New conversation started.'}
   
-  GUIDELINES:
-  - Base your answers ONLY on the CLUB DOCUMENTS if the information is specific to the club.
-  - If the answer is not in the documents, state: "I'm sorry, I don't have official information on that specific topic in my knowledge base. You may contact a club officer for more details."
-  - Be professional, welcoming, and concise.
-  - User role is: ${userRole.toUpperCase()}. Never disclose "Admin Only" info if the role is MEMBER or PUBLIC.`;
+  YOUR RULES:
+  - Base your answers ONLY on the OFFICIAL CLUB MANUAL for club-specific information.
+  - For general Leoism or Lions information not in the manual, you may use your general knowledge, but prioritize the manual.
+  - If a specific club fact (date, name, procedure) is NOT in the manual, say: "I'm sorry, I don't have official records on that specific topic in my current knowledge base."
+  - NEVER make up facts about the Leo Club of Athugalpura.
+  - Your tone is: Professional, Helpful, and Proud of the club.
+  - The current user's access level is: ${userRole.toUpperCase()}.`;
 
   try {
-    // 4. Generate Answer via standard generateContent bridge
-    const aiResponse = await callGeminiSimple(userQuery, systemPrompt);
+    // 4. Generate the response
+    const aiResponse = await runWithAiSimple(userQuery, systemPrompt);
     
     if (!aiResponse) throw new Error("LEO AI returned an empty response.");
 
-    // 5. Detect Sources mentioned in response
-    const usedSources = context
-        .filter(c => aiResponse.toLowerCase().includes(c.title.toLowerCase().substring(0, 8)))
-        .map(c => ({ title: c.title, id: c.id }));
+    // 5. Detect used sources (simple keyword match against the manual)
+    const sources = manualContext.includes("[FACT:") 
+        ? manualContext.split("---").filter(s => aiResponse.toLowerCase().includes(s.split("]")[0].replace("[FACT:", "").trim().toLowerCase().substring(0, 8)))
+            .map(s => {
+                const title = s.split("]")[0].replace("[FACT:", "").trim();
+                return { title, id: title.toLowerCase().replace(/\s+/g, '-') };
+            })
+        : [];
 
-    // 6. Persist Conversation if ID is provided
+    // 6. Persistence
     if (conversationId && userId) {
         const chatRef = adminDb().collection('leo_ai_conversations').doc(conversationId);
         const userMsg: AiMessage = { id: `u-${Date.now()}`, role: 'user', content: userQuery, timestamp: new Date().toISOString() };
-        const assistantMsg: AiMessage = { id: `a-${Date.now()}`, role: 'assistant', content: aiResponse, sources: usedSources, timestamp: new Date().toISOString() };
+        const assistantMsg: AiMessage = { id: `a-${Date.now()}`, role: 'assistant', content: aiResponse, sources, timestamp: new Date().toISOString() };
         
         await chatRef.set({
             userId,
             userType: userRole,
-            messages: [...history, userMsg, assistantMsg].slice(-20), 
+            messages: [...history, userMsg, assistantMsg].slice(-30), // Retain last 15 turns
             lastMessageAt: Timestamp.now()
         }, { merge: true });
     }
 
-    return {
-      answer: aiResponse,
-      sources: usedSources
-    };
+    return { answer: aiResponse, sources };
   } catch (error: any) {
-    console.error("LEO_AI_GENERATION_ERROR:", error);
-    throw new Error(error.message || "LEO AI is temporarily unavailable. Please try again later.");
+    console.error("LEO_AI_GEN_ERROR:", error);
+    throw new Error(error.message || "I'm currently busy with other members. Please try again in a few seconds.");
   }
 }
 
-/**
- * Loads a previous conversation for the user.
- */
 export async function getLeoAiConversationAction(conversationId: string, userId: string) {
     const snap = await adminDb().collection('leo_ai_conversations').doc(conversationId).get();
     if (!snap.exists) return null;
     const data = snap.data();
-    if (data?.userId !== userId) throw new Error("Unauthorized access to conversation.");
+    if (data?.userId !== userId) return null;
     return data;
 }
